@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Matches the published devcontainer image this reuses for build caching -
+# see the comment in compcert-split.yml.
+env:
+  OCAML_VERSION: 4.14.3
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: ./.github/workflows/actions/devcontainer
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: extraction-archive
+      run: |
+        ${{ env.EXEC }} make compcert-extraction-archive
+    - name: export-archive
+      run: |
+        ${{ env.EXEC }} make compcert-export-archive
+    # Grep the output, not just the exit status - see compcert-split.yml.
+    - name: verify
+      run: |
+        ${{ env.EXEC }} sh -ec 'make compcert-export-run ARGS=-version | grep CompCert'
+    - name: publish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ github.ref_name }}" compcert-export.tar.gz \
+          --title "${{ github.ref_name }}" \
+          --generate-notes

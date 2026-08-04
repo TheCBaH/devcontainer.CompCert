@@ -1,0 +1,92 @@
+name: compcert-split
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# The devcontainer action's `variant` is what names the ghcr image it pulls
+# for `--cache-from`, and only images.yml ever pushes images - one per entry
+# of the ocaml-versions matrix. A split-specific variant would name an image
+# nothing publishes, so every job here would rebuild the container from
+# scratch (~10min each). The split build needs no special container, just
+# Rocq + OCaml, so it reuses the published image for this OCaml version;
+# OCAML_VERSION has to match it too, since it feeds the ocaml feature's
+# option and hence the layer hash.
+env:
+  OCAML_VERSION: 4.14.3
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: ./.github/workflows/actions/devcontainer
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: extraction-archive
+      run: |
+        ${{ env.EXEC }} make compcert-extraction-archive
+    - name: upload-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: compcert-extraction
+        path: compcert-extraction.tar.gz
+        retention-days: 1
+
+  build:
+    needs: generate
+    runs-on: ubuntu-24.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: download-artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: compcert-extraction
+    - name: devcontainer
+      uses: ./.github/workflows/actions/devcontainer
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: remove-rocq
+      run: |
+        # sudo resets the environment by default, which would drop OPAMROOT
+        # and send opam looking under /root/.opam (no switch there) instead
+        # of the real /opt/opam switch - --preserve-env keeps it.
+        ${{ env.EXEC }} sudo --preserve-env=OPAMROOT opam remove -y --auto-remove rocq-prover
+    - name: verify-no-rocq
+      run: |
+        ${{ env.EXEC }} sh -c '\
+          if command -v rocq >/dev/null 2>&1 || command -v coqc >/dev/null 2>&1; then \
+            echo "Rocq is still present, split build is not proven Rocq-free" >&2; \
+            exit 1; \
+          fi'
+    - name: build-from-archive
+      run: |
+        ${{ env.EXEC }} make compcert-build-from-archive
+    # Grep the output rather than just checking the exit status: an OCaml
+    # executable linked from an empty object list (what happened when
+    # tools/modorder was missing) runs, prints nothing and exits 0.
+    - name: smoke-test
+      run: |
+        ${{ env.EXEC }} sh -ec 'modules/CompCert/ccomp -version | grep CompCert'
+    - name: export-archive
+      run: |
+        ${{ env.EXEC }} make compcert-export-archive
+    - name: export-smoke-test
+      run: |
+        ${{ env.EXEC }} sh -ec 'make compcert-export-run ARGS=-version | grep CompCert'

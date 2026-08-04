@@ -1,0 +1,5 @@
+; main.ml here is synced from modules/CompCert/driver/Driver.ml by
+; `make compcert-lib-sync` - see ../../Makefile. Not committed.
+(executable
+ (name main)
+ (libraries compcert))

@@ -1,0 +1,48 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  versions:
+    uses: ./.github/workflows/ocaml-versions.yml
+  compcert:
+    needs: versions
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.versions.outputs.images_matrix) }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: ./.github/workflows/actions/devcontainer
+      id: devcontainer
+      env:
+        OCAML_VERSION: ${{ matrix.ocaml_version }}
+      with:
+        variant: ${{ matrix.ocaml_version }}
+        platform: ${{ matrix.platform }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: info
+      run: |
+        ${{ env.EXEC }} sh -c 'uname -m && opam exec -- rocq --version'
+    - name: configure
+      run: |
+        ${{ env.EXEC }} make compcert-configure
+    - name: build
+      run: |
+        ${{ env.EXEC }} make compcert-build
+    - name: check-proof
+      run: |
+        ${{ env.EXEC }} make compcert-check-proof
+    - name: test
+      run: |
+        ${{ env.EXEC }} make compcert-test
