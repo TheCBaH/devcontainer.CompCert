@@ -18,8 +18,19 @@ default: compcert
 # the recipe (as opposed to a $(shell ...)-computed make variable): the case
 # statement's bare `pattern)` labels contain unbalanced parentheses, which
 # confuses make's own paren matching when used inside $(shell ...).
+# COMPCERT_TARGET overrides the PLATFORM/uname autodetection below with an
+# explicit CompCert configure target (x86_32-linux, x86_64-linux, arm-linux,
+# aarch64-linux, ...) - used by compcert-export-archive-all to configure each
+# of the 4 targets in turn on a single host, regardless of that host's own
+# architecture. Command-line `make COMPCERT_TARGET=... compcert-configure`
+# overrides are exported to the recipe's shell automatically, so this reads
+# it as a plain env var with a shell `if`, not a make $(if ...): wrapping the
+# case statement's bare `pattern)` labels in any make function hits the same
+# paren-matching confusion described above for $(shell ...).
 compcert-configure:
-	cd $(COMPCERT_DIR) && opam exec -- ./configure $$(case "$$PLATFORM" in \
+	cd $(COMPCERT_DIR) && opam exec -- ./configure $$( \
+	  if [ -n "$${COMPCERT_TARGET:-}" ]; then echo "$$COMPCERT_TARGET"; else \
+	  case "$$PLATFORM" in \
 	  linux/aarch64|linux/arm64) echo aarch64-linux ;; \
 	  linux/amd64|linux/x86_64) echo x86_64-linux ;; \
 	  linux/i386|linux/386) echo x86_32-linux ;; \
@@ -31,7 +42,7 @@ compcert-configure:
 	       armv7l|armv6l|arm) echo arm-linux ;; \
 	       *) echo x86_64-linux ;; \
 	     esac ;; \
-	esac)
+	  esac; fi)
 
 compcert-build:
 	cd $(COMPCERT_DIR) && opam exec -- $(MAKE) -j$(COMPCERT_JOBS) all
@@ -174,8 +185,17 @@ compcert-export-run: compcert-export-build
 	cd $(COMPCERT_EXPORT_DIR) && COMPCERT_CONFIG=$(CURDIR)/$(COMPCERT_DIR)/compcert.ini \
 	  opam exec -- dune exec bin/main.exe -- $(ARGS)
 
+# One compcert-export-<name>.tar.gz per CompCert target: the Rocq extraction
+# (and hence compcert-lib-sync's generated backend sources) is
+# architecture-specific, so the single-target compcert-export-archive above
+# only ever covers whichever target compcert-configure last picked. See
+# tools/compcert-export-archive-all.sh for the per-target loop.
+compcert-export-archive-all:
+	tools/compcert-export-archive-all.sh
+
 .PHONY: default \
   compcert compcert-configure compcert-build compcert-check-proof compcert-test \
   compcert-extraction-archive compcert-extraction-unarchive compcert-prepare-sources \
   compcert-build-from-archive compcert-lib-sync compcert-lib-build compcert-lib-run \
-  compcert-export-archive compcert-export-unarchive compcert-export-build compcert-export-run
+  compcert-export-archive compcert-export-unarchive compcert-export-build compcert-export-run \
+  compcert-export-archive-all
