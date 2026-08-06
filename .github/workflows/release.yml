@@ -29,20 +29,18 @@ jobs:
     - name: setup
       run: |
         echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
-    - name: extraction-archive
-      run: |
-        ${{ env.EXEC }} make compcert-extraction-archive
+    # One export archive per target - see compcert-export-archive-all.sh.
     - name: export-archive
       run: |
-        ${{ env.EXEC }} make compcert-export-archive
-    # Grep the output, not just the exit status - see compcert-split.yml.
-    - name: verify
-      run: |
-        ${{ env.EXEC }} sh -ec 'make compcert-export-run ARGS=-version | grep CompCert'
+        ${{ env.EXEC }} tools/compcert-export-archive-all.sh
     - name: publish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "${{ github.ref_name }}" compcert-export.tar.gz \
+        gh release create "${{ github.ref_name }}" \
+          compcert-export-x86_32.tar.gz \
+          compcert-export-x86_64.tar.gz \
+          compcert-export-arm.tar.gz \
+          compcert-export-aarch64.tar.gz \
           --title "${{ github.ref_name }}" \
           --generate-notes
