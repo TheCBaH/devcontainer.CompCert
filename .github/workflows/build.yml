@@ -46,3 +46,14 @@ jobs:
     - name: test
       run: |
         ${{ env.EXEC }} make compcert-test
+    - name: cross-smoke
+      run: |
+        ${{ env.EXEC }} tools/compcert-cross-smoke.sh
+    - name: cross-smoke artifacts
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: cross-smoke-${{ matrix.ocaml_version }}-${{ strategy.job-index }}
+        path: .cross-smoke-work/artifacts
+        retention-days: 7
+        if-no-files-found: ignore
