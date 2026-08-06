@@ -6,7 +6,9 @@
 #
 # Usage: tools/compcert-cross-smoke.sh [x86_32|x86_64|arm|aarch64|all]
 # (default: all). Every target is attempted even if an earlier one fails;
-# the script exits non-zero at the end if any did. Work root defaults to
+# the script exits non-zero at the end if any did. A target whose
+# cross-compiler package isn't installed on this host is skipped rather
+# than failed (see .devcontainer/Dockerfile). Work root defaults to
 # <repo>/.cross-smoke-work, override with the CROSS_SMOKE_WORK env var.
 set -euo pipefail
 
@@ -22,6 +24,17 @@ ALL_TARGETS=(x86_32 x86_64 arm aarch64)
 Fatal() {
   echo "FATAL: $*" 1>&2
   exit 1
+}
+
+# Distinct exit code so the caller can tell "this target's toolchain isn't
+# installed on this host" apart from an actual build/test failure. Debian
+# only builds the *-linux-gnu cross-gcc packages from amd64/arm64/i386
+# hosts (see .devcontainer/Dockerfile); an armhf host only has
+# gcc-arm-linux-gnueabihf, so the other 3 targets are skipped there rather
+# than failed.
+SkipTarget() {
+  echo "SKIP: $*" 1>&2
+  exit 2
 }
 
 usage() {
@@ -91,6 +104,10 @@ target_config() {
 run_target() {
   local TARGET="$1"
   target_config "$TARGET"
+
+  if ! command -v "${TOOLPREFIX}gcc" >/dev/null 2>&1; then
+    SkipTarget "${TOOLPREFIX}gcc not installed (no $TARGET cross-compiler package for this host architecture)"
+  fi
 
   local BUILD_DIR="$WORK_ROOT/build/$TARGET"
   local INSTALL_DIR="$WORK_ROOT/install/$TARGET"
@@ -193,8 +210,13 @@ else
 fi
 
 failed=()
+skipped=()
 for t in "${targets[@]}"; do
-  if ! ( run_target "$t" ); then
+  rc=0
+  ( run_target "$t" ) || rc=$?
+  if [ "$rc" -eq 2 ]; then
+    skipped+=("$t")
+  elif [ "$rc" -ne 0 ]; then
     echo "== [$t] FAILED ==" 1>&2
     failed+=("$t")
   fi
@@ -207,6 +229,9 @@ for t in "${targets[@]}"; do
   for f in "${failed[@]:-}"; do
     [ "$f" = "$t" ] && status="FAIL"
   done
+  for s in "${skipped[@]:-}"; do
+    [ "$s" = "$t" ] && status="SKIP"
+  done
   echo "  $t: $status"
 done
 
@@ -214,4 +239,4 @@ if [ "${#failed[@]}" -gt 0 ]; then
   Fatal "failed target(s): ${failed[*]}"
 fi
 
-echo "All targets passed."
+echo "All attempted targets passed (${#skipped[@]} skipped)."
