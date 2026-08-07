@@ -53,6 +53,12 @@ jobs:
     - name: test
       run: |
         ${{ env.EXEC }} make asm-test
+    - name: purity and layers
+      run: |
+        ${{ env.EXEC }} make asm-purity
+    - name: planted violations
+      run: |
+        ${{ env.EXEC }} make asm-planted
 
   # Byte-identical output from native OCaml, js_of_ocaml/Node, and Melange/Node
   # (.ai/asm_plan.md §11.6). Its own job on one pinned leg, because Melange

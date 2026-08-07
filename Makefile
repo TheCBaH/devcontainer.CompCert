@@ -222,10 +222,22 @@ asm-js:
 	cd $(ASM_DIR) && ASM_BACKEND=jsoo opam exec -- dune build @runtest
 	cd $(ASM_DIR) && ASM_BACKEND=melange ASM_MELANGE=true opam exec -- dune build @runtest
 
+# The transitive purity and layer audits (§1, §2.2, §3.7, §5.1), and the
+# planted violations that prove they can fail. Guardrail 6: run these before
+# treating a successful JavaScript build as evidence of portability - a package
+# shipping a JS runtime replacement for its C primitives compiles cleanly and
+# still breaks the no-C rule.
+asm-purity: asm-build
+	tools/asm-check-purity.sh
+	tools/asm-check-layers.sh
+
+asm-planted: asm-build
+	tools/asm-check-planted.sh
+
 # What CI runs, and what to run locally before pushing. Formatting is checked
 # first: an unformatted tree is the cheapest failure to diagnose. asm-js is not
 # here â€” it needs Melange, hence OCaml 4.14, so it is its own CI job.
-asm-ci: asm-fmt-check asm-build asm-test
+asm-ci: asm-fmt-check asm-build asm-test asm-purity asm-planted
 
 # One archive per target: Rocq extraction differs per architecture, so
 # compcert-export-archive alone only covers whichever target was last
@@ -239,4 +251,4 @@ compcert-export-archive-all:
   compcert-build-from-archive compcert-lib-sync compcert-lib-build compcert-lib-run \
   compcert-export-archive compcert-export-unarchive compcert-export-build compcert-export-run \
   compcert-export-archive-all \
-  asm-build asm-test asm-fmt asm-fmt-check asm-melange asm-js asm-ci
+  asm-build asm-test asm-fmt asm-fmt-check asm-melange asm-js asm-purity asm-planted asm-ci
