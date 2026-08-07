@@ -127,11 +127,39 @@ let arm_snippets =
     callee_clobber = "\x00\x40\xa0\xe3\x2a\x00\xa0\xe3\x1e\xff\x2f\xe1";
   }
 
+let aarch64_snippets =
+  {
+    (* mov x15,sp | stp x15,x30,[sp,#-16]! | movz w0,#42 | ldr x30,[sp,#8]
+       | add sp,sp,#16 | ret x30 *)
+    return42 =
+      "\xef\x03\x00\x91\xef\x7b\xbf\xa9\x40\x05\x80\x52\xfe\x07\x40\xf9\xff\x43\x00\x91\xc0\x03\x5f\xd6";
+    (* movz w0,#41 = 52800520 *)
+    return41 =
+      "\xef\x03\x00\x91\xef\x7b\xbf\xa9\x20\x05\x80\x52\xfe\x07\x40\xf9\xff\x43\x00\x91\xc0\x03\x5f\xd6";
+    (* §16.3: udf #0 is genuinely the zero word here. brk #0 (d4200000, SIGTRAP)
+       is a verified alternative; udf is preferred because it keeps all four
+       profiles on SIGILL. *)
+    trap = "\x00\x00\x00\x00";
+    (* b . = 14000000 *)
+    spin = "\x00\x00\x00\x14";
+    (* mov x0,sp | and x0,x0,#15 | cmp x0,#0 | mov w0,#42 | b.eq +8
+       | mov w0,#41 | ret *)
+    sp_align =
+      "\xe0\x03\x00\x91\x00\x0c\x40\x92\x1f\x00\x00\xf1\x40\x05\x80\x52\x40\x00\x00\x54\x20\x05\x80\x52\xc0\x03\x5f\xd6";
+    (* sub x1,sp,#4,lsl#12 | strb wzr,[x1] | mov w0,#42 | ret *)
+    stack_full = "\xe1\x13\x40\xd1\x3f\x00\x00\x39\x40\x05\x80\x52\xc0\x03\x5f\xd6";
+    stack_over = "\xe1\x13\x40\xd1\x21\x04\x00\xd1\x3f\x00\x00\x39\x40\x05\x80\x52\xc0\x03\x5f\xd6";
+    (* sub sp,sp,#16 | mov w0,#42 | ret *)
+    sp_corrupt = "\xff\x43\x00\xd1\x40\x05\x80\x52\xc0\x03\x5f\xd6";
+    (* mov x19,#0 | mov w0,#42 | ret - x19 is §11's saved-SP register here *)
+    callee_clobber = "\x13\x00\x80\xd2\x40\x05\x80\x52\xc0\x03\x5f\xd6";
+  }
+
 let snippets_for = function
   | Abi.X86_64 -> Some x86_64_snippets
   | Abi.X86_32 -> Some x86_32_snippets
   | Abi.Arm -> Some arm_snippets
-  | Abi.Aarch64 -> None
+  | Abi.Aarch64 -> Some aarch64_snippets
 
 (* {1 Expectations} *)
 
