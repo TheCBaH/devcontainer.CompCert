@@ -608,6 +608,7 @@ let () =
           incr failures
       | Some s ->
           Fmt.pr "@.=== %s@." (Abi.profile_name profile);
+          List.iter (fun line -> Fmt.pr "  ..   %s@." line) (Qemu_user.provenance profile);
           List.iter
             (fun c ->
               if applies profile c then (

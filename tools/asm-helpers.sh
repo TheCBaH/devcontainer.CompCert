@@ -51,6 +51,22 @@ build_one() {
   # to get "qemu-i386 for x86_32" wrong, and a helper run under the wrong
   # emulator fails in ways that look like ABI defects.
   echo "$QEMU_BIN" > "$dir/qemu"
+
+  # M0.3 requires helper hashes and QEMU versions in provenance. The hash is of
+  # the *sources* - the helper and the shared include - not of the ELF: the ELF
+  # is regenerated build state, while the two sources are what is reviewed and
+  # committed, and what a conformance result is evidence about. The tool
+  # versions go beside them because the APT packages are range-checked rather
+  # than digest-pinned, so a base-image update can move them under us.
+  {
+    echo "profile	$t"
+    echo "helper.sha256	$(sha256sum "$src" | cut -d' ' -f1)"
+    echo "abi-v1.inc.sha256	$(sha256sum "$SRC_DIR/abi-v1.inc" | cut -d' ' -f1)"
+    echo "as	$("$as" --version | head -1)"
+    echo "ld	$("$ld" --version | head -1)"
+    echo "qemu	$("$QEMU_BIN" --version 2>/dev/null | head -1)"
+  } > "$dir/provenance.txt"
+
   echo "asm-helpers: $t -> $dir/helper ($QEMU_BIN)"
 }
 

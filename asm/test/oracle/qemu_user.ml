@@ -73,6 +73,18 @@ let helper_for profile =
 
 let available_profiles () = List.filter (fun p -> helper_for p <> None) Abi.all_profiles
 
+(* M0.3 requires helper hashes and tool versions in provenance;
+   tools/asm-helpers.sh records them beside the ELF and the conformance run
+   reproduces them, so a result is attributable to the exact sources and
+   emulator that produced it. The APT packages are range-checked rather than
+   digest-pinned, so this is how a base-image update that moved QEMU or the
+   assembler under us shows up in the artifact instead of silently. *)
+let provenance profile =
+  let path =
+    Filename.concat (Filename.concat (helpers_dir ()) (Abi.profile_name profile)) "provenance.txt"
+  in
+  if Sys.file_exists path then String.split_on_char '\n' (String.trim (read_file path)) else []
+
 (* {1 The private temporary directory}
 
    §15.3: the result path is created O_EXCL by the helper inside a directory
