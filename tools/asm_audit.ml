@@ -126,11 +126,16 @@ let starts_with pre s =
 let production_dirs = [ "lib/"; "targets/"; "driver/"; "browser/"; "vendor/" ]
 let non_production_dirs = [ "test/"; "tool/" ]
 
+(* [under "driver/" "driver"] must hold: a package can sit directly at a root
+   directory rather than in a subdirectory of it, and a prefix test alone would
+   classify that as Unknown and quietly drop it out of the audited root set. *)
+let under pre d = starts_with pre d || d = String.sub pre 0 (String.length pre - 1)
+
 let classify lib =
   let d = strip_build lib.source_dir in
   let d = if starts_with "melange/" d then String.sub d 8 (String.length d - 8) else d in
-  if List.exists (fun p -> starts_with p d) production_dirs then `Production
-  else if List.exists (fun p -> starts_with p d) non_production_dirs then `Not_production
+  if List.exists (fun p -> under p d) production_dirs then `Production
+  else if List.exists (fun p -> under p d) non_production_dirs then `Not_production
   else `Unknown
 
 (* {1 Denylists and allowlists} *)
@@ -208,6 +213,14 @@ let closure libs roots =
   List.filter_map (Hashtbl.find_opt by_uid) (go [] (List.map (fun l -> l.uid) roots))
 
 let audit_purity asm_dir libs =
+  (* A local library in an unrecognized directory would otherwise be neither a
+     root nor a rejected member: it would simply escape the audit. *)
+  List.iter
+    (fun l ->
+      if l.local && classify l = `Unknown then
+        fail "purity: local library %S lives in %s, which is neither a production nor a test tree"
+          l.name (strip_build l.source_dir))
+    libs;
   let roots = List.filter (fun l -> l.local && classify l = `Production) libs in
   if roots = [] then fail "purity: no production libraries found - is asm/ built?";
   note "production roots: %s" (String.concat " " (List.map (fun l -> l.name) roots));
