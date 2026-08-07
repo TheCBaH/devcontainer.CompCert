@@ -74,9 +74,31 @@ let x86_64_snippets =
     callee_clobber = "\x48\x31\xdb\xb8\x2a\x00\x00\x00\xc3";
   }
 
+let x86_32_snippets =
+  {
+    (* 83 ec 0c | 8d 44 24 10 | 89 04 24 | b8 2a 00 00 00 | 83 c4 0c | c3 *)
+    return42 = "\x83\xec\x0c\x8d\x44\x24\x10\x89\x04\x24\xb8\x2a\x00\x00\x00\x83\xc4\x0c\xc3";
+    return41 = "\x83\xec\x0c\x8d\x44\x24\x10\x89\x04\x24\xb8\x29\x00\x00\x00\x83\xc4\x0c\xc3";
+    trap = "\x0f\x0b";
+    spin = "\xeb\xfe";
+    (* §11 has ESP = 12 (mod 16) at entry here, not 8: the return address is
+       four bytes wide. Getting this constant wrong is the whole reason the
+       case exists. *)
+    sp_align =
+      "\x89\xe0\x83\xe0\x0f\x83\xf8\x0c\xb8\x2a\x00\x00\x00\x74\x05\xb8\x29\x00\x00\x00\xc3";
+    (* lea -0x3ffc(%esp),%eax - entry ESP is stack_top - 4 *)
+    stack_full = "\x8d\x84\x24\x04\xc0\xff\xff\xc6\x00\x00\xb8\x2a\x00\x00\x00\xc3";
+    stack_over = "\x8d\x84\x24\x03\xc0\xff\xff\xc6\x00\x00\xb8\x2a\x00\x00\x00\xc3";
+    (* pop %edx; sub $16,%esp; mov $42,%eax; jmp *%edx *)
+    sp_corrupt = "\x5a\x83\xec\x10\xb8\x2a\x00\x00\x00\xff\xe2";
+    (* xor %ebx,%ebx; mov $42,%eax; ret *)
+    callee_clobber = "\x31\xdb\xb8\x2a\x00\x00\x00\xc3";
+  }
+
 let snippets_for = function
   | Abi.X86_64 -> Some x86_64_snippets
-  | Abi.X86_32 | Abi.Arm | Abi.Aarch64 -> None
+  | Abi.X86_32 -> Some x86_32_snippets
+  | Abi.Arm | Abi.Aarch64 -> None
 
 (* {1 Expectations} *)
 
@@ -145,13 +167,25 @@ let two_segments profile code =
 let d0 = Manifest.descriptor_off 0
 let d1 = Manifest.descriptor_off 1
 
-type case = { name : string; expect : expect; build : Abi.profile -> snippets -> Qemu_user.t }
+type case = {
+  name : string;
+  expect : expect;
+  only : Abi.profile list option;
+      (** [None] means every profile. A case is profile-scoped only when the *rule* is: §10.3's
+          entry alignment and the 32-bit address-width rule have no counterpart on the other
+          profiles, and a case that ran everywhere would be asserting a different thing on each. *)
+  build : Abi.profile -> snippets -> Qemu_user.t;
+}
 
 let run_manifest ?input ?extra_args profile manifest =
   Qemu_user.run ?input ?extra_args ~profile ~manifest ~expected_case_id:case_id ()
 
-let m name expect f =
-  { name; expect; build = (fun profile s -> run_manifest profile (f profile s)) }
+let m ?only name expect f =
+  { name; expect; only; build = (fun profile s -> run_manifest profile (f profile s)) }
+
+let applies profile c = match c.only with None -> true | Some ps -> List.mem profile ps
+let bits32 = [ Abi.X86_32; Abi.Arm ]
+let bits64 = [ Abi.X86_64; Abi.Aarch64 ]
 
 (* Positive controls and the deliberately-wrong ones. *)
 let behavioral_cases =
@@ -290,16 +324,31 @@ let geometry_cases =
     m "entry-outside-x-segment" (Error "manifest.entry_not_in_x_segment") (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.entry_addr
           (Int64.add (Abi.code_addr p) 1000L));
+    (* §10.2 fixes no order *within* cross-region well-formedness, and "first
+       failure wins" needs one. The helpers check the 32-bit address rule first,
+       because every input with a high word set is also caught by a later rule -
+       an entry beyond 2^32 is in no segment - so with subcode 42 last it would
+       be a check that exists and can never fire. *)
+    m ~only:bits32 "entry-address-high-bits" (Error "manifest.address_high_bits_set") (fun p s ->
+        patch_u64 (canonical p s.return42) Abi.Manifest_off.entry_addr
+          (Int64.add (Abi.code_addr p) 0x100000000L));
     m "result-addr-misaligned" (Error "manifest.result_addr_misaligned") (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.result_addr
           (Int64.add (Abi.result_addr p) 1L));
     m "result-addr-not-normative" (Error "manifest.result_addr_not_normative") (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.result_addr
           (Int64.add (Abi.result_addr p) 0x1000L));
-    (* §16.1's result-address overflow, on whichever width this profile is. It
-       is page-aligned, so it reaches the normative-address rule rather than the
-       alignment one. *)
-    m "result-addr-overflow" (Error "manifest.result_addr_not_normative") (fun p s ->
+    (* §16.1's result-address overflow, on both address widths. Both are page
+       -aligned, so both reach the normative-address rule rather than the
+       alignment one, and what they exercise is that the helper's result-page
+       range saturates instead of wrapping: a wrapped range would appear to sit
+       at address zero and could collide with a segment nowhere near it.
+       The 64-bit value is only meaningful on a 64-bit profile - on a 32-bit one
+       the address-width rule catches it first, which is the case above. *)
+    m "result-addr-overflow-32" (Error "manifest.result_addr_not_normative") (fun p s ->
+        patch_u64 (canonical p s.return42) Abi.Manifest_off.result_addr 0xFFFFF000L);
+    m ~only:bits64 "result-addr-overflow-64" (Error "manifest.result_addr_not_normative")
+      (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.result_addr 0xFFFFFFFFFFFFF000L);
     m "stack-size-not-page-multiple" (Error "manifest.stack_size_invalid") (fun p s ->
         patch_u32 (canonical p s.return42) Abi.Manifest_off.stack_size 0x800L);
@@ -344,21 +393,25 @@ let environment_cases =
   [
     {
       name = "input-missing";
+      only = None;
       expect = Error "io.input_open";
       build = (fun p s -> run_manifest ~input:Qemu_user.Missing p (canonical p s.return42));
     };
     {
       name = "input-not-mappable";
+      only = None;
       expect = Error "io.input_mmap";
       build = (fun p s -> run_manifest ~input:Qemu_user.Directory p (canonical p s.return42));
     };
     {
       name = "page-size-wrong";
+      only = None;
       expect = Error "environment.page_size_wrong";
       build = (fun p s -> run_manifest ~extra_args:[ "pgsz-bad" ] p (canonical p s.return42));
     };
     {
       name = "page-size-absent";
+      only = None;
       expect = Error "environment.page_size_absent";
       build = (fun p s -> run_manifest ~extra_args:[ "pgsz-abs" ] p (canonical p s.return42));
     };
@@ -447,13 +500,14 @@ let () =
           Fmt.pr "@.=== %s@." (Abi.profile_name profile);
           List.iter
             (fun c ->
-              let o = c.build profile s in
-              let ok = matches c.expect o in
-              if not ok then incr failures;
-              (match c.expect with
-              | Error key -> Hashtbl.replace observed (Abi.profile_name profile, key) ()
-              | _ -> ());
-              Fmt.pr "  %-4s %-32s %s@." (if ok then "ok" else "FAIL") c.name (describe_actual o))
+              if applies profile c then (
+                let o = c.build profile s in
+                let ok = matches c.expect o in
+                if not ok then incr failures;
+                (match c.expect with
+                | Error key -> Hashtbl.replace observed (Abi.profile_name profile, key) ()
+                | _ -> ());
+                Fmt.pr "  %-4s %-32s %s@." (if ok then "ok" else "FAIL") c.name (describe_actual o)))
             all_cases;
           (* §14.2's reachability promise, checked rather than asserted. *)
           List.iter
