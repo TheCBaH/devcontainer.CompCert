@@ -185,10 +185,32 @@ let run ?(timeout_s = 10.0) ?(input = File) ?(extra_args = []) ~profile ~manifes
             | Directory -> dir
           in
           let t0 = Unix.gettimeofday () in
+          let argv =
+            Array.of_list (h.qemu :: h.elf :: manifest_path :: result_path :: extra_args)
+          in
+          (* fork/chdir/exec rather than create_process: qemu-user writes a
+             qemu_<name>_<stamp>_<pid>.core file into the *current* directory
+             whenever the emulated process takes a fatal signal, and the fault
+             and guard-page controls take one deliberately. Running the child
+             inside the private temporary directory puts those where the
+             cleanup already removes them, instead of scattering them through
+             whatever tree the suite happened to be run from. *)
           let pid =
-            Unix.create_process h.qemu
-              (Array.of_list (h.qemu :: h.elf :: manifest_path :: result_path :: extra_args))
-              Unix.stdin Unix.stdout Unix.stderr
+            match Unix.fork () with
+            | 0 ->
+                (try
+                   Unix.chdir dir;
+                   (* execvp, not execv: the emulator is named by the matrix as
+                      a bare command and is found on PATH. *)
+                   Unix.execvp h.qemu argv
+                 with _ -> ());
+                (* execv only returns on failure, and this is a forked child:
+                   _exit, never exit, so no at_exit handler or buffered output
+                   of the parent runs twice. 127 is what a shell reports for an
+                   unrunnable command, and the host normalizes it as an
+                   unexpected exit rather than a guest result. *)
+                Unix._exit 127
+            | pid -> pid
           in
           let status, killed = wait_with_timeout pid ~timeout_s in
           let wall_ms = int_of_float ((Unix.gettimeofday () -. t0) *. 1000.) in
