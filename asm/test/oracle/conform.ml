@@ -95,10 +95,43 @@ let x86_32_snippets =
     callee_clobber = "\x31\xdb\xb8\x2a\x00\x00\x00\xc3";
   }
 
+(* ARM words are little-endian, so 0xe3a0002a is 2a 00 a0 e3 in memory. Every
+   byte string here is memory order, which is the order the manifest carries and
+   the order the M1 differential gate compares. *)
+let arm_snippets =
+  {
+    (* mov r12,sp | sub sp,sp,#8 | str r12,[sp] | str lr,[sp,#4]
+       | mov r0,#42 | ldr lr,[sp,#4] | add sp,sp,#8 | bx lr *)
+    return42 =
+      "\x0d\xc0\xa0\xe1\x08\xd0\x4d\xe2\x00\xc0\x8d\xe5\x04\xe0\x8d\xe5\x2a\x00\xa0\xe3\x04\xe0\x9d\xe5\x08\xd0\x8d\xe2\x1e\xff\x2f\xe1";
+    return41 =
+      "\x0d\xc0\xa0\xe1\x08\xd0\x4d\xe2\x00\xc0\x8d\xe5\x04\xe0\x8d\xe5\x29\x00\xa0\xe3\x04\xe0\x9d\xe5\x08\xd0\x8d\xe2\x1e\xff\x2f\xe1";
+    (* §16.3: udf #0 = e7f000f0. Not .inst 0 - on A32 that word decodes as
+       andeq r0,r0,r0, a conditional no-op, and a snippet that fell through into
+       whatever followed would report success while proving nothing. *)
+    trap = "\xf0\x00\xf0\xe7";
+    (* b . = eafffffe *)
+    spin = "\xfe\xff\xff\xea";
+    (* mov r0,sp | and r0,r0,#7 | cmp r0,#0 | moveq r0,#42 | movne r0,#41 | bx lr *)
+    sp_align =
+      "\x0d\x00\xa0\xe1\x07\x00\x00\xe2\x00\x00\x50\xe3\x2a\x00\xa0\x03\x29\x00\xa0\x13\x1e\xff\x2f\xe1";
+    (* sub r1,sp,#0x4000 | mov r0,#0 | strb r0,[r1] | mov r0,#42 | bx lr.
+       Nothing is pushed by the call - the return address goes in lr - so entry
+       SP is exactly the top of the stack and this is its lowest byte. *)
+    stack_full = "\x01\x19\x4d\xe2\x00\x00\xa0\xe3\x00\x00\xc1\xe5\x2a\x00\xa0\xe3\x1e\xff\x2f\xe1";
+    stack_over =
+      "\x01\x19\x4d\xe2\x01\x10\x41\xe2\x00\x00\xa0\xe3\x00\x00\xc1\xe5\x2a\x00\xa0\xe3\x1e\xff\x2f\xe1";
+    (* sub sp,sp,#16 | mov r0,#42 | bx lr *)
+    sp_corrupt = "\x10\xd0\x4d\xe2\x2a\x00\xa0\xe3\x1e\xff\x2f\xe1";
+    (* mov r4,#0 | mov r0,#42 | bx lr - r4 is §11's saved-SP register here *)
+    callee_clobber = "\x00\x40\xa0\xe3\x2a\x00\xa0\xe3\x1e\xff\x2f\xe1";
+  }
+
 let snippets_for = function
   | Abi.X86_64 -> Some x86_64_snippets
   | Abi.X86_32 -> Some x86_32_snippets
-  | Abi.Arm | Abi.Aarch64 -> None
+  | Abi.Arm -> Some arm_snippets
+  | Abi.Aarch64 -> None
 
 (* {1 Expectations} *)
 
@@ -164,6 +197,38 @@ let two_segments profile code =
         ];
     }
 
+(* A manifest whose first payload is four bytes long, so canonical packing has
+   to insert a four-byte alignment gap before the second one. The code segment
+   is described *second* on purpose: §10.1 requires payloads to follow
+   descriptor order but explicitly not vaddr order, and building the case this
+   way exercises that rather than assuming it.
+
+   It exists because deriving a gap from the return-42 payload does not work
+   across profiles: that payload is 23 bytes on x86-64 and 32 on ARM, so the
+   final alignment padding is three bytes on one and none at all on the other.
+   A case whose violation depends on the length of an unrelated snippet is not
+   testing what it claims to. *)
+let gapped profile code =
+  Manifest.serialize
+    {
+      (base profile code) with
+      Manifest.segments =
+        [
+          {
+            Manifest.vaddr = Abi.rodata_addr profile;
+            init = "\x01\x02\x03\x04";
+            zero_len = 0L;
+            align = 8;
+            perms = Abi.perm_r;
+          };
+          Manifest.code_segment profile code;
+        ];
+    }
+
+(* The first byte of that gap: the descriptor table ends at 120 + 40 x 2, the
+   first payload occupies four bytes from there, and the gap runs to the next
+   eight-byte boundary. *)
+let gap_offset = Abi.manifest_header_size + (2 * Abi.segment_descriptor_size) + 4
 let d0 = Manifest.descriptor_off 0
 let d1 = Manifest.descriptor_off 1
 
@@ -186,6 +251,9 @@ let m ?only name expect f =
 let applies profile c = match c.only with None -> true | Some ps -> List.mem profile ps
 let bits32 = [ Abi.X86_32; Abi.Arm ]
 let bits64 = [ Abi.X86_64; Abi.Aarch64 ]
+
+(* §10.3 gives only these two an instruction-address rule for the entry. *)
+let has_entry_rule = [ Abi.Arm; Abi.Aarch64 ]
 
 (* Positive controls and the deliberately-wrong ones. *)
 let behavioral_cases =
@@ -258,8 +326,12 @@ let payload_cases =
     m "payload-out-of-file" (Error "manifest.payload_overruns") (fun p s ->
         let b = canonical p s.return42 in
         patch_u64 b (d0 + Abi.Descriptor_off.payload_off) (Int64.of_int (String.length b)));
+    (* The file grows by one aligned slot first, so the shifted payload is
+       still in-file: otherwise stage 5 fires and the misalignment subcode is
+       never reached. Whether it happens to fit without that depends on the
+       length of the snippet, which has nothing to do with the rule. *)
     m "payload-misaligned" (Error "manifest.payload_misaligned") (fun p s ->
-        let b = canonical p s.return42 in
+        let b = set_total_len (append (canonical p s.return42) (String.make 8 (Char.chr 0))) in
         patch_u64 b (d0 + Abi.Descriptor_off.payload_off) (Int64.add (payload_off_of b 0) 1L));
     m "payload-in-metadata" (Error "manifest.payload_in_metadata") (fun p s ->
         patch_u64 (canonical p s.return42) (d0 + Abi.Descriptor_off.payload_off) 8L);
@@ -275,9 +347,7 @@ let payload_cases =
         let b = set_total_len (append (canonical p s.return42) (String.make 8 '\000')) in
         patch_u64 b (d0 + Abi.Descriptor_off.payload_off) (Int64.add (payload_off_of b 0) 8L));
     m "packing-gap-nonzero" (Error "manifest.packing_gap_nonzero") (fun p s ->
-        (* the final alignment padding after the last payload must be zero *)
-        let b = canonical p s.return42 in
-        patch_bytes b (String.length b - 1) "\x01");
+        patch_bytes (gapped p s.return42) gap_offset "\x01");
     m "trailing-bytes" (Error "manifest.trailing_bytes") (fun p s ->
         set_total_len (append (canonical p s.return42) (String.make 8 '\000')));
     (* The file has to be genuinely large enough, or stage 5 shadows stage 9. *)
@@ -332,6 +402,13 @@ let geometry_cases =
     m ~only:bits32 "entry-address-high-bits" (Error "manifest.address_high_bits_set") (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.entry_addr
           (Int64.add (Abi.code_addr p) 0x100000000L));
+    (* §10.3. The address is inside the segment's initialized range, so it
+       reaches the profile rule instead of being caught as an entry outside an
+       executable segment. *)
+    m ~only:has_entry_rule "entry-violates-profile-rule" (Error "manifest.entry_profile_rule")
+      (fun p s ->
+        patch_u64 (canonical p s.return42) Abi.Manifest_off.entry_addr
+          (Int64.add (Abi.code_addr p) 1L));
     m "result-addr-misaligned" (Error "manifest.result_addr_misaligned") (fun p s ->
         patch_u64 (canonical p s.return42) Abi.Manifest_off.result_addr
           (Int64.add (Abi.result_addr p) 1L));
@@ -446,12 +523,17 @@ let exemptions =
       "§10.3 places no instruction-alignment restriction on x86 entries";
     exempt ~profiles:[ Abi.X86_64; Abi.Aarch64 ] "manifest.address_high_bits_set"
       "a 64-bit profile has no high half to reject";
-    exempt ~profiles:[ Abi.X86_32; Abi.X86_64 ] "cache-sync.arm_cacheflush"
-      "§12: x86 needs no cache syscall, so none can fail";
+    exempt
+      ~profiles:[ Abi.X86_32; Abi.X86_64; Abi.Aarch64 ]
+      "cache-sync.arm_cacheflush" "§12: only the ARM profile issues a cacheflush syscall";
+    exempt ~profiles:[ Abi.Arm ] "cache-sync.arm_cacheflush"
+      "no injection mechanism: qemu-user implements the ARM cacheflush syscall as an unconditional \
+       success, and the manifest has no field that reaches it";
     exempt
       ~profiles:[ Abi.X86_32; Abi.X86_64; Abi.Arm ]
-      "cache-sync.aarch64_line_size" "AArch64 only";
-    exempt ~profiles:[ Abi.X86_32; Abi.X86_64; Abi.Aarch64 ] "cache-sync.arm_cacheflush" "ARM only";
+      "cache-sync.aarch64_line_size" "§12: only AArch64 reads CTR_EL0";
+    exempt ~profiles:[ Abi.Aarch64 ] "cache-sync.aarch64_line_size"
+      "no injection mechanism: CTR_EL0 is emulator state, not manifest input";
     (* Syscalls that cannot be made to fail from the host side once the run has
        got far enough to attempt them. §15.2 already scopes the exact-subcode
        guarantee to failures occurring after the control alias exists; these
