@@ -1,0 +1,26 @@
+; Dogfooding the frozen snippet bytes (asm/docs/exec-abi-v1.md §16.3).
+;
+; Reads asm_oracle's Snippet_bytes table and asserts this assembler reproduces
+; it from an AST. asm_oracle is the pure half of the oracle - constants and the
+; recovery validator, no Unix - so this needs no toolchain and no emulator and
+; runs in every leg that runs ppx_expect.
+;
+; The concrete target modules are named directly rather than reached through
+; Driver.Registry, for test/coherence's reason: the types here are each target's
+; own, so handing the aarch64 corpus an ARM operand is a compile error rather
+; than a runtime one.
+;
+; ppx_expect, hence native only, and outside the production closure by
+; construction - tools/asm-check-purity.sh classifies test/ as a non-production
+; tree and rejects any production library that reaches it.
+
+(library
+ (name test_snippets)
+ (modules snippet_ast test_snippets)
+ (modes byte native)
+ (libraries foundation target_intf asm_oracle x86_32 x86_64 arm aarch64 fmt)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect))
+ (enabled_if
+  (<> %{env:ASM_MELANGE=false} true)))
