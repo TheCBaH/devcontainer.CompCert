@@ -14,7 +14,7 @@
         },
         "./features/ocaml": {
             "version": "${localEnv:OCAML_VERSION}",
-            "packages": "ocamlformat#0.28.1 rocq-prover menhir",
+            "packages": "fmt js_of_ocaml-compiler js_of_ocaml-ppx melange menhir ocamlformat#0.28.1 ppx-expect rocq-prover zarith",
             "system-packages": "libgmp-dev pkg-config",
             "repositories": "rocq-released https://rocq-prover.org/opam/released"
         }
