@@ -4,6 +4,7 @@ set -x
 
 echo "Activating feature 'OCaml'"
 PACKAGES=${PACKAGES:-$@}
+OPTIONAL_PACKAGES=${OPTIONAL_PACKAGES:-}
 SYSTEM_PACKAGES=${SYSTEM_PACKAGES:-}
 PIN_PACKAGES=${PIN_PACKAGES:-}
 REPOSITORIES=${REPOSITORIES:-}
@@ -12,7 +13,7 @@ OPAM_OPTIONS=''
 if [ -n "${OPTIONS:-}" ]; then
     OPAM_OPTIONS="--packages=ocaml-variants.${OCAML_VERSION}+options,${OPTIONS}"
 fi
-echo "Selected OCaml:$OCAML_VERSION packages: $PACKAGES with ${OPAM_OPTIONS} ${SYSTEM_PACKAGES}"
+echo "Selected OCaml:$OCAML_VERSION packages: $PACKAGES optional: ${OPTIONAL_PACKAGES} with ${OPAM_OPTIONS} ${SYSTEM_PACKAGES}"
 
 # From https://github.com/devcontainers/features/blob/main/src/git/install.sh
 apt_get_update()
@@ -126,6 +127,21 @@ for pkg in ${PACKAGES}; do
     esac
 done
 
+OPTIONAL_OPAM_PACKAGES=""
+for pkg in ${OPTIONAL_PACKAGES}; do
+    case "$pkg" in
+        *#*)
+            pkg_name=$(echo "$pkg" | cut -d'#' -f1)
+            pkg_ver=$(echo "$pkg" | cut -d'#' -f2)
+            opam pin add --no-action "$pkg_name" "$pkg_ver"
+            OPTIONAL_OPAM_PACKAGES="${OPTIONAL_OPAM_PACKAGES} ${pkg_name}"
+            ;;
+        *)
+            OPTIONAL_OPAM_PACKAGES="${OPTIONAL_OPAM_PACKAGES} ${pkg}"
+            ;;
+    esac
+done
+
 if [ -n "${PIN_PACKAGES}" ]; then
     OLDIFS="$IFS"
     IFS=','
@@ -150,18 +166,17 @@ if [ -n "${PIN_PACKAGES}" ]; then
     IFS="$OLDIFS"
 fi
 
-AVAILABLE_PACKAGES=""
-for pkg in ${OPAM_PACKAGES}; do
+# Only the packages declared optional may be dropped; anything in PACKAGES or
+# PIN_PACKAGES that opam cannot install must still fail the build.
+for pkg in ${OPTIONAL_OPAM_PACKAGES}; do
     if [ -n "$(opam list --available -s "$pkg")" ]; then
-        AVAILABLE_PACKAGES="${AVAILABLE_PACKAGES} ${pkg}"
+        OPAM_PACKAGES="${OPAM_PACKAGES} ${pkg}"
     else
-        echo "Skipping '$pkg': not available for this platform" >&2
+        echo "Skipping optional package '$pkg': not available for this switch/platform" >&2
     fi
 done
 
-if [ -n "$AVAILABLE_PACKAGES" ]; then
-    opam install ${AVAILABLE_PACKAGES}
-fi
+opam install ${OPAM_PACKAGES}
 
 opam clean --repo-cache
 opam list
