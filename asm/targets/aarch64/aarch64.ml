@@ -183,7 +183,8 @@ module Lowered = struct
         if rn.Reg.num = 30 && not rn.Reg.is_sp then Fmt.string ppf "ret"
         else Fmt.pf ppf "ret %a" Reg.pp rn
     | Sub_imm { rd; rn; imm; shift12 } ->
-        Fmt.pf ppf "sub %a, %a, #%Ld%s" Reg.pp rd Reg.pp rn imm (if shift12 then ", lsl #12" else "")
+        Fmt.pf ppf "sub %a, %a, #%Ld%s" Reg.pp rd Reg.pp rn imm
+          (if shift12 then ", lsl #12" else "")
     | Strb_uoff { rt; rn; offset } -> Fmt.pf ppf "strb %a, [%a, #%Ld]" Reg.pp rt Reg.pp rn offset
     | Udf { imm16 } -> Fmt.pf ppf "udf #%Ld" imm16
 
@@ -357,7 +358,8 @@ let codec : (Lowered.t, fixup_kind) C.t =
              | Lowered.Strb_uoff { rt; rn; offset } -> Some ((), (offset, (rn, rt))) | _ -> None)
            ~decode:(fun ((), (offset, (rn, rt))) -> Some (Lowered.Strb_uoff { rt; rn; offset }))
            C.(
-             const ~width:10 0b0011100100L ** field ~width:12 ~signedness:C.Unsigned "imm12"
+             const ~width:10 0b0011100100L
+             ** field ~width:12 ~signedness:C.Unsigned "imm12"
              ** reg_field ~width:64 ~sp:true "rn"
              ** reg_field ~width:32 ~sp:false "rt"));
       C.alt ~label:"udf" ~priority:7
@@ -571,11 +573,14 @@ let lower_instruction state i =
       | Error e -> Error e
       | Ok imm ->
           if Int64.compare imm 0L < 0 || Int64.compare imm 4096L >= 0 then
-            bad "immediate does not fit the unshifted 12-bit field; use the four-operand lsl #12 form"
+            bad
+              "immediate does not fit the unshifted 12-bit field; use the four-operand lsl #12 form"
           else Ok [ Lowered.Sub_imm { rd; rn; imm; shift12 = false } ])
   | ( Opcode.Sub,
       [
-        Operand.Reg rd; Operand.Reg rn; Operand.Imm v;
+        Operand.Reg rd;
+        Operand.Reg rn;
+        Operand.Imm v;
         Operand.Shift { Shift.kind = "lsl"; amount = 12 };
       ] ) -> (
       match imm_of v with

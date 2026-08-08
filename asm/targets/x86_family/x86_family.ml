@@ -608,7 +608,8 @@ module Make (M : MODE) = struct
           Ok { Instruction.op = Opcode.Ret; width = M.address_width; ops = [] }
         else bad "ret takes no operands in M1"
     | "ud2", _ ->
-        if s.Surface.ops = [] then Ok { Instruction.op = Opcode.Ud2; width = M.address_width; ops = [] }
+        if s.Surface.ops = [] then
+          Ok { Instruction.op = Opcode.Ud2; width = M.address_width; ops = [] }
         else bad "ud2 takes no operands"
     | "pop", _ -> Ok { Instruction.op = Opcode.Pop; width = M.address_width; ops = s.Surface.ops }
     | "jmp", _ -> Ok { Instruction.op = Opcode.Jmp; width = M.address_width; ops = s.Surface.ops }
@@ -691,7 +692,8 @@ module Make (M : MODE) = struct
         | Ok () -> Ok [ Lowered.Lea { width = i.Instruction.width; reg = r; mem = m } ])
     | Opcode.Xor, [ Operand.Reg a; Operand.Reg b ] -> (
         match (width_ok a, width_ok b) with
-        | Ok (), Ok () -> Ok [ Lowered.Xor_rm_r { width = i.Instruction.width; rm = Rm.Reg b; reg = a } ]
+        | Ok (), Ok () ->
+            Ok [ Lowered.Xor_rm_r { width = i.Instruction.width; rm = Rm.Reg b; reg = a } ]
         | Error e, _ | _, Error e -> Error e)
     | Opcode.Ret, [] -> Ok [ Lowered.Ret ]
     | Opcode.Ud2, [] -> Ok [ Lowered.Ud2 ]
@@ -864,7 +866,9 @@ module Make (M : MODE) = struct
              ~decode:(fun (_rex, ((), (e, imm))) ->
                if e.re_reg <> 0 then None
                else Some (Lowered.Mov_rm_imm { width = 8; rm = retype_rm ~width:8 e.re_rm; imm }))
-             C.(rex_codec ** const ~width:8 0xC6L ** rm_codec ** le ~signedness:C.Signed ~width:8 "imm8"));
+             C.(
+               rex_codec ** const ~width:8 0xC6L ** rm_codec
+               ** le ~signedness:C.Signed ~width:8 "imm8"));
         C.alt ~label:"xor-rm-r" ~priority:8
           (C.iso_fun ~name:"xor-rm-r"
              ~encode:(function
@@ -881,11 +885,12 @@ module Make (M : MODE) = struct
           (C.iso_fun ~name:"pop-r"
              ~encode:(function
                | Lowered.Pop { reg } ->
-                   Some (rex_of ~width:32 ~reg:0 ~rm:(Rm.Reg reg), ((), Int64.of_int (reg.num land 7)))
+                   Some
+                     (rex_of ~width:32 ~reg:0 ~rm:(Rm.Reg reg), ((), Int64.of_int (reg.num land 7)))
                | _ -> None)
              ~decode:(fun (_rex, ((), r)) ->
                Some (Lowered.Pop { reg = reg_at ~width:M.address_width (Int64.to_int r) }))
-             C.(rex_codec ** (const ~width:5 0b01011L ** field ~width:3 "reg")));
+             C.(rex_codec ** const ~width:5 0b01011L ** field ~width:3 "reg"));
         C.alt ~label:"jmp-rm" ~priority:10
           (C.iso_fun ~name:"jmp-rm"
              ~encode:(function

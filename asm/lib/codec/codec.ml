@@ -378,7 +378,8 @@ module Shape = struct
     let rec pp_ref ppf = function
       | Empty -> Fmt.string ppf "()"
       | Const { width; value } -> Fmt.pf ppf "%s" (Bits.to_string (Bits.of_int64 ~width value))
-      | Field { name; width; signedness } -> Fmt.pf ppf "%s:%d%a" name width pp_signedness signedness
+      | Field { name; width; signedness } ->
+          Fmt.pf ppf "%s:%d%a" name width pp_signedness signedness
       | Fixup { name; width } -> Fmt.pf ppf "<%s:%d>" name width
       | Seq xs -> Fmt.pf ppf "@[<h>%a@]" Fmt.(list ~sep:(any " ") pp_ref) xs
       | (Iso_table { name; _ } | Iso_fun { name; _ } | Alt { name; _ }) as s ->
@@ -395,8 +396,7 @@ module Shape = struct
       | Iso_fun { name; inner } -> Fmt.pf ppf "%s(){%a}" name pp_ref inner
       | (Empty | Const _ | Field _ | Fixup _ | Seq _) as s -> pp_ref ppf s
     in
-    Fmt.pf ppf "@[<v>%t@]"
-    @@ fun ppf ->
+    Fmt.pf ppf "@[<v>%t@]" @@ fun ppf ->
     pp_def ppf top;
     let rec drain () =
       match Queue.pop queue with

@@ -170,7 +170,9 @@ module Lowered = struct
         | Some o -> Fmt.pf ppf "%s %a, %a, %a%s" (Opcode.name o) Reg.pp rd Reg.pp rn Reg.pp rm sh
         | None -> Fmt.pf ppf "dp%d %a, %a, %a%s" dp Reg.pp rd Reg.pp rn Reg.pp rm sh)
     | Ldst_imm { load; byte; rt; rn; offset } ->
-        Fmt.pf ppf "%s%s %a, [%a, #%Ld]" (if load then "ldr" else "str") (if byte then "b" else "")
+        Fmt.pf ppf "%s%s %a, [%a, #%Ld]"
+          (if load then "ldr" else "str")
+          (if byte then "b" else "")
           Reg.pp rt Reg.pp rn offset
     | Bx { rm } -> Fmt.pf ppf "bx %a" Reg.pp rm
     | Udf { imm16 } -> Fmt.pf ppf "udf #%Ld" imm16
@@ -362,10 +364,8 @@ let codec : (Lowered.t, fixup_kind) C.t =
            C.(
              cond_al ** const ~width:3 2L
              ** const ~width:1 1L (* P: offset addressing, no writeback *)
-             ** field ~width:1 "u"
-             ** field ~width:1 "b"
-             ** const ~width:1 0L (* W *) ** field ~width:1 "l"
-             ** reg_field "rn" ** reg_field "rt" ** field ~width:12 "imm12"));
+             ** field ~width:1 "u" ** field ~width:1 "b" ** const ~width:1 0L (* W *)
+             ** field ~width:1 "l" ** reg_field "rn" ** reg_field "rt" ** field ~width:12 "imm12"));
       (* [udf], the permanently-undefined encoding. Its fixed top nibble is
          literally [cond_al]'s bit pattern - not a coincidence to route around,
          but where ARM parked this encoding. *)
@@ -376,10 +376,7 @@ let codec : (Lowered.t, fixup_kind) C.t =
                  if Int64.compare imm16 0L < 0 || Int64.compare imm16 65536L >= 0 then None
                  else
                    Some
-                     ( (),
-                       ( (),
-                         ( Int64.shift_right_logical imm16 4,
-                           ((), Int64.logand imm16 0xFL) ) ) )
+                     ((), ((), (Int64.shift_right_logical imm16 4, ((), Int64.logand imm16 0xFL))))
              | _ -> None)
            ~decode:(fun ((), ((), (imm12, ((), imm4)))) ->
              Some (Lowered.Udf { imm16 = Int64.logor (Int64.shift_left imm12 4) imm4 }))
@@ -555,13 +552,15 @@ let lower_instruction state i =
         else
           Ok
             [
-              Lowered.Ldst_imm { load = op = Opcode.Ldr; byte = false; rt; rn = m.base; offset = m.offset };
+              Lowered.Ldst_imm
+                { load = op = Opcode.Ldr; byte = false; rt; rn = m.base; offset = m.offset };
             ]
     | Opcode.Strb, [ Operand.Reg rt; Operand.Mem m ] ->
         if m.writeback then bad "writeback addressing is not in M1 scope"
         else if Int64.compare (Int64.abs m.offset) 4096L >= 0 then
           bad "offset does not fit the 12-bit immediate"
-        else Ok [ Lowered.Ldst_imm { load = false; byte = true; rt; rn = m.base; offset = m.offset } ]
+        else
+          Ok [ Lowered.Ldst_imm { load = false; byte = true; rt; rn = m.base; offset = m.offset } ]
     | Opcode.Bx, [ Operand.Reg rm ] -> Ok [ Lowered.Bx { rm } ]
     | Opcode.Udf, [ Operand.Imm v ] -> (
         match imm_of v with

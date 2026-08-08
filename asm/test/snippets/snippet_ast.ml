@@ -161,7 +161,9 @@ module Aarch64_corpus = struct
               [
                 insn Sub
                   T.Operand.
-                    [ Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                    [
+                      Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 };
+                    ];
                 insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
                 insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
                 insn Ret [];
@@ -177,7 +179,9 @@ module Aarch64_corpus = struct
               [
                 insn Sub
                   T.Operand.
-                    [ Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                    [
+                      Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 };
+                    ];
                 insn Sub T.Operand.[ Reg (r "x1"); Reg (r "x1"); imm 1 ];
                 insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
                 insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
@@ -362,7 +366,10 @@ module X86_shared = struct
   let stack_full_insns ~sp ~ax ~eax ~width ~entry_gap =
     [
       insn Opcode.Lea width
-        [ Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16384L entry_gap)) sp); Operand.Reg ax ];
+        [
+          Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16384L entry_gap)) sp);
+          Operand.Reg ax;
+        ];
       insn Opcode.Mov 8 [ imm 0; Operand.Mem (Mem.of_base ax) ];
       insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
       insn Opcode.Ret width [];
@@ -371,7 +378,10 @@ module X86_shared = struct
   let stack_over_insns ~sp ~ax ~eax ~width ~entry_gap =
     [
       insn Opcode.Lea width
-        [ Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16385L entry_gap)) sp); Operand.Reg ax ];
+        [
+          Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16385L entry_gap)) sp);
+          Operand.Reg ax;
+        ];
       insn Opcode.Mov 8 [ imm 0; Operand.Mem (Mem.of_base ax) ];
       insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
       insn Opcode.Ret width [];
@@ -429,7 +439,8 @@ module X86_64_corpus = struct
            (X86_shared.stack_over_insns ~sp:(r "rsp") ~ax:(r "rax") ~eax:(r "eax") ~width:64
               ~entry_gap:8L))
       ~sp_corrupt:
-        (A.assemble (X86_shared.sp_corrupt_insns ~sp:(r "rsp") ~dx:(r "rdx") ~eax:(r "eax") ~width:64))
+        (A.assemble
+           (X86_shared.sp_corrupt_insns ~sp:(r "rsp") ~dx:(r "rdx") ~eax:(r "eax") ~width:64))
 
   let nops = A.nop
 end
@@ -456,7 +467,8 @@ module X86_32_corpus = struct
            (X86_shared.stack_over_insns ~sp:(r "esp") ~ax:(r "eax") ~eax:(r "eax") ~width:32
               ~entry_gap:4L))
       ~sp_corrupt:
-        (A.assemble (X86_shared.sp_corrupt_insns ~sp:(r "esp") ~dx:(r "edx") ~eax:(r "eax") ~width:32))
+        (A.assemble
+           (X86_shared.sp_corrupt_insns ~sp:(r "esp") ~dx:(r "edx") ~eax:(r "eax") ~width:32))
 
   let nops = A.nop
 end
