@@ -333,6 +333,11 @@ type target = {
   snippets : Sb.t;
   entries : entry list;
   nop : length:int -> (string, string) result;
+  preamble : string list;
+      (** what has to precede the instructions for both this assembler and GNU as to read the same
+          file. Only ARM needs more than a section and a symbol, and it needs all of it: without
+          [.arm] the reference toolchain may assemble Thumb, and comparing A32 bytes against T32
+          bytes would report a difference that is not one. *)
 }
 
 let all =
@@ -342,21 +347,49 @@ let all =
       snippets = Sb.x86_32;
       entries = X86_32_corpus.entries;
       nop = X86_32_corpus.nops;
+      preamble = [ ".text" ];
     };
     {
       target = "x86_64";
       snippets = Sb.x86_64;
       entries = X86_64_corpus.entries;
       nop = X86_64_corpus.nops;
+      preamble = [ ".text" ];
     };
-    { target = "arm"; snippets = Sb.arm; entries = Arm_corpus.entries; nop = Arm_corpus.nops };
+    {
+      target = "arm";
+      snippets = Sb.arm;
+      entries = Arm_corpus.entries;
+      nop = Arm_corpus.nops;
+      preamble = [ ".syntax unified"; ".arch armv7-a"; ".fpu vfpv3-d16"; ".arm"; ".text" ];
+    };
     {
       target = "aarch64";
       snippets = Sb.aarch64;
       entries = Aarch64_corpus.entries;
       nop = Aarch64_corpus.nops;
+      preamble = [ ".text" ];
     };
   ]
+
+(* {1 Assembly text}
+
+   The third rendering of one AST. The corpus already produces our bytes and a
+   hexdump; this produces the file GNU as reads, from the same canonical
+   printer, so [tools/asm-gas-xref.sh] compares two assemblers on an input
+   neither of them chose.
+
+   The symbol is [asm_snippet] in every file: the M1 restricted linker wants one
+   strong exported symbol, and a name derived from the case would make the
+   readelf output differ case by case for no reason connected to encoding. *)
+
+let symbol = "asm_snippet"
+
+let source_of t canonical =
+  String.concat ""
+    (List.map (fun d -> "\t" ^ d ^ "\n") t.preamble
+    @ [ "\t.globl " ^ symbol ^ "\n"; symbol ^ ":\n" ]
+    @ List.map (fun line -> "\t" ^ line ^ "\n") canonical)
 
 (* The one hex renderer. [test/dump/asm_dump.ml] and
    [test/differential/test_differential.ml] each carry a copy of this three-line

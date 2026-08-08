@@ -17,7 +17,7 @@
       the form it needs, so asm/docs/contracts.md §4.3's prose list of
       deliberate absences becomes a table a test regresses. *)
 
-open Snippet_ast
+open Snippet_corpus.Snippet_ast
 
 let show_bytes label b = Printf.printf "%-16s %s\n" label (hex b)
 

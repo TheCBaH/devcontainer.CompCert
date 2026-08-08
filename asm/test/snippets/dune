@@ -1,9 +1,19 @@
 ; Dogfooding the frozen snippet bytes (asm/docs/exec-abi-v1.md §16.3).
 ;
-; Reads asm_oracle's Snippet_bytes table and asserts this assembler reproduces
-; it from an AST. asm_oracle is the pure half of the oracle - constants and the
-; recovery validator, no Unix - so this needs no toolchain and no emulator and
-; runs in every leg that runs ppx_expect.
+; Three stanzas over one corpus, and the split is what lets one AST produce all
+; three renderings without any of them being written twice:
+;
+;   snippet_corpus   the ASTs, and the bytes/canonical text they assemble to.
+;   test_snippets    the expect baselines and the equality assertions.
+;   snippet_emit     writes each entry as a .s file for tools/asm-gas-xref.sh,
+;                    so GNU as reads text produced by the same canonical printer
+;                    the baselines pin. An executable rather than a rule,
+;                    because `make asm-test` must never acquire a cross
+;                    toolchain and only the regen path runs it.
+;
+; The corpus reads asm_oracle's Snippet_bytes table. asm_oracle is the pure half
+; of the oracle - constants and the recovery validator, no Unix - so nothing
+; here needs a toolchain or an emulator.
 ;
 ; The concrete target modules are named directly rather than reached through
 ; Driver.Registry, for test/coherence's reason: the types here are each target's
@@ -15,12 +25,28 @@
 ; tree and rejects any production library that reaches it.
 
 (library
- (name test_snippets)
- (modules snippet_ast test_snippets)
+ (name snippet_corpus)
+ (modules snippet_ast)
  (modes byte native)
  (libraries foundation target_intf asm_oracle x86_32 x86_64 arm aarch64 fmt)
+ (enabled_if
+  (<> %{env:ASM_MELANGE=false} true)))
+
+(library
+ (name test_snippets)
+ (modules test_snippets)
+ (modes byte native)
+ (libraries snippet_corpus asm_oracle fmt)
  (inline_tests)
  (preprocess
   (pps ppx_expect))
+ (enabled_if
+  (<> %{env:ASM_MELANGE=false} true)))
+
+(executable
+ (name snippet_emit)
+ (modules snippet_emit)
+ (modes exe)
+ (libraries snippet_corpus unix)
  (enabled_if
   (<> %{env:ASM_MELANGE=false} true)))
