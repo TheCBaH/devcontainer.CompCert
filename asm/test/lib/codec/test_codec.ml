@@ -102,7 +102,7 @@ let%expect_test "two encodings, one semantic instruction" =
 (* {1 Inspect} *)
 
 let%expect_test "inspect" =
-  Fmt.pr "@[<v>%a@]@." pp_shape (inspect isa);
+  Fmt.pr "@[<v>%a@]@." Shape.pp (inspect isa);
   [%expect
     {|
     alt synthetic
