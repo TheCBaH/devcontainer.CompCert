@@ -99,6 +99,14 @@ jobs:
     - name: conformance
       run: |
         ${{ env.EXEC }} make asm-abi-conform
+    # M1.6, in the same job because it needs the same two things - the cross
+    # assembled helpers and the four qemu-user binaries - and nothing else. It is
+    # a separate step rather than a separate make target inside conformance so
+    # that a failure names which of the two claims broke: "the ABI is honoured"
+    # or "the assembler's own image returns 42".
+    - name: execution
+      run: |
+        ${{ env.EXEC }} make asm-exec
 
   # Byte-identical output from native OCaml, js_of_ocaml/Node, and Melange/Node
   # (.ai/asm_plan.md §11.6). Its own job on one pinned leg, because Melange

@@ -278,6 +278,14 @@ asm-abi-conform: asm-runner asm-helpers
 	cd $(ASM_DIR) && ASM_HELPERS_DIR=$(CURDIR)/.asm-helpers \
 	  opam exec -- dune exec test/oracle/conform.exe
 
+# M1.6, the E5 rung: the assembler's own image bound at the ABI-v1 profile code
+# base and run under the same helpers. Separate from asm-abi-conform on purpose -
+# conform depends on no part of the assembler, so a broken assembler cannot make
+# the ABI suite pass, and this target is where the assembler is what is on trial.
+asm-exec: asm-build asm-helpers
+	cd $(ASM_DIR) && ASM_HELPERS_DIR=$(CURDIR)/.asm-helpers \
+	  opam exec -- dune exec test/oracle/exec.exe
+
 # What CI runs, and what to run locally before pushing. Formatting is checked
 # first: an unformatted tree is the cheapest failure to diagnose. asm-js is not
 # here — it needs Melange, hence OCaml 4.14, so it is its own CI job.
@@ -296,4 +304,5 @@ compcert-export-archive-all:
   compcert-export-archive compcert-export-unarchive compcert-export-build compcert-export-run \
   compcert-export-archive-all \
   asm-build asm-test asm-fmt asm-fmt-check asm-melange asm-js asm-purity asm-planted \
-  asm-fixtures-check asm-cross-setup asm-fixtures-regen asm-oracle asm-ci
+  asm-fixtures-check asm-cross-setup asm-fixtures-regen asm-oracle asm-ci \
+  asm-helpers asm-runner asm-abi-conform asm-exec
