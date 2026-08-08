@@ -150,7 +150,18 @@ if [ -n "${PIN_PACKAGES}" ]; then
     IFS="$OLDIFS"
 fi
 
-opam install ${OPAM_PACKAGES}
+AVAILABLE_PACKAGES=""
+for pkg in ${OPAM_PACKAGES}; do
+    if [ -n "$(opam list --available -s "$pkg")" ]; then
+        AVAILABLE_PACKAGES="${AVAILABLE_PACKAGES} ${pkg}"
+    else
+        echo "Skipping '$pkg': not available for this platform" >&2
+    fi
+done
+
+if [ -n "$AVAILABLE_PACKAGES" ]; then
+    opam install ${AVAILABLE_PACKAGES}
+fi
 
 opam clean --repo-cache
 opam list
