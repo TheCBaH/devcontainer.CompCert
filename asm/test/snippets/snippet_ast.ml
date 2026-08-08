@@ -80,13 +80,23 @@ module Make (T : Target_intf.Target.TARGET) = struct
     | Error d -> Error (Foundation.Diagnostic.message d)
 end
 
+(* Registers are named by the spelling the *parser* accepts, so the corpus goes
+   through the same name table as source text does - aliases included - rather
+   than around it. A misspelling therefore cannot assemble to the wrong
+   register; it can only fail. It fails at module initialization, before any
+   test name is printed, so the message has to carry the whole diagnosis
+   itself: [Option.get]'s "option is None" named neither the register nor the
+   target it was looked up in. *)
+let reg_exn ~target find n =
+  match find n with Some r -> r | None -> Fmt.failwith "%s: unknown register %S" target n
+
 (* {1 aarch64} *)
 
 module Aarch64_corpus = struct
   module T = Aarch64
   module A = Make (Aarch64)
 
-  let r n = Option.get (T.Reg.find n)
+  let r n = reg_exn ~target:T.name T.Reg.find n
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
 
@@ -198,7 +208,7 @@ module Arm_corpus = struct
   module T = Arm
   module A = Make (Arm)
 
-  let r n = Option.get (T.Reg.find n)
+  let r n = reg_exn ~target:T.name T.Reg.find n
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
   let mem base offset = T.Operand.Mem { T.Mem.base = r base; offset; writeback = false; pre = true }
@@ -400,7 +410,7 @@ end
 module X86_64_corpus = struct
   module A = Make (X86_64)
 
-  let r n = Option.get (X86_64.find_reg n)
+  let r n = reg_exn ~target:X86_64.name X86_64.find_reg n
 
   let entries =
     X86_shared.entries
@@ -427,7 +437,7 @@ end
 module X86_32_corpus = struct
   module A = Make (X86_32)
 
-  let r n = Option.get (X86_32.find_reg n)
+  let r n = reg_exn ~target:X86_32.name X86_32.find_reg n
 
   let entries =
     X86_shared.entries
