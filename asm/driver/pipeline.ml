@@ -104,7 +104,7 @@ module Make (T : T_intf.TARGET) = struct
         Result.map (fun size -> Directive.Sym_size { name; size }) (fold size)
     | other -> Ok other
 
-  let simplify (m : T.surface_instruction Source_ast.module_) =
+  let simplify (m : T.Surface.t Source_ast.module_) =
     let errors = ref [] in
     let items = ref [] in
     let add i = items := i :: !items in
@@ -170,7 +170,7 @@ module Make (T : T_intf.TARGET) = struct
     mutable sy_section : string;
   }
 
-  let lower ~state (m : T.instruction Normalized_ast.module_) =
+  let lower ~state (m : T.Instruction.t Normalized_ast.module_) =
     let errors = ref [] in
     let sections : section_build list ref = ref [] in
     let declared = ref [] in
@@ -355,14 +355,14 @@ module Make (T : T_intf.TARGET) = struct
                 tokens))
 
   let dump_source_ast ~unit_name ~source =
-    Result.map (Fmt.to_to_string (Source_ast.pp T.pp_surface)) (parse ~unit_name ~source)
+    Result.map (Fmt.to_to_string (Source_ast.pp T.Surface.pp)) (parse ~unit_name ~source)
 
   let dump_normalized_ast ~unit_name ~source =
     match parse ~unit_name ~source with
     | Error ds -> Error ds
     | Ok src ->
         Result.map
-          (fun (n, _) -> Fmt.to_to_string (Normalized_ast.pp T.pp_instruction) n)
+          (fun (n, _) -> Fmt.to_to_string (Normalized_ast.pp T.Instruction.pp) n)
           (simplify src)
 
   let dump_lowered_ast ~unit_name ~source =
@@ -392,7 +392,7 @@ module Make (T : T_intf.TARGET) = struct
               String.concat " "
                 (List.init n (fun i -> Printf.sprintf "%02x" (Char.code bytes.[pos + i])))
             in
-            go (pos + n) ((here, run, Fmt.to_to_string T.pp_instruction insn, form) :: acc)
+            go (pos + n) ((here, run, Fmt.to_to_string T.Instruction.pp insn, form) :: acc)
     in
     go 0 []
 
