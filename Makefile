@@ -222,6 +222,23 @@ asm-js:
 	cd $(ASM_DIR) && ASM_BACKEND=jsoo opam exec -- dune build @runtest
 	cd $(ASM_DIR) && ASM_BACKEND=melange ASM_MELANGE=true opam exec -- dune build @runtest
 
+# The behavioral tool gate (§3.2, an M0 exit criterion). APT tooling is
+# range-checked rather than digest-pinned, and version numbers alone do not
+# establish compatibility where behaviour matters - so this asks the tools to do
+# the things the project depends on and records what answered. It needs the
+# cross toolchains, the four qemu-user binaries, qemu-system and gdb, but no
+# CompCert and no part of the assembler: it establishes E2 tool compatibility
+# only, and asm-abi-conform remains the distinct E4 transport proof.
+asm-tool-gate:
+	tools/asm-tool-gate.sh all
+
+# The Melange opt-in, verified rather than asserted (§3.2). Checks both clean
+# configurations: zero melc rules and a successful build with Melange
+# unavailable, and the rules reappearing under ASM_MELANGE=true. Needs nothing
+# beyond dune, so it runs on every leg.
+asm-melange-optin:
+	tools/asm-melange-optin.sh
+
 # The M1 fixtures. §12 has a two-mode policy and the dependency edges here are
 # what enforce it: asm-fixtures-check needs NO cross toolchain, so every
 # ordinary test run and every portable CI leg consumes the checked-in bytes.
@@ -289,7 +306,7 @@ asm-exec: asm-build asm-helpers
 # What CI runs, and what to run locally before pushing. Formatting is checked
 # first: an unformatted tree is the cheapest failure to diagnose. asm-js is not
 # here — it needs Melange, hence OCaml 4.14, so it is its own CI job.
-asm-ci: asm-fmt-check asm-build asm-test asm-purity asm-planted
+asm-ci: asm-fmt-check asm-build asm-test asm-purity asm-planted asm-melange-optin
 
 # One archive per target: Rocq extraction differs per architecture, so
 # compcert-export-archive alone only covers whichever target was last
@@ -305,4 +322,4 @@ compcert-export-archive-all:
   compcert-export-archive-all \
   asm-build asm-test asm-fmt asm-fmt-check asm-melange asm-js asm-purity asm-planted \
   asm-fixtures-check asm-cross-setup asm-fixtures-regen asm-oracle asm-ci \
-  asm-helpers asm-runner asm-abi-conform asm-exec
+  asm-helpers asm-runner asm-abi-conform asm-exec asm-tool-gate asm-melange-optin
