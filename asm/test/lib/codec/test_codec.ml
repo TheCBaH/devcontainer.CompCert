@@ -107,10 +107,11 @@ let%expect_test "inspect" =
     {|
     alt synthetic
       [0 cost=0] nop              nop(){0000000000000000}
-      [1 cost=1] add              add(){0001 reg[8]{r:3u} reg[8]{r:3u} 000000}
-      [2 cost=1] li.short         li.short(){0100 reg[8]{r:3u} imm:4u 00000}
-      [3 cost=2] li.long          li.long(){0010 reg[8]{r:3u} imm:8u 0}
-      [4 cost=1] jmp              jmp(){0011 <target:12>} |}]
+      [1 cost=1] add              add(){0001 reg reg 000000}
+      [2 cost=1] li.short         li.short(){0100 reg imm:4u 00000}
+      [3 cost=2] li.long          li.long(){0010 reg imm:8u 0}
+      [4 cost=1] jmp              jmp(){0011 <target:12>}
+    reg[8]{r:3u} |}]
 
 let%expect_test "widths" =
   let w name node =

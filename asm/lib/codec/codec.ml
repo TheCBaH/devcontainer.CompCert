@@ -380,20 +380,50 @@ let rec inspect : type a k. (a, k) t -> shape = function
 
 let pp_signedness ppf = function Signed -> Fmt.string ppf "s" | Unsigned -> Fmt.string ppf "u"
 
-let rec pp_shape ppf = function
-  | S_empty -> Fmt.string ppf "()"
-  | S_const { width; value } -> Fmt.pf ppf "%s" (Bits.to_string (Bits.of_int64 ~width value))
-  | S_field { name; width; signedness } -> Fmt.pf ppf "%s:%d%a" name width pp_signedness signedness
-  | S_fixup { name; width } -> Fmt.pf ppf "<%s:%d>" name width
-  | S_seq xs -> Fmt.pf ppf "@[<h>%a@]" Fmt.(list ~sep:(any " ") pp_shape) xs
-  | S_iso_table { name; entries; inner } -> Fmt.pf ppf "%s[%d]{%a}" name entries pp_shape inner
-  | S_iso_fun { name; inner } -> Fmt.pf ppf "%s(){%a}" name pp_shape inner
-  | S_alt { name; alts } ->
-      Fmt.pf ppf "@[<v2>alt %s@,%a@]" name
-        Fmt.(
-          list ~sep:cut (fun ppf (label, prio, cost, s) ->
-              Fmt.pf ppf "@[<h>[%d cost=%d] %-16s %a@]" prio cost label pp_shape s))
-        alts
+(* Named nodes ([S_alt], [S_iso_table], [S_iso_fun]) are shared: x86's [modrm]
+   and [sib], for instance, are each one OCaml value referenced from many
+   instructions. Expanding a name's body at every occurrence both balloons the
+   dump (the same seven-branch modrm table, once per instruction that uses it)
+   and, since a nested [alt]'s box indents from whatever column it happens to
+   open at, drifts the whole table sideways by however deep the enclosing
+   sequence already was. So a name is expanded exactly once - at the site that
+   defines it - and every other occurrence is just the bare name, with the
+   definition queued to be printed once of its own accord afterwards. *)
+let pp_shape ppf top =
+  let seen = Hashtbl.create 16 in
+  let queue = Queue.create () in
+  let enqueue name s = if not (Hashtbl.mem seen name) then (Hashtbl.add seen name (); Queue.push (name, s) queue) in
+  let rec pp_ref ppf = function
+    | S_empty -> Fmt.string ppf "()"
+    | S_const { width; value } -> Fmt.pf ppf "%s" (Bits.to_string (Bits.of_int64 ~width value))
+    | S_field { name; width; signedness } -> Fmt.pf ppf "%s:%d%a" name width pp_signedness signedness
+    | S_fixup { name; width } -> Fmt.pf ppf "<%s:%d>" name width
+    | S_seq xs -> Fmt.pf ppf "@[<h>%a@]" Fmt.(list ~sep:(any " ") pp_ref) xs
+    | (S_iso_table { name; _ } | S_iso_fun { name; _ } | S_alt { name; _ }) as s ->
+        enqueue name s;
+        Fmt.string ppf name
+  and pp_def ppf = function
+    | S_alt { name; alts } ->
+        Fmt.pf ppf "@[<v2>alt %s@,%a@]" name
+          Fmt.(
+            list ~sep:cut (fun ppf (label, prio, cost, s) ->
+                Fmt.pf ppf "@[<h>[%d cost=%d] %-16s %a@]" prio cost label pp_def s))
+          alts
+    | S_iso_table { name; entries; inner } -> Fmt.pf ppf "%s[%d]{%a}" name entries pp_ref inner
+    | S_iso_fun { name; inner } -> Fmt.pf ppf "%s(){%a}" name pp_ref inner
+    | (S_empty | S_const _ | S_field _ | S_fixup _ | S_seq _) as s -> pp_ref ppf s
+  in
+  Fmt.pf ppf "@[<v>%t@]"
+  @@ fun ppf ->
+  pp_def ppf top;
+  let rec drain () =
+    match Queue.pop queue with
+    | exception Queue.Empty -> ()
+    | _name, s ->
+        Fmt.pf ppf "@,%a" pp_def s;
+        drain ()
+  in
+  drain ()
 
 (* The width a form occupies, when that is a single number. An [Alt] whose
    branches disagree has none, which is not an error - x86 instructions are
