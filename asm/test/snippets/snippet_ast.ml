@@ -98,6 +98,7 @@ module Aarch64_corpus = struct
 
   let r n = reg_exn ~target:T.name T.Reg.find n
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
+  let reg n = T.Operand.Reg (r n)
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
 
   let mem ?(writeback = false) base offset =
@@ -108,12 +109,12 @@ module Aarch64_corpus = struct
     A.assemble
       T.Opcode.
         [
-          insn Mov T.Operand.[ Reg (r "x15"); Reg (r "sp") ];
-          insn Stp T.Operand.[ Reg (r "x15"); Reg (r "x30"); mem ~writeback:true "sp" (-16L) ];
-          insn Movz T.Operand.[ Reg (r "w0"); imm n ];
-          insn Ldr T.Operand.[ Reg (r "x30"); mem "sp" 8L ];
-          insn Add T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
-          insn Ret T.Operand.[ Reg (r "x30") ];
+          insn Mov [ reg "x15"; reg "sp" ];
+          insn Stp [ reg "x15"; reg "x30"; mem ~writeback:true "sp" (-16L) ];
+          insn Movz [ reg "w0"; imm n ];
+          insn Ldr [ reg "x30"; mem "sp" 8L ];
+          insn Add [ reg "sp"; reg "sp"; imm 16 ];
+          insn Ret [ reg "x30" ];
         ]
 
   let entries =
@@ -130,9 +131,9 @@ module Aarch64_corpus = struct
           A.assemble
             T.Opcode.
               [
-                insn Movz T.Operand.[ Reg (r "x19"); imm 0 ];
-                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
-                insn Ret T.Operand.[ Reg (r "x30") ];
+                insn Movz [ reg "x19"; imm 0 ];
+                insn Movz [ reg "w0"; imm 42 ];
+                insn Ret [ reg "x30" ];
               ];
       };
       {
@@ -161,11 +162,9 @@ module Aarch64_corpus = struct
               [
                 insn Sub
                   T.Operand.
-                    [
-                      Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 };
-                    ];
-                insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
-                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                    [ reg "x1"; reg "sp"; imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                insn Strb [ reg "wzr"; mem "x1" 0L ];
+                insn Movz [ reg "w0"; imm 42 ];
                 insn Ret [];
               ];
       };
@@ -179,12 +178,10 @@ module Aarch64_corpus = struct
               [
                 insn Sub
                   T.Operand.
-                    [
-                      Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 };
-                    ];
-                insn Sub T.Operand.[ Reg (r "x1"); Reg (r "x1"); imm 1 ];
-                insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
-                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                    [ reg "x1"; reg "sp"; imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                insn Sub [ reg "x1"; reg "x1"; imm 1 ];
+                insn Strb [ reg "wzr"; mem "x1" 0L ];
+                insn Movz [ reg "w0"; imm 42 ];
                 insn Ret [];
               ];
       };
@@ -196,9 +193,7 @@ module Aarch64_corpus = struct
           A.assemble
             T.Opcode.
               [
-                insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
-                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
-                insn Ret [];
+                insn Sub [ reg "sp"; reg "sp"; imm 16 ]; insn Movz [ reg "w0"; imm 42 ]; insn Ret [];
               ];
       };
     ]
@@ -214,6 +209,7 @@ module Arm_corpus = struct
 
   let r n = reg_exn ~target:T.name T.Reg.find n
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
+  let reg n = T.Operand.Reg (r n)
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
   let mem base offset = T.Operand.Mem { T.Mem.base = r base; offset; writeback = false; pre = true }
 
@@ -221,14 +217,14 @@ module Arm_corpus = struct
     A.assemble
       T.Opcode.
         [
-          insn Mov T.Operand.[ Reg (r "r12"); Reg (r "sp") ];
-          insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 8 ];
-          insn Str T.Operand.[ Reg (r "r12"); mem "sp" 0L ];
-          insn Str T.Operand.[ Reg (r "lr"); mem "sp" 4L ];
-          insn Mov T.Operand.[ Reg (r "r0"); imm n ];
-          insn Ldr T.Operand.[ Reg (r "lr"); mem "sp" 4L ];
-          insn Add T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 8 ];
-          insn Bx T.Operand.[ Reg (r "lr") ];
+          insn Mov [ reg "r12"; reg "sp" ];
+          insn Sub [ reg "sp"; reg "sp"; imm 8 ];
+          insn Str [ reg "r12"; mem "sp" 0L ];
+          insn Str [ reg "lr"; mem "sp" 4L ];
+          insn Mov [ reg "r0"; imm n ];
+          insn Ldr [ reg "lr"; mem "sp" 4L ];
+          insn Add [ reg "sp"; reg "sp"; imm 8 ];
+          insn Bx [ reg "lr" ];
         ]
 
   let entries =
@@ -243,11 +239,7 @@ module Arm_corpus = struct
         built =
           A.assemble
             T.Opcode.
-              [
-                insn Mov T.Operand.[ Reg (r "r4"); imm 0 ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
-                insn Bx T.Operand.[ Reg (r "lr") ];
-              ];
+              [ insn Mov [ reg "r4"; imm 0 ]; insn Mov [ reg "r0"; imm 42 ]; insn Bx [ reg "lr" ] ];
       };
       {
         (* [sub sp, sp, #16] is the fixture's sub-immediate. *)
@@ -257,9 +249,9 @@ module Arm_corpus = struct
           A.assemble
             T.Opcode.
               [
-                insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
-                insn Bx T.Operand.[ Reg (r "lr") ];
+                insn Sub [ reg "sp"; reg "sp"; imm 16 ];
+                insn Mov [ reg "r0"; imm 42 ];
+                insn Bx [ reg "lr" ];
               ];
       };
       {
@@ -286,11 +278,11 @@ module Arm_corpus = struct
           A.assemble
             T.Opcode.
               [
-                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "sp"); imm 0x4000 ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 0 ];
-                insn Strb T.Operand.[ Reg (r "r0"); mem "r1" 0L ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
-                insn Bx T.Operand.[ Reg (r "lr") ];
+                insn Sub [ reg "r1"; reg "sp"; imm 0x4000 ];
+                insn Mov [ reg "r0"; imm 0 ];
+                insn Strb [ reg "r0"; mem "r1" 0L ];
+                insn Mov [ reg "r0"; imm 42 ];
+                insn Bx [ reg "lr" ];
               ];
       };
       {
@@ -301,12 +293,12 @@ module Arm_corpus = struct
           A.assemble
             T.Opcode.
               [
-                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "sp"); imm 0x4000 ];
-                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "r1"); imm 1 ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 0 ];
-                insn Strb T.Operand.[ Reg (r "r0"); mem "r1" 0L ];
-                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
-                insn Bx T.Operand.[ Reg (r "lr") ];
+                insn Sub [ reg "r1"; reg "sp"; imm 0x4000 ];
+                insn Sub [ reg "r1"; reg "r1"; imm 1 ];
+                insn Mov [ reg "r0"; imm 0 ];
+                insn Strb [ reg "r0"; mem "r1" 0L ];
+                insn Mov [ reg "r0"; imm 42 ];
+                insn Bx [ reg "lr" ];
               ];
       };
     ]
