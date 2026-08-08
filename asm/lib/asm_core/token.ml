@@ -89,6 +89,45 @@ let pp_kind ppf = function
 
 let pp ppf t = pp_kind ppf t.kind
 
+(* The lowercase tag [--dump-tokens] prints (asm/docs/contracts.md §1.1). Not
+   [pp_kind]: that renders the payload too, which is what a debug dump wants and
+   what a byte-compared artifact must not have twice - the spelling is already
+   the last column. *)
+let kind_tag = function
+  | Ident _ -> "ident"
+  | Directive _ -> "directive"
+  | Int _ -> "int"
+  | String _ -> "string"
+  | Register _ -> "register"
+  | Local_label _ -> "local-label"
+  | Colon -> "colon"
+  | Comma -> "comma"
+  | Semi -> "semi"
+  | Immediate_sigil -> "immsigil"
+  | Lparen -> "lparen"
+  | Rparen -> "rparen"
+  | Lbracket -> "lbracket"
+  | Rbracket -> "rbracket"
+  | Lbrace -> "lbrace"
+  | Rbrace -> "rbrace"
+  | Plus -> "plus"
+  | Minus -> "minus"
+  | Star -> "star"
+  | Slash -> "slash"
+  | Percent -> "percent"
+  | Amp -> "amp"
+  | Pipe -> "pipe"
+  | Caret -> "caret"
+  | Tilde -> "tilde"
+  | Bang -> "bang"
+  | Equals -> "equals"
+  | Lshift -> "lshift"
+  | Rshift -> "rshift"
+  | Dot -> "dot"
+  | At -> "at"
+  | Eol -> "eol"
+  | Eof -> "eof"
+
 (* {1 Slices}
 
    A run of tokens, which is how an operand and a directive argument reach the

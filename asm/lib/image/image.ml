@@ -338,5 +338,18 @@ let pp ppf (t : t) =
     t.segments
     Fmt.(option (fun ppf a -> Fmt.pf ppf "@,entry 0x%Lx" a))
     t.entry
-    Fmt.(list ~sep:nop (fun ppf (n, a) -> Fmt.pf ppf "@,export %s = 0x%Lx" n a))
+    Fmt.(
+      list ~sep:nop (fun ppf (n, a) ->
+          (* The size is printed only when a [.size] directive gave the symbol
+             one. Defaulting to zero would make "no .size directive" and
+             ".size s, 0" print identically, and the first is the common case. *)
+          match List.assoc_opt n t.symbol_sizes with
+          | Some sz -> Fmt.pf ppf "@,export %s = 0x%Lx size=%Ld" n a sz
+          | None -> Fmt.pf ppf "@,export %s = 0x%Lx" n a))
     t.exports
+
+(* The plan a laid-out module carries. [laid_out] is otherwise opaque to a
+   caller by convention: it is [plan_image]'s working state, handed straight
+   back to [bind_image] so that the two halves of §9's contract cannot be
+   applied to different inputs. The plan is the half a host is meant to read. *)
+let plan_of (l : laid_out) = l.plan

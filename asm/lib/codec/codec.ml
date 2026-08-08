@@ -80,6 +80,13 @@ type signedness = Signed | Unsigned
 type 'k placement = { kind : 'k; name : string; bit_offset : int; bit_width : int }
 
 type ('a, 'k) t =
+  | Empty : (unit, 'k) t
+      (** Zero width, always succeeds, consumes nothing. Not decoration: it is the *absent* branch
+          of an optional prefix. x86 has three of them - the operand-size prefix, the REX byte, and
+          the displacement - and each is an [Alt] between a byte and nothing at all. Without a
+          zero-width node the alternative would have to be spelled as a width-0 [Const], which
+          {!const} rejects for good reason, or as an [Iso_fun] over a phantom field, which would
+          make [width_of] and [pattern] lie about the form. *)
   | Const : { width : int; value : int64 } -> (unit, 'k) t
   | Field : { name : string; width : int; signedness : signedness } -> (int64, 'k) t
   | Fixup : { name : string; width : int; kind : 'k } -> (unit, 'k) t
@@ -121,6 +128,8 @@ and ('a, 'k) alt = {
    Thin, but they are where the invariants that must hold of *every* tree are
    established, so a malformed node cannot be built and then found by [check]
    only if someone runs it. *)
+
+let empty = Empty
 
 let const ~width value =
   if width < 1 || width > 64 then invalid_arg "Codec.const: width outside 1..64";
@@ -195,6 +204,7 @@ type 'k attempt = Encoded of 'k encoded | Declined | Failed of error
 let rec attempt : type a k. (a, k) t -> a -> k attempt =
  fun node v ->
   match node with
+  | Empty -> Encoded { bits = Bits.empty; placements = []; form = [] }
   | Const { width; value } ->
       Encoded { bits = Bits.of_int64 ~width value; placements = []; form = [] }
   | Field { name; width; signedness } ->
@@ -281,6 +291,7 @@ let rec decode : type a k. (a, k) t -> Bits.t -> pos:int -> a decoded option =
  fun node bits ~pos ->
   let plain value consumed = Some { value; consumed; dform = [] } in
   match node with
+  | Empty -> plain () pos
   | Const { width; value } ->
       if Bits.width bits - pos < width then None
       else if Bits.to_int64 (Bits.sub bits ~pos ~width) = truncate ~width value then
@@ -335,6 +346,7 @@ let decode_bits node bits = decode node bits ~pos:0
    output: this says what a form *is*, that says what is wrong with it. *)
 
 type shape =
+  | S_empty
   | S_const of { width : int; value : int64 }
   | S_field of { name : string; width : int; signedness : signedness }
   | S_fixup of { name : string; width : int }
@@ -344,6 +356,7 @@ type shape =
   | S_alt of { name : string; alts : (string * int * int * shape) list }
 
 let rec inspect : type a k. (a, k) t -> shape = function
+  | Empty -> S_empty
   | Const { width; value } -> S_const { width; value }
   | Field { name; width; signedness } -> S_field { name; width; signedness }
   | Fixup { name; width; _ } -> S_fixup { name; width }
@@ -368,6 +381,7 @@ let rec inspect : type a k. (a, k) t -> shape = function
 let pp_signedness ppf = function Signed -> Fmt.string ppf "s" | Unsigned -> Fmt.string ppf "u"
 
 let rec pp_shape ppf = function
+  | S_empty -> Fmt.string ppf "()"
   | S_const { width; value } -> Fmt.pf ppf "%s" (Bits.to_string (Bits.of_int64 ~width value))
   | S_field { name; width; signedness } -> Fmt.pf ppf "%s:%d%a" name width pp_signedness signedness
   | S_fixup { name; width } -> Fmt.pf ppf "<%s:%d>" name width
@@ -385,6 +399,7 @@ let rec pp_shape ppf = function
    branches disagree has none, which is not an error - x86 instructions are
    genuinely variable-length - so this is an option rather than a failure. *)
 let rec width_of : type a k. (a, k) t -> int option = function
+  | Empty -> Some 0
   | Const { width; _ } | Field { width; _ } | Fixup { width; _ } -> Some width
   | Seq (a, b) -> (
       match (width_of a, width_of b) with Some x, Some y -> Some (x + y) | _ -> None)
@@ -419,6 +434,7 @@ let pp_problem ppf p = Fmt.pf ppf "%s: %s" p.node p.issue
    [None] where the form has no single width - a variable-length [Alt] nested
    inside another has no pattern to compare. *)
 let rec pattern : type a k. (a, k) t -> string option = function
+  | Empty -> Some ""
   | Const { width; value } -> Some (Bits.of_int64 ~width (truncate ~width value))
   | Field { width; _ } | Fixup { width; _ } -> Some (String.make width '?')
   | Seq (a, b) -> ( match (pattern a, pattern b) with Some x, Some y -> Some (x ^ y) | _ -> None)
@@ -442,6 +458,7 @@ let patterns_overlap a b =
   go 0
 
 let rec check : type a k. (a, k) t -> problem list = function
+  | Empty -> []
   | Const { width; value } ->
       if fits ~width ~signedness:Unsigned value || fits ~width ~signedness:Signed value then []
       else [ problem "const" (Printf.sprintf "%Ld does not fit %d bits" value width) ]

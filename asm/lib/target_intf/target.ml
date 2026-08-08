@@ -132,6 +132,15 @@ module type TARGET = sig
 
   val codec : (lowered_instruction, fixup_kind) Codec.t
 
+  val encode :
+    lowered_instruction -> (string * string * fixup_kind Codec.placement list, Diagnostic.t) result
+  (** [(bytes, form_id, placements)]. Separate from {!codec} because packing bits into *memory
+      order* is target-specific: a codec describes bits most-significant first, which for x86's
+      byte-at-a-time forms already is memory order, while ARM and AArch64 author one 32-bit word
+      and must reverse it. Putting the reversal in generic code would mean the generic code knew
+      which targets are fixed-width, and putting it in the codec would mean [inspect] printed a
+      form the machine does not contain. *)
+
   type decode_context = { state : target_state; address : int64 }
   (** decoding needs more than the bytes: on ARM the same word is a different instruction depending
       on the mode, and a PC-relative operand cannot be printed without the address *)
@@ -152,6 +161,23 @@ module type TARGET = sig
       decodes as [add %al,(%rax)] and would make the diagnostic disassembler print instructions
       nobody wrote. *)
 
+  (* {1 Canonical rendering}
+
+     Three printers, one per staged type, because the ASTs are parameterized
+     over the target's instruction types and generic code has nothing to print.
+     These are the *canonical* spellings that asm/docs/contracts.md §1 fixes: a
+     printer here is a contract, not a debugging aid, and its output is compared
+     byte-for-byte across three runtimes. *)
+
+  val pp_surface : Format.formatter -> surface_instruction -> unit
+  val pp_instruction : Format.formatter -> instruction -> unit
+  val pp_lowered : Format.formatter -> lowered_instruction -> unit
+
+  val lowered_equal : lowered_instruction -> lowered_instruction -> bool
+  (** what the round-trip and path-coherence tests compare. Structural equality would compare
+      [Origin.t] values too, and two paths that reach the same instruction from different source
+      positions are the same instruction. *)
+
   (* {1 Directives} *)
 
   val handle_directive :
@@ -166,11 +192,36 @@ module type DRIVER = sig
   val name : string
   val triple : string
 
-  val assemble : unit_name:string -> source:Span.source -> (Image.plan, Diagnostic.t list) result
-  (** text in, address-free image plan out. Binding addresses is the caller's step and stays
-      outside every target (§9). *)
+  val assemble :
+    unit_name:string -> source:Span.source -> (Image.laid_out, Diagnostic.t list) result
+  (** Text in, laid-out image out - laid out but *not bound*: choosing addresses is the host's
+      step and stays outside every target (§9). [Image.bind_image] is what turns the result into
+      bytes at an address, and it is deliberately not part of this interface, because it is not
+      target-specific at all. *)
 
-  val disassemble : address:int64 -> string -> (string, Diagnostic.t list) result
+  (* The six dumps of asm/docs/contracts.md §1. Each is a separate entry point
+     rather than a [~stage] parameter, because they have genuinely different
+     inputs: three take source text, two take bytes and an address, and one
+     takes nothing. *)
+
+  val dump_tokens : source:Span.source -> (string, Diagnostic.t list) result
+  val dump_source_ast : unit_name:string -> source:Span.source -> (string, Diagnostic.t list) result
+
+  val dump_normalized_ast :
+    unit_name:string -> source:Span.source -> (string, Diagnostic.t list) result
+
+  val dump_lowered_ast :
+    unit_name:string -> source:Span.source -> (string, Diagnostic.t list) result
+
+  val dump_disasm_canonical : address:int64 -> string -> (string, Diagnostic.t list) result
+  (** exactly re-parseable: feeding this back through the assembler must produce the identical
+      image, and a round-trip test does exactly that *)
+
+  val dump_disasm_diagnostic : address:int64 -> string -> (string, Diagnostic.t list) result
+  (** address, bytes, spelling and form id in columns. Read by humans and by the differential gate;
+      **not** re-parseable, and no test may re-parse it - a format that had to satisfy both
+      audiences would satisfy neither. *)
+
   val dump_codec : unit -> string
 
   val check_codec : unit -> string list
