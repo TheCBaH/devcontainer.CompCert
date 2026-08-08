@@ -370,16 +370,21 @@ let%expect_test "the M1 scope frontier, per snippet and profile" =
    the encoding rather than a restatement of one. What it did not have was
    anything asserting the lengths come out right. *)
 
+(* Accepted, accepted at the wrong length, and rejected all render through one
+   combinator, so the three cannot drift into differently-shaped output. *)
+let show_nop ~length =
+  let ok ppf b =
+    if String.length b = length then Fmt.string ppf (hex b)
+    else Fmt.pf ppf "WRONG LENGTH %d: %s" (String.length b) (hex b)
+  in
+  Fmt.str "%a" (Fmt.result ~ok ~error:Fmt.(any "rejected: " ++ string))
+
 let%expect_test "nop_bytes, every length a target accepts" =
   List.iter
     (fun t ->
       Printf.printf "%s\n" t.target;
       List.iter
-        (fun length ->
-          match t.nop ~length with
-          | Ok b when String.length b = length -> Printf.printf "  %2d  %s\n" length (hex b)
-          | Ok b -> Printf.printf "  %2d  WRONG LENGTH %d: %s\n" length (String.length b) (hex b)
-          | Error m -> Printf.printf "  %2d  rejected: %s\n" length m)
+        (fun length -> Printf.printf "  %2d  %s\n" length (show_nop ~length (t.nop ~length)))
         (List.init 16 (fun i -> i + 1)))
     all;
   [%expect
