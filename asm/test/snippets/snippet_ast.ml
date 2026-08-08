@@ -89,7 +89,6 @@ module Aarch64_corpus = struct
   let r n = Option.get (T.Reg.find n)
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
-  let reg n = T.Operand.Reg (r n)
 
   let mem ?(writeback = false) base offset =
     T.Operand.Mem { T.Mem.base = r base; offset; writeback; pre = true }
@@ -97,14 +96,15 @@ module Aarch64_corpus = struct
   (* The CompCert 3.17 prologue/epilogue, which is exactly the M1 fixture. *)
   let return_n n =
     A.assemble
-      [
-        insn T.Opcode.Mov [ reg "x15"; reg "sp" ];
-        insn T.Opcode.Stp [ reg "x15"; reg "x30"; mem ~writeback:true "sp" (-16L) ];
-        insn T.Opcode.Movz [ reg "w0"; imm n ];
-        insn T.Opcode.Ldr [ reg "x30"; mem "sp" 8L ];
-        insn T.Opcode.Add [ reg "sp"; reg "sp"; imm 16 ];
-        insn T.Opcode.Ret [ reg "x30" ];
-      ]
+      T.Opcode.
+        [
+          insn Mov T.Operand.[ Reg (r "x15"); Reg (r "sp") ];
+          insn Stp T.Operand.[ Reg (r "x15"); Reg (r "x30"); mem ~writeback:true "sp" (-16L) ];
+          insn Movz T.Operand.[ Reg (r "w0"); imm n ];
+          insn Ldr T.Operand.[ Reg (r "x30"); mem "sp" 8L ];
+          insn Add T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
+          insn Ret T.Operand.[ Reg (r "x30") ];
+        ]
 
   let entries =
     [
@@ -118,13 +118,18 @@ module Aarch64_corpus = struct
         frozen = (fun s -> s.Sb.callee_clobber);
         built =
           A.assemble
-            [
-              insn T.Opcode.Movz [ reg "x19"; imm 0 ];
-              insn T.Opcode.Movz [ reg "w0"; imm 42 ];
-              insn T.Opcode.Ret [ reg "x30" ];
-            ];
+            T.Opcode.
+              [
+                insn Movz T.Operand.[ Reg (r "x19"); imm 0 ];
+                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                insn Ret T.Operand.[ Reg (r "x30") ];
+              ];
       };
-      { name = "trap"; frozen = (fun s -> s.Sb.trap); built = Needs "udf - no trap form" };
+      {
+        name = "trap";
+        frozen = (fun s -> s.Sb.trap);
+        built = A.assemble T.Opcode.[ insn Udf [ imm 0 ] ];
+      };
       {
         name = "spin";
         frozen = (fun s -> s.Sb.spin);
@@ -136,19 +141,51 @@ module Aarch64_corpus = struct
         built = Needs "and/cmp/b.eq - three forms plus a PC-relative branch";
       };
       {
+        (* [sub x1, sp, #4, lsl #12] carves a 16384-byte gap below sp, then
+           [strb wzr, [x1]] touches its first byte. *)
         name = "stack_full";
         frozen = (fun s -> s.Sb.stack_full);
-        built = Needs "sub-imm with lsl #12, and strb";
+        built =
+          A.assemble
+            T.Opcode.
+              [
+                insn Sub
+                  T.Operand.
+                    [ Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
+                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                insn Ret [];
+              ];
       };
       {
+        (* One byte past [stack_full]'s gap, the first byte the guard page misses. *)
         name = "stack_over";
         frozen = (fun s -> s.Sb.stack_over);
-        built = Needs "sub-imm with lsl #12, and strb";
+        built =
+          A.assemble
+            T.Opcode.
+              [
+                insn Sub
+                  T.Operand.
+                    [ Reg (r "x1"); Reg (r "sp"); imm 4; Shift { T.Shift.kind = "lsl"; amount = 12 } ];
+                insn Sub T.Operand.[ Reg (r "x1"); Reg (r "x1"); imm 1 ];
+                insn Strb T.Operand.[ Reg (r "wzr"); mem "x1" 0L ];
+                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                insn Ret [];
+              ];
       };
       {
+        (* [sub sp, sp, #16] is A64's separate sub-immediate encoding. *)
         name = "sp_corrupt";
         frozen = (fun s -> s.Sb.sp_corrupt);
-        built = Needs "sub-imm - A64 encodes it separately from add-imm";
+        built =
+          A.assemble
+            T.Opcode.
+              [
+                insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
+                insn Movz T.Operand.[ Reg (r "w0"); imm 42 ];
+                insn Ret [];
+              ];
       };
     ]
 
@@ -164,21 +201,21 @@ module Arm_corpus = struct
   let r n = Option.get (T.Reg.find n)
   let insn op ops : T.Instruction.t = { T.Instruction.op; ops }
   let imm n = T.Operand.Imm (Foundation.Bigint.of_int n)
-  let reg n = T.Operand.Reg (r n)
   let mem base offset = T.Operand.Mem { T.Mem.base = r base; offset; writeback = false; pre = true }
 
   let return_n n =
     A.assemble
-      [
-        insn T.Opcode.Mov [ reg "r12"; reg "sp" ];
-        insn T.Opcode.Sub [ reg "sp"; reg "sp"; imm 8 ];
-        insn T.Opcode.Str [ reg "r12"; mem "sp" 0L ];
-        insn T.Opcode.Str [ reg "lr"; mem "sp" 4L ];
-        insn T.Opcode.Mov [ reg "r0"; imm n ];
-        insn T.Opcode.Ldr [ reg "lr"; mem "sp" 4L ];
-        insn T.Opcode.Add [ reg "sp"; reg "sp"; imm 8 ];
-        insn T.Opcode.Bx [ reg "lr" ];
-      ]
+      T.Opcode.
+        [
+          insn Mov T.Operand.[ Reg (r "r12"); Reg (r "sp") ];
+          insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 8 ];
+          insn Str T.Operand.[ Reg (r "r12"); mem "sp" 0L ];
+          insn Str T.Operand.[ Reg (r "lr"); mem "sp" 4L ];
+          insn Mov T.Operand.[ Reg (r "r0"); imm n ];
+          insn Ldr T.Operand.[ Reg (r "lr"); mem "sp" 4L ];
+          insn Add T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 8 ];
+          insn Bx T.Operand.[ Reg (r "lr") ];
+        ]
 
   let entries =
     [
@@ -191,11 +228,12 @@ module Arm_corpus = struct
         frozen = (fun s -> s.Sb.callee_clobber);
         built =
           A.assemble
-            [
-              insn T.Opcode.Mov [ reg "r4"; imm 0 ];
-              insn T.Opcode.Mov [ reg "r0"; imm 42 ];
-              insn T.Opcode.Bx [ reg "lr" ];
-            ];
+            T.Opcode.
+              [
+                insn Mov T.Operand.[ Reg (r "r4"); imm 0 ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
+                insn Bx T.Operand.[ Reg (r "lr") ];
+              ];
       };
       {
         (* [sub sp, sp, #16] is the fixture's sub-immediate. *)
@@ -203,13 +241,18 @@ module Arm_corpus = struct
         frozen = (fun s -> s.Sb.sp_corrupt);
         built =
           A.assemble
-            [
-              insn T.Opcode.Sub [ reg "sp"; reg "sp"; imm 16 ];
-              insn T.Opcode.Mov [ reg "r0"; imm 42 ];
-              insn T.Opcode.Bx [ reg "lr" ];
-            ];
+            T.Opcode.
+              [
+                insn Sub T.Operand.[ Reg (r "sp"); Reg (r "sp"); imm 16 ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
+                insn Bx T.Operand.[ Reg (r "lr") ];
+              ];
       };
-      { name = "trap"; frozen = (fun s -> s.Sb.trap); built = Needs "udf - no trap form" };
+      {
+        name = "trap";
+        frozen = (fun s -> s.Sb.trap);
+        built = A.assemble T.Opcode.[ insn Udf [ imm 0 ] ];
+      };
       {
         name = "spin";
         frozen = (fun s -> s.Sb.spin);
@@ -220,8 +263,38 @@ module Arm_corpus = struct
         frozen = (fun s -> s.Sb.sp_align);
         built = Needs "and/cmp plus the conditional-execution suffixes moveq/movne";
       };
-      { name = "stack_full"; frozen = (fun s -> s.Sb.stack_full); built = Needs "strb" };
-      { name = "stack_over"; frozen = (fun s -> s.Sb.stack_over); built = Needs "strb" };
+      {
+        (* [sub r1, sp, #0x4000] carves a 16384-byte gap below sp, then
+           [strb r0, [r1]] (with r0 zeroed) touches its first byte. *)
+        name = "stack_full";
+        frozen = (fun s -> s.Sb.stack_full);
+        built =
+          A.assemble
+            T.Opcode.
+              [
+                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "sp"); imm 0x4000 ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 0 ];
+                insn Strb T.Operand.[ Reg (r "r0"); mem "r1" 0L ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
+                insn Bx T.Operand.[ Reg (r "lr") ];
+              ];
+      };
+      {
+        (* One byte past [stack_full]'s gap. *)
+        name = "stack_over";
+        frozen = (fun s -> s.Sb.stack_over);
+        built =
+          A.assemble
+            T.Opcode.
+              [
+                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "sp"); imm 0x4000 ];
+                insn Sub T.Operand.[ Reg (r "r1"); Reg (r "r1"); imm 1 ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 0 ];
+                insn Strb T.Operand.[ Reg (r "r0"); mem "r1" 0L ];
+                insn Mov T.Operand.[ Reg (r "r0"); imm 42 ];
+                insn Bx T.Operand.[ Reg (r "lr") ];
+              ];
+      };
     ]
 
   let nops = A.nop
@@ -263,11 +336,50 @@ module X86_shared = struct
       insn Opcode.Ret width [];
     ]
 
-  let entries return_n =
+  let trap_insns = [ insn Opcode.Ud2 32 [] ]
+
+  let callee_clobber_insns ~bx ~eax ~width =
+    [
+      insn Opcode.Xor width [ Operand.Reg bx; Operand.Reg bx ];
+      insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
+      insn Opcode.Ret width [];
+    ]
+
+  (* [entry_gap] is the same §11 return-address width as [return_n]'s [frame].
+     The two [stack_*] cases probe one byte on either side of a 16384-byte gap
+     below sp: [stack_full] touches its first byte, [stack_over] the byte just
+     past it. *)
+  let stack_full_insns ~sp ~ax ~eax ~width ~entry_gap =
+    [
+      insn Opcode.Lea width
+        [ Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16384L entry_gap)) sp); Operand.Reg ax ];
+      insn Opcode.Mov 8 [ imm 0; Operand.Mem (Mem.of_base ax) ];
+      insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
+      insn Opcode.Ret width [];
+    ]
+
+  let stack_over_insns ~sp ~ax ~eax ~width ~entry_gap =
+    [
+      insn Opcode.Lea width
+        [ Operand.Mem (Mem.of_base ~disp:(Int64.neg (Int64.sub 16385L entry_gap)) sp); Operand.Reg ax ];
+      insn Opcode.Mov 8 [ imm 0; Operand.Mem (Mem.of_base ax) ];
+      insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
+      insn Opcode.Ret width [];
+    ]
+
+  let sp_corrupt_insns ~sp ~dx ~eax ~width =
+    [
+      insn Opcode.Pop width [ Operand.Reg dx ];
+      insn Opcode.Sub width [ imm 16; Operand.Reg sp ];
+      insn Opcode.Mov 32 [ imm 42; Operand.Reg eax ];
+      insn Opcode.Jmp width [ Operand.Reg dx ];
+    ]
+
+  let entries ~return_n ~trap ~callee_clobber ~stack_full ~stack_over ~sp_corrupt =
     [
       { name = "return42"; frozen = (fun s -> s.Sb.return42); built = return_n 42 };
       { name = "return41"; frozen = (fun s -> s.Sb.return41); built = return_n 41 };
-      { name = "trap"; frozen = (fun s -> s.Sb.trap); built = Needs "ud2" };
+      { name = "trap"; frozen = (fun s -> s.Sb.trap); built = trap };
       {
         name = "spin";
         frozen = (fun s -> s.Sb.spin);
@@ -278,22 +390,10 @@ module X86_shared = struct
         frozen = (fun s -> s.Sb.sp_align);
         built = Needs "and/cmp/jcc - two ALU extensions plus a PC-relative branch";
       };
-      {
-        name = "stack_full";
-        frozen = (fun s -> s.Sb.stack_full);
-        built = Needs "movb $0,(%reg) - byte-width store to memory";
-      };
-      {
-        name = "stack_over";
-        frozen = (fun s -> s.Sb.stack_over);
-        built = Needs "movb $0,(%reg) - byte-width store to memory";
-      };
-      {
-        name = "sp_corrupt";
-        frozen = (fun s -> s.Sb.sp_corrupt);
-        built = Needs "pop, and the indirect jmp *%reg";
-      };
-      { name = "callee_clobber"; frozen = (fun s -> s.Sb.callee_clobber); built = Needs "xor" };
+      { name = "stack_full"; frozen = (fun s -> s.Sb.stack_full); built = stack_full };
+      { name = "stack_over"; frozen = (fun s -> s.Sb.stack_over); built = stack_over };
+      { name = "sp_corrupt"; frozen = (fun s -> s.Sb.sp_corrupt); built = sp_corrupt };
+      { name = "callee_clobber"; frozen = (fun s -> s.Sb.callee_clobber); built = callee_clobber };
     ]
 end
 
@@ -303,9 +403,23 @@ module X86_64_corpus = struct
   let r n = Option.get (X86_64.find_reg n)
 
   let entries =
-    X86_shared.entries (fun n ->
+    X86_shared.entries
+      ~return_n:(fun n ->
         A.assemble
           (X86_shared.return_n ~sp:(r "rsp") ~ax:(r "rax") ~eax:(r "eax") ~width:64 ~frame:8 n))
+      ~trap:(A.assemble X86_shared.trap_insns)
+      ~callee_clobber:
+        (A.assemble (X86_shared.callee_clobber_insns ~bx:(r "rbx") ~eax:(r "eax") ~width:64))
+      ~stack_full:
+        (A.assemble
+           (X86_shared.stack_full_insns ~sp:(r "rsp") ~ax:(r "rax") ~eax:(r "eax") ~width:64
+              ~entry_gap:8L))
+      ~stack_over:
+        (A.assemble
+           (X86_shared.stack_over_insns ~sp:(r "rsp") ~ax:(r "rax") ~eax:(r "eax") ~width:64
+              ~entry_gap:8L))
+      ~sp_corrupt:
+        (A.assemble (X86_shared.sp_corrupt_insns ~sp:(r "rsp") ~dx:(r "rdx") ~eax:(r "eax") ~width:64))
 
   let nops = A.nop
 end
@@ -316,9 +430,23 @@ module X86_32_corpus = struct
   let r n = Option.get (X86_32.find_reg n)
 
   let entries =
-    X86_shared.entries (fun n ->
+    X86_shared.entries
+      ~return_n:(fun n ->
         A.assemble
           (X86_shared.return_n ~sp:(r "esp") ~ax:(r "eax") ~eax:(r "eax") ~width:32 ~frame:12 n))
+      ~trap:(A.assemble X86_shared.trap_insns)
+      ~callee_clobber:
+        (A.assemble (X86_shared.callee_clobber_insns ~bx:(r "ebx") ~eax:(r "eax") ~width:32))
+      ~stack_full:
+        (A.assemble
+           (X86_shared.stack_full_insns ~sp:(r "esp") ~ax:(r "eax") ~eax:(r "eax") ~width:32
+              ~entry_gap:4L))
+      ~stack_over:
+        (A.assemble
+           (X86_shared.stack_over_insns ~sp:(r "esp") ~ax:(r "eax") ~eax:(r "eax") ~width:32
+              ~entry_gap:4L))
+      ~sp_corrupt:
+        (A.assemble (X86_shared.sp_corrupt_insns ~sp:(r "esp") ~dx:(r "edx") ~eax:(r "eax") ~width:32))
 
   let nops = A.nop
 end

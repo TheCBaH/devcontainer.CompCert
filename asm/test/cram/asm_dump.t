@@ -193,6 +193,32 @@
                                                               [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
                                                               [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
     [6 cost=0] ret              ret(){11000011}
+    [7 cost=0] mov-rm-imm8      mov-rm-imm8(){no-rex(){()} 11000110 alt modrm
+                                                                      [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                      [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                      [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                      [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                      [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                      [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                      [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}} imm8:8s}
+    [8 cost=0] xor-rm-r         xor-rm-r(){no-rex(){()} 00110001 alt modrm
+                                                                   [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                   [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                   [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                   [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                   [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                   [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                   [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
+    [9 cost=0] pop-r            pop-r(){no-rex(){()} 01011 reg:3u}
+    [10 cost=0] jmp-rm           jmp-rm(){no-rex(){()} 11111111 alt modrm
+                                                                  [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                  [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                  [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                  [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                  [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                  [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                  [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
+    [11 cost=0] ud2              ud2(){0000111100001011}
   ########## x86_64 tokens
   1 5 directive .text
   6 1 eol \n
@@ -399,6 +425,40 @@
                                                                       [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
                                                                       [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
     [6 cost=0] ret              ret(){11000011}
+    [7 cost=0] mov-rm-imm8      mov-rm-imm8(){alt rex
+                                                [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
+                                                [1 cost=0] rex-absent       rex-absent(){()} 11000110 alt modrm
+                                                                      [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                      [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                      [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                      [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                      [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                      [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                      [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}} imm8:8s}
+    [8 cost=0] xor-rm-r         xor-rm-r(){alt rex
+                                             [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
+                                             [1 cost=0] rex-absent       rex-absent(){()} 00110001 alt modrm
+                                                                      [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                      [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                      [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                      [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                      [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                      [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                      [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
+    [9 cost=0] pop-r            pop-r(){alt rex
+                                          [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
+                                          [1 cost=0] rex-absent       rex-absent(){()} 01011 reg:3u}
+    [10 cost=0] jmp-rm           jmp-rm(){alt rex
+                                            [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
+                                            [1 cost=0] rex-absent       rex-absent(){()} 11111111 alt modrm
+                                                                      [0 cost=0] reg              modrm-reg(){11 reg:3u rm:3u}
+                                                                      [1 cost=0] sib-disp0        modrm-sib-disp0(){00 reg:3u 100 sib(){scale:2u index:3u base:3u} no-disp(){()}}
+                                                                      [2 cost=0] sib-disp8        modrm-sib-disp8(){01 reg:3u 100 sib(){scale:2u index:3u base:3u} disp8:8s}
+                                                                      [3 cost=0] sib-disp32       modrm-sib-disp32(){10 reg:3u 100 sib(){scale:2u index:3u base:3u} le32(){disp32:32u}}
+                                                                      [4 cost=0] base-disp0       modrm-base-disp0(){00 reg:3u rm:3u no-disp(){()}}
+                                                                      [5 cost=0] base-disp8       modrm-base-disp8(){01 reg:3u rm:3u disp8:8s}
+                                                                      [6 cost=0] base-disp32      modrm-base-disp32(){10 reg:3u rm:3u le32(){disp32:32u}}}
+    [11 cost=0] ud2              ud2(){0000111100001011}
   ########## arm tokens
   1 7 directive .syntax
   9 7 ident unified
@@ -620,7 +680,8 @@
     [0 cost=0] bx               bx(){1110 000100101111111111110001 rm(){rm:4u}}
     [1 cost=0] dp-imm           dp-imm(){1110 001 dp:4u s:1u rn(){rn:4u} rd(){rd:4u} modimm(){rot:4u imm8:8u}}
     [2 cost=0] dp-reg           dp-reg(){1110 000 dp:4u s:1u rn(){rn:4u} rd(){rd:4u} shift-amount:5u shift-kind:2u 0 rm(){rm:4u}}
-    [3 cost=0] ldst-imm         ldst-imm(){1110 010 1 u:1u 0 0 l:1u rn(){rn:4u} rt(){rt:4u} imm12:12u}
+    [3 cost=0] ldst-imm         ldst-imm(){1110 010 1 u:1u b:1u 0 l:1u rn(){rn:4u} rt(){rt:4u} imm12:12u}
+    [4 cost=0] udf              udf(){1110 01111111 imm12:12u 1111 imm4:4u}
   ########## aarch64 tokens
   1 5 directive .text
   6 1 eol \n
@@ -799,3 +860,6 @@
     [2 cost=0] movz             movz(){sf:1u 10100101 hw:2u imm16:16u rd(){rd:5u}}
     [3 cost=0] ldr-uoff         ldr-uoff(){1111100101 imm12-scaled8(){imm12:12u} rn(){rn:5u} rt(){rt:5u}}
     [4 cost=0] ret              ret(){1101011001011111000000 rn(){rn:5u} 00000}
+    [5 cost=0] sub-imm          sub-imm(){110100010 sh:1u imm12:12u rn(){rn:5u} rd(){rd:5u}}
+    [6 cost=0] strb-uoff        strb-uoff(){0011100100 imm12:12u rn(){rn:5u} rt(){rt:5u}}
+    [7 cost=0] udf              udf(){0000000000000000 imm16:16u}
