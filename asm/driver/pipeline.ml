@@ -44,8 +44,20 @@ module Make (T : T_intf.TARGET) = struct
                 | Statement.Named (span, n) ->
                     add (Source_ast.Label { name = n; origin = Origin.text span })
                 | Statement.Numeric (span, n) ->
-                    add
-                      (Source_ast.Label { name = string_of_int n ^ ":"; origin = Origin.text span }))
+                    (* Rejected, not renamed. A numeric local label means
+                       nothing without the [1b]/[1f] references that resolve
+                       against it, and that resolution is a pass over fragment
+                       order which M1 does not have. Turning [1:] into a symbol
+                       called "1:" would define something no reference can ever
+                       reach - a file assembled without being understood, which
+                       is what §2.2 exists to forbid. *)
+                    errors :=
+                      diag ~origin:(Origin.text span) "parse.local-label"
+                        (Printf.sprintf
+                           "numeric local label %d: needs 1b/1f resolution, which is not in M1 \
+                            scope"
+                           n)
+                      :: !errors)
               line.Statement.labels;
             match line.Statement.statement with
             | Statement.Empty -> ()
@@ -71,6 +83,26 @@ module Make (T : T_intf.TARGET) = struct
      canonical semantic operations. Target state is threaded rather than
      mutated, so this function is replayable and two runs over the same module
      cannot differ. *)
+
+  (* Constant folding (§4.3), and the rule that makes it safe: [Expr.fold]
+     collapses only *fully absolute* subterms and rewrites the rest unchanged.
+     So [2 + 3] becomes [5] here, while [. - asm_test_entry] stays symbolic -
+     it cannot be a number until an address exists, and folding it early would
+     mean inventing one.
+
+     Folding at simplify rather than at bind is what §4.3 asks for, and it has a
+     practical consequence: a division by zero or an out-of-range shift is
+     reported against the source line that wrote it, not against a link map. *)
+  let fold_directive ~origin d =
+    let fold e =
+      match Expr.fold Expr.no_env e with
+      | Ok e' -> Ok e'
+      | Error m -> Error (diag ~origin "simplify.expression" m)
+    in
+    match d with
+    | Directive.Sym_size { name; size } ->
+        Result.map (fun size -> Directive.Sym_size { name; size }) (fold size)
+    | other -> Ok other
 
   let simplify (m : T.surface_instruction Source_ast.module_) =
     let errors = ref [] in
@@ -104,8 +136,10 @@ module Make (T : T_intf.TARGET) = struct
             | T_intf.Unhandled -> (
                 match Directives.normalize ~name ~arguments with
                 | Ok Directives.Dropped -> ()
-                | Ok (Directives.Normalized d) ->
-                    add (Normalized_ast.Directive { directive = d; origin })
+                | Ok (Directives.Normalized d) -> (
+                    match fold_directive ~origin d with
+                    | Ok d -> add (Normalized_ast.Directive { directive = d; origin })
+                    | Error e -> errors := e :: !errors)
                 | Ok Directives.Unknown ->
                     errors :=
                       diag ~origin "simplify.directive" ("unknown directive " ^ name) :: !errors
