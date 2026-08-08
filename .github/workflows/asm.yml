@@ -168,9 +168,12 @@ jobs:
     - name: setup
       run: |
         echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
-    # Job-local rather than in devcontainer.json's package list: the same
-    # devcontainer.json builds images for OCaml 4.14.3 through 5.5.0, and
-    # Melange's OCaml upper bound would make every 5.x image unsatisfiable.
+    # devcontainer.json lists Melange under `optional-packages`, not `packages`:
+    # the same devcontainer.json builds images for OCaml 4.14.3 through 5.5.0
+    # and Melange's OCaml upper bound would make every 5.x image unsatisfiable,
+    # so the feature installs it only where opam reports it available. On this
+    # pinned 4.14 leg that is already the case; the step below is what makes the
+    # job fail loudly here if it ever stops being installable.
     - name: install melange
       run: |
         ${{ env.EXEC }} opam install -y melange
