@@ -1,0 +1,37 @@
+This project hosts CompCert C compiler. You need to create high level plan to construct retargetable assembler in ocaml for architectures suppported by CompCert.
+Analyze existing precedents in OCaml or otherwise (such as in llvm).
+
+For data types add pp (it should use Fmt combinators), for Bigint add pp_repr that would print internal representation (should be usesful for expect based unit tests).
+
+
+Binary blobs it's something like this in the code.
+
+(* mov x15,sp | stp x15,x30,[sp,#-16]! | movz w0,#42 | ldr x30,[sp,#8]
+       | add sp,sp,#16 | ret x30 *)
+    return42 =
+      "\xef\x03\x00\x91\xef\x7b\xbf\xa9\x40\x05\x80\x52\xfe\x07\x40\xf9\xff\x43\x00\x91\xc0\x03\x5f\xd6";
+    (* movz w0,#41 = 52800520 *)
+    return41 =
+      "\xef\x03\x00\x91\xef\x7b\xbf\xa9\x20\x05\x80\x52\xfe\x07\x40\xf9\xff\x43\x00\x91\xc0\x03\x5f\xd6";
+
+When defining ops instead of 
+type opcode = Op_add | Op_mov | Op_movz | Op_stp | Op_ldr | Op_ret
+use 
+module Opcode = struct
+type opcode = Add | Mov | Movz | Stp | Ldr | Ret
+end
+This would then allow better compositional properties for these
+Also maybe further extended to other types, such as
+
+type operand =
+  | Op_reg of reg
+  | Op_imm of Bigint.t
+  | Op_mem of memory
+
+Use:
+module Operand = struct
+
+type operand =
+  | Reg of reg
+  | Imm of Bigint.t
+  | Mem of memory
