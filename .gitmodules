@@ -1,3 +1,7 @@
 [submodule "modules/CompCert"]
 	path = modules/CompCert
 	url = https://github.com/AbsInt/CompCert.git
+[submodule "asm/vendor/err_trace"]
+	path = asm/vendor/err_trace
+	url = https://github.com/TheCBaH/err_trace.git
+	branch = main
