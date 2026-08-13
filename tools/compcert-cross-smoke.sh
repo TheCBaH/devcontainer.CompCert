@@ -50,6 +50,7 @@ Opam() {
 # defines ALL_TARGETS, overriding the copy above with the same value.
 # shellcheck source=target-matrix.sh
 . "$SCRIPT_DIR/target-matrix.sh"
+ALL_TARGETS=("${LIBC_SMOKE_TARGETS[@]}")
 
 run_target() {
   local TARGET="$1"
