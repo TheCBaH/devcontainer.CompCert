@@ -1,0 +1,13 @@
+# Recorded binutils output, captured verbatim. Whitespace here is DATA, not
+# formatting, and must never be normalized:
+#
+#   - readelf -sW's index-0 symbol has an empty name, so its line ends in a
+#     space. Gnu_output.symbols drops that entry by field arity, which is a
+#     property of exactly those bytes;
+#   - RISC-V objdump -r rows for the local label .L0 also end in a space;
+#   - objdump -r ends with blank lines.
+#
+# The repository's pre-commit hook runs `git diff --cached --check`, which
+# rejects both. Stripping them to satisfy it would silently change the parser's
+# input and make the tests prove something about bytes the tools never emit.
+* -whitespace

@@ -1,0 +1,14 @@
+
+/tmp/tmp.lEwrht545L/x86_32-global_ldst.o:     file format elf32-i386
+
+RELOCATION RECORDS FOR [.text]:
+OFFSET   TYPE              VALUE
+0000000b R_386_32          asm_test_global
+00000013 R_386_32          asm_test_global
+
+
+RELOCATION RECORDS FOR [.eh_frame]:
+OFFSET   TYPE              VALUE
+00000020 R_386_PC32        .text
+
+

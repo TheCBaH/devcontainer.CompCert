@@ -19,7 +19,6 @@ JOBS=$(nproc)
 WORK_ROOT="${CROSS_SMOKE_WORK:-$REPO_ROOT/.cross-smoke-work}"
 SMOKE_SRC="$REPO_ROOT/test/cross-smoke/hello.c"
 SMOKE_EXPECTED="$REPO_ROOT/test/cross-smoke/Results/hello"
-ALL_TARGETS=(x86_32 x86_64 arm aarch64)
 
 Fatal() {
   echo "FATAL: $*" 1>&2
@@ -33,8 +32,16 @@ SkipTarget() {
   exit 2
 }
 
+# Reads the matrix rather than repeating it. usage() is defined before the
+# source below but only ever CALLED after it, so LIBC_SMOKE_TARGETS is set by
+# then. The literal list this used to carry was the one copy of the target set
+# that nothing overrode, so it was the one that could silently come to disagree
+# with the matrix.
 usage() {
-  echo "Usage: $0 [x86_32|x86_64|arm|aarch64|all]" 1>&2
+  # IFS so "${a[*]}" joins with '|', keeping the message byte-identical to the
+  # hand-written one it replaces.
+  local IFS='|'
+  echo "Usage: $0 [${LIBC_SMOKE_TARGETS[*]}|all]" 1>&2
 }
 
 Opam() {
@@ -45,9 +52,14 @@ Opam() {
   fi
 }
 
-# The target matrix lives in tools/target-matrix.sh so that asm/'s fixture and
-# oracle tools describe the four targets identically - see that file. It also
-# defines ALL_TARGETS, overriding the copy above with the same value.
+# The target matrix lives in tools/target-matrix.sh - itself generated from
+# asm/tools/lib/target.ml - so that asm/'s fixture and oracle tools describe
+# these targets identically. See that file.
+#
+# There used to be a second, hand-written ALL_TARGETS above this line, described
+# as being overridden "with the same value". Two copies whose agreement is
+# asserted rather than checked is the exact shape this matrix exists to remove,
+# and the copy was dead code besides: nothing read it before this source.
 # shellcheck source=target-matrix.sh
 . "$SCRIPT_DIR/target-matrix.sh"
 ALL_TARGETS=("${LIBC_SMOKE_TARGETS[@]}")
