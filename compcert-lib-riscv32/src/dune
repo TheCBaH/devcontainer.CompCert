@@ -1,0 +1,17 @@
+; Sources here are synced from modules/CompCert (hand-written + Coq-extracted
+; + Menhir-generated) for the riscv32 target by `make compcert-lib-sync-riscv32` -
+; see ../../Makefile and ../../tools/compcert-lib-sync-target.sh.
+; Not committed: see .gitignore in this directory.
+(library
+ (name compcert_riscv32)
+ (libraries str unix menhirLib)
+ ; CompCert has a few interface-only modules (cparser/C.mli,
+ ; debug/DebugTypes.mli, debug/DwarfTypes.mli); dune won't infer that, it
+ ; wants them listed. Keep in sync with compcert-lib-sync-target.sh's source
+ ; dirs: `for f in src/*.mli; do [ -f "${f%.mli}.ml" ] || echo "$f"; done`.
+ (modules_without_implementation c debugTypes dwarfTypes)
+ ; CompCert's own build uses a curated per-file warning set (see
+ ; Makefile.extr's WARNINGS/EXTRWARNINGS); replicating that here isn't
+ ; worth it for a prototype, so warnings are just disabled outright.
+ (flags
+  (:standard -w -a -strict-sequence)))
