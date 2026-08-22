@@ -205,6 +205,144 @@ and one unsupported memory-operand shape ("cannot parse operand"); see
 a tooling bug — triaging these 22 into concrete instruction/addressing-mode
 work is the natural next corpus-growth step.
 
+### x86: base-less scaled-index (SIB) memory operands — fixed this session (2026-08-22)
+
+The 9 "cannot parse operand" rejections above were all one gap: AT&T
+`disp(,index,scale)` — a SIB memory operand with no base register
+(`leaq 0(,%rcx,8), %rdi`), GCC/CompCert's array-index address idiom. Not a
+pure parser fix: `asm/targets/x86_family/x86_family.ml` gained three new
+`parse_one_operand` cases (additive — `Mem.t.base` was already
+`Reg.t option` and the pretty-printer already handled it), but
+`asm/targets/x86_family/x86_family_encode.ml` needed a real encoder/decoder
+fix — `disp_form_of` was picking `D_none`/`D_8` for a base-less operand
+where real x86 requires a mandatory disp32 (SIB.base=101 + mod=00 is a
+reserved escape), and no codec alternative existed to decode it; added
+`sib-nobase-disp32`, modeled on the existing `disp32-norm` RIP-relative
+alternative, prioritized ahead of the generic `sib-disp0`/`sib-disp8`/
+`sib-disp32` forms to resolve the bit-pattern overlap. Also found and fixed,
+as part of the same shared codec path, a **pre-existing** sign-extension bug
+in `sym_disp`'s decode (`Fixup` carries no signedness of its own): a
+negative disp32 was redisplaying as its unsigned 32-bit magnitude (e.g.
+`4294967295` instead of `-1`) on both the new SIB form and the existing
+RIP-relative one — bytes were always correct, only the disassembly text was
+wrong. Fixed via `Codec.sign_extend`, covering both cases at once.
+
+Verified: `dune build @all`/`dune runtest` green (including `Codec.check`'s
+self-test and the promoted `asm/test/cram/asm_dump.t` codec-structure
+baseline); byte-for-byte match against the real, installed
+`x86_64-linux-gnu-as`/`objdump` for both corpus-evidenced snippets (checked
+by hand, not yet a permanent differential fixture — see
+`asm/docs/corpus.md`'s Follow-ups for why the existing `snippet_ast.ml`
+corpus doesn't fit); `make asm-corpus-classify-c-x86_64` re-run for real,
+**accepted count 2 → 7 of 24**, and the "cannot parse operand" reason is
+gone from `summary.txt` entirely — some of the 9 previously-blocked files
+now hit a *different*, real, previously-masked rejection instead (mostly
+`%xmm*`), which is expected and correctly attributed by the fix's own scope.
+
+### x86_64 `test/c/` corpus closed to 24/24 parse acceptance (2026-08-22)
+
+Three fixes, closing every remaining rejection from the 7/24 baseline above:
+
+- **A general octal string-escape** (`\NNN`, 1-3 digits, GAS's actual
+  behavior confirmed against real `x86_64-linux-gnu-as`: greedy up to 3
+  digits, stops at the first non-octal character, a value over `0o377`
+  truncates to its low byte) in `asm/lib/asm_syntax/lexer.ml`'s
+  `scan_string`, replacing the old special-cased `\0` branch. New
+  `asm/test/lib/asm_syntax/{dune,test_lexer.ml}` — a lexer-level test
+  library, since nothing downstream renders a decoded string's *content*
+  (`Source_ast.pp` prints a directive's arguments from their source span,
+  not the token payload), so this is the one place a wrong decoded byte
+  would otherwise pass every corpus/expect test unnoticed.
+- **`%r8b`-`%r15b`** (8-bit REX-extended sub-registers): one register-table
+  line (`X86_family_encode.Reg.extended_regs 8 "b"` in
+  `asm/targets/x86_64/x86_64_encode.ml`) — `reg_at`/ModR/M/REX.B selection
+  already generalize by `(width, num)`, so no encoder logic changed.
+  `aes.c` needed this *and* the octal-escape fix together: its
+  `%r8b`/`%r9b`/`%r10b` uses sit past the line-18 lexer error that was
+  masking them, exactly the kind of masking the SIB fix (above) already
+  established as expected — re-running `classify-c` after each fix, not
+  only once at the end, is what caught it.
+- **A previously-undiscovered fourth parse gap**, found only by re-running
+  `classify-c` after the first two fixes landed: `sha1.c`'s
+  `leal -1894007588(%esi,%r10d,1), %eax` — a negative-displacement,
+  base+index+scale SIB memory operand, the one shape
+  `asm/docs/corpus.md`'s own Follow-ups had already flagged as "no existing
+  parser pattern covers it... fix if and when a fixture needs it." One
+  additive `parse_one_operand` case in `x86_family.ml`, mirroring the
+  existing positive-displacement and base-less-negative-displacement cases.
+- **`%xmm0`-`%xmm15` and the SSE2 scalar-float instruction family**
+  (`addsd`/`subsd`/`mulsd`/`divsd`/`addss`/`subss`/`mulss`/`divss`/
+  `comisd`/`comiss`/`xorpd`/`movapd`/`cvtsd2ss`/`cvtss2sd`/`movsd`/`movss`/
+  `cvtsi2sd`/`cvtsi2ss`/`cvttsd2si`) — CompCert's x86_64 double/float
+  codegen, the largest of the four and the reason this increment needed a
+  design review (three rounds; two structural bugs the review caught before
+  implementation: a self-contradictory single-alt/multi-prefix table
+  design, and missing operand-class validation). Landed as:
+  - `Reg.t` reused with `width = 128` as the xmm class marker (no parallel
+    `Xmm` type) — `reg_at`/`retype`/`reg_field`/`rm_of` already key purely
+    on `(width, num)`, so this is free.
+  - Five new `Lowered.t` constructors (`Sse_binop_r_rm`, `Sse_mov_r_rm`,
+    `Sse_mov_rm_r`, `Cvtsi2f_r_rm`, `Cvtf2i_r_rm`) and ~11 `C.alt` codec
+    forms, grouped by mandatory-prefix byte (`F2`/`F3`/`66`/none) per alt —
+    *not* one alt per mnemonic and *not* one alt spanning every mnemonic,
+    since REX has to sit between the mandatory prefix and `0F` and a table
+    whose selected prefix changes per entry can't express that.
+    `prefixes_codec`/`prefixes_of` are untouched; the SSE path builds its
+    own `asz, mandatory, REX, 0F, opcode, rm` sequence, reusing
+    `prefixes_of`'s value computation for the `asz`/REX pieces.
+  - Explicit operand-class validation in `lower_instruction` (a new
+    `` `Sse_operand_class`` error, e.g. `addsd %eax, %xmm0` is rejected, not
+    silently encoded as if `%eax` were `%xmm0`) and a parse-time rejection
+    of an xmm register used as a memory base/index
+    (`` `Xmm_in_memory_operand``, in `x86_family.ml` — protects every
+    instruction with a memory operand, not only the new SSE ones).
+  - Disassembler integration in `instruction_of_lowered` and
+    `Instruction.pp`'s no-suffix group (these are fixed SSE mnemonics with
+    no AT&T size suffix — GAS never writes `addsdl`).
+  - Every encoding, including the `asz`+REX+mandatory-prefix ordering case
+    (`movsd (%eax), %xmm8` → `67 f2 44 0f 10 00`) and a REX-extended xmm
+    pair (`addsd %xmm8, %xmm9` → `f2 45 0f 58 c8`), was checked byte-for-byte
+    against the real, installed `x86_64-linux-gnu-as`/`objdump` (binutils
+    2.44) before being written into `x86_family_encode.ml`'s comments or
+    `test/targets/test_targets.ml`'s expect blocks.
+
+**Also this session**: discovered mid-implementation that the xmm
+register-table addition alone already brought `classify-c` to 24/24, since
+`--dump-source-ast` never reaches `simplify_instruction` (mnemonic validity
+is a later-phase check) — confirmed by finding `movzbl`/`movslq`/`setl`/
+`sete` already silently un-checked throughout this corpus. Surfaced this to
+the user before building the full SSE encoder rather than assuming either
+"stop, the number is already hit" or "build it anyway"; user chose to build
+the full encoder, since SSE floating-point coverage is real, durable value
+independent of this one corpus-classification number. `asm/docs/corpus.md`
+now states this scope distinction explicitly (24/24 is parse-level only;
+actually assembling this corpus needs `movzbl`/`movslq`/`setcc`/etc. and a
+non-`--dump-source-ast` runner — a separate, larger follow-up, not started).
+
+Verified: `dune build @all`/`dune runtest --force` green, including
+`Codec.check`'s self-test on both x86_32 and x86_64 (`none` — no new
+ambiguity) and the promoted `asm_dump.t`/`gas_frontier.t` cram baselines;
+14 new `test/targets/test_targets.ml` expect tests (positive round-trips
+per mandatory-prefix group, the `asz`+REX case, both `cvtsi2sd`/`cvttsd2si`
+GPR widths, a RIP-relative binop memory operand, and three negative
+operand-class tests) plus 7 new lexer expect tests, all promoted from real
+tool output, not hand-typed; `make asm-fmt-check` clean. Re-ran
+`compcert-tools corpus classify-c` for real (after building just the x86_64
+fixture compiler, `tools/compcert-fixture-setup.sh x86_64`): **24 of 24
+accepted, 0 rejected.** Committed the regenerated
+`asm/fixtures/corpus/c/x86_64/{manifest.txt,summary.txt}`.
+
+One real implementation pitfall worth recording for future codec work: a
+classic OCaml `if cond then e1 else e2 @ e3` precedence trap — without
+explicit parens around the whole `if`-expression, `@ e3` was parsed as part
+of the `else` branch rather than as a sibling appended after it, silently
+dropping 11 new alts from x86_64's codec (they were reachable only when
+`M.rex_allowed = false`, i.e. never on x86_64) while `Codec.check` stayed
+green throughout, because the alts were syntactically well-formed, just
+absent from the list that mattered. Caught by comparing an `encode`-time
+"which alts did this choice actually try" trace against the expected count,
+not by any static check.
+
 ## Next
 
 M5's remaining scope is corpus-growth work (grow instruction/directive
@@ -215,3 +353,16 @@ classify the broader corpora with checked-in provenance manifests) —
 continuous practice to apply as new corpus items are picked up, not a
 second discrete deliverable. Point future planning at
 `.ai/asm_plan.md:2065-2081` for the specific bullets.
+
+The concrete next corpus-growth step: **actually assemble** the x86_64
+`test/c/` corpus, not just parse it (`asm/docs/corpus.md`'s Follow-ups) —
+`movzbl`/`movzwl`, `movslq`, `setl`/`sete`/etc. are unimplemented in
+`simplify_instruction` and appear throughout these 24 files; classify-c's
+parse-only check can't see that. Needs a new runner (not
+`--dump-source-ast`) plus the missing instruction support. Also open: a
+symbolic base-less-SIB displacement (parser-only, masked by an unrelated
+lexer error in `gas-xref`'s `helper-helper` fixture), a negative-
+displacement three-register SIB form (unevidenced, fix on demand), a
+permanent GNU-`as` differential fixture for the base-less-SIB and SSE forms
+(both currently hand-verified only), and extending `classify-c` to the
+other five targets and CompCert's other three test suites.
