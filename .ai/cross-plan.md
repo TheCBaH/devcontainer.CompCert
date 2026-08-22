@@ -2,8 +2,16 @@
 
 ## Goal
 
-Build and install four separate Linux CompCert configurations on an x86-64 host,
-then compile, link, and execute one Hello-World-style CompCert suite test:
+This document covers the libc-backed cross-smoke suite, which deliberately uses
+four Linux profiles. The assembler itself supports six profiles: x86-32, x86-64,
+ARMv7-A, AArch64, RISC-V 32-bit, and RISC-V 64-bit. The two RISC-V profiles use
+the freestanding fixture-oracle workflow because their CompCert configurations
+are built without the runtime library or standard headers; see
+`asm/docs/fixture-oracle.md` and `asm/docs/riscv-inventory.md`.
+
+Build and install the four libc-capable Linux CompCert configurations on an
+x86-64 host, then compile, link, and execute one Hello-World-style CompCert
+suite test:
 
 | Target | Configure target | Execution |
 |---|---|---|
@@ -127,7 +135,7 @@ OCaml/Rocq versions, and dependency lock state.
 
 ## Verification criteria
 
-The cross smoke test is complete when, locally and in GitHub Actions:
+The libc cross-smoke test is complete when, locally and in GitHub Actions:
 
 - All four CompCert configurations build and install independently.
 - Each installed configuration invokes the expected prefixed external tools.
@@ -136,6 +144,9 @@ The cross smoke test is complete when, locally and in GitHub Actions:
 - All four runs exit 0 and exactly match `Results/hello`.
 - A deliberate output mismatch, invalid QEMU prefix, and compile failure are
   reported as failures with useful retained artifacts.
+
+This is not the assembler support matrix: the six-profile freestanding
+fixture-oracle gate is the authoritative coverage gate for assembler targets.
 
 CompCert's existing `tools/runner.sh` should be treated as the reference for
 package names, configure targets, tool prefixes, and QEMU `-L` paths. The official
