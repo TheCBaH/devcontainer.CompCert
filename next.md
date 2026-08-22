@@ -177,6 +177,34 @@ stabilization point.
   this one-shot CLI usage, but both were bumped to patched releases anyway
   since it was zero-cost).
 
+### `corpus classify-c` — first corpus-growth increment (2026-08-22)
+
+Landed `compcert-tools corpus classify-c`/`corpus check`
+(`asm/tools/lib/corpus_classify_cmd.{ml,mli}`, `asm/docs/corpus.md`): compiles
+CompCert's own `test/c/` suite (24 files) for x86_64 and classifies each
+generated `.s` against this project's parser, publishing a checked-in,
+independently checkable `asm/fixtures/corpus/c/x86_64/{manifest.txt,
+summary.txt}`. `check` re-verifies source/shared-header hashes, the live
+`modules/CompCert` HEAD (refusing a dirty checkout first), and both files'
+canonical byte-for-byte rendering — all without a cross toolchain. All new
+logic (parsing, rendering, publish/rollback across all four failure shapes,
+dirty-checkout and revision-mismatch handling, the full `check` pipeline
+against a fake repo) is covered by hermetic tests plus one integration test
+against the real `asm.exe`; `dune build @tools/runtest` and `dune build
+@all` are both clean.
+
+**Also this session**: built the x86_64 fixture compiler
+(`tools/compcert-fixture-setup.sh x86_64`, not the full `all` six-target
+`asm-cross-setup` — this increment needs only x86_64) and ran
+`make asm-corpus-classify-c-x86_64` for real. Committed
+`asm/fixtures/corpus/c/x86_64/{manifest.txt,summary.txt}` and wired
+`asm-corpus-check-c` into `asm-ci`. Result: **2 of 24 accepted, 22
+rejected** — overwhelmingly `%xmm*` register operands ("unknown register")
+and one unsupported memory-operand shape ("cannot parse operand"); see
+`summary.txt` and `asm/docs/corpus.md`. This is real M5 corpus evidence, not
+a tooling bug — triaging these 22 into concrete instruction/addressing-mode
+work is the natural next corpus-growth step.
+
 ## Next
 
 M5's remaining scope is corpus-growth work (grow instruction/directive
