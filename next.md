@@ -1,9 +1,16 @@
 # Status: Milestone 4 closed, Milestone 5 under way
 
 Verified 2026-08-21/22 against HEAD `124c101` ("asm: CompCert runtime
-helpers as ordinary fixture inputs") plus this session's own uncommitted
+helpers as ordinary fixture inputs") plus that session's own uncommitted
 work (the M5 browser-harness item below, and one characterization-snapshot
-fix — see "M4 follow-ups"). Canonical roadmap: `.ai/asm_plan.md` §12.
+fix — see "M4 follow-ups"). That work later landed (see `git log`: the
+x86_64 `test/c/` corpus classify-c / SIB / SSE2 / octal-escape commits).
+Canonical roadmap: `.ai/asm_plan.md` §12.
+
+**2026-08-23 session (uncommitted at time of writing):** closed
+corpus.md's own "actually assemble this corpus, not just parse it"
+follow-up — see "Actually assembling the x86_64 corpus" below, under
+Milestone 5.
 
 This file follows the convention M3's closure established: an
 "already done" section per milestone (do not re-derive), a follow-ups
@@ -343,6 +350,72 @@ absent from the list that mattered. Caught by comparing an `encode`-time
 "which alts did this choice actually try" trace against the expected count,
 not by any static check.
 
+### Actually assembling the x86_64 corpus (2026-08-23)
+
+Closed `asm/docs/corpus.md`'s own Follow-up: "actually assemble this
+corpus, not just parse it." Ran the full `parse -> simplify -> lower ->
+encode -> plan_image` pipeline (`asm.exe`'s default invocation, not
+`--dump-source-ast`) over all 24 generated `.s` files from
+`modules/CompCert/test/c/`, iteratively, fixing every real gap found:
+
+- `.ascii`/`.asciz`/`.string` directives (`asm/driver/directives.ml` -
+  target-independent, reuses `Directive.Data { width = 1; ... }` rather than
+  a new constructor).
+- An unsigned 64-bit `.quad` literal (`0x8000000000000000` and friends -
+  `asm/driver/pipeline.ml`, `Bigint.to_uint64_opt` as a fallback where
+  `to_int64_opt` rejects the bit pattern as too large for signed int64;
+  target-independent).
+- A 64-bit absolute data relocation, `Abs64`, for `.quad symbol`
+  (`x86_family_encode.ml`'s `fixup_kind`/`data_fixup` - x86-64 only,
+  `.quad`'s width-8 case was simply unimplemented before).
+- `movzbl`/`movsbl`/`movslq` (zero-/sign-extending move: `0F B6/B7/BE/BF`
+  plus `movslq`'s own `0x63`), `sete`/`setl`/etc. (`0F 90+cc`, ModR/M reg
+  field fixed at 0), the general group-2 shift/rotate forms (`0xC1 ib` and
+  `0xD3`, beyond M4's shift-by-1-only `0xD1`), `orl`/`orq`/`andq`/`xorq` in
+  the operand shapes this corpus needs, TEST's own immediate form (`0xF7
+  /0 id`), the two-operand `imul $imm,reg` form (`0x69`/`0x6B`).
+- 8-bit register-to-register/register-to-memory `mov` (opcode `0x88`/`0x8A`
+  - a genuinely different opcode byte from `0x89`/`0x8B`, not a width
+    variant of them; removed the M1-era blanket rejection). This surfaced a
+    real, previously-latent encoding bug while fixing it: `%spl`/`%bpl`/
+    `%sil`/`%dil` need an *empty* REX prefix to be selected over the legacy
+    `%ah`/`%ch`/`%dh`/`%bh` encoding this project's register table has no
+    representation for at all, and `prefixes_of` was not forcing one -
+    `movb %sil, 7(%rdi)` would previously have encoded as `%dh`, silently
+    wrong, the moment 8-bit reg/mem mov was ever built. Fixed in the same
+    `prefixes_of` change that added the two new opcodes.
+
+Every new encoding was checked byte-for-byte against the real, installed
+`x86_64-linux-gnu-as`/`objdump` (binutils) before being written down, most
+now captured as permanent `test/targets/test_targets.ml` expect tests
+(promoted from real tool output, not hand-typed) rather than only the
+one-off manual checks the fix session used. `asm/docs/corpus.md` records
+the full list and the still-open scope (a committed "assemble" manifest -
+`classify-c`'s parse-only manifest was *not* extended to this stage, so
+there is nothing yet that regenerates or CI-checks this result the way
+`asm-corpus-check-c` does for parsing).
+
+**Verified, not just implemented:** `dune build @all`/`dune runtest --force`
+clean (including the promoted `asm_dump.t` codec-structure baseline and 8
+new expect tests); `Codec.check` reports no ambiguity on x86_32 or x86_64;
+`make asm-fixture-oracle-x86_64` and `-x86_32` (the full hand-picked-fixture
+differential/QEMU-execution suite, unrelated to this corpus) both stayed
+fully green with zero fixture drift (`git diff --exit-code -- asm/fixtures/
+compcert-3.17` clean both times) - proving the new encoder paths did not
+perturb any previously oracle-verified encoding; `make asm-purity
+asm-planted` clean. Re-ran the full 24-file pipeline after every fix, not
+only at the end. **Result: all 24 files now reach `plan_image` cleanly**;
+the only remaining stops are `image.undefined` for libc functions
+(`malloc`/`atoi`/`printf`/`cos`/`memcmp`/...) and CompCert-test-suite-file
+externs (`i`/`p`/`data`/`arch_big_endian`) this single-TU corpus does not
+also compile - both expected per `.ai/asm_plan.md` §2.2 (no libc) and the
+narrow scope of `test/c/` alone (not the whole suite), not real gaps.
+
+**Uncommitted at time of writing** — changed files: `asm/driver/
+directives.ml`, `asm/driver/pipeline.ml`, `asm/targets/x86_family/
+x86_family_encode.ml`, `asm/test/cram/asm_dump.t`, `asm/test/targets/
+test_targets.ml`, `asm/docs/corpus.md`.
+
 ## Next
 
 M5's remaining scope is corpus-growth work (grow instruction/directive
@@ -354,15 +427,19 @@ continuous practice to apply as new corpus items are picked up, not a
 second discrete deliverable. Point future planning at
 `.ai/asm_plan.md:2065-2081` for the specific bullets.
 
-The concrete next corpus-growth step: **actually assemble** the x86_64
-`test/c/` corpus, not just parse it (`asm/docs/corpus.md`'s Follow-ups) —
-`movzbl`/`movzwl`, `movslq`, `setl`/`sete`/etc. are unimplemented in
-`simplify_instruction` and appear throughout these 24 files; classify-c's
-parse-only check can't see that. Needs a new runner (not
-`--dump-source-ast`) plus the missing instruction support. Also open: a
-symbolic base-less-SIB displacement (parser-only, masked by an unrelated
-lexer error in `gas-xref`'s `helper-helper` fixture), a negative-
-displacement three-register SIB form (unevidenced, fix on demand), a
-permanent GNU-`as` differential fixture for the base-less-SIB and SSE forms
-(both currently hand-verified only), and extending `classify-c` to the
-other five targets and CompCert's other three test suites.
+Concrete next steps, per `asm/docs/corpus.md`'s Follow-ups (updated this
+session):
+
+- A committed "assemble" manifest/summary mirroring `classify-c`'s, with
+  its own `corpus assemble-c` subcommand and a manifest format that
+  distinguishes "blocked on an undefined external symbol" (expected) from a
+  real encoding gap - the pipeline-level check itself is done (above), only
+  the checked-in, CI-regenerable/re-verifiable artifact is still missing.
+- A symbolic base-less-SIB displacement (parser-only, masked by an unrelated
+  lexer error in `gas-xref`'s `helper-helper` fixture), a negative-
+  displacement three-register SIB form (unevidenced, fix on demand), a
+  permanent GNU-`as` differential fixture for the base-less-SIB and SSE
+  forms (both currently hand-verified only, though the new M5 forms above
+  now have expect-test coverage), and extending `classify-c` (and the new
+  assemble-level check) to the other five targets and CompCert's other
+  three test suites.
