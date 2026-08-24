@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Build, install, and smoke-test CompCert as a cross compiler for each of
-# x86_32, x86_64, arm, and aarch64: isolated configure+build+install per
-# target, then compile+link+run test/cross-smoke/hello.c under QEMU and
-# check its output against test/cross-smoke/Results/hello.
+# x86_32, x86_64, arm, aarch64, and riscv32: isolated configure+build+install
+# per target, then compile+link+run test/cross-smoke/hello.c under QEMU and
+# check its output against test/cross-smoke/Results/hello.  The published
+# riscv32-linux-gnu toolchain supplies the otherwise unavailable RV32 glibc
+# sysroot in the amd64/arm64 development images.
 #
-# Usage: tools/compcert-cross-smoke.sh [x86_32|x86_64|arm|aarch64|all]
+# Usage: tools/compcert-cross-smoke.sh [x86_32|x86_64|arm|aarch64|riscv32|all]
 # (default: all). Every target is attempted even if an earlier one fails.
-# A target whose cross-compiler or QEMU emulator isn't installed on this
-# host is skipped, not failed (a 32-bit host like i386/armhf lacks both for
-# the 64-bit targets). Work root: CROSS_SMOKE_WORK env var, default
+# A target whose cross-compiler or QEMU emulator isn't installed on this host
+# is skipped, not failed (the RV32 archive has amd64/arm64 host builds only,
+# and 32-bit hosts also lack some 64-bit-guest emulators). Work root:
+# CROSS_SMOKE_WORK, default
 # <repo>/.cross-smoke-work.
 set -euo pipefail
 
