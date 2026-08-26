@@ -1,7 +1,10 @@
 [submodule "modules/CompCert"]
 	path = modules/CompCert
 	url = https://github.com/AbsInt/CompCert.git
-[submodule "asm/vendor/err_trace"]
-	path = asm/vendor/err_trace
+[submodule "asm/vendor/err_trace/upstream"]
+	path = asm/vendor/err_trace/upstream
 	url = https://github.com/TheCBaH/err_trace.git
 	branch = main
+[submodule "asm/vendor/fmt/upstream"]
+	path = asm/vendor/fmt/upstream
+	url = https://github.com/dbuenzli/fmt.git
