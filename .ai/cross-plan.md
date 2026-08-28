@@ -2,19 +2,28 @@
 
 ## Goal
 
-This document covers the libc-backed cross-smoke suite, which deliberately uses
-five Linux profiles. The assembler itself supports six profiles: x86-32, x86-64,
-ARMv7-A, AArch64, RISC-V 32-bit, and RISC-V 64-bit. Only RV64 uses the
-freestanding fixture-oracle workflow, because its CompCert configuration is
-built without the runtime library or standard headers and this project does
-not install an RV64 libc sysroot; see `asm/docs/fixture-oracle.md` and
-`asm/docs/riscv-inventory.md`. RV32 used to be freestanding-only for the same
-reason (Debian packages no `ilp32d` glibc cross toolchain), but the devcontainer
-now installs a published `riscv32-linux-gnu` toolchain with its own real glibc
-sysroot (`.devcontainer/Dockerfile`), so RV32 joined the libc-smoke set with its
-own tool prefix rather than sharing RV64's `riscv64-linux-gnu-` one.
+This document covers the libc-backed cross-smoke suite, which now uses all six
+profiles the assembler itself supports: x86-32, x86-64, ARMv7-A, AArch64,
+RISC-V 32-bit, and RISC-V 64-bit. The freestanding fixture-oracle workflow
+(`asm/docs/fixture-oracle.md`, `asm/docs/riscv-inventory.md`) remains the
+authoritative assembler-coverage gate for all six regardless of libc-smoke
+membership. RV32 and RV64 were both freestanding-only at one point, each for
+its own Debian packaging reason, and each closed the same way: pin a real
+glibc cross sysroot in the devcontainer and add the target to
+`asm/tools/lib/target.ml`'s `Libc_smoke` capability set (regenerating
+`tools/target-matrix.sh` via `make tools-matrix`).
 
-Build and install the five libc-capable Linux CompCert configurations on an
+- RV32: Debian packages no `ilp32d` glibc cross toolchain at all, so the
+  devcontainer downloads and sha256-verifies a published `riscv32-linux-gnu`
+  archive with its own real glibc sysroot and its own tool prefix, rather than
+  sharing RV64's `riscv64-linux-gnu-` one (`.devcontainer/Dockerfile`).
+- RV64: Debian does package an `riscv64-linux-gnu` glibc cross-dev package
+  (`libc6-dev-riscv64-cross`), but `gcc-riscv64-linux-gnu` only `Recommends`
+  it rather than `Depends` on it, and the Dockerfile installs with
+  `--no-install-recommends`; it is now listed explicitly alongside
+  `gcc-riscv64-linux-gnu`/`binutils-riscv64-linux-gnu`.
+
+Build and install the six libc-capable Linux CompCert configurations on an
 x86-64 host, then compile, link, and execute one Hello-World-style CompCert
 suite test:
 
@@ -25,6 +34,7 @@ suite test:
 | ARMv7 hard-float | `arm-linux`, with `-marm` in the test | `qemu-arm` |
 | AArch64 | `aarch64-linux` | `qemu-aarch64` |
 | RISC-V 32-bit | `rv32-linux`, `-mabi=ilp32d` | `qemu-riscv32` |
+| RISC-V 64-bit | `rv64-linux`, `-mabi=lp64d` | `qemu-riscv64` |
 
 One configured `ccomp` is target-specific, so each matrix entry needs an isolated
 build and installation directory. The same scripts must run locally and in GitHub
@@ -74,6 +84,7 @@ cross-GCC packages.
 | ARM | `gcc-arm-linux-gnueabihf libc6-dev-armhf-cross qemu-user` | `/usr/arm-linux-gnueabihf` |
 | AArch64 | `gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user` | `/usr/aarch64-linux-gnu` |
 | RISC-V 32-bit | published `riscv32-linux-gnu` toolchain archive (not a Debian package) `qemu-user` | `/usr/riscv32-linux-gnu` |
+| RISC-V 64-bit | `gcc-riscv64-linux-gnu libc6-dev-riscv64-cross qemu-user` | `/usr/riscv64-linux-gnu` |
 
 RV32's toolchain is not `apt`-installable: Debian packages no `ilp32d` glibc
 cross toolchain, only the `lp64d` `riscv64-linux-gnu-` one RV64 uses. The
@@ -83,6 +94,12 @@ Debian variant and host architecture. It is published for exactly four legs -
 Debian 12 and 13, each on amd64 and arm64 host architecture - and absent
 otherwise, so the portable 32-bit-host image legs leave it absent and skip
 RV32 cross-toolchain jobs (tri-state skip, not a failure).
+
+RV64's toolchain is `apt`-installable, but `libc6-dev-riscv64-cross` is only a
+`Recommends` of `gcc-riscv64-linux-gnu`, not a `Depends`, so it does not
+arrive under `--no-install-recommends` unless listed explicitly; the
+Dockerfile lists it alongside `gcc-riscv64-linux-gnu`/
+`binutils-riscv64-linux-gnu`.
 
 Common build dependencies are the CompCert-supported Rocq/Coq and OCaml versions,
 Menhir/MenhirLib, OPAM/findlib as required by the chosen environment, and GNU
@@ -117,6 +134,8 @@ aarch64: ./configure -prefix <install>/aarch64 \
              -toolprefix aarch64-linux-gnu- aarch64-linux
 riscv32: ./configure -prefix <install>/riscv32 \
              -toolprefix riscv32-linux-gnu- rv32-linux
+riscv64: ./configure -prefix <install>/riscv64 \
+             -toolprefix riscv64-linux-gnu- rv64-linux
 ```
 
 Run `make -j<N> all` followed by `make install`; keep the CompCert runtime library
@@ -131,6 +150,7 @@ timeout 10s qemu-x86_64  -L / <artifacts>/hello.compcert
 timeout 10s qemu-arm     -L /usr/arm-linux-gnueabihf <artifacts>/hello.compcert
 timeout 10s qemu-aarch64 -L /usr/aarch64-linux-gnu <artifacts>/hello.compcert
 timeout 10s qemu-riscv32 -L /usr/riscv32-linux-gnu <artifacts>/hello.compcert
+timeout 10s qemu-riscv64 -L /usr/riscv64-linux-gnu <artifacts>/hello.compcert
 ```
 
 The actual script should use argument arrays rather than evaluating these lines as
@@ -156,11 +176,11 @@ OCaml/Rocq versions, and dependency lock state.
 
 The libc cross-smoke test is complete when, locally and in GitHub Actions:
 
-- All five CompCert configurations build and install independently.
+- All six CompCert configurations build and install independently.
 - Each installed configuration invokes the expected prefixed external tools.
 - `readelf` reports the intended architecture for every executable.
 - Every executable is run through the intended QEMU binary and sysroot.
-- All five runs exit 0 and exactly match `Results/hello`.
+- All six runs exit 0 and exactly match `Results/hello`.
 - A deliberate output mismatch, invalid QEMU prefix, and compile failure are
   reported as failures with useful retained artifacts.
 
