@@ -3,13 +3,18 @@
 ## Goal
 
 This document covers the libc-backed cross-smoke suite, which deliberately uses
-four Linux profiles. The assembler itself supports six profiles: x86-32, x86-64,
-ARMv7-A, AArch64, RISC-V 32-bit, and RISC-V 64-bit. The two RISC-V profiles use
-the freestanding fixture-oracle workflow because their CompCert configurations
-are built without the runtime library or standard headers; see
-`asm/docs/fixture-oracle.md` and `asm/docs/riscv-inventory.md`.
+five Linux profiles. The assembler itself supports six profiles: x86-32, x86-64,
+ARMv7-A, AArch64, RISC-V 32-bit, and RISC-V 64-bit. Only RV64 uses the
+freestanding fixture-oracle workflow, because its CompCert configuration is
+built without the runtime library or standard headers and this project does
+not install an RV64 libc sysroot; see `asm/docs/fixture-oracle.md` and
+`asm/docs/riscv-inventory.md`. RV32 used to be freestanding-only for the same
+reason (Debian packages no `ilp32d` glibc cross toolchain), but the devcontainer
+now installs a published `riscv32-linux-gnu` toolchain with its own real glibc
+sysroot (`.devcontainer/Dockerfile`), so RV32 joined the libc-smoke set with its
+own tool prefix rather than sharing RV64's `riscv64-linux-gnu-` one.
 
-Build and install the four libc-capable Linux CompCert configurations on an
+Build and install the five libc-capable Linux CompCert configurations on an
 x86-64 host, then compile, link, and execute one Hello-World-style CompCert
 suite test:
 
@@ -19,6 +24,7 @@ suite test:
 | x86-64 | `x86_64-linux` | `qemu-x86_64` |
 | ARMv7 hard-float | `arm-linux`, with `-marm` in the test | `qemu-arm` |
 | AArch64 | `aarch64-linux` | `qemu-aarch64` |
+| RISC-V 32-bit | `rv32-linux`, `-mabi=ilp32d` | `qemu-riscv32` |
 
 One configured `ccomp` is target-specific, so each matrix entry needs an isolated
 build and installation directory. The same scripts must run locally and in GitHub
@@ -67,6 +73,16 @@ cross-GCC packages.
 | x86-64 | `gcc libc6-dev qemu-user` | `/` |
 | ARM | `gcc-arm-linux-gnueabihf libc6-dev-armhf-cross qemu-user` | `/usr/arm-linux-gnueabihf` |
 | AArch64 | `gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user` | `/usr/aarch64-linux-gnu` |
+| RISC-V 32-bit | published `riscv32-linux-gnu` toolchain archive (not a Debian package) `qemu-user` | `/usr/riscv32-linux-gnu` |
+
+RV32's toolchain is not `apt`-installable: Debian packages no `ilp32d` glibc
+cross toolchain, only the `lp64d` `riscv64-linux-gnu-` one RV64 uses. The
+devcontainer instead downloads and sha256-verifies a published archive from
+`TheCBaH/riscv32-linux-gnu.builder` (`.devcontainer/Dockerfile`), selected by
+Debian variant and host architecture. It is published for exactly four legs -
+Debian 12 and 13, each on amd64 and arm64 host architecture - and absent
+otherwise, so the portable 32-bit-host image legs leave it absent and skip
+RV32 cross-toolchain jobs (tri-state skip, not a failure).
 
 Common build dependencies are the CompCert-supported Rocq/Coq and OCaml versions,
 Menhir/MenhirLib, OPAM/findlib as required by the chosen environment, and GNU
@@ -78,7 +94,7 @@ in both local and CI use.
 Add one project-owned entry point, for example:
 
 ```text
-tools/compcert-cross-smoke.sh <x86_32|x86_64|arm|aarch64>
+tools/compcert-cross-smoke.sh <x86_32|x86_64|arm|aarch64|riscv32>
 ```
 
 It should create target-isolated paths under a configurable work root:
@@ -99,6 +115,8 @@ arm:     ./configure -prefix <install>/arm \
              -toolprefix arm-linux-gnueabihf- arm-linux
 aarch64: ./configure -prefix <install>/aarch64 \
              -toolprefix aarch64-linux-gnu- aarch64-linux
+riscv32: ./configure -prefix <install>/riscv32 \
+             -toolprefix riscv32-linux-gnu- rv32-linux
 ```
 
 Run `make -j<N> all` followed by `make install`; keep the CompCert runtime library
@@ -112,6 +130,7 @@ timeout 10s qemu-i386    -L / <artifacts>/hello.compcert
 timeout 10s qemu-x86_64  -L / <artifacts>/hello.compcert
 timeout 10s qemu-arm     -L /usr/arm-linux-gnueabihf <artifacts>/hello.compcert
 timeout 10s qemu-aarch64 -L /usr/aarch64-linux-gnu <artifacts>/hello.compcert
+timeout 10s qemu-riscv32 -L /usr/riscv32-linux-gnu <artifacts>/hello.compcert
 ```
 
 The actual script should use argument arrays rather than evaluating these lines as
@@ -137,11 +156,11 @@ OCaml/Rocq versions, and dependency lock state.
 
 The libc cross-smoke test is complete when, locally and in GitHub Actions:
 
-- All four CompCert configurations build and install independently.
+- All five CompCert configurations build and install independently.
 - Each installed configuration invokes the expected prefixed external tools.
 - `readelf` reports the intended architecture for every executable.
 - Every executable is run through the intended QEMU binary and sysroot.
-- All four runs exit 0 and exactly match `Results/hello`.
+- All five runs exit 0 and exactly match `Results/hello`.
 - A deliberate output mismatch, invalid QEMU prefix, and compile failure are
   reported as failures with useful retained artifacts.
 
