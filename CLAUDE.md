@@ -163,6 +163,10 @@ transitively require building the whole assembler.
   per-extension instruction inventory for each of the six targets (binutils,
   LLVM, QEMU, `riscv-opcodes`, Intel XED, ARM's machine-readable spec), for
   the whole-ISA coverage track described in `asm_plan.md`.
+- `asm/docs/isa-inventory.md` — the file format/schema for that whole-ISA
+  inventory (per-target `manifest.txt`/`summary.txt`, sourced from the
+  vendored `asm/vendor/isa-data/{riscv-opcodes,xed}` submodules); not to be
+  confused with the narrower, Milestone-5-scoped `asm/docs/riscv-inventory.md`.
 - `asm/docs/contracts.md` — frozen dump formats, `form_id` scheme, directive
   table, support matrix, and fixup/relaxation contract that tests compare
   against.
