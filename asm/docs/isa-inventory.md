@@ -139,20 +139,29 @@ gcc-emitted:<n>
 
 ## Generation and the diff-gate
 
-Once implemented, the generator is one more `asm/tools` subcommand
-(`compcert-tools isa-inventory <regen|check>`, or per-source subcommands
-`isa-inventory-riscv`/`isa-inventory-xed` if the two sources' ingestion
-turns out not to share enough code to unify — decide this when writing the
-generator, not here) following the same generate-then-diff-gate pattern
-`tools-matrix`/`tools-matrix-diff` and `tools-oracle-diff`/
-`tools-gasxref-diff` already establish in the root `Makefile`: `regen`
-overwrites the checked-in files, `check` (or the diff-gate CI target)
+**Implemented (2026-09-04), Phase A, both sources.** `compcert-tools
+isa-inventory regen` (`Isa_inventory_riscv` for `riscv32`/`riscv64`,
+`Isa_inventory_xed` for `x86_32`/`x86_64` - two independent modules; their
+ingestion formats turned out too different to unify, per the `.mli`s' own
+headers) writes all four manifests in one invocation. Wired as
+`tools-isa-inventory`/`tools-isa-inventory-diff` in the root `Makefile`,
+following the same generate-then-diff-gate pattern `tools-matrix`/
+`tools-matrix-diff` and `tools-oracle-diff`/`tools-gasxref-diff` already
+establish: `regen` overwrites the checked-in files, the `-diff` target
 requires `git status --porcelain` to come back empty against them, so the
 inventory cannot silently drift from the vendored submodules' pinned
-commits. Phase A generation needs only the two submodules and is safe to run
-as part of `asm-ci`; Phase B's corpus-derived fields, once implemented, stay
-on the toolchain-gated `*-oracle`/`*-regen` side of that split like every
-other corpus artifact, with a toolchain-free `*-check` counterpart.
+commits. Both sources are toolchain-free (no compiler, no cross assembler),
+so `tools-isa-inventory-diff` is on the plain `asm-ci` path with no
+`asm-build` edge. `arm`/`aarch64` have no generator yet - see "Not yet
+started" below. Phase B's corpus-derived fields, once implemented, stay on
+the toolchain-gated `*-oracle`/`*-regen` side of that split like every other
+corpus artifact, with a toolchain-free `*-check` counterpart.
+
+### Not yet started
+
+ARM/AArch64 sourcing (QEMU's `target/arm/tcg/*.decode` plus binutils'
+`AARCH64_FEATURE(...)` tables, per `.ai/isa-inventory-sources.md`) - neither
+is vendored yet, unlike `riscv-opcodes`/`xed` above. See `next.md`.
 
 ## Follow-up: sourcing Phase B
 

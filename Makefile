@@ -654,6 +654,10 @@ tools-isa-inventory: tools-build
 	  echo "$(ASM_DIR)/vendor/isa-data/riscv-opcodes/upstream is not checked out; run:" >&2; \
 	  echo "  git submodule update --init $(ASM_DIR)/vendor/isa-data/riscv-opcodes/upstream" >&2; \
 	  exit 1; }
+	@test -d $(ASM_DIR)/vendor/isa-data/xed/upstream/datafiles/avx || { \
+	  echo "$(ASM_DIR)/vendor/isa-data/xed/upstream is not checked out; run:" >&2; \
+	  echo "  git submodule update --init $(ASM_DIR)/vendor/isa-data/xed/upstream" >&2; \
+	  exit 1; }
 	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-inventory regen
 
 tools-isa-inventory-diff: tools-isa-inventory

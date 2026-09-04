@@ -57,6 +57,15 @@ val isa_data_riscv_opcodes : t -> Fpath.t
 (** [asm/vendor/isa-data/riscv-opcodes/upstream], the vendored submodule
     {!Isa_inventory_riscv} reads (asm/docs/isa-inventory.md). *)
 
+val isa_data_xed_upstream : t -> Fpath.t
+(** [asm/vendor/isa-data/xed/upstream], the submodule root - use this to
+    resolve its pinned commit; {!isa_data_xed} below is the [datafiles/]
+    subdirectory {!Isa_inventory_xed} actually reads. *)
+
+val isa_data_xed : t -> Fpath.t
+(** [asm/vendor/isa-data/xed/upstream/datafiles], the vendored submodule
+    {!Isa_inventory_xed} reads (asm/docs/isa-inventory.md). *)
+
 val isa_inventory : t -> Target.t -> Fpath.t
 (** [asm/fixtures/isa-inventory/<target>/], the whole-ISA inventory
     manifest/summary destination for that target. *)
