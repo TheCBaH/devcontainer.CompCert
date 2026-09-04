@@ -1863,6 +1863,7 @@ linker scope simultaneously without separate evidence.
 | Image binding/embedding | fixed raw image; multi-segment image; caller-selected virtual addresses; browser materialization; optional external native consumer | Segment/permission expects, identical native/JavaScript bytes, address-boundary tests, QEMU result blocks, and optional isolated consumer execution |
 | Programmatic frontends | direct normalized fixtures; direct lowered fixtures; CompCert adapter; other generator APIs | Validator negatives and byte/image equivalence with a semantically identical textual path; no parser dependency in later libraries |
 | Retargeting | six supported targets in lockstep; fuller profiles and features | Complete return-constant ladder first, then every capability gate through execution; no target dependency added to generic libraries |
+| Full-ISA instruction/extension coverage | CompCert/gcc-emitted subset (measured, per Milestone 5); declared base ISA; declared per-profile extensions, each tracked and prioritized independently | Per-extension byte/decode checks against a real oracle, an explicit inventory entry per mnemonic/extension, and a recorded scope decision (implemented, deferred, or out of scope) rather than silent absence |
 | Description tooling | interpreted OCaml EDSL; generated tables; optional external `.isa` syntax | Same schema interpreted/generated equivalence, generator expects, ambiguity tests, reproducible output, and no loss of handwritten escape-hatch coverage |
 | Scale and robustness | focused fixtures; regression corpus; ABI suite; multi-file applications; fuzzed syntax/bytes | Stable corpus summaries, bounded diagnostics, no crashes, reproducible images, memory/time budgets, and minimized regression cases |
 
@@ -2134,6 +2135,52 @@ After the six profiles have stabilized the typed codec representation, decide
 whether to retain the OCaml EDSL as the authored format or add the compact
 external `.isa` syntax that elaborates to it. This decision must be supported by
 side-by-side descriptions from the supported encoding families, not by one target.
+
+### Parallel track: whole-ISA instruction and extension inventory
+
+Milestone 5's exit criterion is scoped to the CompCert-generated corpus, not to
+the architectures themselves: a target whose `assemble-c` corpus is fully
+closed can still implement only a small fraction of its real instruction set,
+because CompCert (and, through `classify-c-gcc`, gcc) never emits most of it -
+vector/SIMD extensions, cryptography extensions, atomics beyond what the
+runtime needs, privileged instructions, and most addressing-mode variants a
+handwritten or foreign `.s` file could use. This track is independent
+evidence for the "Full-ISA instruction/extension coverage" axis above, gated
+separately from Milestones 5 and 6 and not required for either to be
+considered complete - an extension neither CompCert nor gcc ever emits may
+stay open indefinitely without blocking anything else.
+
+`isa-inventory-sources.md` surveys where to source this data per target
+(binutils, LLVM, QEMU, `riscv-opcodes`, Intel XED, ARM's own machine-readable
+architecture spec) with concrete repo locations, formats, licenses, and
+vendoring feasibility - read it before starting this track rather than
+re-deriving the same survey.
+
+- Build a normative per-target instruction/directive inventory covering the
+  declared base ISA plus every extension the reference toolchain recognizes
+  for that profile, not only what a corpus happens to measure.
+- Source each inventory from a machine-checkable authority per target (e.g.
+  binutils opcode tables, the `riscv-opcodes` project, or the vendor
+  architecture reference manuals), pinned by version the same way
+  `asm-fixture-oracle` already pins toolchain/QEMU versions.
+- Tag every entry with the extension/ISA level it belongs to and whether it
+  is CompCert- or gcc-emitted, mechanically derived from the existing
+  Milestone 5 corpora rather than eyeballed. That split is the priority
+  order: CompCert/gcc-emitted forms first (already close to fully
+  implemented as of Milestone 5), then other commonly used base-ISA forms,
+  then whole unused extensions last.
+- Record implementation state per entry (opcode defined / lowered / encoded
+  / decoded / byte-checked against a real oracle) rather than one
+  target-wide percentage, so "ARM supported" cannot hide an entire
+  unimplemented extension (NEON, cryptography, ...) the way a corpus-only
+  summary would.
+- An extension absent from CompCert's and gcc's own output is an explicit,
+  recorded deferral with its own stated reason and promotion trigger, not a
+  silent gap.
+
+`asm/docs/riscv-inventory.md` is a different, narrower document (RISC-V's
+measured CompCert-corpus scope authority, per Milestone 5) and should not be
+confused with, or repurposed as, this whole-ISA inventory.
 
 ### Milestone 7: Broader assembler language
 

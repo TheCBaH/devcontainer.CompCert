@@ -159,6 +159,10 @@ transitively require building the whole assembler.
 
 - `.ai/asm_plan.md` — the full design plan/spec for the assembler (large;
   search it rather than reading it end to end).
+- `.ai/isa-inventory-sources.md` — survey of where to source a complete,
+  per-extension instruction inventory for each of the six targets (binutils,
+  LLVM, QEMU, `riscv-opcodes`, Intel XED, ARM's machine-readable spec), for
+  the whole-ISA coverage track described in `asm_plan.md`.
 - `asm/docs/contracts.md` — frozen dump formats, `form_id` scheme, directive
   table, support matrix, and fixup/relaxation contract that tests compare
   against.
