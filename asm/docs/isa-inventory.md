@@ -166,13 +166,51 @@ than reusing today's hash-only manifest. The `isa-inventory` generator would
 then read that artifact the same toolchain-free way it reads the vendored
 submodules. This is deliberately not attempted in this pass — see `next.md`.
 
-## Open question: x86 mode applicability
+## XED's data shape, verified against the vendored checkout (2026-09-04)
 
-XED's per-extension CPUID/ISA-set data (`cpuid.xed.txt`) records which
-extensions require 64-bit mode, but not a clean `x86_32` vs. `x86_64` split
-matching this project's own two x86 targets. Whether every XED entry should
-be duplicated into both `x86_32`/`x86_64` manifests by default (with a
-mode-restricted subset marked `state:undefined` and a fixed deferral reason
-on `x86_32` where it is genuinely inapplicable, e.g. `apx-f`) or whether
-mode applicability needs its own schema field is left for whoever writes the
-x86 generator to decide against the real data, not speculated here.
+The RISC-V pilot (`Isa_inventory_riscv`) is done; this section replaces the
+original "open question" placeholder with what live inspection of
+`asm/vendor/isa-data/xed/upstream/datafiles/` actually shows, since it turned
+out messier than the sourcing survey assumed - read this before writing the
+x86 generator rather than re-deriving it.
+
+- **110 directories, not all of them extensions.** `datafiles/` has 110
+  subdirectories. Only 82 contain any instruction data at all; the other 28
+  (`adl`, `skl`, `tgl`, `spr`, `gnr`, ... - Intel microarchitecture
+  codenames - plus `avx-common-types`, `avx10-1`, `vex-map5`, `vex-map7`,
+  `evex-map5-6`, `xsave-regs`) hold chip/type metadata only (which ISA_SETs a
+  given processor supports, or shared field/register definitions) and must
+  be recognized by *content*, not by name - see the next point.
+- **Two file dialects share one directory, and filename alone does not tell
+  them apart.** Some directories carry a "generated" dialect
+  (`<name>-isa.xed.txt`, e.g. `avx-vnni/avx-vnni-isa.xed.txt`,
+  `apx-f/apx-f-isa.xed.txt`): one `PATTERN`/`OPERANDS` pair per `{ ... }`
+  block, `ICLASS:` with a fixed two-space gutter. Others - `avx/avx-isa.txt`,
+  `rdrand/rdrand-isa.xed.txt`, and every AMD-only extension - carry XED's own
+  hand-authored source dialect: a `{ ... }` block can hold *several*
+  `PATTERN`/`OPERANDS` pairs under one `ICLASS`, and the field gutter is
+  irregular (`ICLASS    : VADDPD`, `ICLASS:      VPDPBUSD`). A correct
+  generator finds instruction files by scanning every `.txt` file in a
+  directory for an `^ICLASS\s*:` line (case- and gutter-tolerant), not by a
+  `*-isa.xed.txt` filename pattern - that pattern alone silently misses
+  `avx/` itself, `rdrand`, and every AMD extension.
+- **Mode applicability is real, per-`PATTERN`-line data, not a missing
+  field.** The original "open question" above assumed XED had no clean
+  `x86_32`/`x86_64` split; it does, just not as its own field. Each
+  `PATTERN` line is itself whitespace-tokenized and can carry a bare `not64`
+  token (this form is invalid in 64-bit mode - `x86_32` only, 123 hits
+  project-wide) or a bare `mode64` token (valid only in 64-bit mode -
+  `x86_64` only, 2830 hits, e.g. all of `apx-f`); a `PATTERN` with neither
+  applies to both. Because one hand-authored-dialect block can hold several
+  `PATTERN` lines with *different* restrictions (e.g. `monitorx`'s AMD forms:
+  one `not64 eamode32` line and one `not64 eamode16` line, both under the
+  same `ICLASS`), applicability must be computed per `ICLASS` block by OR-ing
+  across all its `PATTERN` lines - "applies to x86_64" iff at least one
+  `PATTERN` in the block lacks `not64`; "applies to x86_32" iff at least one
+  lacks `mode64` - not by inspecting a single line in isolation.
+- Given the above, `extension` for XED should stay the directory name (as
+  already specified above), and a per-target XED generator produces its own
+  `x86_32`/`x86_64` manifest by filtering on the OR'd applicability just
+  described - no separate schema field is needed after all; the original
+  "duplicate into both, mark one undefined" idea from the sourcing survey is
+  unnecessary once mode data is read from the source directly.
