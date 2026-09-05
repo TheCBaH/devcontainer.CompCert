@@ -59,6 +59,24 @@ class TestCompressedInstructionWidth(unittest.TestCase):
         self.assertEqual(reader._instruction_width_bits("rv32_c_f"), 16)
 
 
+class TestBinaryLiteralFixedField(unittest.TestCase):
+    """rv32_zknd's aes32dsmi writes its bs-selecting fixed field as a binary
+    literal ("29..25=0b10111"), not hex/decimal. A prior version of
+    `_FIELD_RE` only recognized "0x..." or plain decimal, so this token
+    silently fell through to `operands` instead of contributing to
+    mask/value - found by the exhaustive upstream cross-validation in
+    test_riscv_opcodes_upstream.py, which caught the resulting mask/value
+    mismatch against riscv-opcodes' own create_inst_dict."""
+
+    def test_aes32dsmi_mask_value(self):
+        records = _records_by_native_name(EXTENSIONS_DIR / "rv32_zknd", "aes32dsmi")
+        self.assertEqual(len(records), 1)
+        enc = records[0]["encoding"]
+        self.assertEqual(enc["kind"], "fixed_bits")
+        self.assertEqual(enc["mask"], hex(0x3E00707F))
+        self.assertEqual(enc["value"], hex(0x2E000033))
+
+
 class TestSh1addUwIsRv64Only(unittest.TestCase):
     """sh1add.uw lives only in rv64_zba (design doc: "SH1ADD_UW additionally
     requires RV64"), so it must appear in the riscv64 compat view and not

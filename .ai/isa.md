@@ -82,38 +82,43 @@ assume it is as low-risk as riscv-opcodes' turned out to be.
 
 ## Phased plan
 
-### Phase A - RISC-V: adopt the upstream producer (ready now, low risk)
+### Phase A - RISC-V: adopt the upstream producer (steps 1-4, 6 done)
 
-1. Add an `isa-db/adapters/riscv_opcodes/upstream.py` that `sys.path`-injects
+1. **Done.** `isa-db/adapters/riscv_opcodes/upstream.py` `sys.path`-injects
    the vendored `upstream/src` and calls `create_inst_dict` **per extension
-   file** (not one `"rv*"` call) so today's per-file `origin`/provenance
-   tracking survives unchanged.
-2. Import `arg_lut` directly from `riscv_opcodes.constants` (the same table
-   `create_inst_dict` already consults) to turn each `variable_fields` name
-   into a real `{name, lsb, width}` field entry - replacing both the
-   placeholder `"bits[hi:lo]"` names our own parser emits for constant bits
-   *and* the complete absence of variable-field entries today.
-3. Add an exhaustive regression test: for every RISC-V instruction (not just
-   `sh1add`), assert our adapter's `encoding.mask`/`encoding.value` equal
-   upstream's `mask`/`match` exactly. This replaces today's two spot-checks
-   with full coverage, for free, since upstream already computed the answer.
-4. Keep our own `imports`/`specializes` relationship modeling *in addition
-   to* (not instead of) upstream's resolution: upstream silently produces a
-   fully concrete encoding for `nop`/`clmul` with no trace of the
-   `$pseudo_op`/`$import` line that produced it - exactly the "disappear
-   during normalization" loss `isa-database-design.md` warns about. Keep
-   parsing those two directive lines ourselves for provenance, and use
-   upstream's dict only for the resolved encoding.
-5. Lower priority, do after the above: ingest `arg_lut.csv` itself as a
-   small shared "operand vocabulary" table (name -> canonical bit range),
-   and consider `csrs.csv`/`csrs32.csv`/`causes.csv` as optional auxiliary
-   reference data (CSR addresses/names, trap cause codes) - useful, but not
-   instruction-inventory data, so sequence it after encoding work, not
-   before.
-6. Acceptance: `compat_entries_for_profile`'s external contract is
-   unchanged, so all four existing manifest-parity regression tests
-   (`isa-db/tests/test_riscv_opcodes_reader.py`) must keep passing unmodified
-   throughout this phase.
+   file** (not one `"rv*"` call), so per-file `origin`/provenance tracking
+   is unchanged.
+2. **Done.** `reader.py` now resolves each `variable_fields` name via
+   upstream's own `arg_lut` into a real `{name, lsb, width}` field entry,
+   appended alongside the constant-bit `"bits[hi:lo]"` fields our own parser
+   already emitted (those keep their name - arg_lut only names *variable*
+   operands, constant bits have no source-given name to recover).
+3. **Done**, and it already earned its keep: `test_riscv_opcodes_upstream.py`
+   asserts `encoding.mask`/`encoding.value` against upstream's `mask`/`match`
+   for every plain-instruction record in the vendored tree (1235 records,
+   checked > 1000 fixed_bits comparisons) and caught a second real bug on
+   its first run - `_FIELD_RE` didn't recognize binary literals
+   (`29..25=0b10111`, four `rv32_zkn*` AES instructions), so that field
+   silently fell through to `operands` instead of contributing to
+   mask/value. Fixed by parsing values with `int(raw, 0)` (matching
+   upstream's own base-0 `int()` call) instead of hand-rolling hex-vs-decimal
+   detection.
+4. **Done.** `$import` and `$pseudo_op` records now use
+   `_encoding_from_upstream` (upstream's resolved `mask`/`match` plus
+   arg_lut-resolved fields) as their `encoding`, while `reader.py` still
+   parses the `$import`/`$pseudo_op` line itself for the `kind`,
+   `relationships`, and `provenance` a plain lookup into `instr_dict` would
+   lose. Falls back to the previous behavior (opaque for imports, hand-parsed
+   fixed_bits for pseudo-ops) only if upstream's dict doesn't contain a
+   matching key - not expected to trigger against the current vendored
+   checkout, but keeps the adapter from raising if a future snapshot ever
+   disagrees.
+5. Not started - still lower priority, sequenced after the above.
+6. **Confirmed.** `compat_entries_for_profile`'s contract is unchanged; all
+   pre-existing tests in `isa-db/tests/test_riscv_opcodes_reader.py` pass
+   unmodified (plus one new pinning test for the binary-literal fix), and
+   `make tools-isa-inventory-diff` still reproduces the checked-in
+   `asm/fixtures/isa-inventory/*` manifests exactly.
 
 ### Phase B - XED: attempt the stronger upstream-reader path (spike first)
 
