@@ -122,45 +122,56 @@ assume it is as low-risk as riscv-opcodes' turned out to be.
 
 ### Phase B - XED: attempt the stronger upstream-reader path (spike first)
 
-1. Timebox a spike: try to run `pysrc/gen_setup.py`/`read_xed_db.xed_reader_t`
-   against the vendored `datafiles/` tree as-is. Find out concretely whether
-   it needs `xed_mbuild.py`-generated aggregate inputs that aren't present,
-   and if so, whether generating them needs anything beyond this vendored
-   checkout (extra Python packages, network access, a full XED build).
-2. If it runs cleanly standalone: mirror Phase A's shape - a thin wrapper
-   invoking the upstream reader, mapping resolved forms (ICLASS, IFORM/
-   UNAME, operand access/visibility, attributes, evaluated pattern, CPUID)
-   into a new `encoding: {"kind": "x86_encoding", ...}` tagged-union branch
-   (x86 has no single fixed-width mask, per `isa-database-design.md`'s
-   X86InstrFormats.td discussion - this branch doesn't exist yet and needs
-   its own design once real data is in hand). Honor `UDELETE`.
-3. If it needs inputs/tooling not present here (the likelier outcome per the
-   design doc's own caution): write down that finding and leave the current
-   coarse block-scan adapter as XED's depth ceiling. Do not quietly relax
-   the `unresolved` notes to make partial coverage look complete.
-4. Either outcome: the existing Phase-A-manifest regression tests are the
-   floor. Whatever Phase B produces must be a superset of today's coverage,
-   never a silent replacement that loses information the coarse scan had.
+**Spiked 2026-09-05: outcome 3, the anticipated likelier one.** The
+`just-prep` `xed_mbuild.py` target is real (`valid_targets` at line 1022;
+the `pysrc/README.md` describing it is genuine vendored upstream content,
+not a local edit - confirmed via `git log`/`git blame` inside the
+submodule), and `pysrc/xed_to_db.py` (also genuine, real upstream code) is
+exactly the `gen_setup`/`read_xed_db.xed_reader_t`-based stronger path the
+design doc described. But `mfile.py just-prep` itself requires importing a
+sibling `mbuild` package (Intel's separate build-support library,
+`genutil.find_dir('mbuild')`) that is **not vendored in this repo** -
+`.gitmodules` vendors only `intelxed/xed`, never `intelxed/mbuild` - and is
+not installed (`python3 -c 'import mbuild'` fails `ModuleNotFoundError` in
+this container). So the stronger path is blocked on a new, un-vendored
+upstream dependency, not on missing generated data files as such.
+
+1. **Done.** Ran the spike above; see the finding.
+2. Not attempted - blocked by (1)'s finding, not by anything in this step.
+3. **Done, this is the outcome.** Leaving the current coarse block-scan
+   adapter as XED's depth ceiling. Vendoring `intelxed/mbuild` as a new
+   submodule would lift this, but that is itself a new vendoring decision
+   (a new `.gitmodules` entry, a new pinned commit, a new license to check)
+   that deserves its own explicit ask rather than being bundled into this
+   spike's go-ahead - not attempted here.
+4. Unaffected: nothing changed in `adapters/xed/reader.py`, so the existing
+   Phase-A-manifest regression tests (`tests/test_xed_reader.py`) remain
+   exactly what they were.
 
 ### Phase C - JSON export and schema v2
 
-1. Add an `isa-db/export/` writer: one JSON Lines file per (source,
-   profile) - e.g. `isa-db/export/riscv_opcodes/riscv64.jsonl`,
-   `isa-db/export/xed/x86_64.jsonl` - each line one `SourceRecord.to_dict()`
-   via stdlib `json.dumps` (no serialization library needed), sorted
-   deterministically by `record_id` so diffs stay reviewable.
-2. Cut `schema/source_record.schema.v2.json` once Phase A's richer,
-   arg_lut-backed field names land. Leave `v1` alone as a record of what the
-   first slice actually produced - don't rewrite history in place.
-3. **Needs your sign-off, not a unilateral call:** check the generated
-   JSONL into git (mirrors today's `manifest.txt`/`summary.txt` convention -
-   works fully offline, diffable, but a large diff on every upstream bump),
-   or regenerate on demand from `sources.lock.json` (closer to
-   `isa-database-design.md`'s "producer CI proves repeatable output"
-   framing, but nothing here works offline until the producer has run). If
-   asked to pick: check in, and add an isa-db-local `export-diff` script
-   mirroring `tools-isa-inventory-diff`'s check-clean-working-tree pattern -
-   still kept out of `asm-ci`, per `isa-db/README.md`'s existing boundary.
+1. **Done.** `isa-db/export/writer.py` (+ `regen.py` CLI entry point): one
+   JSON Lines file per (source, profile) -
+   `isa-db/export/riscv_opcodes/{riscv32,riscv64}.jsonl`,
+   `isa-db/export/xed/{x86_32,x86_64}.jsonl` - each line one
+   `SourceRecord.to_dict()` via stdlib `json.dumps(..., sort_keys=True)`,
+   sorted deterministically by `record_id`. `adapters/{riscv_opcodes,xed}/
+   reader.py` each gained a `source_records_for_profile` filter (file-level
+   for riscv-opcodes, applicability-level for XED) to produce these.
+2. **Not done, and turned out to be unnecessary.** `schema/
+   source_record.schema.v1.json`'s `encoding.fixed_bits` branch already
+   requires exactly the `{name, lsb, width}` field shape Phase A's
+   arg_lut-backed fields produce - Phase A changed what populates `fields`/
+   `provenance.operands`, not the record's shape, so v1 already validates
+   the richer output unmodified. No v2 cut needed unless a future change
+   (e.g. a real Phase B, or LLVM) changes the shape itself.
+3. **Decided (2026-09-05, user sign-off): check in.** The four `export/
+   *.jsonl` files are committed. `isa-db/tests/test_export.py`'s
+   `TestCheckedInExportUpToDate` is this project's own diff-check (fails if
+   `python3 -m export.regen`'s output disagrees with what's committed) -
+   playing `tools-isa-inventory-diff`'s role for this slice, still run only
+   by `python3 -m unittest discover -s isa-db/tests -t isa-db`, not wired
+   into `asm-ci` (unchanged boundary, `isa-db/README.md`).
 
 ### Phase D - consumption in `asm/tools` (OCaml side)
 

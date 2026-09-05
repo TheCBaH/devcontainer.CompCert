@@ -48,14 +48,23 @@ checks.
   list, plus a `compat_entries` view verified the same way against
   `asm/fixtures/isa-inventory/{riscv32,riscv64}/manifest.txt`.
 
+- `export/writer.py` - one checked-in JSON Lines file per (source, profile):
+  `export/riscv_opcodes/{riscv32,riscv64}.jsonl`,
+  `export/xed/{x86_32,x86_64}.jsonl`. Each line is one
+  `SourceRecord.to_dict()`, `json.dumps(..., sort_keys=True)`, sorted by
+  `record_id`, so re-generation is byte-stable and diffs stay reviewable.
+  Regenerate with `python3 -m export.regen` (run from `isa-db/`, matching
+  the test-invocation convention below) after any adapter change;
+  `tests/test_export.py`'s `TestCheckedInExportUpToDate` fails if the
+  checked-in files and a fresh regeneration disagree. Checked in rather than
+  regenerated on demand - see `.ai/isa.md` Phase C for that decision.
+
 ## What this slice deliberately does not do
 
 - No reconciliation/mapping layer across sources (there is only one source
   per architecture family so far - XED for x86, riscv-opcodes for RISC-V -
   so there is nothing to reconcile yet).
-- No JSON Lines export or SQLite convenience database - `normalize/model.py`
-  exposes `to_dict()`/`to_json()` on a source record, but nothing here
-  writes `export/`.
+- No SQLite convenience database - `export/` is JSON Lines only.
 - No general typed expression algebra (`feature`, `xlen`, `opaque`
   requirement kinds beyond x86's `mode`) - RISC-V source records currently
   carry their extension name as a plain string, not yet a `feature`
@@ -63,9 +72,14 @@ checks.
   that generalization; adding it speculatively here would be exactly the
   kind of premature abstraction the design doc's own "preserve facts before
   reconciling" principle warns against building ahead of need.
-- No consumer change in `asm/tools`: `Isa_inventory_xed`/`Isa_inventory_riscv`
-  are untouched, and remain the source of truth for the committed
-  `asm/fixtures/isa-inventory/` manifests.
+- `asm/tools` reads this project's export/ only for cross-validation
+  (`compcert-tools isa-inventory cross-validate`, .ai/isa.md Phase D step 1,
+  run as part of `make tools-integration`/`asm-ci`): it asserts every
+  checked-in manifest row has a matching isa-db record, but
+  `Isa_inventory_xed`/`Isa_inventory_riscv` are otherwise untouched and remain
+  the source of truth for the committed `asm/fixtures/isa-inventory/`
+  manifests - replacing them with a JSONL-reading consumer is explicitly a
+  later, separate decision (see isa.md Phase D).
 
 ## Running the tests
 

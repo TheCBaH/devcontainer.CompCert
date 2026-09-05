@@ -214,6 +214,19 @@ def source_records(extensions_dir: Path, snapshot: str) -> list[dict]:
     return records
 
 
+def source_records_for_profile(extensions_dir: Path, profile: str, snapshot: str) -> list[dict]:
+    """Like `source_records`, restricted to files `_applies_to` selects for
+    `profile` - the same file-level selection `compat_entries_for_profile`
+    already uses, so the two stay consistent by construction.
+    """
+    records = []
+    for f in _list_extension_files(extensions_dir):
+        if not _applies_to(profile, f.name):
+            continue
+        records.extend(source_records_for_file(f, snapshot))
+    return records
+
+
 def compat_entries_for_profile(extensions_dir: Path, profile: str) -> set[tuple[str, str]]:
     entries: set[tuple[str, str]] = set()
     for f in _list_extension_files(extensions_dir):

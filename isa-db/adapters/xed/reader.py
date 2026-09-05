@@ -232,3 +232,15 @@ def compat_entries_for_profile(datafiles_dir: Path, profile: str) -> set[tuple[s
         raise ValueError(f"unsupported profile: {profile!r}")
     idx = 0 if profile == "x86_32" else 1
     return {key for key, flags in compat_entries(datafiles_dir).items() if flags[idx]}
+
+
+def source_records_for_profile(datafiles_dir: Path, profile: str, snapshot: str) -> list[dict]:
+    """Like `source_records`, restricted to records whose applicability
+    evaluates true for `profile` - the same per-mode evaluation
+    `compat_entries_for_profile` already does, applied record-by-record
+    instead of merged by (mnemonic, group).
+    """
+    if profile not in ("x86_32", "x86_64"):
+        raise ValueError(f"unsupported profile: {profile!r}")
+    check = applies_32 if profile == "x86_32" else applies_64
+    return [r for r in source_records(datafiles_dir, snapshot) if check(r["applicability"])]
