@@ -390,14 +390,14 @@ above land, per the priority decision this plan opened with.
 4. **Resolved: cross-validation only** for this pass. See Phase D step 2 -
    replacing the OCaml importers outright remains explicitly future work.
 
-### Follow-ups this pass surfaced (not decided, not started)
+### Follow-ups this pass surfaced
 
-- Vendoring `intelxed/mbuild` as a new submodule, to unblock Phase B's
-  stronger XED path (a new `.gitmodules` entry/pinned commit/license check -
-  its own ask, per Phase B's finding).
-- Whether to promote `isa-db-cross-validate` out of `repo_tests.exe` into
-  its own named Makefile target (e.g. `tools-isa-db-cross-validate`) for
-  standalone invocation, now that it is exercised via `tools-integration`/
-  `asm-ci` - purely a convenience/discoverability question, not a behavior
-  change; not done here to avoid speculative scope beyond what Phase D
-  step 2 asked for.
+- **Done (2026-09-05).** Vendoring `intelxed/mbuild` as a new submodule, to
+  unblock Phase B's stronger XED path - landed as part of "Phase B,
+  reopened" above (commit `c56031a`), not a separate follow-up anymore.
+- **Done (2026-09-05).** Promoted `isa-db-cross-validate` out of
+  `repo_tests.exe`-only into its own standalone Makefile target,
+  `tools-isa-db-cross-validate` (`COMPCERT_REPO_ROOT=... compcert_tools.exe
+  isa-inventory cross-validate`) - purely a convenience/discoverability
+  addition; `tools-integration`/`asm-ci` still exercise the same check via
+  `repo_tests.exe`, so this target is not added to `asm-ci` itself.
