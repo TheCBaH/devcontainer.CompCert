@@ -1,5 +1,12 @@
 # Sourcing whole-ISA instruction/extension data
 
+Follow-up (2026-09-05): [ISA database investigation and proposed producer/consumer
+boundary](isa-database-design.md) traces the implemented XED import, records
+shallow/sparse LLVM and QEMU inspection plus extraction experiments, and
+proposes a shared artifact schema and an independent database project. Its
+findings update the source-format and import recommendations below; this
+document retains the original sourcing survey for context.
+
 This is a sourcing survey, not the inventory itself: where to obtain a
 normative, machine-readable list of *every* instruction/extension for each of
 the six supported profiles (`x86_32`, `x86_64`, `arm`, `aarch64`, `riscv32`,
