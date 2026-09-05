@@ -113,7 +113,22 @@ assume it is as low-risk as riscv-opcodes' turned out to be.
    matching key - not expected to trigger against the current vendored
    checkout, but keeps the adapter from raising if a future snapshot ever
    disagrees.
-5. Not started - still lower priority, sequenced after the above.
+5. **Done.** `isa-db/adapters/riscv_opcodes/reference.py`'s `operand_vocab`
+   ingests the arg_lut operand-name vocabulary, exported as
+   `isa-db/export/riscv_opcodes/arg-lut.jsonl` (one `{name, lsb, width}`
+   entry per line, sorted by name, plus `source`/`snapshot`). This reads
+   `upstream.arg_lut()` (the live dict `create_inst_dict` itself consults)
+   after processing every extension file `reader.py` iterates over, rather
+   than re-parsing `arg_lut.csv` directly: the raw CSV alone is missing six
+   names riscv-opcodes' own `constants.py` hardcodes at import time (the
+   "mop"/"c_mop_t" fields - none are CSV rows), so a naive re-parse would
+   under-report the vocabulary real instruction records resolve against.
+   `csrs.csv`/`csrs32.csv`/`causes.csv` remain un-ingested, per the original
+   "consider... as optional" phrasing - no concrete consumer has asked for
+   them yet. `tests/test_riscv_opcodes_reference.py` cross-checks the export
+   against both known-good bit ranges (`sh1add`'s `rd`/`rs1`/`rs2`) and an
+   independent from-scratch re-parse of the raw CSV (asserting the export is
+   a strict superset with matching bit ranges).
 6. **Confirmed.** `compat_entries_for_profile`'s contract is unchanged; all
    pre-existing tests in `isa-db/tests/test_riscv_opcodes_reader.py` pass
    unmodified (plus one new pinning test for the binary-literal fix), and

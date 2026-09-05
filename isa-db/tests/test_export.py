@@ -13,7 +13,15 @@ import unittest
 
 from adapters.riscv_opcodes import reader as riscv_opcodes_reader
 from adapters.xed import reader as xed_reader
-from export.writer import EXPORT_DIR, PROFILES, load_lock, records_for, write_jsonl
+from export.writer import (
+    EXPORT_DIR,
+    PROFILES,
+    REFERENCE_SOURCES,
+    load_lock,
+    records_for,
+    reference_records_for,
+    write_jsonl,
+)
 from normalize.schema_check import check_source_record
 from tests.manifest_fixture import read_manifest_pairs
 
@@ -93,3 +101,14 @@ class TestCheckedInExportUpToDate(unittest.TestCase):
                     expected,
                     f"{path} is stale - rerun `python3 -m export.regen`",
                 )
+        for source in REFERENCE_SOURCES:
+            path = EXPORT_DIR / source / "arg-lut.jsonl"
+            expected = "".join(
+                json.dumps(r, sort_keys=True) + "\n"
+                for r in sorted(reference_records_for(source, lock), key=lambda r: r["name"])
+            )
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                expected,
+                f"{path} is stale - rerun `python3 -m export.regen`",
+            )

@@ -47,12 +47,22 @@ checks.
   (`imports` / `specializes`) rather than folding them into a plain mnemonic
   list, plus a `compat_entries` view verified the same way against
   `asm/fixtures/isa-inventory/{riscv32,riscv64}/manifest.txt`.
+- `adapters/riscv_opcodes/reference.py` - `operand_vocab`: the arg_lut
+  operand-name -> canonical bit range vocabulary (`.ai/isa.md` Phase A step
+  5), read from `upstream.arg_lut()`'s live dict rather than a naive re-parse
+  of `arg_lut.csv` (the raw CSV alone omits a handful of names
+  riscv-opcodes' own `constants.py` hardcodes at import time - see the
+  module's docstring). `csrs.csv`/`csrs32.csv`/`causes.csv` are not ingested.
 
 - `export/writer.py` - one checked-in JSON Lines file per (source, profile):
   `export/riscv_opcodes/{riscv32,riscv64}.jsonl`,
   `export/xed/{x86_32,x86_64}.jsonl`. Each line is one
   `SourceRecord.to_dict()`, `json.dumps(..., sort_keys=True)`, sorted by
   `record_id`, so re-generation is byte-stable and diffs stay reviewable.
+  Also writes one auxiliary reference file per source that has one -
+  currently just `export/riscv_opcodes/arg-lut.jsonl`, one
+  `{source, snapshot, name, lsb, width}` line per operand name, sorted by
+  `name` since these aren't source records (no `record_id`).
   Regenerate with `python3 -m export.regen` (run from `isa-db/`, matching
   the test-invocation convention below) after any adapter change;
   `tests/test_export.py`'s `TestCheckedInExportUpToDate` fails if the

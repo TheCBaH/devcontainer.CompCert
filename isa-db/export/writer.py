@@ -13,6 +13,11 @@ serialized with `json.dumps(..., sort_keys=True)` for byte-stable diffs,
 one line per record, sorted by `record_id` so the file's own line order is
 also stable across re-runs regardless of the adapter's internal iteration
 order.
+
+Also writes one auxiliary reference file per source that has one -
+`export/riscv_opcodes/arg-lut.jsonl` (.ai/isa.md Phase A step 5) - which
+isn't a per-instruction source record at all (no `record_id`), so it is
+sorted by its own `name` field instead.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ import json
 from pathlib import Path
 
 from adapters.riscv_opcodes import reader as riscv_opcodes_reader
+from adapters.riscv_opcodes import reference as riscv_opcodes_reference
 from adapters.xed import reader as xed_reader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -61,8 +67,24 @@ def records_for(source: str, profile: str, lock: dict) -> list[dict]:
     raise ValueError(f"unknown source: {source!r}")
 
 
-def write_jsonl(records: list[dict], path: Path) -> None:
-    ordered = sorted(records, key=lambda r: r["record_id"])
+# Sources with an auxiliary reference export beyond their per-profile source
+# records - see reference_records_for.
+REFERENCE_SOURCES: list[str] = ["riscv_opcodes"]
+
+
+def reference_records_for(source: str, lock: dict) -> list[dict]:
+    if source == "riscv_opcodes":
+        snapshot = snapshot_for(source, lock)
+        extensions_dir = _source_dir(source, lock)
+        return [
+            {"source": source, "snapshot": snapshot, **entry}
+            for entry in riscv_opcodes_reference.operand_vocab(extensions_dir)
+        ]
+    raise ValueError(f"no reference export defined for source: {source!r}")
+
+
+def write_jsonl(records: list[dict], path: Path, *, key=lambda r: r["record_id"]) -> None:
+    ordered = sorted(records, key=key)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         for rec in ordered:
@@ -78,4 +100,8 @@ def regenerate(out_dir: Path = EXPORT_DIR) -> list[Path]:
             path = out_dir / source / f"{profile}.jsonl"
             write_jsonl(records_for(source, profile, lock), path)
             written.append(path)
+    for source in REFERENCE_SOURCES:
+        path = out_dir / source / "arg-lut.jsonl"
+        write_jsonl(reference_records_for(source, lock), path, key=lambda r: r["name"])
+        written.append(path)
     return written

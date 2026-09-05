@@ -15,7 +15,7 @@
       "commit": "7afd3dc8772909d8c94ceeb208467cff93896396",
       "branch": "master",
       "license": "BSD-3-Clause",
-      "selected-inputs": ["extensions/* (excluding extensions/unratified/)"]
+      "selected-inputs": ["extensions/* (excluding extensions/unratified/)", "arg_lut.csv"]
     }
   },
   "note": "Pins the two vendored submodule commits this isa-db slice was written and tested against. Not consumed automatically - re-pin by hand (and re-run isa-db/tests) after bumping either submodule; see ../.ai/isa-database-design.md for why a producer-owned lock, distinct from the submodule pointer, matters once this grows independent adapters/CI."
