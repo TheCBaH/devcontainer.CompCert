@@ -59,11 +59,23 @@ checks.
   submodule vendored for exactly this (`.ai/isa.md` "Phase B, reopened").
   `records()` returns fully resolved `inst_t` objects (UDELETE/version-delete
   already applied, real `iform`/`space`/`map`/`opcode`/`parsed_operands`),
-  regenerating `obj/dgen/` on demand rather than checking it in - not yet
-  wired into a `SourceRecord`-producing reader (`.ai/isa.md` Phase B step 2b:
-  mapping `inst_t` into a new `x86_encoding` shape is a separate, not-yet-
-  decided step). `adapters/xed/reader.py`'s coarse block scan is unaffected
-  and remains what `export/xed/*.jsonl` is built from.
+  regenerating `obj/dgen/` on demand rather than checking it in.
+- `adapters/xed/upstream_reader.py` - maps those `inst_t` records into
+  `SourceRecord`s with a new `x86_encoding` tagged-union encoding kind
+  (`.ai/isa.md` "Phase B, reopened, step 2b", lean shape, 2026-09-05 user
+  sign-off): `space`/`opcode_map`/`opcode`/`pattern` plus a resolved operand
+  list. **Additive, not a replacement** for `adapters/xed/reader.py`'s coarse
+  block-scan adapter - `export/xed/*.jsonl` and `compat_entries_for_profile`
+  (still regression-tested against the checked-in
+  `asm/fixtures/isa-inventory` manifests, still what `asm/tools`'s
+  `Isa_db_cross_validate` reads) are untouched. The reason: that OCaml check
+  keys XED matching on `provenance.group` (the `datafiles/` directory an
+  instruction lives under), and the resolved reader path cannot recover that
+  - verified in this session that neither `iclass` alone (566/1995 iclasses
+  span multiple directory groups) nor `(iclass, EXTENSION)` (still 307
+  ambiguous pairs, mostly APX-F duplicating BASE-extension instructions
+  under the same `EXTENSION` value) gives a well-defined join back to it.
+  These records go to a separate export lane instead - see below.
 
 - `export/writer.py` - one checked-in JSON Lines file per (source, profile):
   `export/riscv_opcodes/{riscv32,riscv64}.jsonl`,
@@ -74,6 +86,10 @@ checks.
   currently just `export/riscv_opcodes/arg-lut.jsonl`, one
   `{source, snapshot, name, lsb, width}` line per operand name, sorted by
   `name` since these aren't source records (no `record_id`).
+  Also writes one resolved-path file per (source, profile) that has one -
+  currently just `export/xed_resolved/{x86_32,x86_64}.jsonl`, from
+  `adapters/xed/upstream_reader.py` above - additive alongside
+  `export/xed/*.jsonl`, not a replacement for it.
   Regenerate with `python3 -m export.regen` (run from `isa-db/`, matching
   the test-invocation convention below) after any adapter change;
   `tests/test_export.py`'s `TestCheckedInExportUpToDate` fails if the

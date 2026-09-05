@@ -30,6 +30,26 @@ def fixed_bits_encoding(width_bits: int, mask: int, value: int, fields: list[dic
     }
 
 
+def x86_encoding(*, space: str, opcode_map: int, opcode: str, pattern: str, operands: list[dict]) -> dict:
+    """x86 has no single fixed-width mask (unlike RISC-V) - see
+    .ai/isa-database-design.md's X86InstrFormats.td discussion - so this
+    keeps XED's own resolved-but-still-textual facts instead of a byte-level
+    decode: which encoding space (`legacy`/`vex`/`evex`/`xop`), the opcode
+    map/byte XED itself classified from the pattern, the full resolved
+    PATTERN token string (state-bits already macro-expanded, unlike the
+    coarse block-scan adapter's raw block dump), and a resolved operand list.
+    `.ai/isa.md`'s "Phase B, reopened, step 2b" section is this shape's
+    design record - the "lean" option, by explicit user decision."""
+    return {
+        "kind": "x86_encoding",
+        "space": space,
+        "opcode_map": opcode_map,
+        "opcode": opcode,
+        "pattern": pattern,
+        "operands": operands,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Applicability: a small typed expression tree, evaluated three-valued.
 #

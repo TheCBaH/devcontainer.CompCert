@@ -15,7 +15,7 @@
           "commit": "1b437e409221a2b5703b4d8896baa20d43e4ba1a",
           "tag": "v2026.08.23",
           "license": "Apache-2.0",
-          "note": "Vendored .ai/isa.md Phase B ('reopened') to unblock xed_mbuild.py's 'just-prep' target and the pysrc/gen_setup.py + read_xed_db.xed_reader_t stronger reader path. Not itself an ISA data source - not consumed by any adapter yet."
+          "note": "Vendored .ai/isa.md Phase B ('reopened') to unblock xed_mbuild.py's 'just-prep' target and the pysrc/gen_setup.py + read_xed_db.xed_reader_t stronger reader path, now used by adapters/xed/upstream.py. Not itself an ISA data source - it is a build-time dependency of the stronger reader, not something instruction data is read from."
         }
       }
     },

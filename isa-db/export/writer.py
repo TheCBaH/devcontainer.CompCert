@@ -18,6 +18,15 @@ Also writes one auxiliary reference file per source that has one -
 `export/riscv_opcodes/arg-lut.jsonl` (.ai/isa.md Phase A step 5) - which
 isn't a per-instruction source record at all (no `record_id`), so it is
 sorted by its own `name` field instead.
+
+Also writes one "resolved-path" file per (source, profile) that has one -
+currently just `export/xed_resolved/{x86_32,x86_64}.jsonl`, from
+`adapters/xed/upstream_reader.py`'s stronger `gen_setup`/`read_xed_db`-based
+reader. Additive, not a replacement for `export/xed/*.jsonl` above (still
+the coarse block-scan adapter, still what `Isa_db_cross_validate` reads) -
+see `.ai/isa.md` "Phase B, reopened, step 2b" for why: the resolved path
+can't recover `provenance.group`, which that OCaml check keys XED matching
+on.
 """
 
 from __future__ import annotations
@@ -28,6 +37,7 @@ from pathlib import Path
 from adapters.riscv_opcodes import reader as riscv_opcodes_reader
 from adapters.riscv_opcodes import reference as riscv_opcodes_reference
 from adapters.xed import reader as xed_reader
+from adapters.xed import upstream_reader as xed_upstream_reader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCK_PATH = REPO_ROOT / "isa-db" / "sources.lock.json"
@@ -71,6 +81,19 @@ def records_for(source: str, profile: str, lock: dict) -> list[dict]:
 # records - see reference_records_for.
 REFERENCE_SOURCES: list[str] = ["riscv_opcodes"]
 
+# Sources with an additional resolved-path export beyond their per-profile
+# source records - see resolved_records_for. Written to
+# export/<source>_resolved/<profile>.jsonl, deliberately not folded into
+# PROFILES/records_for above (see this module's docstring).
+RESOLVED_PROFILES: dict[str, list[str]] = {"xed": ["x86_32", "x86_64"]}
+
+
+def resolved_records_for(source: str, profile: str, lock: dict) -> list[dict]:
+    snapshot = snapshot_for(source, lock)
+    if source == "xed":
+        return xed_upstream_reader.source_records_for_profile(profile, snapshot)
+    raise ValueError(f"no resolved-path export defined for source: {source!r}")
+
 
 def reference_records_for(source: str, lock: dict) -> list[dict]:
     if source == "riscv_opcodes":
@@ -104,4 +127,9 @@ def regenerate(out_dir: Path = EXPORT_DIR) -> list[Path]:
         path = out_dir / source / "arg-lut.jsonl"
         write_jsonl(reference_records_for(source, lock), path, key=lambda r: r["name"])
         written.append(path)
+    for source, profiles in RESOLVED_PROFILES.items():
+        for profile in profiles:
+            path = out_dir / f"{source}_resolved" / f"{profile}.jsonl"
+            write_jsonl(resolved_records_for(source, profile, lock), path)
+            written.append(path)
     return written

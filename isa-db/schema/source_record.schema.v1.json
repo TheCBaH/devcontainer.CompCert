@@ -42,7 +42,7 @@
     },
     "encoding": {
       "type": "object",
-      "description": "Tagged union: 'fixed_bits' (riscv-opcodes numeric-field lines) or 'opaque' (XED PATTERN token lists, and RISC-V import/pseudo-op records that do not define their own new bit pattern).",
+      "description": "Tagged union: 'fixed_bits' (riscv-opcodes numeric-field lines), 'opaque' (XED PATTERN token lists, and RISC-V import/pseudo-op records that do not define their own new bit pattern), or 'x86_encoding' (XED's resolved-but-textual facts via the gen_setup/read_xed_db.xed_reader_t path - .ai/isa.md 'Phase B, reopened, step 2b'; not yet consumed by export/xed/*.jsonl, which stays on 'opaque' - see isa-db/README.md).",
       "required": ["kind"],
       "oneOf": [
         {
@@ -72,6 +72,35 @@
             "note": { "type": "string" }
           },
           "required": ["kind", "note"]
+        },
+        {
+          "properties": {
+            "kind": { "const": "x86_encoding" },
+            "space": { "enum": ["legacy", "vex", "evex", "xop"] },
+            "opcode_map": { "type": "integer" },
+            "opcode": { "type": "string", "description": "Hex string, e.g. '0x37'." },
+            "pattern": {
+              "type": "string",
+              "description": "XED's own resolved PATTERN token string (state-bits macro-expanded)."
+            },
+            "operands": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "type", "bits", "lookupfn_name", "rw", "visibility", "oc2"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": { "type": "string" },
+                  "bits": { "type": ["string", "array", "null"] },
+                  "lookupfn_name": { "type": ["string", "null"] },
+                  "rw": { "type": "string" },
+                  "visibility": { "type": "string" },
+                  "oc2": { "type": ["string", "null"] }
+                }
+              }
+            }
+          },
+          "required": ["kind", "space", "opcode_map", "opcode", "pattern", "operands"]
         }
       ]
     },

@@ -38,8 +38,12 @@ def check_source_record(record: dict) -> list[str]:
         elif kind == "opaque":
             if "note" not in encoding:
                 problems.append("encoding.opaque missing 'note'")
+        elif kind == "x86_encoding":
+            for key in ("space", "opcode_map", "opcode", "pattern", "operands"):
+                if key not in encoding:
+                    problems.append(f"encoding.x86_encoding missing {key!r}")
         else:
-            problems.append(f"encoding.kind must be 'fixed_bits' or 'opaque', got {kind!r}")
+            problems.append(f"encoding.kind must be 'fixed_bits', 'opaque', or 'x86_encoding', got {kind!r}")
     else:
         problems.append("encoding must be an object")
 

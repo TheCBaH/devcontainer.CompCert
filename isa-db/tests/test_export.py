@@ -17,9 +17,11 @@ from export.writer import (
     EXPORT_DIR,
     PROFILES,
     REFERENCE_SOURCES,
+    RESOLVED_PROFILES,
     load_lock,
     records_for,
     reference_records_for,
+    resolved_records_for,
     write_jsonl,
 )
 from normalize.schema_check import check_source_record
@@ -62,6 +64,15 @@ class TestRecordsForProfile(unittest.TestCase):
             for profile in profiles:
                 for rec in records_for(source, profile, lock):
                     self.assertEqual(check_source_record(rec), [], f"{source}/{profile}: {rec['record_id']}")
+
+    def test_resolved_profiles_schema_shaped(self):
+        lock = load_lock()
+        for source, profiles in RESOLVED_PROFILES.items():
+            for profile in profiles:
+                for rec in resolved_records_for(source, profile, lock):
+                    self.assertEqual(
+                        check_source_record(rec), [], f"{source}_resolved/{profile}: {rec['record_id']}"
+                    )
 
 
 class TestWriteJsonl(unittest.TestCase):
@@ -112,3 +123,15 @@ class TestCheckedInExportUpToDate(unittest.TestCase):
                 expected,
                 f"{path} is stale - rerun `python3 -m export.regen`",
             )
+        for source, profiles in RESOLVED_PROFILES.items():
+            for profile in profiles:
+                path = EXPORT_DIR / f"{source}_resolved" / f"{profile}.jsonl"
+                expected = "".join(
+                    json.dumps(r, sort_keys=True) + "\n"
+                    for r in sorted(resolved_records_for(source, profile, lock), key=lambda r: r["record_id"])
+                )
+                self.assertEqual(
+                    path.read_text(encoding="utf-8"),
+                    expected,
+                    f"{path} is stale - rerun `python3 -m export.regen`",
+                )

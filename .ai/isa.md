@@ -252,29 +252,61 @@ counts), and two hand-verified ground-truth checks - `AAA` (opcode `0x37`,
 cross-checked by hand against the SDM while writing the test, the same way
 Phase A's `sh1add` ground truth was established.
 
-#### Phase B, reopened, step 2b: mapping into SourceRecords (not started)
+#### Phase B, reopened, step 2b: mapping into SourceRecords (done)
 
-The wrapper above proves the data is real and resolvable; turning `inst_t`
-records into `SourceRecord`s (the actual "new adapter code" step 2 asks for)
-is **not started** - deliberately held back from this pass, since it needs
-a real schema design decision (the `x86_encoding` tagged-union shape) rather
-than a mechanical port, unlike the wrapper step above. From inspecting a
-representative `inst_t` (`AAA`, `ADD_GPRv_IMMz` and others) in this session,
-the natural per-record identity is `iform` (e.g. `ADD_GPRv_IMMz` - XED's own
-disambiguated per-form name, already unique within an `iclass`), not the
-`iclass`+directory-group+line-number key the coarse block-scan adapter uses
-today; a real `x86_encoding` would plausibly carry `space`
-(`legacy`/`vex`/`evex`/`xop`), `map`, `opcode`, the raw resolved `pattern`
-string (state-bits already macro-expanded, so richer than the coarse
+**Decided (2026-09-05, user sign-off): the "lean" `x86_encoding` shape.**
+`normalize/model.py`'s `x86_encoding()` carries `space`
+(`legacy`/`vex`/`evex`/`xop`), `opcode_map`, `opcode`, the raw resolved
+`pattern` string (state-bits already macro-expanded, richer than the coarse
 adapter's `PATTERN` block dump), and a resolved operand list from
-`parsed_operands` (`{name, type, bits, rw, visibility, oc2}` per operand) -
-this pass's exploration, not a commitment; genuinely undecided until someone
-signs off on the shape. Also undecided: whether this *replaces* what
-`export/xed/{x86_32,x86_64}.jsonl` currently holds (produced by the coarse
-adapter) or is additive, and whether the coarse adapter's
-`compat_entries`/`compat_entries_for_profile` (still the thing regression-
-tested against the checked-in `asm/fixtures/isa-inventory` manifests) stays
-as-is regardless.
+`parsed_operands` (`{name, type, bits, lookupfn_name, rw, visibility, oc2}`
+per operand - `lookupfn_name` added beyond the originally-proposed field set
+since it is the only place a register-class operand's identity lives when
+`bits` is `None`, e.g. `nt_lookup_fn`-typed operands). No byte-level
+prefix/ModRM/SIB/immediate decode - the "fuller" option was explicitly not
+chosen. `schema/source_record.schema.v1.json` gained the matching `oneOf`
+branch (still schema v1 - this is an additive branch, not a shape change to
+the existing two); `normalize/schema_check.py` checks it the same way.
+`adapters/xed/upstream_reader.py` does the mapping; per-record identity is
+`{isa_set}:{iform}:{n}` where `n` is a 0-based occurrence counter (`iform`
+alone is not globally unique - 1411 of 9001 distinct iforms repeat, e.g.
+`FLDENV_MEMmem14` three times for `mode_restriction` variants that collapse
+to the same iform string). `v.mode_restriction` (`'unspecified'`/`'not64'`/
+`0`/`1`/`2`) maps directly onto the existing `all`/`any`/`mode` applicability
+vocabulary, so `adapters/xed/reader.py`'s `applies_32`/`applies_64` evaluate
+these new records unchanged, imported rather than re-derived.
+
+**Decided (2026-09-05, user sign-off): additive, not a replacement** for
+`export/xed/{x86_32,x86_64}.jsonl` - a real blocker surfaced mid-
+implementation, not just caution: `asm/tools`'s `Isa_db_cross_validate`
+(Phase D, wired into `tools-integration`/`asm-ci`) keys XED matching on
+`(native_name.lower(), provenance.group)`, `group` being the `datafiles/`
+directory an instruction's block lives under - a repo-layout fact the
+resolved reader path has no way to know (it reads one aggregated
+`obj/dgen/all-dec-instructions.txt`, not per-directory files). Checked
+whether a join back to `group` was recoverable from the coarse adapter's own
+directory walk: it is not, in general - 566 of 1995 iclasses (28%) span
+multiple directory groups even keyed by `iclass` alone (e.g. `nop` under
+`base`/`mpx`/`cet`/`cldemote`/`ibhf`), and keying by `(iclass, EXTENSION)`
+still leaves 307 ambiguous pairs (APX-F's directory duplicates many
+BASE-extension instructions under the same `EXTENSION` value with new
+encodings). So replacing the export would have silently dropped
+`provenance.group` and broken `asm-ci`. Landed as a new, separate export
+lane instead: `export/xed_resolved/{x86_32,x86_64}.jsonl`
+(`export/writer.py`'s `RESOLVED_PROFILES`/`resolved_records_for`, checked in
+like every other `export/*.jsonl`, ~9.7M/13M - about 2x the coarse adapter's
+4.6M/6.5M, mostly the richer per-record `pattern`/`operands` content).
+`adapters/xed/reader.py`'s coarse block-scan output, `compat_entries`/
+`compat_entries_for_profile`, and Phase D's `Isa_db_cross_validate` are
+completely unchanged.
+
+Regression tests: `tests/test_xed_upstream_reader.py` (AAA and
+`ADD_GPRv_IMMz` ground truth against the mapped `SourceRecord` shape - not
+just the raw `inst_t` `test_xed_upstream.py` already checked - plus the
+`FLDENV_MEMmem14` repeated-iform disambiguation case and a schema-shape
+sweep over the whole x86_64 profile); `tests/test_export.py` gained
+`test_resolved_profiles_schema_shaped` and a `TestCheckedInExportUpToDate`
+branch for the new export lane. All 47 isa-db tests pass.
 
 ### Phase C - JSON export and schema v2
 
