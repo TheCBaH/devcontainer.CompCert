@@ -14,3 +14,6 @@
 [submodule "asm/vendor/isa-data/xed/upstream"]
 	path = asm/vendor/isa-data/xed/upstream
 	url = https://github.com/intelxed/xed.git
+[submodule "asm/vendor/isa-data/xed/mbuild"]
+	path = asm/vendor/isa-data/xed/mbuild
+	url = https://github.com/intelxed/mbuild.git

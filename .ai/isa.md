@@ -153,15 +153,73 @@ upstream dependency, not on missing generated data files as such.
 
 1. **Done.** Ran the spike above; see the finding.
 2. Not attempted - blocked by (1)'s finding, not by anything in this step.
-3. **Done, this is the outcome.** Leaving the current coarse block-scan
-   adapter as XED's depth ceiling. Vendoring `intelxed/mbuild` as a new
-   submodule would lift this, but that is itself a new vendoring decision
-   (a new `.gitmodules` entry, a new pinned commit, a new license to check)
-   that deserves its own explicit ask rather than being bundled into this
-   spike's go-ahead - not attempted here.
+3. **Superseded below** - the "own ask" this step deferred was made
+   (2026-09-05, user sign-off) and acted on; see "Phase B, reopened."
 4. Unaffected: nothing changed in `adapters/xed/reader.py`, so the existing
    Phase-A-manifest regression tests (`tests/test_xed_reader.py`) remain
    exactly what they were.
+
+#### Phase B, reopened: `intelxed/mbuild` vendored, stronger path confirmed live
+
+**2026-09-05, user sign-off.** Vendored `intelxed/mbuild` as a new submodule
+at `asm/vendor/isa-data/xed/mbuild` (`.gitmodules`; commit
+`1b437e409221a2b5703b4d8896baa20d43e4ba1a`, tag `v2026.08.23` - the exact
+same external release as the already-vendored XED commit
+`0bcb6237345c5066726dcc08b3d87928df3b5b26`, timestamps minutes apart, so this
+is a matched pair, not an arbitrary version combination). License:
+Apache-2.0, same as XED itself - no new license family introduced.
+
+This directly lifts the spike's blocker: `genutil.find_dir('mbuild')`
+searches the current directory and every parent for a subdirectory literally
+named `mbuild`; run from `asm/vendor/isa-data/xed/upstream`, it finds the
+sibling `asm/vendor/isa-data/xed/mbuild` and `import mbuild` resolves
+against `.../xed/mbuild/mbuild/__init__.py` with no extra path wiring needed.
+Verified end to end in this session, from a clean vendored checkout:
+
+```sh
+cd asm/vendor/isa-data/xed/upstream
+python3 mfile.py just-prep   # generates obj/dgen/{all-state,all-dec-instructions,...}.txt, then exits
+python3 -c "
+import sys; sys.path.insert(0, 'pysrc')
+import gen_setup
+class Args: pass
+args = Args(); args.prefix = 'obj/dgen'
+gen_setup.make_paths(args)
+xeddb = gen_setup.read_db(args)   # read_xed_db.xed_reader_t
+print(len(xeddb.recs))
+"
+```
+
+`just-prep` needs no C compiler probing and produced every input
+`gen_setup.make_paths` requires (`all-state.txt`, `all-cpuid.txt`,
+`all-dec-instructions.txt`, `all-chip-models.txt`, `all-widths.txt`,
+`all-extra-widths.txt`, `all-element-types.txt`,
+`all-map-descriptions.txt`) directly under `obj/dgen/` (itself
+`.gitignore`d by the XED submodule's own `.gitignore` - nothing to check in
+here). `read_xed_db.xed_reader_t` then parsed all of it cleanly: **10,994**
+`inst_t` records, each with real resolved fields the coarse block-scan
+adapter never had - `iclass`, `iform`, `extension`, `isa_set`,
+`attributes`, `cpuid_groups`, `parsed_operands`/`explicit_operands`/
+`implicit_operands`, encoding-map/opcode fields, mode restrictions - and it
+printed `[UDELETES] dropped 16 udelete records` and
+`[VERSION DELETES] dropped 3 versioned records` while doing it, i.e. it
+actively honors the exact two things `isa-database-design.md` flagged the
+current importer as *not* doing (UDELETE, version replacement).
+
+**Not yet done** (a separate, bigger implementation task than the vendoring
+itself - not attempted in this pass): the actual new adapter code. Per the
+original Phase B step 2 sketch, this means a thin wrapper (mirroring
+Phase A's `upstream.py` shape) that shells out to `mfile.py just-prep`
+(or replicates just enough of it) to produce `obj/dgen/`, then calls
+`gen_setup.read_db`/`read_xed_db.xed_reader_t` and maps `inst_t` records into
+source records - almost certainly needing a new `encoding: {"kind":
+"x86_encoding", ...}` tagged-union branch (schema v2, this time for real:
+x86 has no single fixed-width mask, per `isa-database-design.md`'s
+X86InstrFormats.td discussion). Also undecided: whether `obj/dgen/`'s
+generated `.txt` files get regenerated on every test run (adds a `just-prep`
+subprocess call - fast, ~100ms, but a new toolchain-shaped step in an
+otherwise toolchain-free test suite) or get produced once and checked in
+like `export/*.jsonl` already are.
 
 ### Phase C - JSON export and schema v2
 
