@@ -164,10 +164,17 @@ assume it is as low-risk as riscv-opcodes' turned out to be.
 
 ### Phase D - consumption in `asm/tools` (OCaml side)
 
-1. `yojson` 2.2.2 is already present in this project's opam switch
-   (confirmed via `opam list`), just unused by `asm/tools` today - no new
-   dependency needs adding to the switch, only to `asm/tools/lib/dune`'s
-   existing library stanza when this phase starts.
+1. Decision (2026-09-05, user preference): use `jsont` (Daniel Bünzli,
+   ISC-licensed, `opam show jsont` -> versions 0.1.1/0.2.0), not `yojson`,
+   despite `yojson` 2.2.2 already sitting unused in this project's opam
+   switch and `jsont` not being installed yet. Typed, bidirectional codecs
+   and precise error locations are worth the one new dependency
+   (`opam install jsont`, then add to `asm/tools/lib/dune`'s library
+   stanza) - and pay off more as Phase D grows, since a `jsont` codec can
+   double as a machine-checked mirror of
+   `schema/source_record.schema.v1.json` rather than just ad hoc field
+   lookups. `ppx_yojson_conv_lib` (already installed) becomes unnecessary
+   under this choice.
 2. First consumption step, deliberately low-risk - **cross-validation, not
    replacement**: a new `asm/tools` check reads the checked-in JSONL from
    Phase C and asserts every `(mnemonic, extension)` row in the checked-in
