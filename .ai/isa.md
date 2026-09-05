@@ -175,35 +175,39 @@ upstream dependency, not on missing generated data files as such.
 
 ### Phase D - consumption in `asm/tools` (OCaml side)
 
-1. Decision (2026-09-05, user preference): use `jsont` (Daniel Bünzli,
-   ISC-licensed, `opam show jsont` -> versions 0.1.1/0.2.0), not `yojson`,
-   despite `yojson` 2.2.2 already sitting unused in this project's opam
-   switch and `jsont` not being installed yet. Typed, bidirectional codecs
-   and precise error locations are worth the one new dependency
-   (`opam install jsont`, then add to `asm/tools/lib/dune`'s library
-   stanza) - and pay off more as Phase D grows, since a `jsont` codec can
-   double as a machine-checked mirror of
-   `schema/source_record.schema.v1.json` rather than just ad hoc field
-   lookups. `ppx_yojson_conv_lib` (already installed) becomes unnecessary
-   under this choice.
-2. First consumption step, deliberately low-risk - **cross-validation, not
-   replacement**: a new `asm/tools` check reads the checked-in JSONL from
-   Phase C and asserts every `(mnemonic, extension)` row in the checked-in
-   `asm/fixtures/isa-inventory/*/manifest.txt` has a matching isa-db source
-   record for that profile. This is strictly stronger evidence than today's
-   `tools-isa-inventory-diff`, which only proves the OCaml generator is
-   reproducible against itself, not that its output agrees with an
-   independently-sourced dataset.
-3. Later, only once Phases A-C have run long enough to be trusted: consider
-   having `Isa_inventory_xed`/`Isa_inventory_riscv` read the JSONL directly
-   instead of re-parsing `datafiles/`/`extensions/` from scratch, collapsing
-   today's two independent parsers (an OCaml one that reimplements parsing,
-   and a Python one that also reimplements parsing) into one producer plus
-   one consumer. This is a separate, bigger decision - do not fold it into
-   Phase D's first step.
-4. Do not wire any of Phase D into `asm-ci` until the checked-in JSONL
-   exists and the cross-validation check has run clean outside CI at least
-   once.
+1. **Done.** `opam install jsont bytesrw` (jsont's own text (de)serialization
+   needs the separate `bytesrw` depopt - `jsont` alone only defines
+   codec-agnostic object/array maps). Both added to `asm/tools/lib/dune`'s
+   `libraries` stanza and to `.devcontainer/devcontainer.json`'s opam
+   package list, so a fresh container build already has them.
+   `ppx_yojson_conv_lib`/`yojson` remain installed but unused, as before.
+2. **Done - cross-validation, not replacement.**
+   `asm/tools/lib/isa_db_jsonl.ml{,i}` is the `jsont` codec (record_id,
+   source, kind, native_name, provenance.{extension,group} only - every
+   other member is skipped by jsont's default). `Isa_db_cross_validate.check`
+   reads each checked-in `asm/fixtures/isa-inventory/<target>/manifest.txt`
+   and the matching `isa-db/export/<source>/<target>.jsonl`, and asserts
+   every manifest `(mnemonic, extension)` row has a matching isa-db record
+   (one-directional - isa-db's richer records, e.g. `$import` relations,
+   are not required to have a manifest counterpart). Exposed as
+   `compcert-tools isa-inventory cross-validate` and exercised by
+   `asm/tools/test/repo/repo_tests.exe` (needs the real repository root to
+   reach `isa-db/export/`, which lives outside `asm/`'s own dune workspace -
+   same reason every other repo-root check lives in that executable
+   instead of a `runtest` rule). Verified it actually detects a mismatch
+   (temporarily dropped one exported record, confirmed the check reports it
+   and exits 1, then restored the file) before trusting the "all matched"
+   result on real data.
+3. Not attempted this pass - still a separate, bigger decision per the
+   original plan.
+4. **Superseded by how this landed:** the check runs inside
+   `repo_tests.exe`, which `tools-integration` already builds and runs, and
+   `tools-integration` is already one of `asm-ci`'s targets - so Phase D is
+   now exercised by `asm-ci` as a side effect of step 2's placement, not a
+   separate decision to wire it in. This precondition (run clean outside CI
+   at least once) was satisfied first: `make tools-integration` was run
+   manually and passed (2493/2781/974/1017 manifest rows matched across the
+   four profiles) before this was reported done.
 
 ### Explicitly out of scope for this plan
 
@@ -211,15 +215,29 @@ LLVM and QEMU adapters, and ARM/AArch64 coverage generally - unchanged from
 `isa-db/README.md`'s existing scope note. Revisit only after Phases A-D
 above land, per the priority decision this plan opened with.
 
-## Open decisions needing sign-off before implementation
+## Open decisions - all resolved 2026-09-05
 
-1. Adopt riscv-opcodes' own `create_inst_dict` as the RISC-V adapter's
-   encoding source of truth (Phase A) - a soft dependency on that vendored
-   package's internal (non-public, no compatibility guarantee) function,
-   though pinned and reproducible like everything else in `isa-db/`.
-2. Whether to spend the Phase B spike now, or leave XED at its current
-   coarse-scan ceiling until a concrete downstream need (e.g. an
-   operand-boundary test generator) justifies the added complexity.
-3. Checked-in JSONL vs. regenerate-on-demand (Phase C).
-4. How far Phase D should go: cross-validation only, or eventually
-   replacing the OCaml importers outright.
+1. **Resolved: yes** (already landed, `c17355a`). Adopt riscv-opcodes' own
+   `create_inst_dict` as the RISC-V adapter's encoding source of truth
+   (Phase A) - a soft dependency on that vendored package's internal
+   (non-public, no compatibility guarantee) function, though pinned and
+   reproducible like everything else in `isa-db/`.
+2. **Resolved: spend it now.** Result: blocked on the un-vendored `mbuild`
+   package - see Phase B's finding above. XED stays at its coarse-scan
+   ceiling; vendoring `intelxed/mbuild` is a distinct, not-yet-asked
+   decision.
+3. **Resolved: check in.** See Phase C step 3.
+4. **Resolved: cross-validation only** for this pass. See Phase D step 2 -
+   replacing the OCaml importers outright remains explicitly future work.
+
+### Follow-ups this pass surfaced (not decided, not started)
+
+- Vendoring `intelxed/mbuild` as a new submodule, to unblock Phase B's
+  stronger XED path (a new `.gitmodules` entry/pinned commit/license check -
+  its own ask, per Phase B's finding).
+- Whether to promote `isa-db-cross-validate` out of `repo_tests.exe` into
+  its own named Makefile target (e.g. `tools-isa-db-cross-validate`) for
+  standalone invocation, now that it is exercised via `tools-integration`/
+  `asm-ci` - purely a convenience/discoverability question, not a behavior
+  change; not done here to avoid speculative scope beyond what Phase D
+  step 2 asked for.
