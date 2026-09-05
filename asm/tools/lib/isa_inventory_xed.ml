@@ -91,8 +91,16 @@ let parse_datafile ~extension text =
           | Some v ->
               block.saw_pattern <- true;
               let toks = tokens v in
+              (* MODE is a three-way field (mode16/mode32/mode64), not a
+                 64-bit bit-flag: a PATTERN tagged mode16 or mode32 is just as
+                 excluded from x86_64 as one tagged not64 (PUSHA/POPA/BOUND
+                 have only mode16/mode32 forms and no not64 tag at all - see
+                 asm/docs/isa-inventory.md). Don't confuse this MODE token
+                 with the separate EAMODE one (eamode16/eamode32/eamode64,
+                 address-size, not operating-mode). *)
               if not (List.mem "mode64" toks) then block.any_32_ok <- true;
-              if not (List.mem "not64" toks) then block.any_64_ok <- true
+              if not (List.mem "not64" toks || List.mem "mode16" toks || List.mem "mode32" toks)
+              then block.any_64_ok <- true
           | None -> ());
           go rest in_block block acc)
   in

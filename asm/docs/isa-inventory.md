@@ -248,3 +248,22 @@ data, which a directory-only traversal cannot see:
   directories (`avx512f/tests/`, `mpx/tests/`) also nest a subdirectory, but
   it holds `xed`-CLI regression fixtures with no `ICLASS` block, so recursing
   into it is harmless.
+
+### Correction (2026-09-05): `MODE` is three-way, not a 64-bit bit-flag
+
+The "Mode applicability" bullet above only accounted for `not64` and
+`mode64`, treating "not `not64`" as sufficient for x86_64 applicability. XED's
+`MODE` field actually has three values - `mode16`, `mode32`, `mode64` - for
+which CPU mode a `PATTERN` requires, and a `PATTERN` restricted to `mode16`
+or `mode32` is just as excluded from x86_64 as one explicitly tagged `not64`;
+it just never needed the `not64` tag because it already names a specific
+non-64-bit mode. `PUSHA`/`POPA`/`BOUND` (and `PUSHAD`/`POPAD`/`PUSHFD`/
+`POPFD`) are exactly this shape: two `PATTERN` lines, one `mode16` and one
+`mode32`, neither carrying `not64` or `mode64` - so the original "lacks
+`not64`" rule wrongly kept them in the x86_64 manifest. The fix treats
+`mode16`/`mode32`/`not64` alike: any one of them on a `PATTERN` line excludes
+that line from x86_64 applicability, `mode64` still being the only thing
+that excludes a line from x86_32. (Don't confuse `mode16`/`mode32`/`mode64`
+- the `MODE` field - with `eamode16`/`eamode32`/`eamode64`, the separate
+`EAMODE` address-size field seen on the same lines, e.g. `monitorx`'s
+`not64 eamode32`.)

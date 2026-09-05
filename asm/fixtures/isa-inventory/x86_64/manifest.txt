@@ -77,7 +77,6 @@ mnemonic:bndldx	extension:mpx	compcert-emitted:unknown	gcc-emitted:unknown	state
 mnemonic:bndmk	extension:mpx	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:bndmov	extension:mpx	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:bndstx	extension:mpx	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:bound	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:bsf	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:bsf	extension:hswbmi	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:bsr	extension:amd	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
@@ -773,12 +772,9 @@ mnemonic:pmuludq	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	sta
 mnemonic:pop	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pop2	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pop2p	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:popa	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:popad	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:popcnt	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:popcnt	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:popf	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:popfd	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:popfq	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:popp	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:por	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
@@ -835,10 +831,7 @@ mnemonic:punpcklwd	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	s
 mnemonic:push	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:push2	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:push2p	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:pusha	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:pushad	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pushf	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
-mnemonic:pushfd	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pushfq	extension:base	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pushp	extension:apx-f	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
 mnemonic:pvalidate	extension:amd	compcert-emitted:unknown	gcc-emitted:unknown	state:unknown	deferral-reason:-	promotion-trigger:-
