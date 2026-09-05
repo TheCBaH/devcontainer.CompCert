@@ -117,12 +117,10 @@ what M2 moves, and prose cannot regress.
   $ { for t in x86_32 x86_64 arm aarch64 riscv32 riscv64; do
   >     for d in $corpus/$t/*/; do verdict $t $d/input.s; done
   >   done; } | sed 's/line [0-9]* col [0-9]*: //' | sort | uniq -c | sort -rn
-       31 assembles
+       33 assembles
         4 <synthesized by x86.encode>: error[image.undefined]: fixup target references undefined symbol __compcert_i64_udivmod
         4 <synthesized by arm.encode>: error[image.undefined]: fixup target references undefined symbol __compcert_i64_udivmod
         4  error[x86.simplify]: 8-bit operands are not in M1 scope
         4  error[simplify.directive]: .p2align takes a power-of-two exponent and is not in M2 scope; use .balign
         3  error[lex]: unexpected character '\194'
-        1 <synthesized by riscv64>: error[riscv64.lower]: no and form takes these operands
-        1 <synthesized by riscv32>: error[riscv32.lower]: no and form takes these operands
         1  error[lex]: unexpected character '<'
