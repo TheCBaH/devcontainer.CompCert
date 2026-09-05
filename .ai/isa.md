@@ -221,6 +221,61 @@ subprocess call - fast, ~100ms, but a new toolchain-shaped step in an
 otherwise toolchain-free test suite) or get produced once and checked in
 like `export/*.jsonl` already are.
 
+#### Phase B, reopened, step 2a: the upstream-reader wrapper (done)
+
+**Decided (regenerate live, not checked in):** resolved the same way as
+Phase A - `adapters/xed/upstream.py` shells out to `mfile.py just-prep`
+(subprocess, `cwd` set to `asm/vendor/isa-data/xed/upstream` so `mfile.py`'s
+own `genutil.find_dir('mbuild')` cwd-relative search finds the sibling
+`xed/mbuild` checkout) on every call, then imports `gen_setup`/`read_xed_db`
+directly (no `mbuild` needed for the read side - confirmed by grepping every
+module `gen_setup`/`read_xed_db` themselves import; `mbuild` is needed only
+transitively, by `codegen.py`, imported via `read_xed_db -> opnd_types ->
+enum_txt_writer -> codegen`, so `_gen_setup()` also puts `xed/mbuild` on
+`sys.path` directly before importing, sidestepping that transitive import's
+own cwd-relative `find_dir` fallback). `obj/dgen/` stays untracked (`obj*`
+is in the XED submodule's own `.gitignore`) - not checked in, consistent
+with `adapters/riscv_opcodes/upstream.py` calling `create_inst_dict` live
+rather than caching its output. `just-prep` measured at ~0.1s; the full
+parse (`gen_setup.read_db`) is the expensive part (~10-15s for all ~11k
+records with operand resolution), so `read_db()` is `functools.lru_cache`d
+per-process rather than re-run per call.
+
+`tests/test_xed_upstream.py` regression-tests this wrapper (not yet the
+mapping into `SourceRecord`s - that's step 2b below): a corpus-size floor
+(>10000, not an exact count, so a routine XED bump doesn't break it), that
+UDELETE/version-delete measurably drop records (re-running the pre-dedup
+pipeline steps and diffing counts, rather than hardcoding upstream's printed
+counts), and two hand-verified ground-truth checks - `AAA` (opcode `0x37`,
+`isa_set=I86`, `mode_restriction=not64`, implicit `AL`/`AH` operands) and
+`ADD_GPRv_IMMz` (opcode `0x81`, map 0, `REG0`/`IMM0` operands) - both
+cross-checked by hand against the SDM while writing the test, the same way
+Phase A's `sh1add` ground truth was established.
+
+#### Phase B, reopened, step 2b: mapping into SourceRecords (not started)
+
+The wrapper above proves the data is real and resolvable; turning `inst_t`
+records into `SourceRecord`s (the actual "new adapter code" step 2 asks for)
+is **not started** - deliberately held back from this pass, since it needs
+a real schema design decision (the `x86_encoding` tagged-union shape) rather
+than a mechanical port, unlike the wrapper step above. From inspecting a
+representative `inst_t` (`AAA`, `ADD_GPRv_IMMz` and others) in this session,
+the natural per-record identity is `iform` (e.g. `ADD_GPRv_IMMz` - XED's own
+disambiguated per-form name, already unique within an `iclass`), not the
+`iclass`+directory-group+line-number key the coarse block-scan adapter uses
+today; a real `x86_encoding` would plausibly carry `space`
+(`legacy`/`vex`/`evex`/`xop`), `map`, `opcode`, the raw resolved `pattern`
+string (state-bits already macro-expanded, so richer than the coarse
+adapter's `PATTERN` block dump), and a resolved operand list from
+`parsed_operands` (`{name, type, bits, rw, visibility, oc2}` per operand) -
+this pass's exploration, not a commitment; genuinely undecided until someone
+signs off on the shape. Also undecided: whether this *replaces* what
+`export/xed/{x86_32,x86_64}.jsonl` currently holds (produced by the coarse
+adapter) or is additive, and whether the coarse adapter's
+`compat_entries`/`compat_entries_for_profile` (still the thing regression-
+tested against the checked-in `asm/fixtures/isa-inventory` manifests) stays
+as-is regardless.
+
 ### Phase C - JSON export and schema v2
 
 1. **Done.** `isa-db/export/writer.py` (+ `regen.py` CLI entry point): one

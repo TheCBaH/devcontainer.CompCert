@@ -53,6 +53,17 @@ checks.
   of `arg_lut.csv` (the raw CSV alone omits a handful of names
   riscv-opcodes' own `constants.py` hardcodes at import time - see the
   module's docstring). `csrs.csv`/`csrs32.csv`/`causes.csv` are not ingested.
+- `adapters/xed/upstream.py` - thin wrapper around XED's own stronger reader
+  path (`gen_setup`/`read_xed_db.xed_reader_t`, the same one
+  `pysrc/xed_to_db.py` is built on), reached via the `intelxed/mbuild`
+  submodule vendored for exactly this (`.ai/isa.md` "Phase B, reopened").
+  `records()` returns fully resolved `inst_t` objects (UDELETE/version-delete
+  already applied, real `iform`/`space`/`map`/`opcode`/`parsed_operands`),
+  regenerating `obj/dgen/` on demand rather than checking it in - not yet
+  wired into a `SourceRecord`-producing reader (`.ai/isa.md` Phase B step 2b:
+  mapping `inst_t` into a new `x86_encoding` shape is a separate, not-yet-
+  decided step). `adapters/xed/reader.py`'s coarse block scan is unaffected
+  and remains what `export/xed/*.jsonl` is built from.
 
 - `export/writer.py` - one checked-in JSON Lines file per (source, profile):
   `export/riscv_opcodes/{riscv32,riscv64}.jsonl`,
