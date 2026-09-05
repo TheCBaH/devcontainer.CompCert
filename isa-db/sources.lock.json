@@ -1,0 +1,22 @@
+{
+  "schema-version": 1,
+  "sources": {
+    "xed": {
+      "repository": "https://github.com/intelxed/xed.git",
+      "path": "asm/vendor/isa-data/xed/upstream",
+      "commit": "0bcb6237345c5066726dcc08b3d87928df3b5b26",
+      "tag": "v2026.08.23",
+      "license": "Apache-2.0",
+      "selected-inputs": ["datafiles/**/*.txt"]
+    },
+    "riscv_opcodes": {
+      "repository": "https://github.com/riscv/riscv-opcodes.git",
+      "path": "asm/vendor/isa-data/riscv-opcodes/upstream",
+      "commit": "7afd3dc8772909d8c94ceeb208467cff93896396",
+      "branch": "master",
+      "license": "BSD-3-Clause",
+      "selected-inputs": ["extensions/* (excluding extensions/unratified/)"]
+    }
+  },
+  "note": "Pins the two vendored submodule commits this isa-db slice was written and tested against. Not consumed automatically - re-pin by hand (and re-run isa-db/tests) after bumping either submodule; see ../.ai/isa-database-design.md for why a producer-owned lock, distinct from the submodule pointer, matters once this grows independent adapters/CI."
+}
