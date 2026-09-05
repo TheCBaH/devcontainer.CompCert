@@ -871,7 +871,7 @@ let plan_image ~evaluate ?(fill = default_fill) ?section_pad policy
                   (target + logical_size, (unit_name, target) :: bases))
                 (0, []) contribs
             in
-            (* Gap 3 of the runtime-vararg frontier writeup (.ai/riscv-frontier-gaps.md):
+            (* The runtime-vararg frontier gap (asm/docs/corpus.md, Follow-ups):
                a target that sets [section_pad] (RISC-V alone, measured) rounds this
                PROGBITS section's own final size up to its recorded alignment, the same
                way GAS's own assembler does at end-of-section - distinct from the

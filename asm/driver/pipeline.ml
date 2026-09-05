@@ -578,7 +578,7 @@ module Make (T : T_intf.TARGET) = struct
   let merge_fill ~executable pad =
     match T.merge_fill with Some f when executable -> f ~length:pad | _ -> String.make pad '\000'
 
-  (* §4.2/gap 3 of the runtime-vararg frontier writeup: [T.pad_section_to_alignment],
+  (* The runtime-vararg frontier gap (asm/docs/corpus.md): [T.pad_section_to_alignment],
      where set, rounds a merged Progbits section's own final size up to its recorded
      alignment - GAS's own end-of-section behavior on RISC-V alone, distinct from
      {!merge_fill}'s between-contribution gap above. The padding bytes are

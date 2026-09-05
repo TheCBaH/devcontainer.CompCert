@@ -166,9 +166,16 @@ name delta from section 2.2 as its expected difference.
 
 The existing GAS frontier runtime group now covers all six targets:
 `gas_xref_cmd.ml` maps both RISC-V profiles to CompCert's arch-named
-`runtime/riscV` directory (see `.ai/riscv-migrate.md`), adding one
-`runtime-vararg` frontier case per profile. Not a dependency of this plan —
-the new generator owns its own, separate corpus.
+`runtime/riscV` directory, adding one `runtime-vararg` frontier case per
+profile. Both agree byte-for-byte with GNU. Getting there took three
+independent fixes — the R-type-with-immediate I-type aliases, the FP ABI
+register names, and RISC-V GAS's section-end padding to the section
+alignment, the last being target-specific behavior rather than a general
+rule; `asm/docs/corpus.md`'s Follow-ups records all three with their
+measurements. Not a dependency of this plan — the new generator owns its
+own, separate corpus — but a worked example of what S4's RISC-V families
+will hit repeatedly, and the alias rule is the kind GEN-06 must enumerate
+wholesale rather than discover one file at a time.
 Several old comments still describe the initial 24-form assembler; use
 current code and measured fixtures when establishing coverage.
 
@@ -595,9 +602,12 @@ GAS-01, together with the case schema — not afterwards. Respect the reason
 rather than `@all`: a tier-one check must not transitively require building
 the whole assembler.
 
-The available tools measured here are host GAS 2.44, RV32 GAS 2.43.1
-(reached through `Target.toolprefix`, not on the default `PATH`) and RV64
-GAS 2.44. Native XED feature names and current online GNU option lists
+The available tools measured here are host GAS 2.44, RV32 GAS 2.43.1 and RV64
+GAS 2.44. RV32's binutils lives in `/usr/local/riscv32-linux-gnu-toolchain/bin`
+and reaches the tools only because `.devcontainer/Dockerfile:6` puts that
+directory on `PATH`; `Target.toolprefix` supplies the binary-name prefix, not
+the location, so a shell without that `PATH` entry fails the RISC-V legs
+outright rather than degrading. Native XED feature names and current online GNU option lists
 do not imply support in these installed tools. Record capability probes;
 consult [GNU x86 options](https://sourceware.org/binutils/docs/as/i386_002dOptions.html)
 for the architecture/extension selection contract.
