@@ -31,6 +31,34 @@ class TestSh1add(unittest.TestCase):
         self.assertEqual(check_source_record(records[0]), [])
 
 
+class TestCompressedInstructionWidth(unittest.TestCase):
+    """rv_c's c.addi4spn is a real 16-bit compressed encoding. A prior
+    version of this adapter always declared width_bits=32 here (its
+    "is this a compressed extension" check used a substring match that could
+    never fire, since splitting on '_' removes the underscore it searched
+    for) - this pins the fix: width_bits must reflect the actual 16-bit
+    encoding for a 'c' extension component, and must not be fooled by an
+    unrelated extension like rv_zbkc merely containing the letter c."""
+
+    def test_c_addi4spn_is_16_bit(self):
+        records = _records_by_native_name(EXTENSIONS_DIR / "rv_c", "c.addi4spn")
+        self.assertEqual(len(records), 1)
+        enc = records[0]["encoding"]
+        self.assertEqual(enc["kind"], "fixed_bits")
+        self.assertEqual(enc["width_bits"], 16)
+        self.assertEqual(enc["mask"], hex(0xE003))
+        self.assertEqual(enc["value"], hex(0x0))
+
+    def test_non_compressed_extension_stays_32_bit(self):
+        records = _records_by_native_name(EXTENSIONS_DIR / "rv_zba", "sh1add")
+        self.assertEqual(records[0]["encoding"]["width_bits"], 32)
+
+    def test_zbkc_is_not_mistaken_for_compressed(self):
+        self.assertEqual(reader._instruction_width_bits("rv_zbkc"), 32)
+        self.assertEqual(reader._instruction_width_bits("rv_c"), 16)
+        self.assertEqual(reader._instruction_width_bits("rv32_c_f"), 16)
+
+
 class TestSh1addUwIsRv64Only(unittest.TestCase):
     """sh1add.uw lives only in rv64_zba (design doc: "SH1ADD_UW additionally
     requires RV64"), so it must appear in the riscv64 compat view and not

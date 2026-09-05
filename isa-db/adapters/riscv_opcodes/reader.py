@@ -32,10 +32,11 @@ def tokens(line: str) -> list[str]:
 def parse_fields(toks: list[str]) -> tuple[list[dict], list[str], int, int]:
     """Split trailing tokens into (bit-field specs, operand names, mask, value).
 
-    Width is assumed to be 32 bits - true for every extension this slice's
-    tests exercise, but not derived from the data, so a genuinely 16-bit
-    compressed encoding would silently get a 32-bit mask/value here. See
-    the caller's `unresolved` note for extensions whose name suggests that.
+    Bit positions come straight from the source ("hi..lo=value" tokens), so
+    mask/value are correct regardless of instruction width; the caller pairs
+    this with `_instruction_width_bits` to label the encoding's width
+    (16 for a compressed 'c' extension, 32 otherwise) rather than assuming
+    32 outright.
     """
     fields = []
     operands = []
@@ -75,13 +76,23 @@ def _applies_to(profile: str, extension: str) -> bool:
     raise ValueError(f"unsupported profile: {profile!r}")
 
 
+def _instruction_width_bits(extension: str) -> int:
+    """16 for a compressed extension (its own 'c' name component, e.g.
+    'rv_c', 'rv32_c_f', 'rv_c_zicfiss'), else 32.
+
+    Checking components after splitting on '_', rather than a substring
+    check for "_c", matters: a naive substring check either misses these
+    (splitting removes the underscore, so "_c" never reappears as a
+    substring - the bug this replaced) or, if fixed to search for a bare
+    "c", would wrongly also match extensions like 'rv_zbkc' or 'rv_zbc'
+    whose name merely contains the letter c.
+    """
+    return 16 if "c" in extension.split("_")[1:] else 32
+
+
 def source_records_for_file(path: Path, snapshot: str) -> list[dict]:
     extension = path.name
-    width_note = (
-        [f"width_bits assumed 32 but {extension!r} looks like a compressed (16-bit) extension"]
-        if "_c" in extension.split("_")
-        else []
-    )
+    width_bits = _instruction_width_bits(extension)
     records = []
     for lineno, raw_line in enumerate(path.read_text(encoding="utf-8", errors="replace").split("\n"), start=1):
         trimmed = raw_line.strip()
@@ -123,11 +134,11 @@ def source_records_for_file(path: Path, snapshot: str) -> list[dict]:
                 native_name=mnemonic,
                 snapshot=snapshot,
                 origin=origin,
-                encoding=fixed_bits_encoding(32, mask, value, fields),
+                encoding=fixed_bits_encoding(width_bits, mask, value, fields),
                 applicability=unconditional(),
                 relationships=[{"kind": "specializes", "target": f"riscv-opcodes:{base_ext}:{base_name}"}],
                 provenance={"extension": extension, "operands": operands},
-                unresolved=["specializes-target not resolved to a concrete record_id by this adapter"] + width_note,
+                unresolved=["specializes-target not resolved to a concrete record_id by this adapter"],
             )
             records.append(rec.to_dict())
             continue
@@ -141,10 +152,10 @@ def source_records_for_file(path: Path, snapshot: str) -> list[dict]:
             native_name=mnemonic,
             snapshot=snapshot,
             origin=origin,
-            encoding=fixed_bits_encoding(32, mask, value, fields),
+            encoding=fixed_bits_encoding(width_bits, mask, value, fields),
             applicability=unconditional(),
             provenance={"extension": extension, "operands": operands},
-            unresolved=list(width_note),
+            unresolved=[],
         )
         records.append(rec.to_dict())
     return records
