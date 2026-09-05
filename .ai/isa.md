@@ -1,5 +1,11 @@
 # Plan: going deep on XED and riscv-opcodes before anything else
 
+Follow-on work: [ISA consumption review and staged plan](isa-consumption-plan.md)
+and [execution tracker](isa-consumption-tracker.md) cover using these captures
+for GAS differential tests, OCaml normalization, and assembler components and
+feature selection. The review records a remaining compressed-width capture
+bug; completion of the phases below is not evidence of encoding coverage.
+
 Scope decision (2026-09-05, user direction): prioritize depth on the two
 sources already vendored and already consumed - XED and riscv-opcodes -
 over breadth (LLVM, QEMU, ARM/AArch64 coverage). This plan says how to get

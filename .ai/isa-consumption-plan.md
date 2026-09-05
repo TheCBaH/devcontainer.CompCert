@@ -1,6 +1,11 @@
 # Using the captured ISA data: review and implementation plan
 
 Review date: 2026-09-05. Repository baseline: `b659f3eaa253e45c0535472baacc3cc4fc806350`.
+Revised 2026-09-05 after an independent re-verification pass: every measured
+figure below reproduced exactly, and that pass added the XED
+mode-applicability defect (section 3.2), the per-record scope of the width
+fix (section 3.1), and the tier/target and GAS-version-skew policies in
+section 5.4.
 Status: investigation complete; implementation stages below are proposed.
 Execution status and individual work packages live in
 [isa-consumption-tracker.md](isa-consumption-tracker.md).
@@ -116,6 +121,15 @@ resolved x86 exports total about 23.4 MB in decimal units; normalized
 exports and test matrices should be sharded rather than repeatedly
 duplicating this entire payload per case.
 
+The coarse-versus-resolved name difference is small enough to account for
+exactly, and doing so is a cheap standing check. Every name is coarse-only;
+the resolved exports introduce none. On x86-64 the eight-name gap is
+`nop2`–`nop9`, XED's fat-NOP pseudo-ICLASSes. On x86-32 it is those eight
+plus `jrcxz`, which is a capture defect, not a deletion or a mode-16
+artifact — see section 3.2. Treat this delta as a closed account with a
+named cause per entry, not as an expected consequence of the two readers
+being different.
+
 ### 2.3 Current use is inventory consistency, not encoding verification
 
 [Isa_db_jsonl](../asm/tools/lib/isa_db_jsonl.ml) decodes only record ID,
@@ -131,6 +145,15 @@ richer export, establish form coverage, or prove that GAS or our assembler
 can process an instruction. The existing OCaml inventory readers still
 produce the authoritative compatibility manifests.
 
+Section 3.2's `jrcxz` defect demonstrates the limit concretely rather than
+in the abstract. The coarse export and the x86-32 manifest agree with each
+other and are both wrong; the resolved export is right. Because the check
+asserts only that each manifest row has *some* coarse-export counterpart,
+agreement between two views derived from the same traversal passes, and the
+one view that disagrees is never consulted. Any future check that intends to
+catch this class must compare the two XED views against each other, with the
+name delta from section 2.2 as its expected difference.
+
 ### 2.4 Existing differential scaffolding worth reusing
 
 | Existing path | Input source and assertion | Reuse and boundary |
@@ -141,9 +164,13 @@ produce the authoritative compatibility manifests.
 | `asm/test/coherence`, `asm/test/lib/codec` | Direct AST paths and codec encode/decode properties | Reuse as internal consistency checks, alongside independent GAS evidence |
 | `asm/test/oracle` | Freestanding execution and ABI controls | Retain for executable behavioral slices; encoding tests for arbitrary ISA forms do not require execution |
 
-The existing GAS frontier runtime discovery misses RISC-V because it looks
-for target-named directories while CompCert uses `runtime/riscV`. This is
-an existing coverage limitation, not a blocker for the new generator.
+The existing GAS frontier runtime group covers only four targets: it looks
+for a target-named directory while CompCert's runtime tree uses `riscV`, so
+neither `runtime/riscv32` nor `runtime/riscv64` exists and both are skipped.
+This is deliberate, not an oversight — `gas_xref_cmd.ml` reproduces the
+original shell behavior on purpose, because adding RISC-V would change the
+recorded corpus. It bounds what that corpus can evidence; it is not a
+blocker for the new generator, which owns its own corpus.
 Several old comments still describe the initial 24-form assembler; use
 current code and measured fixtures when establishing coverage.
 
@@ -207,7 +234,56 @@ another. Do not assume the textual upstream encoding-string length is the
 instruction length without checking its representation of compressed words.
 Add invariant checks and GAS-backed examples covering both C and Zc.
 
-### 3.2 Source fields are not semantic assembly operands
+The predicate is only half the defect. Width is computed **once per file**
+in `source_records_for_file` and stamped on every record it emits, so the
+scope is wrong as well as the test. `$import` records are the clearest case:
+their encoding is taken from the *target* extension's `create_inst_dict`
+entry while their width comes from the *importing* file's name. No 32-to-16
+mislabel exists at this baseline — all 31 and 29 affected records are
+16-labelled-as-32 — but nothing prevents the opposite, and a corrected
+filename predicate would still leave it possible. Move width to per-record
+derivation from that record's own encoding; a file-level default is not an
+acceptable fix even if it makes the measured counts go to zero.
+
+The 31 and 29 are exact, not lower bounds: every record in every affected
+file is affected (`rv_zcb` 11 of 11, `rv_zcmop` 9 of 9, `rv_zcmp` 6 of 6,
+`rv_zcmt` 1 of 1, plus `rv32_zclsd` 4 of 4 on RV32 and `rv64_zcb` 2 of 2 on
+RV64), and every file whose name carries a `c` component is already correct.
+So the fix has a complete expected diff and CAP-01 can assert it exactly.
+
+### 3.2 Confirmed XED coarse mode-applicability leak
+
+The coarse reader recognizes exactly the tokens `mode16`, `mode32`,
+`mode64` and `not64` in a PATTERN. A form whose mode restriction is written
+any other way produces no constraint at all, and an empty constraint set is
+serialized as a vacuously true `any [ all [] ]` — indistinguishable from
+"applies in every mode". It then passes the `applies_32` filter.
+
+`JRCXZ` is the measured counterexample. Its pattern is
+`0xE3 eamode64 norex2_prefix BRDISP8() FORCE64()` and its ISA_SET is
+`LONGMODE`, yet `xed/x86_32.jsonl` carries it with unconditional
+applicability. `isa_inventory_xed.ml` already comments that EAMODE
+(`eamode16`/`eamode32`/`eamode64`) is a different field from MODE; neither
+reader acts on that distinction, and neither consults `FORCE64()` or
+ISA_SET. Because the Python adapter deliberately mirrors the OCaml
+traversal, the same leak reaches the checked-in artifact: `jrcxz` is a row
+in `asm/fixtures/isa-inventory/x86_32/manifest.txt`. XED's resolved reader
+gets it right and omits the form from `xed_resolved/x86_32.jsonl`.
+
+Scope at this baseline is one record. Of the 191 coarse x86-32 records
+carrying a 64-bit-flavoured pattern token or `LONGMODE`, 190 are correctly
+excluded and only `JRCXZ` leaks; 5,140 of 6,376 coarse x86-32 records have
+vacuously true applicability, so the vacuous encoding itself is normal and
+cannot be used as the defect signal. The severity is not the count. It is
+that a generator trusting coarse applicability would emit `jrcxz` under
+`--32`, that the artifact is already wrong, and that section 2.3's check
+cannot see it. Fix by giving the coarse reader an explicit vocabulary of
+mode-restricting constructs, and by making an unrecognized restriction an
+`Unknown` applicability that blocks positive generation, never an absent
+constraint. Never widen `_MODE_TOKENS` silently: an unknown token must be
+reported.
+
+### 3.3 Source fields are not semantic assembly operands
 
 * RISC-V `sw` lists `imm12hi, rs1, rs2, imm12lo`. GAS wants
   `sw rs2, offset(rs1)`: two encoding fields become one signed immediate,
@@ -231,7 +307,7 @@ links to their evidence. Some necessary interpretation will remain manual:
 neither of these sources is a complete GAS grammar. Unknown constructs
 must be reported, never silently treated as unconstrained or dropped.
 
-### 3.3 Preserve more native facts without moving interpretation into Python
+### 3.4 Preserve more native facts without moving interpretation into Python
 
 The existing shared Python `SourceRecord` already performs some
 normalization: encoding tags, width inference, mode-expression conversion,
@@ -259,7 +335,7 @@ recover a verified upstream mapping during aggregation or retain the
 aggregate origin, record fingerprint, and explicit missing-origin status.
 Never assign a directory group using an ambiguous mnemonic join.
 
-### 3.4 Reproducibility and validation gaps
+### 3.5 Reproducibility and validation gaps
 
 The writer uses the lock's commit to label snapshots but does not enforce
 that it matches the tree it reads. A label can therefore be stale. Capture
@@ -267,6 +343,19 @@ must verify source/build-dependency commits and record input hashes,
 producer revision, selection/build options and schema versions. Define
 dirty-source behavior explicitly: refuse release regeneration, or label a
 development snapshot using content hashes instead of claiming a clean pin.
+
+Regeneration-diff itself is not missing and should not be rebuilt.
+`isa-db/tests/test_export.py`'s `TestCheckedInExportUpToDate` already fails
+when a fresh export disagrees with the checked-in JSONL, playing
+`tools-isa-inventory-diff`'s role for this slice. Per [isa.md](isa.md)
+Phase C/D that check runs only under
+`python3 -m unittest discover -s isa-db/tests -t isa-db`, deliberately
+outside `asm-ci`, because the producer lane needs Python and the vendored
+upstream trees. S1 therefore adds pin verification, input hashing, and
+dirty-source policy *on top of* an existing freshness gate; it does not
+introduce one. If S1 wants that gate on a CI leg it must say so as an
+explicit change to that boundary, with the tier argument from section 5.4,
+not as a side effect.
 
 The JSON schema checker is a minimal structural check, not full JSON
 Schema validation. The shared schema remained v1 when the x86 encoding
@@ -364,8 +453,11 @@ Introduce source-native and normalized contracts alongside existing lanes.
 Read current exports for the initial supported subset, then add native
 fields where the consumer demonstrates loss. Generate normalized dumps
 from OCaml, and compare selected compatibility projections with the old
-inventory. Explain intentional differences, especially XED deletion and
-16-bit-mode handling. Retiring the coarse lane or replacing the inventory
+inventory. Explain every difference and classify it: XED deletion,
+16-bit-mode handling, fat-NOP pseudo-ICLASSes, and — per section 3.2 — plain
+capture defects, which are to be fixed rather than explained. Do not assume
+a difference is intentional because it is small. Retiring the coarse lane
+or replacing the inventory
 generators is a separate milestone with its own mapping and diff evidence;
 neither is required to deliver the first differential tests.
 
@@ -494,11 +586,35 @@ Use three execution tiers:
   full normalization accounting and upgrade report. Run separately from
   ordinary portable assembler tests.
 
-The available tools measured here are host GAS 2.44, RV32 GAS 2.43.1 and
-RV64 GAS 2.44. Native XED feature names and current online GNU option lists
+These tiers must land on the repository's existing `-check`/`-regen`
+convention rather than beside it. Tier one is a toolchain-free `*-check`
+target safe on every CI leg and reachable from `asm-test`/`asm-ci`; tier two
+is its `*-regen`/`*-oracle` counterpart, kept off that critical path like
+the fixture oracle; tier three stays in the Python producer lane described
+in section 3.5. Freeze the concrete target names and each tier's CI leg in
+GAS-01, together with the case schema — not afterwards. Respect the reason
+`asm/tools` is built with a targeted `dune build tools/bin/compcert_tools.exe`
+rather than `@all`: a tier-one check must not transitively require building
+the whole assembler.
+
+The available tools measured here are host GAS 2.44, RV32 GAS 2.43.1
+(reached through `Target.toolprefix`, not on the default `PATH`) and RV64
+GAS 2.44. Native XED feature names and current online GNU option lists
 do not imply support in these installed tools. Record capability probes;
 consult [GNU x86 options](https://sourceware.org/binutils/docs/as/i386_002dOptions.html)
 for the architecture/extension selection contract.
+
+That RV32/RV64 version difference needs a stated policy, not just a
+recording. Two binutils releases across the two RISC-V profiles can differ
+in accepted extensions and spellings, so a form may be oracle-available on
+RV64 and oracle-unavailable on RV32 for a purely tooling reason. The one
+case checked here does not differ — 2.43.1 accepts `c.zext.b` under
+`-march=rv32i_zca_zcb` just as 2.44 does under the RV64 spelling — which is
+the point: the skew has to be probed per extension rather than assumed
+either way. The coverage matrix must attribute any such gap to tool version,
+never to an architectural difference between the profiles, and probes must
+go through `Gnu_tools` so they measure the toolchain the suite will actually
+invoke.
 
 ### 5.5 Outcomes and failure controls
 
@@ -618,11 +734,11 @@ in the associated work package before implementation closes.
 | Stage | Deliverable | Verifiable exit gate | Dependencies |
 |---|---|---|---|
 | S0 — Baseline | This review, counts, measured failures, work packages | Reproduce producer tests, inventory check and width finding; implementation status remains separate | Complete in this document |
-| S1 — Trustworthy capture | Width fix; versioned native capture contract; pin/content checks; loss/unknown report; exact source relationship indexing | Correct all measured compressed widths; preserve upstream facts; deterministic fresh-process exports; deliberate pin/schema/field corruption is detected; existing compatibility inventory still explained | S0 |
+| S1 — Trustworthy capture | Width fix; XED mode-applicability fix; versioned native capture contract; pin/content checks; loss/unknown report; exact source relationship indexing | Correct all measured compressed widths per record; `jrcxz` leaves the x86-32 export and manifest and unrecognized mode restrictions become `Unknown`; preserve upstream facts; deterministic fresh-process exports; deliberate pin/schema/field corruption is detected; existing compatibility inventory still explained | S0 |
 | S2 — OCaml interpretation | Source decoders, minimal normalized model, rule provenance, normalized JSONL and accounting | Every selected record accounted for; exact-reference or explicit unresolved relationships; deterministic dump round trip; unknown predicates never pass; worked RISC-V and XED normalization fixtures | S1 contract; prototype can start from existing exports |
 | S3 — Two complete differential slices | Common case generator/runner plus RISC-V base and x86 legacy recipes | At least one mandatory legal case for every form in the frozen pilot manifest; all declared boundary obligations met; GAS intended-form evidence and exact bytes pass; injected failures detected; offline replay works | S2 minimum model |
 | S4 — Difficult forms and bounded expansion | Split immediates/memory, x87, compressed forms, aliases/pseudos, relocation suites, feature/tool capability mapping | Each admitted family closes its explicit obligations; unsupported families remain counted; no unexplained skip/rejection; symbolic cases compare linked images at controlled addresses | S3; S1 fixes before compressed coverage |
-| S5 — Component extraction | Shared types/helpers and first RISC-V M / x86 x87 components | Default bytes, accepted/rejected cases, relevant dumps and form IDs preserved; combined dispatch/codec checks; meaningful build and portability gates pass | S3 baseline, S4 evidence for extracted families |
+| S5 — Component extraction | Shared types/helpers and first RISC-V M / x86 x87 components | Default bytes, accepted/rejected cases, relevant dumps and form IDs preserved; combined dispatch/codec checks; meaningful build and portability gates pass | S3 for RISC-V M (`mul` is in the pilot); S4 for x87, which the pilot does not cover |
 | S6 — Configurable features | Validated configurations, API/CLI propagation, local state and policy-aware encode/decode/layout | Enabled/disabled/dependency/conflict tests pass through text and AST APIs; per-unit isolation and directive scope; compatible defaults; no disabled encoding emitted through aliases, padding or relaxation | S5 and S4 feature mappings |
 | S7 — Close existing-source work | Full selected-input accounting; support/coverage matrix; documented residual gaps; reproducible update and CI workflow | No unclassified record, unexplained mismatch, or unowned blocker; all promoted support slices pass; repeat pinned capture-to-oracle workflow cleanly; review remaining two-source backlog before considering another source | S1–S6 |
 
@@ -635,6 +751,18 @@ RV32/RV64, and x86 register/register plus register/immediate `mov` and
 only a selection seed: list the actual source and implementation forms.
 Include a negative immediate boundary, a RISC-V XLEN restriction case,
 and an x86 short-versus-full immediate selection case.
+
+“Currently supported widths” is not yet a readable quantity, and GEN-01
+cannot start until it is. The manifest has two sides: the source side comes
+from the captured records, but the implementation side has no single
+authority. Section 2.5 already rules out the obvious candidate: x86's
+composite `Codec.choice` is roughly one labelled alternative per form, so a
+codec dump approximates its form list, while RISC-V's two wrapper
+alternatives hide explicit encoder functions and cannot be read as one. So
+GEN-01 must first state, per family, how the implementation side is
+enumerated: from `--dump-codec` where alternatives really are one-per-form,
+and otherwise by hand from the encoder with a recorded reading. Whichever it is, the pilot manifest freezes the result as explicit
+form IDs, and the enumeration method is part of what gets reviewed.
 
 S2 should additionally normalize representative `sw`, `beq`, `c.addi`,
 `sh1add`, `ADD_GPRv_IMMz` and an x87 form as design tests, even where
@@ -669,6 +797,14 @@ Results: **47 tests passed** in 20.509 seconds; cross-validation matched
 The temporary GAS width probe in section 3.1 also passed and exposed the
 capture mismatch. No production implementation was changed in this review,
 and the full assembler/portability suite was not rerun for a document change.
+
+Both commands were re-run independently on the revision pass with identical
+results (47 tests in 20.369 s; the same four row counts), as was the
+`c.zext.b` probe. That pass additionally recomputed every export count and
+name delta in section 2.2, the 31/29 width counts and their per-file
+breakdown in section 3.1, and the coarse applicability statistics in section
+3.2, all from the checked-in JSONL; and confirmed the installed RV32 GAS
+version at its `Target.toolprefix` location. No figure required correction.
 
 Existing gates to select as implementation becomes relevant:
 `make tools-test`, `make tools-integration`, `make tools-boundary`,
