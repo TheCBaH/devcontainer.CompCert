@@ -3,10 +3,8 @@ How far this assembler gets on assembly files it did not write.
 Every other test in this project runs over inputs the project produced: six
 CompCert fixtures and, since test/snippets, whatever the AST corpus emits. This
 one runs over the rest of the assembly in the tree - our own ABI helpers, and
-CompCert's runtime library, the largest body of real A32/A64/x86 assembly
-available here (plus, for RISC-V, the one fixture control gas-xref's own
-frontier_sources already covers for riscv32/riscv64) - and records exactly
-where each one stops.
+CompCert's runtime library, the largest body of real assembly available here -
+across all six targets, and records exactly where each one stops.
 
 GNU as assembles every one of them, which is what makes the comparison mean
 something: the inputs are known-good, so a rejection here is a statement about
@@ -125,4 +123,6 @@ what M2 moves, and prose cannot regress.
         4  error[x86.simplify]: 8-bit operands are not in M1 scope
         4  error[simplify.directive]: .p2align takes a power-of-two exponent and is not in M2 scope; use .balign
         3  error[lex]: unexpected character '\194'
+        1 <synthesized by riscv64>: error[riscv64.lower]: no and form takes these operands
+        1 <synthesized by riscv32>: error[riscv32.lower]: no and form takes these operands
         1  error[lex]: unexpected character '<'

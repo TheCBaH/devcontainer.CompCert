@@ -164,13 +164,11 @@ name delta from section 2.2 as its expected difference.
 | `asm/test/coherence`, `asm/test/lib/codec` | Direct AST paths and codec encode/decode properties | Reuse as internal consistency checks, alongside independent GAS evidence |
 | `asm/test/oracle` | Freestanding execution and ABI controls | Retain for executable behavioral slices; encoding tests for arbitrary ISA forms do not require execution |
 
-The existing GAS frontier runtime group covers only four targets: it looks
-for a target-named directory while CompCert's runtime tree uses `riscV`, so
-neither `runtime/riscv32` nor `runtime/riscv64` exists and both are skipped.
-This is deliberate, not an oversight — `gas_xref_cmd.ml` reproduces the
-original shell behavior on purpose, because adding RISC-V would change the
-recorded corpus. It bounds what that corpus can evidence; it is not a
-blocker for the new generator, which owns its own corpus.
+The existing GAS frontier runtime group now covers all six targets:
+`gas_xref_cmd.ml` maps both RISC-V profiles to CompCert's arch-named
+`runtime/riscV` directory (see `.ai/riscv-migrate.md`), adding one
+`runtime-vararg` frontier case per profile. Not a dependency of this plan —
+the new generator owns its own, separate corpus.
 Several old comments still describe the initial 24-form assembler; use
 current code and measured fixtures when establishing coverage.
 

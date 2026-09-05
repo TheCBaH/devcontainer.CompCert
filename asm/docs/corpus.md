@@ -1361,19 +1361,12 @@ above for what is fixed and what remains.
   Along the way, `gas_frontier.t` (the gas-based frontier oracle described in
   "Testing" above) was extended to riscv32/riscv64: the underlying
   `gas-xref` corpus already carries a `fixture-asm_test_entry` frontier case
-  for both profiles (`gas_xref_cmd.ml`'s own comment explains why Helper/
-  Runtime stay excluded - no `asm/helpers/riscv32.s`/`riscv64.s` exists, and
-  CompCert's runtime tree names its RISC-V leg `riscV`, not `riscv32`/
-  `riscv64`), but the cram test's positive-control and aggregate-count loops
-  had never been widened to display it. Now they are: the aggregate
+  for both profiles, but the cram test's positive-control and aggregate-count
+  loops had never been widened to display it. Now they are: the aggregate
   "assembles" count moved from 10 to 12 (the two new fixture positives), and
-  every existing x86/ARM/AArch64 row is unchanged. Wiring `asm/helpers/
-  riscv.c` through its own cross-gcc generator (or writing a hand-assembled
-  `asm/helpers/riscv32.s`/`riscv64.s`) so RISC-V also gets Helper/Runtime
-  rows is a separate, larger follow-up, not done here. **The Helper half is
-  now done** - see the dedicated Follow-ups entry near the end of this
-  document; Runtime stays excluded (CompCert's runtime tree still names its
-  RISC-V leg `riscV`, not `riscv32`/`riscv64`).
+  every existing x86/ARM/AArch64 row is unchanged. **The Helper and Runtime
+  halves are now both done too** - see the dedicated Follow-ups entry near
+  the end of this document.
 - AArch64 `adr`/`br`: now fixed, closing `assemble-c`'s last named non-FP
   aarch64 gap (Capability ladder item 4 above). `vmach.c`/`siphash24.c`'s
   switch-statement jump-table dispatch is `adr x16, .Ltable; add x16, x16,
@@ -1737,9 +1730,15 @@ above for what is fixed and what remains.
   straight to an object, never through a `.s` file). `gas_xref_cmd.ml`'s own
   `frontier_sources` needed no code change: it already reads
   `asm/helpers/<target>.s` unconditionally for every target and simply had no
-  file to find for either RISC-V profile before now. Runtime stays excluded
-  for the reason already given (CompCert's own runtime tree names its
-  RISC-V leg `riscV`, not `riscv32`/`riscv64`).
+  file to find for either RISC-V profile before now.
+
+  The Runtime half is now done too: `gas_xref_cmd.ml` maps both RISC-V
+  profiles to CompCert's arch-named `runtime/riscV` directory (rather than the
+  non-existent `runtime/riscv32`/`riscv64`) and supplies the `-DMODEL_32`/
+  `-DMODEL_64` defines that select the 32- or 64-bit half of the one file
+  there, `vararg.S`. Both profiles assemble it cleanly, adding one
+  `runtime-vararg` frontier case each - the runtime group now covers all six
+  targets.
 
   Running this real gcc output through the full pipeline (`classify-c-gcc`
   never reaches this far - it stops at `--dump-source-ast`) surfaced five
