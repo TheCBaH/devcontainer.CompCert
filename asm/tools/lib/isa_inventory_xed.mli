@@ -19,7 +19,9 @@ val list_extension_dirs : Repo.t -> (string list, Tool_error.t) Err.t
     {!Isa_inventory_riscv.list_extension_files}, nothing is excluded by name
     here: roughly a quarter of these hold no instruction data at all (chip
     codenames, shared type/register definitions) and contribute no entries,
-    which {!parse_datafile} discovers by content. *)
+    which {!parse_datafile} discovers by content. [datafiles/]'s own loose
+    files (the base ISA, e.g. [xed-isa.txt]) are not a subdirectory and so
+    are not listed here - see {!entries_for_target}. *)
 
 val parse_datafile : extension:string -> string -> (entry list, Tool_error.t) Err.t
 (** One data file's own text (already read) into its entries, keyed by
@@ -44,7 +46,10 @@ val parse_datafile : extension:string -> string -> (entry list, Tool_error.t) Er
     almost always survives under the same or another block regardless. *)
 
 val entries_for_target : Repo.t -> Target.t -> (entry list, Tool_error.t) Err.t
-(** Every entry across every extension directory whose {!entry.applies_32}
+(** Every entry across every extension directory - each read recursively, so
+    a nested subdirectory like [amd/amdxop/] is reached too - plus
+    [datafiles/]'s own loose files (extension ["base"]; see the "XED's data
+    shape" section of asm/docs/isa-inventory.md), whose {!entry.applies_32}
     (for [x86_32]) or {!entry.applies_64} (for [x86_64]) holds, sorted and
     deduplicated by [(mnemonic, extension)] - the same operand-form collapse
     {!Isa_inventory_riscv.entries_for_target} performs, for the same reason:

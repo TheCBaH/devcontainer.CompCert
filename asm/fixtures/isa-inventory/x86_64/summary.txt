@@ -1,9 +1,9 @@
 target:x86_64
-total:2035
+total:2788
 by-extension:4fmaps-512:4
 by-extension:4vnniw-512:2
 by-extension:ace-1:16
-by-extension:amd:50
+by-extension:amd:139
 by-extension:amx-complex:2
 by-extension:amx-dmr:12
 by-extension:amx-fp16:1
@@ -24,6 +24,7 @@ by-extension:avx512cd:6
 by-extension:avx512f:351
 by-extension:avx512ifma:2
 by-extension:avx512vbmi:4
+by-extension:base:664
 by-extension:bdw:2
 by-extension:bitalg:3
 by-extension:cet:15
@@ -82,6 +83,6 @@ by-extension:wrmsrns:1
 by-extension:xsavec:2
 by-extension:xsaveopt:2
 by-extension:xsaves:4
-by-state:unknown:2035
+by-state:unknown:2788
 compcert-emitted:0
 gcc-emitted:0

@@ -98,23 +98,69 @@ let parse_datafile ~extension text =
   in
   go lines false (fresh_block ()) []
 
-let entries_in_dir repo extension =
-  let dir = Fpath.(Repo.isa_data_xed repo / extension) in
+let sort_paths paths =
+  List.sort (fun a b -> String.compare (Fpath.to_string a) (Fpath.to_string b)) paths
+
+(* Some extensions nest their instruction tables a level (or two) below the
+   extension directory itself - "amd" (this repo's own top-level `datafiles`
+   entry, not XED's separate "amd" fork) has AMD's XOP/FMA4 forms under
+   amd/amdxop/, and a couple of directories carry a "tests" subdirectory of
+   golden-output fixtures rather than instruction data. Recursing rather than
+   reading only [dir]'s immediate files is what {!parse_datafile}'s
+   content-based recognition needs to actually reach amd/amdxop's ICLASS
+   blocks; a fixtures-only subdirectory like avx512f/tests simply contributes
+   nothing once scanned, the same way a non-instruction .txt file already
+   does. *)
+let rec list_txt_files_rec dir =
   match Sys.readdir (Fpath.to_string dir) with
   | exception Sys_error msg -> err ~path:dir Tool_error.Read_file msg
-  | files ->
-      let txt_files =
-        Array.to_list files
-        |> List.filter (fun f -> Filename.check_suffix f ".txt")
-        |> List.sort String.compare
+  | names ->
+      Array.to_list names
+      |> List.fold_left
+           (fun acc name ->
+             let* acc = acc in
+             let p = Fpath.(dir / name) in
+             if is_dir p then
+               let* nested = list_txt_files_rec p in
+               Ok (List.rev_append nested acc)
+             else if Filename.check_suffix name ".txt" then Ok (p :: acc)
+             else Ok acc)
+           (Ok [])
+
+let read_and_parse ~extension files =
+  List.fold_left
+    (fun acc f ->
+      let* entries = acc in
+      let* text = Tool_fs.read f in
+      let* file_entries = parse_datafile ~extension text in
+      Ok (List.rev_append file_entries entries))
+    (Ok []) files
+
+let entries_in_dir repo extension =
+  let dir = Fpath.(Repo.isa_data_xed repo / extension) in
+  let* files = list_txt_files_rec dir in
+  read_and_parse ~extension (sort_paths files)
+
+(* datafiles/ itself carries the base ISA (xed-isa.txt: MOV, PUSH, CPUID,
+   ...) as loose files alongside the extension subdirectories - not inside
+   any of them, so {!list_extension_dirs}/{!entries_in_dir} never reach it.
+   Filed under the synthetic extension "base", the same label these root
+   blocks' own EXTENSION field overwhelmingly uses. Only [dir]'s immediate
+   files are read here; its subdirectories are each their own extension,
+   already covered by {!entries_in_dir}. *)
+let entries_at_root repo =
+  let dir = Repo.isa_data_xed repo in
+  match Sys.readdir (Fpath.to_string dir) with
+  | exception Sys_error msg -> err ~path:dir Tool_error.Read_file msg
+  | names ->
+      let files =
+        Array.to_list names
+        |> List.filter (fun name ->
+            (not (is_dir Fpath.(dir / name))) && Filename.check_suffix name ".txt")
+        |> List.map (fun name -> Fpath.(dir / name))
+        |> sort_paths
       in
-      List.fold_left
-        (fun acc f ->
-          let* entries = acc in
-          let* text = Tool_fs.read Fpath.(dir / f) in
-          let* file_entries = parse_datafile ~extension text in
-          Ok (List.rev_append file_entries entries))
-        (Ok []) txt_files
+      read_and_parse ~extension:"base" files
 
 let compare_entry a b =
   match String.compare a.mnemonic b.mnemonic with
@@ -149,13 +195,14 @@ let entries_for_target repo (target : Target.t) =
   | Target.Arm | Target.Aarch64 | Target.Riscv32 | Target.Riscv64 -> Ok []
   | Target.X86_32 | Target.X86_64 ->
       let* dirs = list_extension_dirs repo in
+      let* root_entries = entries_at_root repo in
       let* all_entries =
         List.fold_left
           (fun acc extension ->
             let* entries = acc in
             let* dir_entries = entries_in_dir repo extension in
             Ok (List.rev_append dir_entries entries))
-          (Ok []) dirs
+          (Ok root_entries) dirs
       in
       let merged = merge_entries all_entries in
       let applies (e : entry) =

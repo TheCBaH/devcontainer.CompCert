@@ -223,3 +223,28 @@ x86 generator rather than re-deriving it.
   described - no separate schema field is needed after all; the original
   "duplicate into both, mark one undefined" idea from the sourcing survey is
   unnecessary once mode data is read from the source directly.
+
+### Correction (2026-09-05): `datafiles/` traversal must reach two more places
+
+The first pass above scanned only the immediate `.txt` files of each
+subdirectory of `datafiles/` and missed two categories of real instruction
+data, which a directory-only traversal cannot see:
+
+- **`datafiles/` itself carries loose files, not just subdirectories.**
+  `xed-isa.txt` alone holds 1228 `ICLASS` blocks - the base ISA: `MOV`,
+  `PUSH`, `CPUID`, and everything else with no dedicated extension
+  directory - plus a handful of other root files (`xed-nops.txt`,
+  `xed-amd-prefetch.txt`). These are read separately from the per-directory
+  scan, filed under the synthetic extension `base` (the label XED's own
+  `EXTENSION:` field on these blocks overwhelmingly uses), since there is no
+  directory name to reuse.
+- **An extension directory can itself nest subdirectories with more
+  instruction data.** `amd/amdxop/` holds AMD's XOP/FMA4 forms (e.g.
+  `VPCMOV`) as siblings of `amd/`'s own `.txt` files, invisible to a scan of
+  `amd/`'s immediate files only. The generator now reads every `.txt` file
+  under an extension directory recursively, keyed by the top-level directory
+  name exactly as before (so `amd/amdxop/amd-xop-isa.txt`'s entries are
+  still filed under extension `amd`, not `amdxop`). A couple of other
+  directories (`avx512f/tests/`, `mpx/tests/`) also nest a subdirectory, but
+  it holds `xed`-CLI regression fixtures with no `ICLASS` block, so recursing
+  into it is harmless.
