@@ -8,3 +8,9 @@
 [submodule "asm/vendor/fmt/upstream"]
 	path = asm/vendor/fmt/upstream
 	url = https://github.com/dbuenzli/fmt.git
+[submodule "asm/vendor/isa-data/riscv-opcodes/upstream"]
+	path = asm/vendor/isa-data/riscv-opcodes/upstream
+	url = https://github.com/riscv/riscv-opcodes.git
+[submodule "asm/vendor/isa-data/xed/upstream"]
+	path = asm/vendor/isa-data/xed/upstream
+	url = https://github.com/intelxed/xed.git
