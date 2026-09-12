@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | implementing | GEN-02 through GEN-04 done. GEN-05 now promotes bare RISC-V scalar F/D arithmetic under RV32IMF(D)/RV64IMF(D), Zba's full scale-and-add family - `sh1add`/`sh2add`/`sh3add` under RV32IM_Zba/RV64IM_Zba plus the RV64-only `sh1add.uw`/`sh2add.uw`/`sh3add.uw` word-operand siblings - Zbb `min`/`minu`/`max`/`maxu` under RV32IM_Zbb/RV64IM_Zbb, Zbb's five-way import-duplicated `andn`/`orn`/`xnor`/`rol`/`ror` now that `Isa_norm_riscv` builds a real `Req_any` for them, Zbb's population-count/sign-extend/byte family - `clz`/`ctz`/`cpop`/`sext.b`/`sext.h`/`orc.b` (XLEN-independent) plus the RV64-only `clzw`/`ctzw`/`cpopw` word-operand siblings - via a new two-GPR-operand (`rd`, `rs1`, no immediate) normalization/encoder shape, and Zbkb's `brev8` (the same two-GPR shape, a four-way `Req_any` over `rv_zbkb`/`rv_zk`/`rv_zkn`/`rv_zks`, identical mnemonic/encoding on both profiles), and `rev8` (the same shape, an XLEN-dependent funct12, a per-profile five-way `Req_any`, and riscv-opcodes' own `rev8`/`rev8.rv32` native-name split unified into one rendered mnemonic and `form_id`, since real GNU as never accepts the `rev8.rv32` spelling) - closing every named blocker in this population-count/sign-extend/byte-reverse family. GEN-05 also now admits Zbkb's `pack`/`packh` (three-GPR R-type, four-way `Req_any`, identical on both profiles), the RV64-only `packw`, and the RV32-only `zip`/`unzip` (two-GPR unary), reusing the existing R-type/unary shapes and `Req_any` machinery unchanged, plus the RV64-only `rolw`/`rorw` (`rol`/`ror`'s word-operand siblings, the identical three-GPR R-type shape reusing `rev8`'s own five-way rv64-prefixed `Req_any` group verbatim), and `rori`/`rori.rv32`/`roriw` (Zbb's first rotate-*immediate* shape - a genuine two-GPR-plus-unsigned-shamt-immediate form, new `shamt_gpr_form` normalization plus `i_desc`'s existing `funct_hi`/`shamt_bits` XLEN-conditional encoder machinery already used by `srai`, `rori`/`rori.rv32` sharing one canonical rendered mnemonic via the same profile-specific native-name split `rev8`/`rev8.rv32` established). GEN-05 now also admits `zext.h`/`zext.h.rv32` (Zbb's zero-extend-halfword pseudo, reusing `unary_gpr_form` and the same profile-specific native-name split verbatim, but with a plain per-profile `Req_all` since - unlike rev8/rori - neither record is import-duplicated), closing that named follow-up. GEN-05 now also admits Zbc's `clmul`/`clmulh` (carry-less multiply, the same plain three-GPR R-type shape as `andn`/`orn`/`xnor`/`rol`/`ror`, a five-way `Req_any` over `rv_zbc`/`rv_zbkc`/`rv_zk`/`rv_zkn`/`rv_zks`, identical mnemonic/encoding on both profiles); and Zbkx's `xperm4`/`xperm8` (crossbar permute, the same three-GPR R-type shape, a four-way `Req_any` over `rv_zbkx`/`rv_zk`/`rv_zkn`/`rv_zks` - no separate non-K sibling extension the way clmul/clmulh have rv_zbc alongside rv_zbkc), fully closing that mnemonic pair; and Zknh's `sha256sum0`/`sha256sum1`/`sha256sig0`/`sha256sig1` (SHA-256 message-schedule helpers, the same two-GPR unary shape as `clz`/`ctz`/`cpop`, a three-way `Req_any` over `rv_zknh`/`rv_zk`/`rv_zkn` - no `rv_zks`), fully closing that mnemonic quartet; and Zknh's RV64-only `sha512sum0`/`sha512sum1`/`sha512sig0`/`sha512sig1` (SHA-512's own message-schedule helpers, the same two-GPR unary shape, a three-way `Req_any` over `rv64_zknh`/`rv64_zk`/`rv64_zkn`), closing every Zknh mnemonic that fits this unary shape; and Zknh's RV32-only `sha512sum0r`/`sum1r`/`sig0l`/`sig1l`/`sig0h`/`sig1h` (SHA-512's own 32-bit-word-pair-split helpers, a genuinely different plain three-GPR R-type shape reusing `r_type_gpr_form`/`r_desc`, a three-way `Req_any` over `rv32_zknh`/`rv32_zk`/`rv32_zkn`), fully closing every Zknh SHA-256/SHA-512 mnemonic on both shapes and both profiles; and RISC-V AES-64's plain-shape round functions `aes64ds`/`aes64dsm`/`aes64es`/`aes64esm`/`aes64ks2`/`aes64im` (RV64-only, reusing the existing three-GPR R-type and two-GPR unary shapes across three distinct `Req_any` groups - `rv64_zknd`-rooted, a disjoint `rv64_zkne`-rooted, and `aes64ks2`'s own four-way group imported by both), fully closing every AES/SHA mnemonic that fits an already-built shape; and RV64's `aes64ks1i` (AES-64's first key-schedule helper, a genuinely new two-GPR-plus-narrow-immediate shape - `rnum`'s valid range 0-10 is narrower than its 4-bit field's 0-15 capacity, needing its own explicitly-validated match arm rather than the shared `i_desc`/`shamt_bits` path, plus a generalized `shamt_gpr_form` accepting riscv-opcodes' own "rnum" field name instead of `rori`/`roriw`'s "shamt" one), sharing `aes64ks2`'s own four-way `Req_any` group; and RV32's `aes32dsi`/`aes32dsmi`/`aes32esi`/`aes32esmi` (AES-32's own round functions, a fourth distinct operand shape - three-GPR-plus-2-bit-`bs`-immediate, `bs` using its full field range unlike `rnum` - reusing `Lowered.R`/`word_r` unchanged via a composed `funct7`, plus a new `r_type_imm_gpr_form` normalization function, two `Req_any` groups mirroring `aes64ds`/`dsm`'s and `aes64es`/`esm`'s own), closing the entire named Zk/Zkn/Zks AES/SHA scope surveyed this session across all four operand shapes built (two-GPR unary, three-GPR plain, two-GPR-plus-narrow-immediate, three-GPR-plus-narrow-immediate); and Zicsr's `csrrw`/`csrrs`/`csrrc`/`csrrwi`/`csrrsi`/`csrrci` (self-selected from a fresh survey after the AES/SHA arc closed - top-unhandled names are now dominated by vector-crypto mnemonics needing a whole new register class, so CSR, the smallest bounded remaining family, was picked instead; XLEN-independent, the session's first family needing no `Req_any` at all; `csrrw`/`csrrs`/`csrrc` reorder GAS's own `[rd, csr, rs1]` text order against riscv-opcodes' `[rd, rs1, csr]` field order and encode `csr`'s unsigned 12-bit address via its own signed two's-complement equivalent through the unchanged `word_i` path; `csrrwi`/`csrrsi`/`csrrci` reuse the `rs1` bit position to carry a real 5-bit `zimm5` immediate with no register operand there at all), and Zicsr's own 7 GAS pseudo-op aliases `csrr`/`csrw`/`csrs`/`csrc`/`csrwi`/`csrsi`/`csrci` (each an `rd`-or-`rs1`-omitting shorthand fixing the omitted register to literal 0, three new operand shapes - `csrr rd, csr`, `csrw`/`csrs`/`csrc csr, rs1`, `csrwi`/`csrsi`/`csrci csr, zimm5` - reusing the base forms' `csr`-address two's-complement encoding via a newly factored-out shared `signed_csr` helper), fully closing every Zicsr mnemonic in the checked-in export. GEN-05 now also admits Zaamo's full atomic-memory-operation family - `amoswap`/`amoadd`/`amoxor`/`amoand`/`amoor`/`amomin`/`amomax`/`amominu`/`amomaxu`/`sc` on both `.w` (both profiles, `rv_a`) and `.d` (RV64-only, `rv64_a`), plus `lr.w`/`lr.d` (the family's only two-operand member) - the first GEN-05 family using a real GAS memory group (`(rs1)`) as an operand rather than a plain register or immediate, via two new shapes (`amo_form`/`amo3_desc` for the three-GPR-plus-memory mnemonics, `lr_form`/`lr_desc` for the two-operand one); the `.aq`/`.rl`/`.aqrl` mnemonic-suffix decorators every one of these 22 records also supports are explicitly out of scope (GAS's bare canonical spelling only, flagged via a diagnostic, not silently dropped), fully closing every Zaamo mnemonic under that canonical spelling. GEN-05 now also admits F/D's `flw`/`fld`/`fsw`/`fsd` (floating-point loads/stores, already fully implemented by the encoder's pre-existing `f_load_desc`/`f_store_desc` path, so this closes only the normalization/corpus/admission side via two new shapes `f_load_form`/`f_store_form`), closing the cheapest remaining FP increment. GEN-05 now also admits the general two-distinct-register form of `fsgnj.s`/`fsgnjn.s`/`fsgnjx.s`/`fsgnj.d`/`fsgnjn.d`/`fsgnjx.d` (the encoder previously only implemented the `rs1 = rs2` pseudo-aliases `fneg.s`/`fneg.d`/`fmv.d`; this slice adds a new `f_sgnj3_desc` encoder table/lowering arm and inverts the decode-side alias/general priority so both forms round-trip correctly, plus a new `f_sgnj_form` normalization shape), closing that named encoder gap. GEN-05 now also admits `fmin.s`/`fmax.s`/`fmin.d`/`fmax.d` (the same fixed-funct7-per-precision, funct3-selects-operation shape as `fsgnj`/`fsgnjn`/`fsgnjx`, reusing the identical `f_sgnj3_desc`/`f_sgnj_form`-style pattern via new `f_minmax_desc`/`f_minmax_form`, no alias collision to resolve this time), closing that pair. GEN-05 now also admits `fsqrt.s`/`fsqrt.d` (the arithmetic family's own implicit-dynamic-rounding shape minus a second FP operand, new `f_sqrt_desc`/`f_sqrt_form`) and `fclass.s`/`fclass.d` (the plain-GPR-result shape `fmv.x.d` established, kept in its own new `f_class_desc`/`f_class_form` rather than the shared `f_to_i_desc` table - doing so was found, and verified against real GNU as, to reproduce a pre-existing latent gap where that table's rounding-mode-override lowering arm wrongly accepts `fmv.x.d a0, fa1, rtz`, an illegal spelling real GNU as rejects, silently colliding with `fclass.d`'s own real encoding; not fixed here, flagged as a follow-up), closing that pair too. GEN-05 now also admits the fused multiply-add family `fmadd.s`/`fmsub.s`/`fnmsub.s`/`fnmadd.s`/`fmadd.d`/`fmsub.d`/`fnmsub.d`/`fnmadd.d` (RISC-V's only R4-type instructions - a genuinely new `Lowered.R4`/`word_r4` codec path, since the top 7 bits split into a 5-bit `rs3` and 2-bit `fmt` rather than one fixed `funct7`, and each mnemonic gets its own base opcode `0x43`/`0x47`/`0x4b`/`0x4f` instead of sharing OP-FP's `0x53`; new `f_fma_form` normalization, `f_arith_form`'s own implicit-dynamic-rounding shape plus a fourth FPR operand), closing that family. GEN-05 now also admits the comparison family `feq.s`/`fle.s`/`flt.s`/`feq.d`/`fle.d`/`flt.d` (a fresh survey found the encoder already had `flt.s`/`feq.d`/`fle.d`/`flt.d` support from an earlier pass with no normalization/corpus/admission ever built for them, plus `feq.s`/`fle.s` missing from the encoder entirely; the two missing entries were added to the pre-existing `f_cmp_desc` table with no new lowering arm needed, plus a new `f_cmp_form` normalization shape - `rd` a GPR, `rs1`/`rs2` FPRs, no `rm`), closing every named scalar FP comparison. GEN-05 now also admits `fmv.x.w`/`fmv.w.x` (the single-precision bit-for-bit moves `fmv.x.d` already established the shape for; `fmv.x.w` added to a new, separate `f_mv_x_w_desc` table rather than `f_to_i_desc` - the same latent-bug-avoidance reasoning `fclass.s`/`fclass.d` already used - while `fmv.w.x` was added directly to `i_to_f_desc`, which has no such bug to avoid; two new normalization shapes `f_mv_x_w_form`/`f_mv_w_x_form`), closing that pair. GEN-05 now also admits the `w`/`s` conversions `fcvt.w.s`/`fcvt.wu.s`/`fcvt.s.w`/`fcvt.s.wu` (the last named scalar-FP item; unlike every recent slice, needed two genuinely new normalization shapes, `f_cvt_w_s_form`/`f_cvt_s_w_form` - mixed-register-class, implicit-dynamic-rounding - since `fcvt.s.w`/`fcvt.s.l` and the double-precision conversions already had encoder support from an earlier, pre-isa-consumption pass but had never been wired into normalization/admission/corpus at all; `fcvt.s.wu` was added to that same pre-existing `i_to_f_desc` table, `fcvt.w.s`/`fcvt.wu.s` added directly to `f_to_i_desc` with no bug-avoidance split needed, since their own funct3 genuinely is the dynamic rounding mode), fully closing every scalar FP mnemonic named as open across every prior GEN-05 F/D writeup this session. GEN-05 now also admits the double-precision conversions `fcvt.w.d`/`fcvt.wu.d`/`fcvt.d.w`/`fcvt.d.wu`/`fcvt.s.d`/`fcvt.d.s` (all six already had encoder support from the same earlier pre-isa-consumption pass but had never been wired into norm/admission/corpus either; `fcvt.w.d`/`fcvt.wu.d` reuse `f_cvt_w_s_form` verbatim - `requirement_of` distinguishes riscv:d from riscv:f automatically - while `fcvt.d.w`/`fcvt.d.wu` and the float-to-float `fcvt.s.d`/`fcvt.d.s` needed two new forms, `f_cvt_d_w_form`/`f_cvt_f_f_form`, since real hardware's widening conversions - integer-to-double and single-to-double - default to an always-exact rne rounding mode rather than the family's usual dynamic default), fully closing every named F/D scalar conversion and every scalar F/D mnemonic flagged open across this session. GEN-05 now also admits the RV64-only long conversions `fcvt.l.d`/`fcvt.lu.d`/`fcvt.d.l`/`fcvt.d.lu`/`fcvt.l.s`/`fcvt.lu.s`/`fcvt.s.l`/`fcvt.s.lu` (only `fcvt.l.d`/`fcvt.s.l` already had encoder support; the other 6 needed genuinely new `Opcode.t` variants and table entries; no new normalization shape was needed - `fcvt.l.d`/`fcvt.lu.d`/`fcvt.l.s`/`fcvt.lu.s` reuse `f_cvt_w_s_mnemonics` and `fcvt.s.l`/`fcvt.s.lu`/`fcvt.d.l`/`fcvt.d.lu` reuse `f_cvt_s_w_mnemonics` verbatim, since - measured, not assumed - `fcvt.d.l`/`fcvt.d.lu` keep the family's usual dynamic-rounding default rather than `fcvt.d.w`/`fcvt.d.wu`'s always-exact one, because a 64-bit long is not always exact in a double the way a 32-bit int is; also added `rv64_d`/`rv64_f` to `feature_of_extension`, the first RISC-V FP mnemonics needing an XLEN-gated F/D feature), fully closing every named scalar RISC-V F/D conversion mnemonic in the checked-in export - no further scalar F/D conversion scope remains named. A separate, smaller, not-yet-scoped gap surfaced by this slice: `i_to_f_desc` has no explicit-rounding-mode-override lowering arm at all, so this project's own encoder cannot accept an explicit `rm` operand on any `i_to_f_desc`-mapped mnemonic even though real GNU as does; predates this slice, not a regression from it. GEN-05 now also admits `vsetvl` (V's register-register configuration-setting instruction, the deliberately cheapest entry point into the 375-record rv_v family - a plain three-GPR R-type shape reusing `r_type_gpr_form`/`r_desc` unchanged, a single non-import-duplicated `rv_v` record identical on both profiles, needing only a new `riscv:v` feature and OP-V's previously-unused major opcode `0x57`; confirmed against real GNU as: `vsetvl a0, a1, a2` -> `80c5f557` on both `riscv32-linux-gnu-as` 2.43.1 (`-march=rv32iv`) and `riscv64-linux-gnu-as` 2.44 (`-march=rv64iv`), no F/D dependency needed for this one instruction). GEN-05 now also admits `vsetvli`/`vsetivli` (V's own immediate-vtype siblings; GAS's own `e<SEW>,m<LMUL>,ta|tu,ma|mu` keyword-list spelling turned out not to need any frontend/parser change at all - each bare keyword already parses as a generic `Operand.Sym` through the existing text grammar, so the entire feature is a variable-length-operand-list lowering match plus a small keyword-to-bit-pattern classifier, reusing the *existing* `Lowered.I`/`word_i` codec unchanged for both: `vsetvli`'s bit31=0 constraint and `vsetivli`'s bits[31:30]=0b11 constraint both fall out automatically from plain signed-12-bit two's-complement arithmetic on the composed vtype value, the same way `signed_csr` already reuses this path for CSR's unsigned field; confirmed against real GNU as for every keyword, every legal subset/ordering, and both rejection cases (`vsetvli a0, a1, m1, e32` and `vsetvli a0, a1, ma, ta` both "illegal operands") before writing any encoder code). GEN-05 now also admits `vadd.vv`/`vadd.vx`/`vadd.vi` (the entry point into OP-V's real ~373-record vector-register arithmetic space, as opposed to the configuration-setting group above; introduces a genuinely new `Reg.V` register class - `v0`-`v31`, needing zero frontend/parser changes since `riscv_family.ml`'s bare-identifier resolution is already generic over `Reg.find` - and a new `Riscv_vec` entry in the normalized model's `register_class`; the word's top 7 bits split into a 6-bit funct6 and 1-bit vm mask-select exactly the way any other R-type's `funct7` already does, so all three mnemonics reuse the *existing* `Lowered.R`/`word_r` codec unchanged with `funct7 = (funct6 lsl 1) lor vm`; `vadd.vx`'s `rs1` stays a plain GPR and `vadd.vi`'s `rs1` position carries a real signed 5-bit immediate instead of a register, both confirmed against real GNU as including the optional trailing `, v0.t` mask operand and out-of-range/malformed rejections). The remaining vector scope is still large and unclaimed: the ~370 remaining rv_v records and every rv_zv* vector-crypto extension, all needing mask/vl operands and segment/strided/indexed addressing beyond the plain register class just added; GEN-06 has no single named next item. |
+| S4 Difficult forms | implementing | GEN-02 through GEN-04 done. GEN-05 now promotes bare RISC-V scalar F/D arithmetic under RV32IMF(D)/RV64IMF(D), Zba's full scale-and-add family - `sh1add`/`sh2add`/`sh3add` under RV32IM_Zba/RV64IM_Zba plus the RV64-only `sh1add.uw`/`sh2add.uw`/`sh3add.uw` word-operand siblings - Zbb `min`/`minu`/`max`/`maxu` under RV32IM_Zbb/RV64IM_Zbb, Zbb's five-way import-duplicated `andn`/`orn`/`xnor`/`rol`/`ror` now that `Isa_norm_riscv` builds a real `Req_any` for them, Zbb's population-count/sign-extend/byte family - `clz`/`ctz`/`cpop`/`sext.b`/`sext.h`/`orc.b` (XLEN-independent) plus the RV64-only `clzw`/`ctzw`/`cpopw` word-operand siblings - via a new two-GPR-operand (`rd`, `rs1`, no immediate) normalization/encoder shape, and Zbkb's `brev8` (the same two-GPR shape, a four-way `Req_any` over `rv_zbkb`/`rv_zk`/`rv_zkn`/`rv_zks`, identical mnemonic/encoding on both profiles), and `rev8` (the same shape, an XLEN-dependent funct12, a per-profile five-way `Req_any`, and riscv-opcodes' own `rev8`/`rev8.rv32` native-name split unified into one rendered mnemonic and `form_id`, since real GNU as never accepts the `rev8.rv32` spelling) - closing every named blocker in this population-count/sign-extend/byte-reverse family. GEN-05 also now admits Zbkb's `pack`/`packh` (three-GPR R-type, four-way `Req_any`, identical on both profiles), the RV64-only `packw`, and the RV32-only `zip`/`unzip` (two-GPR unary), reusing the existing R-type/unary shapes and `Req_any` machinery unchanged, plus the RV64-only `rolw`/`rorw` (`rol`/`ror`'s word-operand siblings, the identical three-GPR R-type shape reusing `rev8`'s own five-way rv64-prefixed `Req_any` group verbatim), and `rori`/`rori.rv32`/`roriw` (Zbb's first rotate-*immediate* shape - a genuine two-GPR-plus-unsigned-shamt-immediate form, new `shamt_gpr_form` normalization plus `i_desc`'s existing `funct_hi`/`shamt_bits` XLEN-conditional encoder machinery already used by `srai`, `rori`/`rori.rv32` sharing one canonical rendered mnemonic via the same profile-specific native-name split `rev8`/`rev8.rv32` established). GEN-05 now also admits `zext.h`/`zext.h.rv32` (Zbb's zero-extend-halfword pseudo, reusing `unary_gpr_form` and the same profile-specific native-name split verbatim, but with a plain per-profile `Req_all` since - unlike rev8/rori - neither record is import-duplicated), closing that named follow-up. GEN-05 now also admits Zbc's `clmul`/`clmulh` (carry-less multiply, the same plain three-GPR R-type shape as `andn`/`orn`/`xnor`/`rol`/`ror`, a five-way `Req_any` over `rv_zbc`/`rv_zbkc`/`rv_zk`/`rv_zkn`/`rv_zks`, identical mnemonic/encoding on both profiles); and Zbkx's `xperm4`/`xperm8` (crossbar permute, the same three-GPR R-type shape, a four-way `Req_any` over `rv_zbkx`/`rv_zk`/`rv_zkn`/`rv_zks` - no separate non-K sibling extension the way clmul/clmulh have rv_zbc alongside rv_zbkc), fully closing that mnemonic pair; and Zknh's `sha256sum0`/`sha256sum1`/`sha256sig0`/`sha256sig1` (SHA-256 message-schedule helpers, the same two-GPR unary shape as `clz`/`ctz`/`cpop`, a three-way `Req_any` over `rv_zknh`/`rv_zk`/`rv_zkn` - no `rv_zks`), fully closing that mnemonic quartet; and Zknh's RV64-only `sha512sum0`/`sha512sum1`/`sha512sig0`/`sha512sig1` (SHA-512's own message-schedule helpers, the same two-GPR unary shape, a three-way `Req_any` over `rv64_zknh`/`rv64_zk`/`rv64_zkn`), closing every Zknh mnemonic that fits this unary shape; and Zknh's RV32-only `sha512sum0r`/`sum1r`/`sig0l`/`sig1l`/`sig0h`/`sig1h` (SHA-512's own 32-bit-word-pair-split helpers, a genuinely different plain three-GPR R-type shape reusing `r_type_gpr_form`/`r_desc`, a three-way `Req_any` over `rv32_zknh`/`rv32_zk`/`rv32_zkn`), fully closing every Zknh SHA-256/SHA-512 mnemonic on both shapes and both profiles; and RISC-V AES-64's plain-shape round functions `aes64ds`/`aes64dsm`/`aes64es`/`aes64esm`/`aes64ks2`/`aes64im` (RV64-only, reusing the existing three-GPR R-type and two-GPR unary shapes across three distinct `Req_any` groups - `rv64_zknd`-rooted, a disjoint `rv64_zkne`-rooted, and `aes64ks2`'s own four-way group imported by both), fully closing every AES/SHA mnemonic that fits an already-built shape; and RV64's `aes64ks1i` (AES-64's first key-schedule helper, a genuinely new two-GPR-plus-narrow-immediate shape - `rnum`'s valid range 0-10 is narrower than its 4-bit field's 0-15 capacity, needing its own explicitly-validated match arm rather than the shared `i_desc`/`shamt_bits` path, plus a generalized `shamt_gpr_form` accepting riscv-opcodes' own "rnum" field name instead of `rori`/`roriw`'s "shamt" one), sharing `aes64ks2`'s own four-way `Req_any` group; and RV32's `aes32dsi`/`aes32dsmi`/`aes32esi`/`aes32esmi` (AES-32's own round functions, a fourth distinct operand shape - three-GPR-plus-2-bit-`bs`-immediate, `bs` using its full field range unlike `rnum` - reusing `Lowered.R`/`word_r` unchanged via a composed `funct7`, plus a new `r_type_imm_gpr_form` normalization function, two `Req_any` groups mirroring `aes64ds`/`dsm`'s and `aes64es`/`esm`'s own), closing the entire named Zk/Zkn/Zks AES/SHA scope surveyed this session across all four operand shapes built (two-GPR unary, three-GPR plain, two-GPR-plus-narrow-immediate, three-GPR-plus-narrow-immediate); and Zicsr's `csrrw`/`csrrs`/`csrrc`/`csrrwi`/`csrrsi`/`csrrci` (self-selected from a fresh survey after the AES/SHA arc closed - top-unhandled names are now dominated by vector-crypto mnemonics needing a whole new register class, so CSR, the smallest bounded remaining family, was picked instead; XLEN-independent, the session's first family needing no `Req_any` at all; `csrrw`/`csrrs`/`csrrc` reorder GAS's own `[rd, csr, rs1]` text order against riscv-opcodes' `[rd, rs1, csr]` field order and encode `csr`'s unsigned 12-bit address via its own signed two's-complement equivalent through the unchanged `word_i` path; `csrrwi`/`csrrsi`/`csrrci` reuse the `rs1` bit position to carry a real 5-bit `zimm5` immediate with no register operand there at all), and Zicsr's own 7 GAS pseudo-op aliases `csrr`/`csrw`/`csrs`/`csrc`/`csrwi`/`csrsi`/`csrci` (each an `rd`-or-`rs1`-omitting shorthand fixing the omitted register to literal 0, three new operand shapes - `csrr rd, csr`, `csrw`/`csrs`/`csrc csr, rs1`, `csrwi`/`csrsi`/`csrci csr, zimm5` - reusing the base forms' `csr`-address two's-complement encoding via a newly factored-out shared `signed_csr` helper), fully closing every Zicsr mnemonic in the checked-in export. GEN-05 now also admits Zaamo's full atomic-memory-operation family - `amoswap`/`amoadd`/`amoxor`/`amoand`/`amoor`/`amomin`/`amomax`/`amominu`/`amomaxu`/`sc` on both `.w` (both profiles, `rv_a`) and `.d` (RV64-only, `rv64_a`), plus `lr.w`/`lr.d` (the family's only two-operand member) - the first GEN-05 family using a real GAS memory group (`(rs1)`) as an operand rather than a plain register or immediate, via two new shapes (`amo_form`/`amo3_desc` for the three-GPR-plus-memory mnemonics, `lr_form`/`lr_desc` for the two-operand one); the `.aq`/`.rl`/`.aqrl` mnemonic-suffix decorators every one of these 22 records also supports are explicitly out of scope (GAS's bare canonical spelling only, flagged via a diagnostic, not silently dropped), fully closing every Zaamo mnemonic under that canonical spelling. GEN-05 now also admits F/D's `flw`/`fld`/`fsw`/`fsd` (floating-point loads/stores, already fully implemented by the encoder's pre-existing `f_load_desc`/`f_store_desc` path, so this closes only the normalization/corpus/admission side via two new shapes `f_load_form`/`f_store_form`), closing the cheapest remaining FP increment. GEN-05 now also admits the general two-distinct-register form of `fsgnj.s`/`fsgnjn.s`/`fsgnjx.s`/`fsgnj.d`/`fsgnjn.d`/`fsgnjx.d` (the encoder previously only implemented the `rs1 = rs2` pseudo-aliases `fneg.s`/`fneg.d`/`fmv.d`; this slice adds a new `f_sgnj3_desc` encoder table/lowering arm and inverts the decode-side alias/general priority so both forms round-trip correctly, plus a new `f_sgnj_form` normalization shape), closing that named encoder gap. GEN-05 now also admits `fmin.s`/`fmax.s`/`fmin.d`/`fmax.d` (the same fixed-funct7-per-precision, funct3-selects-operation shape as `fsgnj`/`fsgnjn`/`fsgnjx`, reusing the identical `f_sgnj3_desc`/`f_sgnj_form`-style pattern via new `f_minmax_desc`/`f_minmax_form`, no alias collision to resolve this time), closing that pair. GEN-05 now also admits `fsqrt.s`/`fsqrt.d` (the arithmetic family's own implicit-dynamic-rounding shape minus a second FP operand, new `f_sqrt_desc`/`f_sqrt_form`) and `fclass.s`/`fclass.d` (the plain-GPR-result shape `fmv.x.d` established, kept in its own new `f_class_desc`/`f_class_form` rather than the shared `f_to_i_desc` table - doing so was found, and verified against real GNU as, to reproduce a pre-existing latent gap where that table's rounding-mode-override lowering arm wrongly accepts `fmv.x.d a0, fa1, rtz`, an illegal spelling real GNU as rejects, silently colliding with `fclass.d`'s own real encoding; not fixed here, flagged as a follow-up), closing that pair too. GEN-05 now also admits the fused multiply-add family `fmadd.s`/`fmsub.s`/`fnmsub.s`/`fnmadd.s`/`fmadd.d`/`fmsub.d`/`fnmsub.d`/`fnmadd.d` (RISC-V's only R4-type instructions - a genuinely new `Lowered.R4`/`word_r4` codec path, since the top 7 bits split into a 5-bit `rs3` and 2-bit `fmt` rather than one fixed `funct7`, and each mnemonic gets its own base opcode `0x43`/`0x47`/`0x4b`/`0x4f` instead of sharing OP-FP's `0x53`; new `f_fma_form` normalization, `f_arith_form`'s own implicit-dynamic-rounding shape plus a fourth FPR operand), closing that family. GEN-05 now also admits the comparison family `feq.s`/`fle.s`/`flt.s`/`feq.d`/`fle.d`/`flt.d` (a fresh survey found the encoder already had `flt.s`/`feq.d`/`fle.d`/`flt.d` support from an earlier pass with no normalization/corpus/admission ever built for them, plus `feq.s`/`fle.s` missing from the encoder entirely; the two missing entries were added to the pre-existing `f_cmp_desc` table with no new lowering arm needed, plus a new `f_cmp_form` normalization shape - `rd` a GPR, `rs1`/`rs2` FPRs, no `rm`), closing every named scalar FP comparison. GEN-05 now also admits `fmv.x.w`/`fmv.w.x` (the single-precision bit-for-bit moves `fmv.x.d` already established the shape for; `fmv.x.w` added to a new, separate `f_mv_x_w_desc` table rather than `f_to_i_desc` - the same latent-bug-avoidance reasoning `fclass.s`/`fclass.d` already used - while `fmv.w.x` was added directly to `i_to_f_desc`, which has no such bug to avoid; two new normalization shapes `f_mv_x_w_form`/`f_mv_w_x_form`), closing that pair. GEN-05 now also admits the `w`/`s` conversions `fcvt.w.s`/`fcvt.wu.s`/`fcvt.s.w`/`fcvt.s.wu` (the last named scalar-FP item; unlike every recent slice, needed two genuinely new normalization shapes, `f_cvt_w_s_form`/`f_cvt_s_w_form` - mixed-register-class, implicit-dynamic-rounding - since `fcvt.s.w`/`fcvt.s.l` and the double-precision conversions already had encoder support from an earlier, pre-isa-consumption pass but had never been wired into normalization/admission/corpus at all; `fcvt.s.wu` was added to that same pre-existing `i_to_f_desc` table, `fcvt.w.s`/`fcvt.wu.s` added directly to `f_to_i_desc` with no bug-avoidance split needed, since their own funct3 genuinely is the dynamic rounding mode), fully closing every scalar FP mnemonic named as open across every prior GEN-05 F/D writeup this session. GEN-05 now also admits the double-precision conversions `fcvt.w.d`/`fcvt.wu.d`/`fcvt.d.w`/`fcvt.d.wu`/`fcvt.s.d`/`fcvt.d.s` (all six already had encoder support from the same earlier pre-isa-consumption pass but had never been wired into norm/admission/corpus either; `fcvt.w.d`/`fcvt.wu.d` reuse `f_cvt_w_s_form` verbatim - `requirement_of` distinguishes riscv:d from riscv:f automatically - while `fcvt.d.w`/`fcvt.d.wu` and the float-to-float `fcvt.s.d`/`fcvt.d.s` needed two new forms, `f_cvt_d_w_form`/`f_cvt_f_f_form`, since real hardware's widening conversions - integer-to-double and single-to-double - default to an always-exact rne rounding mode rather than the family's usual dynamic default), fully closing every named F/D scalar conversion and every scalar F/D mnemonic flagged open across this session. GEN-05 now also admits the RV64-only long conversions `fcvt.l.d`/`fcvt.lu.d`/`fcvt.d.l`/`fcvt.d.lu`/`fcvt.l.s`/`fcvt.lu.s`/`fcvt.s.l`/`fcvt.s.lu` (only `fcvt.l.d`/`fcvt.s.l` already had encoder support; the other 6 needed genuinely new `Opcode.t` variants and table entries; no new normalization shape was needed - `fcvt.l.d`/`fcvt.lu.d`/`fcvt.l.s`/`fcvt.lu.s` reuse `f_cvt_w_s_mnemonics` and `fcvt.s.l`/`fcvt.s.lu`/`fcvt.d.l`/`fcvt.d.lu` reuse `f_cvt_s_w_mnemonics` verbatim, since - measured, not assumed - `fcvt.d.l`/`fcvt.d.lu` keep the family's usual dynamic-rounding default rather than `fcvt.d.w`/`fcvt.d.wu`'s always-exact one, because a 64-bit long is not always exact in a double the way a 32-bit int is; also added `rv64_d`/`rv64_f` to `feature_of_extension`, the first RISC-V FP mnemonics needing an XLEN-gated F/D feature), fully closing every named scalar RISC-V F/D conversion mnemonic in the checked-in export - no further scalar F/D conversion scope remains named. A separate, smaller, not-yet-scoped gap surfaced by this slice: `i_to_f_desc` has no explicit-rounding-mode-override lowering arm at all, so this project's own encoder cannot accept an explicit `rm` operand on any `i_to_f_desc`-mapped mnemonic even though real GNU as does; predates this slice, not a regression from it. GEN-05 now also admits `vsetvl` (V's register-register configuration-setting instruction, the deliberately cheapest entry point into the 375-record rv_v family - a plain three-GPR R-type shape reusing `r_type_gpr_form`/`r_desc` unchanged, a single non-import-duplicated `rv_v` record identical on both profiles, needing only a new `riscv:v` feature and OP-V's previously-unused major opcode `0x57`; confirmed against real GNU as: `vsetvl a0, a1, a2` -> `80c5f557` on both `riscv32-linux-gnu-as` 2.43.1 (`-march=rv32iv`) and `riscv64-linux-gnu-as` 2.44 (`-march=rv64iv`), no F/D dependency needed for this one instruction). GEN-05 now also admits `vsetvli`/`vsetivli` (V's own immediate-vtype siblings; GAS's own `e<SEW>,m<LMUL>,ta|tu,ma|mu` keyword-list spelling turned out not to need any frontend/parser change at all - each bare keyword already parses as a generic `Operand.Sym` through the existing text grammar, so the entire feature is a variable-length-operand-list lowering match plus a small keyword-to-bit-pattern classifier, reusing the *existing* `Lowered.I`/`word_i` codec unchanged for both: `vsetvli`'s bit31=0 constraint and `vsetivli`'s bits[31:30]=0b11 constraint both fall out automatically from plain signed-12-bit two's-complement arithmetic on the composed vtype value, the same way `signed_csr` already reuses this path for CSR's unsigned field; confirmed against real GNU as for every keyword, every legal subset/ordering, and both rejection cases (`vsetvli a0, a1, m1, e32` and `vsetvli a0, a1, ma, ta` both "illegal operands") before writing any encoder code). GEN-05 now also admits `vadd.vv`/`vadd.vx`/`vadd.vi` (the entry point into OP-V's real ~373-record vector-register arithmetic space, as opposed to the configuration-setting group above; introduces a genuinely new `Reg.V` register class - `v0`-`v31`, needing zero frontend/parser changes since `riscv_family.ml`'s bare-identifier resolution is already generic over `Reg.find` - and a new `Riscv_vec` entry in the normalized model's `register_class`; the word's top 7 bits split into a 6-bit funct6 and 1-bit vm mask-select exactly the way any other R-type's `funct7` already does, so all three mnemonics reuse the *existing* `Lowered.R`/`word_r` codec unchanged with `funct7 = (funct6 lsl 1) lor vm`; `vadd.vx`'s `rs1` stays a plain GPR and `vadd.vi`'s `rs1` position carries a real signed 5-bit immediate instead of a register, both confirmed against real GNU as including the optional trailing `, v0.t` mask operand and out-of-range/malformed rejections). GEN-05 now also admits `vsub.vv`/`vsub.vx`, `vrsub.vx`/`vrsub.vi`, and the full `vand`/`vor`/`vxor` `.vv`/`.vx`/`.vi` triples (13 mnemonics, all sharing `vadd`'s exact OPIVV/OPIVX/OPIVI shape and `funct7 = (funct6 lsl 1) lor vm` composition, differing only in the funct6 constant and, for `vsub`/`vrsub`, which of the three shapes exist at all - `vsub` has no `.vi` sibling and `vrsub` has no `.vv` sibling, matching riscv-opcodes' own export and real GNU as's "unrecognized opcode" rejection of both); this slice generalized `vadd`'s own six bespoke per-mnemonic lowering arms into three funct6-table-driven generic arms (and its three per-mnemonic normalization/entry-builder functions into `~mnemonic`-parameterized ones) that `vadd` and all five new families now share, confirmed behavior-preserving for `vadd` itself. GEN-05 now also admits the shift family `vsll`/`vsrl`/`vsra` (full `.vv`/`.vx`/`.vi` triples, the first `.vi` mnemonics using riscv-opcodes' own UNSIGNED `zimm5` field (0..31) rather than every other admitted `.vi` mnemonic's SIGNED `simm5` - a new `opivi_unsigned` predicate and `imm_name`/`signed` parameters on `opivi_form`/`opivi_entry`, not a new shape), the min/max family `vminu`/`vmin`/`vmaxu`/`vmax` (`.vv`/`.vx` only, a pure funct6-table extension), and the multiply family `vmul`/`vmulh`/`vmulhu`/`vmulhsu` (OP-V's second major functional-unit group, OPMVV/OPMVX - funct3 2/6 rather than OPIVV/OPIVX's 0/4, two new funct6 tables and lowering arms but the identical operand shape, dispatched straight to the existing `opivv_form`/`opivx_form`) - 25 mnemonics total, each a single non-import-duplicated rv_v record identical on both profiles. GEN-05 now also admits the divide/remainder family `vdivu`/`vdiv`/`vremu`/`vrem` (`.vv`/`.vx` only, the same OPMVV/OPMVX shape as `vmul`/etc., 8 mnemonics), fixing a gap along the way where `Isa_family_admission`'s separate `promoted_case` allow-list had not been updated in step with `Isa_gen_difficult.all`, and the saturating add/subtract family `vsaddu`/`vsadd`/`vssubu`/`vssub` (full `.vv`/`.vx`/`.vi` triples for `vsaddu`/`vsadd`, `.vv`/`.vx` only for `vssubu`/`vssub`, the same OPIVV/OPIVX/OPIVI shape as `vadd`/etc., 10 mnemonics), with `promoted_case` kept in step this time, and the averaging add/subtract family `vaadd`/`vaaddu`/`vasub`/`vasubu` (`.vv`/`.vx` only, the same OPMVV/OPMVX shape as `vmul`/`vdivu`/etc., 8 mnemonics), and the narrowing shift/clip family `vnsrl`/`vnsra`/`vnclipu`/`vnclip` (full `.wv`/`.wx`/`.wi` triples, the same OPIVV/OPIVX/OPIVI shape as `vadd`/etc. despite the `.w*` suffix denoting a semantically wide `vs2`, 12 mnemonics), and the scaling shift-right pair `vssrl`/`vssra` (full `.vv`/`.vx`/`.vi` triples, the same shape as `vsll`/`vsrl`/`vsra`, 6 mnemonics), and the gather/permute family `vrgather` (full `.vv`/`.vx`/`.vi` triple) plus `vrgatherei16.vv` (`.vv`-only sibling, 4 mnemonics total), and the widening add/subtract family `vwaddu`/`vwadd`/`vwsubu`/`vwsub` (`.vv`/`.vx`/`.wv`/`.wx`, no `.vi` sibling, 16 mnemonics), and the widening multiply family `vwmulu`/`vwmulsu`/`vwmul` (`.vv`/`.vx` only, 6 mnemonics; the sibling widening multiply-*accumulate* `vwmacc*` family was investigated and found to need a genuinely different, reordered operand shape - deliberately deferred, see GEN-06 candidate below), and the sign-/zero-extend family `vsext`/`vzext` (`.vf2`/`.vf4`/`.vf8`, 6 mnemonics; the first GEN-05 vector slice needing a genuinely new two-vector-register shape with no third operand), and the mask-register logical family `vmand`/`vmandn`/`vmor`/`vmxor`/`vmorn`/`vmnand`/`vmnor`/`vmxnor` (`.mm`, 8 mnemonics; the same all-vector-register `rd, rs2, rs1` shape as `vadd.vv`/etc. but with `vm` architecturally fixed at 1 - no masked sibling exists, confirmed against real GNU as - so this project keeps its funct6 lookup in its own table and gives it a dedicated normalization function and lowering arm rather than folding it into the existing OPMVV plumbing), and the vector-reduction family `vredsum`/`vredand`/`vredor`/`vredxor`/`vredminu`/`vredmin`/`vredmaxu`/`vredmax.vs` (8 mnemonics, the same `rd, rs2, rs1` shape as `vadd`/etc. but with a real, selectable mask, needing only funct6-table extensions and mnemonic-list membership - no new shape) plus `vwredsumu`/`vwredsum.vs` (2 mnemonics, the widening-sum reduction pair, sharing OPIVV's funct3 space rather than OPMVV's despite being widening - confirmed against real GNU as before adding the table entry), and the mask-writing comparison family `vmseq`/`vmsne`/`vmsltu`/`vmslt`/`vmsleu`/`vmsle`/`vmsgtu`/`vmsgt` (20 mnemonics, the full OPIVV/OPIVX/OPIVI shape minus `.vv` for `vmsgtu`/`vmsgt` and `.vi` for `vmsltu`/`vmslt` - real GNU as accepts `vmsgt(u).vv` only as a pseudo-instruction reversing `vmslt(u).vv`'s own operands, a genuinely different alias-expansion feature deliberately not admitted here - again needing only funct6-table extensions and mnemonic-list membership, no new shape), and the slide family `vslideup`/`vslidedown` (OPIVX/OPIVI, no `.vv` sibling) plus `vslide1up`/`vslide1down` (OPMVX, no `.vi` sibling - inserting one element needs a real scalar, not a 5-bit immediate) - 6 mnemonics total, the `.vi` immediate UNSIGNED `zimm5` like the shift-family shapes - again a pure funct6-table extension, no new shape, and the multiply-accumulate family `vmacc`/`vnmsac`/`vmadd`/`vnmsub` plus the widening `vwmaccu`/`vwmacc`/`vwmaccsu`/`vwmaccus` (15 mnemonics, OPMVV/OPMVX, finally claiming the reordered-operand-shape candidate flagged as deliberately deferred since the widening-multiply writeup: real GNU as's text order is `vd, vs1-or-rs1, vs2`, the reverse of every other OPMVV/OPMVX mnemonic's `vd, vs2, vs1-or-rs1` - confirmed by decoding the assembled word's own vs1/vs2 field bits, not just accepted/rejected status - needing two new normalization form functions (`opmacc_vv_form`/`opmacc_vx_form`) and two new funct6 tables/lowering-arm pairs kept deliberately separate from `opmvv_funct6`/`opmvx_funct6` because of that shape difference; `vwmaccus` has no `.vv` sibling), and the permute family `vid.v`/`viota.m`/`vcompress.vm` (3 mnemonics, each surveyed and deliberately deferred in the slide-family writeup above as needing a genuinely new shape, but cheaper than expected once measured: `viota.m` reuses `vext_form`'s existing "rd, vs2" shape verbatim after generalizing the encoder's `opmvv_unary_const` table to carry funct6 alongside its fixed constant, `vcompress.vm` reuses `mm_form`'s existing fixed-vm-at-1 "rd, vs2, vs1" shape verbatim via one new `mm_funct6` entry, and only `vid.v` needed genuinely new code - a new single-operand `vid_form` normalization shape and dedicated encoder arms, the project's first OP-V mnemonic with no source register at all). Every mnemonic named as a deferred candidate across the entire OP-V arithmetic/permute survey to date is now closed, and the mask-scalar family `vcpop.m`/`vfirst.m`/`vmsbf.m`/`vmsif.m`/`vmsof.m` (5 mnemonics, self-selected after a fresh survey of the remaining 193 unclaimed rv_v records via `compcert_tools isa-inventory family-admission`: `vmsbf.m`/`vmsif.m`/`vmsof.m` reuse `vext_form`'s exact shape verbatim, funct6 0x14 like `vid.v`/`viota.m` but disambiguated by their own fixed rs1-position constants, and `vcpop.m`/`vfirst.m` need only a GPR-destination variant of that same shape via a new `opmvv_gpr_unary_const` table/arm pair, not a new shape family). GEN-05 now also admits the add-with-carry/subtract-with-borrow family `vadc`/`vmadc`/`vsbc`/`vmsbc` (15 mnemonics, confirming the deferred "genuinely different masking discipline" prediction: `vm` is baked as a per-opcode fixed constant rather than a toggleable `, v0.t` suffix, and the "m"-suffixed forms carry a mandatory literal `v0` 4th operand modeled as a real `vcarry` operand rather than left to the encoder - six new dedicated normalization forms and six new funct6-table/lowering-arm pairs, since `opivv_form`/`opivx_form`/`opivi_form` would both omit that operand and falsely claim an optional mask). GEN-05 now also admits `vmerge.vvm`/`.vxm`/`.vim` (3 mnemonics, confirming the predicted reuse: identical mandatory-`v0` shape to the carry family above, needing only three new funct6-table entries with zero new lowering code). GEN-05 now also admits the `vmv` scalar-move and whole-register-move family (9 mnemonics: `vmv.x.s`/`vmv.s.x` GPR-vector move pair, `vmv.v.v`/`.v.x`/`.v.i` unconditional-move family with no `vs2` operand at all, and `vmv1r.v`/`2r.v`/`4r.v`/`8r.v` whole-register-group move - three genuinely distinct new two-operand shapes, none with a masked sibling; confirmed real GNU as does not enforce the whole-register-group's own register-alignment requirement at assembly time, so this project's encoder does not either). GEN-05 now also admits the saturating fixed-point multiply pair `vsmul.vv`/`vsmul.vx` (2 mnemonics, the cheapest GEN-05 slice this session - despite the "multiply" name, real GNU as places it in OPIVV/OPIVX's own funct3 space rather than the OPMVV/OPMVX space every other multiply family uses, so it reuses the *existing* `opivv_funct6`/`opivx_funct6` tables and lowering arms verbatim with just two new entries). Every scalar-shaped OP-V arithmetic/permute/move mnemonic surveyed to date is now closed. The remaining vector scope is entirely the two large, structurally distinct groups repeatedly deferred across this whole GEN-05 vector arc: the entire floating-point vector family `vf*` (~90 mnemonics, needs an FPR-as-vector-operand shape not yet built) and every vector load/store mnemonic (needing segment/strided/indexed memory-addressing modes this project's encoder does not have at all) - plus every rv_zv* vector-crypto extension; GEN-06 has no single named next item, but for the first time in this session the two remaining candidates are both genuinely large (tens of mnemonics, new infrastructure each), not small bounded slices. GEN-05 has since opened the `vf*` family with its entry point `vfadd.vv`/`vfadd.vf` (OPFVV/OPFVF, funct6 0x00), building the first FPR-typed OP-V scalar-broadcast shape (`opfvf_form`) and confirming real GNU as enforces no F/D dependency on OP-V floating mnemonics at assembly time - the governing precedent for the ~88 remaining `vf*` mnemonics, which still need their own survey and slicing. GEN-05 now also admits `vfsub.vv`/`vfsub.vf`/`vfrsub.vf` (funct6 0x02/0x27, a pure `opfvv_funct6`/`opfvf_funct6` table extension with zero new normalization or lowering code - `vfrsub` has no `.vv` sibling), closing that pair-plus-reverse triple. GEN-05 now also admits `vfmul.vv`/`vfmul.vf`/`vfdiv.vv`/`vfdiv.vf`/`vfrdiv.vf` (funct6 0x24/0x20/0x21, confirming every OP-V floating arithmetic mnemonic stays in OPFVV/OPFVF regardless of operation, unlike integer multiply/divide's own OPMVV/OPMVX space - another pure funct6-table extension, `vfrdiv` has no `.vv` sibling and `vfmul` has no `.vi` sibling). GEN-05 now also admits `vfmin.vv`/`vfmin.vf`/`vfmax.vv`/`vfmax.vf` (funct6 0x04/0x06, full `.vv`/`.vf` pairs with no `.vi` sibling for either - yet another pure funct6-table extension). GEN-05 now also admits the sign-injection triple `vfsgnj.vv`/`vfsgnj.vf`/`vfsgnjn.vv`/`vfsgnjn.vf`/`vfsgnjx.vv`/`vfsgnjx.vf` (funct6 0x08/0x09/0x0a, full `.vv`/`.vf` pairs with no `.vi` sibling for any - unlike scalar `fsgnj.s`/`fsgnj.d`, the vector forms have no `rs1 = rs2` pseudo-alias collision to resolve, so this too is a plain table extension). GEN-05 now also admits the floating unary family `vfsqrt.v`/`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v` (funct6 0x13, `vext_form`'s exact "vd, vs2" shape disambiguated by a fixed rs1-position constant - the first `vf*` slice needing a new encoder table, `opfvv_unary_const`, since the funct6-table extensions above only cover the three-operand shape). GEN-05 now also admits the floating vector-reduction family `vfredosum.vs`/`vfredusum.vs`/`vfredmin.vs`/`vfredmax.vs` (funct6 0x03/0x01/0x05/0x07, the same `rd, rs2, rs1` all-vector shape as `vfadd.vv`/etc. - the cheapest `vf*` slice yet, fitting directly into the *existing* `opfvv_funct6` table with zero new lowering code, since these stay in OPFVV rather than needing the integer `vredsum`/etc. family's own separate `opmvv_funct6` table). GEN-05 now also admits the mask-writing floating comparison family `vmfeq`/`vmfle`/`vmflt`/`vmfne` `.vv`/`.vf` pairs plus `vmfgt.vf`/`vmfge.vf` (funct6 0x18/0x19/0x1b/0x1c/0x1d/0x1f, the same shape as `vfadd.vv`/`.vf` - `vmfgt`/`vmfge` have no `.vv` sibling, matching the integer `vmsgt`/`vmsgtu` alias-expansion precedent - another pure funct6-table extension). GEN-05 now also admits `vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f` (funct6 0x10/0x10/0x17, the FPR-typed mirror of `vmv.x.s`/`vmv.s.x`/`vmv.v.x` - the first `vf*` slice needing genuinely new normalization forms, `vfmv_f_s_form`/`vfmv_s_f_form`, plus a generalized `vmv_v_form` `rs1_kind` variant extended to include `` `Fpr ``). GEN-05 now also admits `vfmerge.vfm` (funct6 0x17, the FPR-typed mirror of `vmerge.vxm` - mandatory literal `v0` fourth operand, no bare non-"m" sibling and no `, v0.t` masked form, matching `vmerge.vxm`'s own precedent exactly). GEN-05 now also admits the scalar-width float<->integer conversion family `vfcvt.xu.f.v`/`vfcvt.x.f.v`/`vfcvt.f.xu.v`/`vfcvt.f.x.v`/`vfcvt.rtz.xu.f.v`/`vfcvt.rtz.x.f.v` (funct6 0x12, `vext_form`'s exact "vd, vs2" shape reusing the *existing* `opfvv_unary_const` table verbatim - zero new table or lowering-arm code, the cheapest `vf*` slice since `vfredosum`/etc.). GEN-05 now also admits the 16-mnemonic floating fused-multiply-add family `vfmadd.vv`/`.vf`, `vfnmadd.vv`/`.vf`, `vfmsub.vv`/`.vf`, `vfnmsub.vv`/`.vf`, `vfmacc.vv`/`.vf`, `vfnmacc.vv`/`.vf`, `vfmsac.vv`/`.vf`, `vfnmsac.vv`/`.vf` under OPFVV/OPFVF (the `.vv` half reusing the integer `vmacc` family's reordered `[vd, vs1, vs2]` `opmacc_vv_form`/`opmacc_vv_entries` machinery verbatim under new funct6 values 0x28-0x2f, the `.vf` half a genuinely new FPR-typed mirror `opfmacc_vf_form`/`opfmacc_vf_entries`). GEN-05 now also admits `vfslide1up.vf`/`vfslide1down.vf` (the slide family's floating single-element siblings, funct6 0x0e/0x0f under OPFVF, a zero-new-code slice reusing the *existing* `opfvf_form`/`opfvf_entries` machinery verbatim under two new funct6 table entries) - the last small bounded `vf*` slice; only the widening `vfw*`/narrowing `vfn*` families remained. GEN-05 has since closed the entire non-`rv_zvfbfmin` `vfw*`/`vfn*` scope (widening add/subtract/multiply/reduction/conversion/FMA), and has now moved into `rv_v`'s remaining 58-record load/store territory with the unit-stride `vle8.v`/`vle16.v`/`vle32.v`/`vle64.v`/`vse8.v`/`vse16.v`/`vse32.v`/`vse64.v` family (a genuinely new "vd/vs3, (base)" memory-operand shape, encoded via the existing generic R-type packer) and its mask-register `vlm.v`/`vsm.v` sibling (same shape, fixed lumop/sumop and vm permanently 1, no masked spelling) and its fault-only-first `vle{8,16,32,64}ff.v` sibling (identical load shape, fixed lumop=0x10, masked spelling accepted), and the strided `vlse8.v`/`vlse16.v`/`vlse32.v`/`vlse64.v`/`vsse8.v`/`vsse16.v`/`vsse32.v`/`vsse64.v` family (a new three-operand "vd/vs3, (base), rs2" shape, mop=0b10), and the indexed `vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` family (16 mnemonics, the strided shape with a vector-register index, mop=0b01/0b11), and the whole-register `vl{1,2,4,8}re{8,16,32,64}.v`/`vs{1,2,4,8}r.v` family (20 mnemonics - the register count is baked into the mnemonic, so this reuses `vlm_form`/`vsm_form` with zero new normalization code) - the entire 375-record `rv_v` family is now promoted-support with zero blockers. Every `rv_zv*` vector-crypto/bf16 extension (12 extensions) remains entirely unadmitted. |
 | S5 Components | not-started | MOD-01: extract M/x87 after independent regression evidence |
 | S6 Feature selection | not-started | FEAT-01: configuration propagation and enforcement |
 | S7 Closure | not-started | CLOSE-01: reconcile complete coverage and residual-task ledger |
@@ -5988,6 +5988,6520 @@ the same measured-Pass discipline every other GEN-05 promotion used, with
 every affected pinned count in the repository's own regression suite
 updated and re-verified rather than left stale.
 
+##### GEN-05 continuation: RISC-V V `vsub`/`vrsub`/`vand`/`vor`/`vxor` (OPIVV/OPIVX/OPIVI generalization) (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected by grepping every
+remaining `rv_v` record for the cheapest next well-scoped family after
+`vadd.vv`/`vadd.vx`/`vadd.vi` closed the entry point into OP-V's real
+vector-register arithmetic space. `vsub`, `vrsub` (reverse-subtract), and
+the three full bitwise-logical mnemonics `vand`/`vor`/`vxor` all share
+`vadd`'s exact three-shape structure (OPIVV/OPIVX/OPIVI, funct6-plus-vm
+composed into `funct7` the same way), differing only in the funct6
+constant and, for `vsub`/`vrsub`, which of the three shapes exist at all -
+so this slice generalizes `vadd`'s own three bespoke per-mnemonic lowering
+arms and normalization functions into funct6-keyed tables/parameterized
+functions covering all six mnemonic families (including `vadd` itself,
+refactored in place with no byte or diagnostic change) rather than
+duplicating six match arms per new mnemonic.
+
+Scope manifest and obligations: 13 `kind: instruction-form` records, each
+identical on both riscv32.jsonl and riscv64.jsonl (confirmed via direct
+grep) with empty `relationships` (no `$import`/`$pseudo_op` duplication,
+same as every other rv_v record admitted so far): `vsub.vv`/`vsub.vx`
+(funct6 0x02, no `.vi` sibling - subtract-by-immediate is `vrsub.vi`'s
+job), `vrsub.vx`/`vrsub.vi` (funct6 0x03, no `.vv` sibling - reverse-
+subtract-by-vector-register is meaningless, matching riscv-opcodes'
+export having no such record and real GNU as rejecting `vrsub.vv` as an
+unrecognized opcode rather than illegal operands), and the three full
+`.vv`/`.vx`/`.vi` triples `vand` (funct6 0x09), `vor` (funct6 0x0a),
+`vxor` (funct6 0x0b).
+
+Real, measured findings: before writing any encoder code, real GNU as's
+exact bytes were established for all 18 positive operand combinations
+(masked/unmasked `.vv`/`.vx`, boundary/negative `.vi` immediates) and 7
+rejection classes (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, `objdump
+-M no-aliases`, cross-checked byte-identically against `riscv32-linux-gnu-
+as` 2.43.1 `-march=rv32gv` modulo only the ELF32/ELF64 header line):
+`vsub.vv v1,v2,v3` -> `0a2180d7` (unmasked)/`082180d7` (masked); `vsub.vx
+v1,v2,a0` -> `0a2540d7`/`082540d7`; `vrsub.vx v1,v2,a0` ->
+`0e2540d7`/`0c2540d7`; `vrsub.vi v1,v2,5`/`,-5`/`,15,v0.t` ->
+`0e22b0d7`/`0e2db0d7`/`0c27b0d7`; `vand.vv`/`.vx`/`.vi -5` ->
+`262180d7`/`262540d7`/`262db0d7`; `vor.vv`/`.vx`/`.vi -5` ->
+`2a2180d7`/`2a2540d7`/`2a2db0d7`; `vxor.vv`/`.vx`/`.vi -5` ->
+`2e2180d7`/`2e2540d7`/`2e2db0d7`. Confirmed real GNU as rejects
+`vsub.vi`/`vrsub.vv` as "unrecognized opcode" (not "illegal operands" -
+these mnemonics genuinely do not exist, matching riscv-opcodes' own
+export), `vand.vi v1,v2,16`/`,-17` as "bad value for vector immediate
+field, value must be -16...15", and `vand.vv v1,v2,v32`/`v1,v2`/`v1,v2,v3,
+v1.t` all as "illegal operands" (out-of-range register, missing operand,
+and a mask suffix that must spell the literal register `v0`). This
+project's own `asm.exe --dump-bytes` reproduced every one of the 18
+positive combinations exactly, and rejected every one of the 7 negative
+controls with the same structural `error[riscv64.lower]: no <mnemonic>
+form takes these operands` / `unknown instruction <mnemonic>` convention
+established for every prior GEN-05 slice.
+
+The key design finding: every one of these mnemonics shares `vadd`'s own
+`funct7 = (funct6 lsl 1) lor vm` composition over the *same* `Lowered.R`/
+`word_r` codec path, differing only in the funct6 constant - so instead of
+adding six new per-mnemonic lowering match arms per family (as `vadd`
+originally did for itself), this slice replaces `vadd`'s own six bespoke
+arms with three funct6-table-driven generic arms (`opivv_funct6`/
+`opivx_funct6`/`opivi_funct6` : `Opcode.t -> int option`, one small table
+per shape) that both `vadd` and all five new families now share; the `pp`
+debug-printer's three `x.name = "vadd.vv"`-style arms were similarly
+generalized into a ".vv"/".vx"/".vi" mnemonic-suffix check (verified no
+other admitted mnemonic ends in those suffixes before making the switch).
+`Isa_norm_riscv.vadd_vv_form`/`vadd_vx_form`/`vadd_vi_form` were likewise
+replaced in place by `~mnemonic`-parameterized `opivv_form`/`opivx_form`/
+`opivi_form`, following the same `~mnemonic` convention `f_arith_form`/
+`unary_gpr_form` already use elsewhere in this file; `Isa_gen_difficult`'s
+three `vadd_*_entry` builders were replaced by `opivv_entries`/
+`opivx_entries`/`opivi_entries ~mnemonic` in the same way. All three
+refactors are behavior-preserving for `vadd` itself, confirmed by the
+`asm-isa-difficult-regen` run below reproducing all 6 pre-existing `vadd`
+cases byte-for-byte unchanged.
+
+Normalization required no new addition beyond the generalization above:
+`vadd`'s existing `Riscv_vec`/`vreg ()` register-class machinery, `Req_all`
+(via the existing `"rv_v" -> Req_feature "riscv:v"` mapping - none of these
+13 records are import-duplicated, so no `Req_any` is needed), and operand
+shapes are all reused verbatim across all six mnemonic families.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+all 18 positive combinations and 7 negative controls above, cross-checked
+against `riscv32-linux-gnu-as` for byte identity and against this
+project's own `asm.exe --dump-bytes`/exit-code behavior for the same
+cases; `make tools-test` (`isa-norm-riscv` 483->535 checks,
+`isa-gen-difficult` 1578->1703 checks, `isa-norm-jsonl` unchanged at 8);
+`make tools-integration` (26 new real-record grounding checks, all pass;
+7 pinned-count regressions caught and fixed - see below); `make
+tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt` (ocamlformat reformatted the new match arms/checks; re-verified
+`asm-fmt-check` clean); `PATH`-prefixed `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 306 to 332 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 306 pre-existing
+cases - including all 6 `vadd` ones, proving the refactor is behavior-
+preserving - are byte-for-byte unchanged and exactly the 26 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with every
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate is genuinely toolchain-free; `make asm-ci` (full CI target,
+backgrounded, exit 0).
+
+Results and artifact links: 52 new `isa-norm-riscv` checks (4 per
+mnemonic: form_id, `riscv:v` requirement, syntax rendering, and each
+shape's operand-class/immediate assertion) via two new generalized test
+helpers `test_opivv_form`/`test_opivx_form`/`test_opivi_form` (mirroring
+the production-code generalization) against real, verbatim-extracted
+riscv64.jsonl records (identical in riscv32.jsonl, confirmed). 125 new
+`isa-gen-difficult` checks: 13 new `entries has 2 entries` cardinality
+checks, one new generalized `test_v_opiv_domain` covering all 26 new
+corpus entries' operand lists and `vector-register-operands` rule tag,
+plus the automatic `test_no_entry_uses_x0` coverage every `Isa_gen_
+difficult.all` addition already gets for free. `Isa_family_admission`'s
+pinned RV32/RV64 promoted-support/blocked totals moved exactly as
+expected (218->231/851->838, 260->273/864->851 - straight from blocked to
+promoted-support on both profiles for all 13 mnemonics, no `Req_any`
+involved). `isa-norm-accounting`'s RV32/RV64 totals moved 238->251/290->
+303. `isa-norm-jsonl`'s real-form round-trip count moved 546->572 (+26,
+13 mnemonics x two profiles). `tools-test`, `tools-integration`, `tools-
+boundary`, `dune build @runtest`, `asm-fmt-check`, and a full `make
+asm-ci` (with every cross-toolchain directory stripped from `PATH` for
+the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+~360 further `rv_v` records (widening/narrowing arithmetic, multiply/
+divide, reductions, permutes, mask-register logical ops, comparisons,
+saturating/averaging, fixed-point, floating-point vector ops, loads/
+stores needing segment/strided/indexed addressing this project's encoder
+does not have yet) and every `rv_zv*` vector-crypto extension; GEN-06
+still has no single named next item.
+
+Acceptance gate satisfied: all 13 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked/boundary/
+rejection combination, via a generalized funct6-table extension of the
+*existing* `Lowered.R`/`word_r` codec path shared with `vadd` (refactored
+behavior-preservingly, not duplicated); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and a full `make asm-ci` pass -
+the same measured-Pass discipline every other GEN-05 promotion used, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vsll`/`vsrl`/`vsra`, `vminu`/`vmin`/`vmaxu`/`vmax`, `vmul`/`vmulh`/`vmulhu`/`vmulhsu` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected by grepping every
+remaining `rv_v` record for the next well-scoped families after
+`vsub`/`vrsub`/`vand`/`vor`/`vxor` generalized the OPIVV/OPIVX/OPIVI
+funct6 tables. This slice picks three families in one bounded session: the
+shift family (the first to admit its full `.vi` sibling with an UNSIGNED
+immediate, a genuine variant of the existing shape), the min/max family
+(`.vv`/`.vx` only, a pure funct6-table extension), and the multiply family
+(OP-V's second major functional-unit group, OPMVV/OPMVX - funct3 = 2/6
+rather than OPIVV/OPIVX's 0/4, but otherwise the identical shape).
+
+Scope manifest and obligations: 25 `kind: instruction-form` records, each
+identical on both riscv32.jsonl and riscv64.jsonl (confirmed via a Python
+script cross-checking `native_name`, `relationships` and
+`provenance.extension` for all 25 across both exports) with empty
+`relationships` (no `$import`/`$pseudo_op` duplication, same as every
+other rv_v record admitted so far, so no `Req_any` needed): `vsll.vv`/
+`vsll.vx`/`vsll.vi`, `vsrl.vv`/`vsrl.vx`/`vsrl.vi`, `vsra.vv`/`vsra.vx`/
+`vsra.vi` (funct6 0x25/0x28/0x29); `vminu.vv`/`vminu.vx`, `vmin.vv`/
+`vmin.vx`, `vmaxu.vv`/`vmaxu.vx`, `vmax.vv`/`vmax.vx` (funct6 0x04/0x05/
+0x06/0x07, no `.vi` sibling for any of the four); `vmul.vv`/`vmul.vx`,
+`vmulh.vv`/`vmulh.vx`, `vmulhu.vv`/`vmulhu.vx`, `vmulhsu.vv`/`vmulhsu.vx`
+(funct6 0x25/0x27/0x24/0x26, OPMVV/OPMVX, no `.vi` sibling for any of the
+four).
+
+Real, measured findings: before writing any encoder code, real GNU as's
+exact bytes were established for every operand form and every rejection
+class (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, `riscv64-linux-gnu-
+objdump -M no-aliases`, cross-checked byte-identically against
+`riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`/`riscv32-linux-gnu-objdump`).
+Shifts: `vsll.vv/.vx v1,v2,v3`/`,a0` -> `962180d7`/`962540d7`; `vsll.vi
+v1,v2,31`/`,0`/`,15,v0.t` -> `962fb0d7`/`962030d7`/`9427b0d7`; `vsrl.vv/.vx/
+.vi 5` -> `a22180d7`/`a22540d7`/`a222b0d7`; `vsra.vv/.vx/.vi 5` ->
+`a62180d7`/`a62540d7`/`a622b0d7`. Min/max: `vminu.vv/.vx` ->
+`122180d7`/`122540d7`; `vmin.vv/.vx` -> `162180d7`/`162540d7`; `vmaxu.vv/
+.vx` -> `1a2180d7`/`1a2540d7`; `vmax.vv/.vx` -> `1e2180d7`/`1e2540d7`.
+Multiply: `vmul.vv/.vx` -> `9621a0d7`/`962560d7`; `vmulh.vv/.vx` ->
+`9e21a0d7`/`9e2560d7`; `vmulhu.vv/.vx` -> `9221a0d7`/`922560d7`;
+`vmulhsu.vv/.vx` -> `9a21a0d7`/`9a2560d7` (all unmasked; masked forms
+confirmed too, e.g. `vminu.vv v1,v2,v3,v0.t` -> `102180d7`, `vmul.vv
+v1,v2,v3,v0.t` -> `9421a0d7`). Negative controls: `vsll.vi v1,v2,32`/`,-1`
+both "bad value for vector immediate field, value must be 0...31" (the
+UNSIGNED mirror of `vand.vi`'s own SIGNED -16..15 rejection message,
+confirming the range split); `vminu.vi`/`vmul.vi v1,v2,5` both
+"unrecognized opcode" (real GNU as confirms neither min/max nor multiply
+has an OPIVI sibling, matching riscv-opcodes' own export). This project's
+own `asm.exe --dump-bytes` reproduced every positive combination exactly
+and rejected every negative control with the same structural
+`error[riscv64.lower]: no <mnemonic> form takes these operands` /
+`unknown instruction <mnemonic>` convention established for every prior
+GEN-05 slice.
+
+The key design finding: `vsll.vi`/`vsrl.vi`/`vsra.vi` are the first `.vi`
+mnemonics whose immediate is riscv-opcodes' own UNSIGNED `zimm5` field
+(0..31) rather than every other admitted `.vi` mnemonic's SIGNED `simm5`
+(-16..15) - confirmed directly from the checked-in record's own
+`provenance.operands`, not assumed from the mnemonic. Rather than add a
+parallel OPIVI lowering arm, `opivi_funct6`'s existing match arm gained one
+new `opivi_unsigned` predicate table and a `fits_unsigned`/`fits_signed`
+choice at the point where the immediate is validated - the field-masking
+itself (`Int64.logand v 0x1fL`) is unchanged, since an unsigned 0..31 value
+and a signed -16..15 value produce the identical 5-bit two's-complement
+bit pattern once masked. `Isa_norm_riscv.opivi_form` gained matching
+`imm_name`/`signed` parameters (an `opivi_zimm5_mnemonics` list decides
+which), and `Isa_gen_difficult.opivi_entry` gained matching optional
+`imm_name`/`imm_value` arguments - both changes are pure generalizations of
+the existing single-shape functions, not new shapes. The debug `pp`
+printer's shared `is_opivi_name` suffix branch similarly gained a small
+`is_opivi_uimm_name` check so it stops sign-extending `vsll.vi`/`vsrl.vi`/
+`vsra.vi`'s bit pattern (previously would have mis-printed `31` as `-1`);
+this is a debug-output correctness fix with no effect on any encoded byte
+or acceptance/rejection behavior.
+
+Min/max needed zero new machinery beyond adding funct6 entries to the
+existing `opivv_funct6`/`opivx_funct6` tables (the `.vi` case never
+matches since neither table has an entry there for these four mnemonics).
+Multiply needed one genuinely new pair of tables, `opmvv_funct6`/
+`opmvx_funct6`, and two new lowering match arms structurally identical to
+the existing OPIVV/OPIVX ones except `funct3 = 2`/`6` instead of `0`/`4` -
+confirmed there is no interaction with the shared `pp` printer's suffix
+check, since `vmul.vv`/`vmul.vx` still end in `.vv`/`.vx` and print
+identically to any OPIVV/OPIVX mnemonic. `Isa_norm_riscv.opmvv_mnemonics`/
+`opmvx_mnemonics` dispatch straight to the existing `opivv_form`/
+`opivx_form` unchanged, since the normalized model does not represent
+`funct3` at all.
+
+Normalization required no new addition for min/max or multiply beyond
+dispatch-table entries; shifts required the `imm_name`/`signed`
+generalization described above. All 25 records use the existing
+`Riscv_vec`/`vreg ()` register-class machinery and the plain
+`"rv_v" -> Req_feature "riscv:v"` mapping.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity and against this
+project's own `asm.exe --dump-bytes`/exit-code behavior for the same
+cases; `make tools-test` (`isa-norm-riscv` 535->635 checks, `isa-gen-
+difficult` 1703->1950 checks, `isa-norm-jsonl` unchanged at 8); `make
+tools-integration` (50 new real-record grounding checks, all pass; 7
+pinned-count regressions caught and fixed in `repo_tests.ml` - see below);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt` (ocamlformat reformatted three files; re-verified `asm-fmt-check`
+clean); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 332 to 382 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 332 pre-existing cases
+are byte-for-byte unchanged and exactly the 50 expected new `case_id`s
+were added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make asm-isa-difficult-check` and `make
+asm-test`, both re-run with the RV32 cross-toolchain directory
+(`/usr/local/riscv32-linux-gnu-toolchain/bin`) stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: 100 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing the existing `test_opivv_form`/`test_opivx_form` helpers
+unchanged and a generalized `test_opivi_form` taking new `imm_name`/
+`signed` parameters) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed). 247 new `isa-gen-difficult`
+checks: 25 new `entries has 2 entries` cardinality checks, 25 new domain
+assertions in a generalized `test_v_opiv_domain` (a new `check_opivi_uimm`
+closure alongside the existing `check_opivv`/`check_opivx`/`check_opivi`),
+plus the automatic `test_no_entry_uses_x0` coverage every `Isa_gen_
+difficult.all` addition already gets for free (50 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (231->256/838->813,
+273->298/851->826 - straight from blocked to promoted-support on both
+profiles for all 25 mnemonics, no `Req_any` involved). `isa-norm-
+accounting`'s RV32/RV64 totals moved 251->276/303->328. `isa-norm-jsonl`'s
+real-form round-trip count moved 572->622 (+50, 25 mnemonics x two
+profiles). `tools-test`, `tools-integration`, `tools-boundary`, `dune
+build @runtest`, `asm-fmt-check`, and two full `make asm-ci` runs (with the
+RV32 cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added for any of the 25
+mnemonics, matching every prior OP-V slice's own precedent. The remaining
+vector scope is still large: roughly 335 further `rv_v` records
+(widening/narrowing arithmetic, divide/remainder, reductions, permutes,
+mask-register logical ops, comparisons that write a MASK register result
+rather than a full vector register - a genuinely new operand shape not yet
+investigated - saturating/averaging, fixed-point, floating-point vector
+ops, and loads/stores needing segment/strided/indexed addressing this
+project's encoder does not have yet) and every `rv_zv*` vector-crypto
+extension; GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 25 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked/boundary/
+rejection combination, via generalized funct6-table extensions of the
+*existing* `Lowered.R`/`word_r` codec path (reusing `opivv_form`/
+`opivx_form`/`opivi_form` unchanged or with small, tested parameter
+generalizations - never duplicated); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes -
+the same measured-Pass discipline every other GEN-05 promotion used, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vdivu`/`vdiv`/`vremu`/`vrem` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the cheapest
+unclaimed OP-V family after the shift/min-max/multiply slice: the
+divide/remainder group shares the OPMVV/OPMVX shape `vmul`/etc. already
+established, with no new machinery needed.
+
+Scope manifest and obligations: 8 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vdivu.vv`/`vdivu.vx`, `vdiv.vv`/`vdiv.vx`,
+`vremu.vv`/`vremu.vx`, `vrem.vv`/`vrem.vx` (funct6 0x20/0x21/0x22/0x23,
+OPMVV/OPMVX, no `.vi` sibling for any of the four - matching riscv-opcodes'
+own export).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vdivu.vv/.vx` -> `8221a0d7`/`822560d7`, `vdiv.vv/.vx` ->
+`8621a0d7`/`862560d7`, `vremu.vv/.vx` -> `8a21a0d7`/`8a2560d7`, `vrem.vv/
+.vx` -> `8e21a0d7`/`8e2560d7` (unmasked); masked forms (e.g. `vdivu.vv
+v1,v2,v3,v0.t` -> `8021a0d7`) also confirmed. `vmul.vi`/`vdiv.vi` are both
+"unrecognized opcode" on real GNU as, confirming no `.vi` sibling for
+either functional-unit group. This project's own `asm.exe --dump-bytes`
+reproduced every case exactly.
+
+Implementation: 8 new `Opcode.t` variants, `name`/`all` entries, and
+`opmvv_funct6`/`opmvx_funct6` table rows in `riscv_family_encode.ml` -
+`lower_instruction`'s existing OPMVV/OPMVX match arms (generic over
+`Option.is_some (opmvv_funct6 op)`/`opmvx_funct6 op)`) required no changes.
+`Isa_norm_riscv.opmvv_mnemonics`/`opmvx_mnemonics` gained the 8 new
+dispatch-table entries, reusing `opivv_form`/`opivx_form` unchanged.
+`Isa_gen_difficult` gained 8 new `opivv_entries`/`opivx_entries`-based
+corpus-entry bindings and `all` list additions. A gap found only at this
+step: `Isa_family_admission`'s `promoted_case` matcher is a separate,
+hand-maintained `form_id`/`lookup_key` allow-list, distinct from
+`Isa_gen_difficult.all` (which only gates `Gas_generatable`) - the first
+regen/integration run credited all 8 new mnemonics as `Gas_generatable`
+only, not `Promoted_support`, until the matching 8 arms were added there
+too; every prior GEN-05 vector slice happened to touch this same list, so
+this is not a new class of gap, just a step easy to forget when working
+from the encoder/norm/corpus side alone.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 635->667 checks, `isa-gen-difficult`
+1950->2030 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 382 to 398 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 382 pre-existing cases
+are byte-for-byte unchanged and exactly the 16 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (16 new real-record grounding
+checks, all pass; 4 pinned-count regressions caught on the first run -
+`isa-family-admission`'s `gas_generatable`/`promoted_support` totals - and
+fixed by adding the missing `promoted_case` arms, then re-verified clean);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt-check` (clean, no reformatting needed); `make asm-isa-difficult-
+check` and `make asm-test`, both re-run with the RV32 cross-toolchain
+directory stripped from `PATH`, confirming the tier-1 gate does not depend
+on it; two full `make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 32 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form` unchanged) against
+real, verbatim-extracted riscv64.jsonl records (identical in
+riscv32.jsonl, confirmed). 80 new `isa-gen-difficult` checks: 8 new
+`entries has 2 entries` cardinality checks, 8 new domain assertions in the
+existing `test_v_opiv_domain`, plus `test_no_entry_uses_x0`'s automatic
+coverage (16 new entries x roughly 2 checks each).
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals
+moved exactly as expected once `promoted_case` was updated (256->264/
+813->805, 298->306/826->818 - straight from blocked to promoted-support on
+both profiles for all 8 mnemonics). `isa-norm-accounting`'s RV32/RV64
+totals moved 276->284/328->336. `isa-norm-jsonl`'s real-form round-trip
+count moved 622->638 (+16, 8 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 327 further `rv_v` records (widening/narrowing arithmetic,
+reductions, permutes, mask-register logical ops, comparisons that write a
+MASK register result rather than a full vector register - a genuinely new
+operand shape not yet investigated - saturating/averaging, fixed-point,
+floating-point vector ops, and loads/stores needing segment/strided/
+indexed addressing this project's encoder does not have yet) and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item. The `Isa_family_admission.promoted_case` allow-list being separate
+from `Isa_gen_difficult.all` is worth folding into a single source of
+truth eventually, but is not itself a correctness gap (every mismatch is
+caught by `tools-integration`'s pinned counts, as it was here) - not filed
+as its own task ID since it is a recurring, already-visible friction point
+rather than a new discovery.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPMVV/OPMVX lowering path
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vsaddu`/`vsadd`/`vssubu`/`vssub` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the saturating add/subtract group shares the
+OPIVV/OPIVX/OPIVI shape `vadd`/`vand`/etc. already established (encoding
+is unaffected by saturation, which is purely execution-time behavior).
+
+Scope manifest and obligations: 10 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vsaddu.vv`/`vsaddu.vx`/`vsaddu.vi`, `vsadd.vv`/
+`vsadd.vx`/`vsadd.vi` (funct6 0x20/0x21, full `.vv`/`.vx`/`.vi` triples),
+`vssubu.vv`/`vssubu.vx`, `vssub.vv`/`vssub.vx` (funct6 0x22/0x23, no `.vi`
+sibling - matching riscv-opcodes' own export and `vsub`'s own precedent).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vsaddu.vv/.vx/.vi` -> `822180d7`/`822540d7`/`822db0d7`,
+`vsadd.vv/.vx/.vi` -> `862180d7`/`862540d7`/`862db0d7`, `vssubu.vv/.vx` ->
+`8a2180d7`/`8a2540d7`, `vssub.vv/.vx` -> `8e2180d7`/`8e2540d7` (unmasked;
+masked forms also confirmed). `vssub.vi` is "unrecognized opcode" on real
+GNU as, confirming no `.vi` sibling. The `.vi` immediate is SIGNED
+`simm5` (`vsaddu.vi v1,v2,-5` -> `822db0d7`), unlike the shift trio's
+UNSIGNED `zimm5` - confirmed directly from the checked-in record's own
+`provenance.operands`, matching every other admitted `.vi` mnemonic except
+the shifts. This project's own `asm.exe --dump-bytes` reproduced every
+case exactly.
+
+Implementation: 10 new `Opcode.t` variants, `name`/`all` entries, and
+`opivv_funct6`/`opivx_funct6`/`opivi_funct6` table rows in
+`riscv_family_encode.ml` - `lower_instruction`'s existing OPIVV/OPIVX/OPIVI
+match arms required no changes, and `opivi_unsigned` needed no new entries
+since `vsaddu.vi`/`vsadd.vi` use the SIGNED default path. `Isa_norm_riscv.
+opivv_mnemonics`/`opivx_mnemonics`/`opivi_mnemonics` gained the 10 new
+dispatch-table entries, reusing `opivv_form`/`opivx_form`/`opivi_form`
+unchanged. `Isa_gen_difficult` gained 10 new corpus-entry bindings and
+`all` list additions, reusing `opivv_entries`/`opivx_entries`/
+`opivi_entries` unchanged. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change this time (the gap found and
+fixed during the divide/remainder slice above), so `tools-integration`
+passed clean on the first run with no follow-up fix needed.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 667->707 checks, `isa-gen-difficult`
+2030->2128 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 398 to 418 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 398 pre-existing cases
+are byte-for-byte unchanged and exactly the 20 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (20 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (clean, no reformatting
+needed); `make asm-isa-difficult-check` and `make asm-test`, both re-run
+with the RV32 cross-toolchain directory stripped from `PATH`, confirming
+the tier-1 gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 40 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form`/`test_opivi_form`
+unchanged) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed). 98 new `isa-gen-difficult`
+checks: 10 new `entries has 2 entries` cardinality checks, 10 new domain
+assertions in the existing `test_v_opiv_domain` (`check_opivv`/
+`check_opivx`/`check_opivi` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (20 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (264->274/805->795, 306->316/
+818->808 - straight from blocked to promoted-support on both profiles for
+all 10 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+284->294/336->346. `isa-norm-jsonl`'s real-form round-trip count moved
+638->658 (+20, 10 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 317 further `rv_v` records (widening/narrowing arithmetic,
+reductions, permutes, mask-register logical ops, comparisons that write a
+MASK register result rather than a full vector register - a genuinely new
+operand shape not yet investigated - averaging, fixed-point,
+floating-point vector ops, add-with-carry/subtract-with-borrow using `v0`
+as a real carry input rather than the plain mask, and loads/stores needing
+segment/strided/indexed addressing this project's encoder does not have
+yet) and every `rv_zv*` vector-crypto extension; GEN-06 still has no single
+named next item.
+
+Acceptance gate satisfied: all 10 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPIVV/OPIVX/OPIVI lowering path
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vaadd`/`vaaddu`/`vasub`/`vasubu` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the averaging add/subtract group shares the
+OPMVV/OPMVX shape `vmul`/`vdivu`/etc. already established.
+
+Scope manifest and obligations: 8 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vaadd.vv`/`vaadd.vx`, `vaaddu.vv`/`vaaddu.vx`,
+`vasub.vv`/`vasub.vx`, `vasubu.vv`/`vasubu.vx` (funct6 0x08/0x09/0x0a/0x0b,
+OPMVV/OPMVX, no `.vi` sibling - matching riscv-opcodes' own export).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vaaddu.vv/.vx` -> `2221a0d7`/`222560d7`, `vaadd.vv/.vx`
+-> `2621a0d7`/`262560d7`, `vasubu.vv/.vx` -> `2a21a0d7`/`2a2560d7`,
+`vasub.vv/.vx` -> `2e21a0d7`/`2e2560d7` (unmasked; masked forms also
+confirmed, e.g. `vaadd.vv v1,v2,v3,v0.t` -> `2421a0d7`). `vaadd.vi` is
+"unrecognized opcode" on real GNU as, confirming no `.vi` sibling. This
+project's own `asm.exe --dump-bytes` reproduced every case exactly.
+
+Implementation: 8 new `Opcode.t` variants, `name`/`all` entries, and
+`opmvv_funct6`/`opmvx_funct6` table rows in `riscv_family_encode.ml` -
+`lower_instruction`'s existing OPMVV/OPMVX match arms required no changes.
+`Isa_norm_riscv.opmvv_mnemonics`/`opmvx_mnemonics` gained the 8 new
+dispatch-table entries, reusing `opivv_form`/`opivx_form` unchanged.
+`Isa_gen_difficult` gained 8 new corpus-entry bindings and `all` list
+additions, reusing `opivv_entries`/`opivx_entries` unchanged.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, so `tools-integration` passed clean on the first run.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 707->739 checks, `isa-gen-difficult`
+2128->2208 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 418 to 434 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 418 pre-existing cases
+are byte-for-byte unchanged and exactly the 16 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (16 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (clean, no reformatting
+needed); `make asm-isa-difficult-check` and `make asm-test`, both re-run
+with the RV32 cross-toolchain directory stripped from `PATH`, confirming
+the tier-1 gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 32 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form` unchanged) against
+real, verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed). 80 new `isa-gen-difficult` checks: 8 new `entries has 2
+entries` cardinality checks, 8 new domain assertions in the existing
+`test_v_opiv_domain` (`check_opivv`/`check_opivx` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (16 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (274->282/795->787, 316->324/
+808->800 - straight from blocked to promoted-support on both profiles for
+all 8 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+294->302/346->354. `isa-norm-jsonl`'s real-form round-trip count moved
+658->674 (+16, 8 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 309 further `rv_v` records (widening/narrowing arithmetic,
+reductions, permutes, mask-register logical ops, comparisons that write a
+MASK register result rather than a full vector register - a genuinely new
+operand shape not yet investigated - fixed-point, floating-point vector
+ops, add-with-carry/subtract-with-borrow using `v0` as a real carry input
+rather than the plain mask, and loads/stores needing segment/strided/
+indexed addressing this project's encoder does not have yet) and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPMVV/OPMVX lowering path
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vnsrl`/`vnsra`/`vnclipu`/`vnclip` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the narrowing shift/clip group's `.wv`/`.wx`/`.wi`
+suffix denotes a semantically wide `vs2` operand (2xSEW), but the
+assembler only encodes register/immediate field positions, which are
+identical to the plain OPIVV/OPIVX/OPIVI shape `vadd`/etc. already use -
+so no new shape or normalization machinery was needed, only new dispatch
+entries reusing every existing function unchanged.
+
+Scope manifest and obligations: 12 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vnsrl.wv`/`vnsrl.wx`/`vnsrl.wi`, `vnsra.wv`/
+`vnsra.wx`/`vnsra.wi`, `vnclipu.wv`/`vnclipu.wx`/`vnclipu.wi`, `vnclip.wv`/
+`vnclip.wx`/`vnclip.wi` (funct6 0x2c/0x2d/0x2e/0x2f, full `.wv`/`.wx`/`.wi`
+triples for all four - unlike every other OPIVI-shaped family covered so
+far, none of these four is missing its `.wi` sibling). The `.wi` immediate
+is riscv-opcodes' own UNSIGNED `zimm5` (0..31), the same shape the shift
+trio (`vsll.vi`/etc.) established, confirmed directly from the checked-in
+record's own `provenance.operands`.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vnsrl.wv/.wx/.wi 31` -> `b22180d7`/`b22540d7`/
+`b22fb0d7`, `vnsra.wv/.wx/.wi 31` -> `b62180d7`/`b62540d7`/`b62fb0d7`,
+`vnclipu.wv/.wx/.wi 31` -> `ba2180d7`/`ba2540d7`/`ba2fb0d7`, `vnclip.wv/
+.wx/.wi 31` -> `be2180d7`/`be2540d7`/`be2fb0d7` (unmasked; masked forms
+also confirmed, e.g. `vnclip.wv v1,v2,v3,v0.t` -> `bc2180d7`). `vnclip.wi
+v1,v2,32` is rejected with the identical "bad value for vector immediate
+field, value must be 0...31" message the shift trio's own `.vi` siblings
+use, confirming the UNSIGNED range. This project's own `asm.exe
+--dump-bytes` reproduced every case exactly.
+
+Implementation: 12 new `Opcode.t` variants, `name`/`all` entries, and
+`opivv_funct6`/`opivx_funct6`/`opivi_funct6` table rows in
+`riscv_family_encode.ml`, plus extending `opivi_unsigned`'s match arm with
+the four new `.wi` opcodes - `lower_instruction`'s existing OPIVV/OPIVX/
+OPIVI match arms required no other changes. `Isa_norm_riscv.
+opivi_zimm5_mnemonics` gained the four `.wi` mnemonics (feeding both
+`opivi_mnemonics`' dispatch and the UNSIGNED-vs-SIGNED decision in
+`opivi_form`), and `opivv_mnemonics`/`opivx_mnemonics` gained the eight
+`.wv`/`.wx` mnemonics - all reusing `opivv_form`/`opivx_form`/`opivi_form`
+unchanged. `Isa_gen_difficult` gained 12 new corpus-entry bindings and
+`all` list additions, reusing `opivv_entries`/`opivx_entries`/
+`opivi_entries` (the latter with the same `~imm_name:"zimm5"` override
+`vsll.vi`/etc. established) unchanged. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, so
+`tools-integration` passed clean on the first run.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 739->787 checks, `isa-gen-difficult`
+2208->2324 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 434 to 458 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 434 pre-existing cases
+are byte-for-byte unchanged and exactly the 24 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (24 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (clean, no reformatting
+needed); `make asm-isa-difficult-check` and `make asm-test`, both re-run
+with the RV32 cross-toolchain directory stripped from `PATH`, confirming
+the tier-1 gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 48 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form`/`test_opivi_form`
+unchanged) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed). 116 new `isa-gen-difficult`
+checks: 12 new `entries has 2 entries` cardinality checks, 12 new domain
+assertions in the existing `test_v_opiv_domain` (`check_opivv`/
+`check_opivx`/`check_opivi_uimm` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (24 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (282->294/787->775, 324->336/
+800->788 - straight from blocked to promoted-support on both profiles for
+all 12 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+302->314/354->366. `isa-norm-jsonl`'s real-form round-trip count moved
+674->698 (+24, 12 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 297 further `rv_v` records (widening/narrowing arithmetic other
+than this shift/clip pair, reductions, permutes, mask-register logical
+ops, comparisons that write a MASK register result rather than a full
+vector register - a genuinely new operand shape not yet investigated -
+fixed-point, floating-point vector ops, add-with-carry/subtract-with-
+borrow using `v0` as a real carry input rather than the plain mask, and
+loads/stores needing segment/strided/indexed addressing this project's
+encoder does not have yet) and every `rv_zv*` vector-crypto extension;
+GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 12 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked/boundary
+combination, via funct6-table extensions of the *existing* OPIVV/OPIVX/
+OPIVI lowering path (reused unchanged, including `opivi_unsigned`'s
+existing UNSIGNED-immediate mechanism); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes -
+the same measured-Pass discipline every other GEN-05 promotion used, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vssrl`/`vssra` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the scaling shift-right pair shares the full
+OPIVV/OPIVX/OPIVI shape `vsll`/`vsrl`/`vsra` already established,
+including the UNSIGNED `zimm5` `.vi` immediate.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vssrl.vv`/`vssrl.vx`/`vssrl.vi`, `vssra.vv`/
+`vssra.vx`/`vssra.vi` (funct6 0x2a/0x2b, full `.vv`/`.vx`/`.vi` triples for
+both).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vssrl.vv/.vx/.vi 31` -> `aa2180d7`/`aa2540d7`/
+`aa2fb0d7`, `vssra.vv/.vx/.vi 31` -> `ae2180d7`/`ae2540d7`/`ae2fb0d7`
+(unmasked; masked forms also confirmed, e.g. `vssrl.vv v1,v2,v3,v0.t` ->
+`a82180d7`). This project's own `asm.exe --dump-bytes` reproduced every
+case exactly.
+
+Implementation: 6 new `Opcode.t` variants, `name`/`all` entries, and
+`opivv_funct6`/`opivx_funct6`/`opivi_funct6` table rows in
+`riscv_family_encode.ml`, plus extending `opivi_unsigned`'s match arm with
+the two new `.vi` opcodes - `lower_instruction`'s existing OPIVV/OPIVX/
+OPIVI match arms required no other changes. `Isa_norm_riscv.
+opivi_zimm5_mnemonics` gained `vssrl.vi`/`vssra.vi`, and `opivv_mnemonics`/
+`opivx_mnemonics` gained the four `.vv`/`.vx` mnemonics - all reusing
+`opivv_form`/`opivx_form`/`opivi_form` unchanged. `Isa_gen_difficult`
+gained 6 new corpus-entry bindings and `all` list additions, reusing
+`opivv_entries`/`opivx_entries`/`opivi_entries` unchanged.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, so `tools-integration` passed clean on the first run.
+`ocamlformat` reformatted the extended `opivi_unsigned` match arm onto a
+single line (`make asm-fmt` promoted it); re-verified `asm-fmt-check`
+clean afterward.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 787->811 checks, `isa-gen-difficult`
+2324->2382 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 458 to 470 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 458 pre-existing cases
+are byte-for-byte unchanged and exactly the 12 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (12 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (caught the
+`opivi_unsigned` reformat, fixed via `make asm-fmt`, re-verified clean);
+`make asm-isa-difficult-check` and `make asm-test`, both re-run with the
+RV32 cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: 24 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form`/`test_opivi_form`
+unchanged) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed). 58 new `isa-gen-difficult`
+checks: 6 new `entries has 2 entries` cardinality checks, 6 new domain
+assertions in the existing `test_v_opiv_domain` (`check_opivv`/
+`check_opivx`/`check_opivi_uimm` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (12 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (294->300/775->769, 336->342/
+788->782 - straight from blocked to promoted-support on both profiles for
+all 6 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+314->320/366->372. `isa-norm-jsonl`'s real-form round-trip count moved
+698->710 (+12, 6 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 291 further `rv_v` records (widening/narrowing arithmetic other
+than the shift/clip pair already covered, reductions, permutes,
+mask-register logical ops, comparisons that write a MASK register result
+rather than a full vector register - a genuinely new operand shape not yet
+investigated - fixed-point, floating-point vector ops, add-with-carry/
+subtract-with-borrow using `v0` as a real carry input rather than the
+plain mask, and loads/stores needing segment/strided/indexed addressing
+this project's encoder does not have yet) and every `rv_zv*` vector-crypto
+extension; GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 6 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPIVV/OPIVX/OPIVI lowering path
+(reused unchanged, including `opivi_unsigned`'s existing UNSIGNED-immediate
+mechanism); a persisted, offline-replayed differential corpus entry per
+mnemonic per profile with real GNU agreement; admission-matrix promotion;
+and two full `make asm-ci` passes - the same measured-Pass discipline
+every other GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than left
+stale.
+
+##### GEN-05 continuation: RISC-V V `vrgather`/`vrgatherei16` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the gather/permute family's `.vv`/`.vx`/`.vi` forms
+share the plain OPIVV/OPIVX/OPIVI shape `vadd`/etc. already established,
+with `vrgatherei16.vv` a `.vv`-only sibling (fixed-EEW16 index, no
+`.vx`/`.vi` counterparts) sharing the same three-operand layout under a
+different funct6.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vrgather.vv`/`vrgather.vx`/`vrgather.vi` (funct6
+0x0c) and `vrgatherei16.vv` (funct6 0x0e, no `.vx`/`.vi` sibling - matching
+riscv-opcodes' own export). The `.vi` index immediate is UNSIGNED
+`zimm5`, the same shape the shift trio established.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vrgather.vv/.vx/.vi 31` -> `322180d7`/`322540d7`/
+`322fb0d7`, `vrgatherei16.vv` -> `3a2180d7` (unmasked; masked forms also
+confirmed, e.g. `vrgather.vv v1,v2,v3,v0.t` -> `302180d7`). `vrgather.vi
+v1,v2,32` is rejected with the identical "bad value for vector immediate
+field, value must be 0...31" message the shift trio's own `.vi` siblings
+use. This project's own `asm.exe --dump-bytes` reproduced every case
+exactly.
+
+Implementation: 4 new `Opcode.t` variants, `name`/`all` entries, and
+`opivv_funct6`/`opivx_funct6`/`opivi_funct6` table rows in
+`riscv_family_encode.ml`, plus extending `opivi_unsigned`'s match arm
+with the one new `.vi` opcode - `lower_instruction`'s existing OPIVV/
+OPIVX/OPIVI match arms required no other changes. `Isa_norm_riscv.
+opivi_zimm5_mnemonics` gained `vrgather.vi`, and `opivv_mnemonics`/
+`opivx_mnemonics` gained `vrgather.vv`/`vrgatherei16.vv` and
+`vrgather.vx` respectively - all reusing `opivv_form`/`opivx_form`/
+`opivi_form` unchanged. `Isa_gen_difficult` gained 4 new corpus-entry
+bindings and `all` list additions, reusing `opivv_entries`/
+`opivx_entries`/`opivi_entries` unchanged. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, so
+`tools-integration` passed clean on the first run. `make asm-fmt`
+reformatted one line in `test_isa_norm_riscv.ml` (a two-line
+`test_vrgatherei16_vv` definition collapsed to one, the same class of
+reformat the prior `vssrl`/`vssra` slice hit in the encoder file);
+re-verified `asm-fmt-check` clean afterward.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 811->827 checks, `isa-gen-difficult`
+2382->2422 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 470 to 478 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 470 pre-existing cases
+are byte-for-byte unchanged and exactly the 8 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (8 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (caught and fixed one
+reformat via `make asm-fmt`, re-verified clean); `make asm-isa-difficult-
+check` and `make asm-test`, both re-run with the RV32 cross-toolchain
+directory stripped from `PATH`, confirming the tier-1 gate does not depend
+on it; two full `make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 16 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form`/`test_opivi_form`
+unchanged) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed). 40 new `isa-gen-difficult`
+checks: 4 new `entries has 2 entries` cardinality checks, 4 new domain
+assertions in the existing `test_v_opiv_domain` (`check_opivv`/
+`check_opivx`/`check_opivi_uimm` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (8 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (300->304/769->765, 342->346/
+782->778 - straight from blocked to promoted-support on both profiles for
+all 4 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+320->324/372->376. `isa-norm-jsonl`'s real-form round-trip count moved
+710->718 (+8, 4 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. `vrgatherei16.vv`'s real-hardware constraint
+that its index operand's element width is always 16 bits regardless of
+the active SEW is a semantic/execution concern, not an assembly-time one -
+GAS itself imposes no such check at assemble time (confirmed: the same
+plain three-vector-register form is accepted unconditionally), so nothing
+was modeled for it beyond the plain shape. The remaining vector scope is
+still large: roughly 283 further `rv_v` records (widening/narrowing
+arithmetic other than what's covered, reductions, mask-register logical
+ops, comparisons that write a MASK register result rather than a full
+vector register - a genuinely new operand shape not yet investigated -
+fixed-point, floating-point vector ops, add-with-carry/subtract-with-
+borrow using `v0` as a real carry input rather than the plain mask, and
+loads/stores needing segment/strided/indexed addressing this project's
+encoder does not have yet) and every `rv_zv*` vector-crypto extension;
+GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 4 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked/boundary
+combination, via funct6-table extensions of the *existing* OPIVV/OPIVX/
+OPIVI lowering path (reused unchanged, including `opivi_unsigned`'s
+existing UNSIGNED-immediate mechanism); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes -
+the same measured-Pass discipline every other GEN-05 promotion used, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vwaddu`/`vwadd`/`vwsubu`/`vwsub` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the widening add/subtract group shares the
+OPMVV/OPMVX shape `vmul`/`vdivu`/etc. already established for both its
+`.vv`/`.vx` (both narrow operands) and `.wv`/`.wx` (`vs2` wide, `vs1`/
+`rs1` narrow) sibling pairs - operand *width* is an execution-time
+SEW/vtype concern, invisible to the assembler, which only encodes
+register field positions.
+
+Scope manifest and obligations: 16 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vwaddu.vv`/`vwaddu.vx`, `vwadd.vv`/`vwadd.vx`,
+`vwsubu.vv`/`vwsubu.vx`, `vwsub.vv`/`vwsub.vx` (funct6 0x30/0x31/0x32/0x33)
+plus their `.wv`/`.wx` siblings `vwaddu.wv`/`vwaddu.wx`, `vwadd.wv`/
+`vwadd.wx`, `vwsubu.wv`/`vwsubu.wx`, `vwsub.wv`/`vwsub.wx` (funct6
+0x34/0x35/0x36/0x37) - no `.vi` sibling for any of the eight mnemonics
+(matching riscv-opcodes' own export).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vwaddu.vv/.vx` -> `c221a0d7`/`c22560d7`, `vwadd.vv/.vx`
+-> `c621a0d7`/`c62560d7`, `vwsubu.vv/.vx` -> `ca21a0d7`/`ca2560d7`,
+`vwsub.vv/.vx` -> `ce21a0d7`/`ce2560d7`, `vwaddu.wv/.wx` ->
+`d221a0d7`/`d22560d7`, `vwadd.wv/.wx` -> `d621a0d7`/`d62560d7`,
+`vwsubu.wv/.wx` -> `da21a0d7`/`da2560d7`, `vwsub.wv/.wx` ->
+`de21a0d7`/`de2560d7` (unmasked; masked forms also confirmed, e.g.
+`vwadd.vv v1,v2,v3,v0.t` -> `c421a0d7`). `vwadd.vi` is "unrecognized
+opcode" on real GNU as, confirming no `.vi` sibling. This project's own
+`asm.exe --dump-bytes` reproduced every case exactly.
+
+Implementation: 16 new `Opcode.t` variants, `name`/`all` entries, and
+`opmvv_funct6`/`opmvx_funct6` table rows in `riscv_family_encode.ml` -
+`lower_instruction`'s existing OPMVV/OPMVX match arms required no other
+changes. `Isa_norm_riscv.opmvv_mnemonics`/`opmvx_mnemonics` gained the 16
+new dispatch-table entries, reusing `opivv_form`/`opivx_form` unchanged.
+`Isa_gen_difficult` gained 16 new corpus-entry bindings and `all` list
+additions, reusing `opivv_entries`/`opivx_entries` unchanged.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, so `tools-integration` passed clean on the first run.
+`asm-fmt-check` was clean with no reformat needed this time.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 827->891 checks, `isa-gen-difficult`
+2422->2582 checks); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 478 to 510 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 478 pre-existing cases
+are byte-for-byte unchanged and exactly the 32 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-
+linux-gnu-as`); `make tools-integration` (32 new real-record grounding
+checks, all pass on the first run); `make tools-boundary`; `cd asm && opam
+exec -- dune build @runtest`; `make asm-fmt-check` (clean); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: 64 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form` unchanged) against
+real, verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed). 160 new `isa-gen-difficult` checks: 16 new `entries has 2
+entries` cardinality checks, 16 new domain assertions in the existing
+`test_v_opiv_domain` (`check_opivv`/`check_opivx` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (32 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (304->320/765->749, 346->362/
+778->762 - straight from blocked to promoted-support on both profiles for
+all 16 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+324->340/376->392. `isa-norm-jsonl`'s real-form round-trip count moved
+718->750 (+32, 16 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 267 further `rv_v` records (widening multiply/multiply-add,
+reductions, mask-register logical ops, comparisons that write a MASK
+register result rather than a full vector register - a genuinely new
+operand shape not yet investigated - fixed-point, floating-point vector
+ops, add-with-carry/subtract-with-borrow using `v0` as a real carry input
+rather than the plain mask, and loads/stores needing segment/strided/
+indexed addressing this project's encoder does not have yet) and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item.
+
+Acceptance gate satisfied: all 16 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPMVV/OPMVX lowering path
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vwmulu`/`vwmulsu`/`vwmul` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next cheapest
+unclaimed OP-V family: the widening multiply group's `.vv`/`.vx` forms
+share the exact OPMVV/OPMVX shape and GAS text operand order `vwadd`/etc.
+already established - confirmed by comparison against the sibling
+widening multiply-*accumulate* `vwmacc*` family, which was investigated
+and found to use a genuinely different operand order (real GNU as swaps
+its last two text operands to `vd, vs1-or-rs1, vs2`) and was deliberately
+left unclaimed rather than force-fit into the existing shape.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vwmulu.vv`/`vwmulu.vx` (funct6 0x38), `vwmulsu.vv`/
+`vwmulsu.vx` (funct6 0x3a), `vwmul.vv`/`vwmul.vx` (funct6 0x3b) - no `.vi`
+sibling for any (matching riscv-opcodes' own export).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vwmulu.vv/.vx` -> `e221a0d7`/`e22560d7`, `vwmulsu.vv/
+.vx` -> `ea21a0d7`/`ea2560d7`, `vwmul.vv/.vx` -> `ee21a0d7`/`ee2560d7`
+(unmasked; masked forms also confirmed, e.g. `vwmulu.vv v1,v2,v3,v0.t` ->
+`e021a0d7`). `vwmul.vi` is "unrecognized opcode" on real GNU as,
+confirming no `.vi` sibling. The sibling `vwmaccu.vx v1,v2,a0` was found
+to be "illegal operands" (not "unrecognized opcode") on real GNU as -
+investigation traced this to a genuinely reordered text syntax
+(`vwmaccu.vx v4,a0,v2` assembles fine, decoding to `vs1`=`a0`/rs1-position
+holding the scalar, `vs2`=`v2`), confirming the *-accumulate family is a
+different shape and correctly out of scope for this slice. This project's
+own `asm.exe --dump-bytes` reproduced every `vwmulu`/`vwmulsu`/`vwmul`
+case exactly.
+
+Implementation: 6 new `Opcode.t` variants, `name`/`all` entries, and
+`opmvv_funct6`/`opmvx_funct6` table rows in `riscv_family_encode.ml` -
+`lower_instruction`'s existing OPMVV/OPMVX match arms required no other
+changes. `Isa_norm_riscv.opmvv_mnemonics`/`opmvx_mnemonics` gained the 6
+new dispatch-table entries, reusing `opivv_form`/`opivx_form` unchanged.
+`Isa_gen_difficult` gained 6 new corpus-entry bindings and `all` list
+additions, reusing `opivv_entries`/`opivx_entries` unchanged.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, so `tools-integration` passed clean on the first run.
+`asm-fmt-check` was clean with no reformat needed.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the `vwmaccu.vx` operand-order investigation), cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity; `make tools-test`
+(`isa-norm-riscv` 891->915 checks, `isa-gen-difficult` 2582->2642 checks);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/
+cases.jsonl` from 510 to 522 entries; confirmed via a Python diff script,
+ignoring only the git-rev-embedded `gas.tool_label`/`ours.tool_label`
+fields, that all 510 pre-existing cases are byte-for-byte unchanged and
+exactly the 12 expected new `case_id`s were added, every one `verdict =
+pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+tools-integration` (12 new real-record grounding checks, all pass on the
+first run); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean); `make asm-isa-difficult-check`
+and `make asm-test`, both re-run with the RV32 cross-toolchain directory
+stripped from `PATH`, confirming the tier-1 gate does not depend on it;
+two full `make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 24 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form` unchanged) against
+real, verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed). 60 new `isa-gen-difficult` checks: 6 new `entries has 2
+entries` cardinality checks, 6 new domain assertions in the existing
+`test_v_opiv_domain` (`check_opivv`/`check_opivx` reused unchanged), plus
+`test_no_entry_uses_x0`'s automatic coverage (12 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (320->326/749->743, 362->368/
+762->756 - straight from blocked to promoted-support on both profiles for
+all 6 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+340->346/392->398. `isa-norm-jsonl`'s real-form round-trip count moved
+750->762 (+12, 6 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. A new, not-yet-built shape was identified but
+deliberately deferred: the widening multiply-*accumulate* family
+(`vwmaccu`/`vwmacc`/`vwmaccus`/`vwmaccsu`, 7 mnemonics - `vwmaccus` has no
+`.vv` sibling) needs a genuinely different operand-order normalization/
+encoder arm (GAS's `vd, vs1-or-rs1, vs2` text order rather than this
+family's `vd, vs2, vs1-or-rs1`), and the same reordering likely applies to
+the narrower, non-widening `vmacc`/`vnmsac`/`vmadd`/`vnmsub` multiply-
+accumulate family too (spot-checked `vmacc.vv`'s own encoding.fields
+above, not yet spot-checked against real GNU as - a candidate next slice,
+since building the reordered shape once would likely unlock both
+families' `.vv`/`.vx` forms in one pass). The remaining vector scope is
+still large: roughly 261 further `rv_v` records (the MACC-family reordered
+shape just described, reductions, mask-register logical ops, comparisons
+that write a MASK register result rather than a full vector register - a
+genuinely new operand shape not yet investigated - fixed-point, floating-
+point vector ops, add-with-carry/subtract-with-borrow using `v0` as a real
+carry input rather than the plain mask, and loads/stores needing segment/
+strided/indexed addressing this project's encoder does not have yet) and
+every `rv_zv*` vector-crypto extension; GEN-06 still has no single named
+next item.
+
+Acceptance gate satisfied: all 6 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination, via
+funct6-table extensions of the *existing* OPMVV/OPMVX lowering path
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vsext`/`vzext` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next
+bounded, well-scoped family after the widening-multiply arc closed: a
+genuinely new two-vector-register shape (`rd, rs2`, no third operand at
+all), the first GEN-05 vector slice needing new normalization/encoder
+machinery since the narrowing/gather families all reused existing
+three-operand shapes.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl, empty `relationships`
+(no `Req_any` needed): `vsext.vf2`/`vf4`/`vf8`, `vzext.vf2`/`vf4`/`vf8` -
+all under OPMVV's major opcode/funct3 with a fixed funct6 (0x12), but with
+riscv-opcodes' own `encoding.fields`/`variable_fields` listing only
+`vm`/`vs2`/`vd` as variable: the field position every other OPMVV/OPIVV
+mnemonic uses for `vs1`/`rs1` is entirely fixed per mnemonic (a
+source-width-divisor selector: 3/5/7 for sign-extend's `vf8`/`vf4`/`vf2`,
+2/4/6 for zero-extend's), not a real operand.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`/`riscv64-linux-
+gnu-objdump -M no-aliases`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`): `vsext.vf2/.vf4/.vf8` -> `4a23a0d7`/`4a22a0d7`/
+`4a21a0d7`, `vzext.vf2/.vf4/.vf8` -> `4a2320d7`/`4a2220d7`/`4a2120d7`
+(unmasked; masked also confirmed, e.g. `vsext.vf2 v1,v2,v0.t` ->
+`4823a0d7`). A third operand (`vsext.vf2 v1,v2,v3`) is "illegal operands"
+on real GNU as, confirming no third operand of any kind - not even a
+`.vx`/`.vi`-style sibling. This project's own `asm.exe --dump-bytes`
+reproduced every case exactly.
+
+Implementation: 6 new `Opcode.t` variants, `name`/`all` entries, a new
+`opmvv_unary_const` table (mnemonic -> its fixed `vs1`-position constant,
+funct6 fixed at 0x12 for all six), and two new lowering match arms
+(`[vd_op; vs2_op]` unmasked, `[vd_op; vs2_op; mask]` masked) composing the
+*existing* `Lowered.R`/`word_r` codec with the table's constant substituted
+directly for `rs1` - no new codec path needed, only a new *shape* at the
+normalization/lowering-pattern level. `Isa_norm_riscv` gained a new
+`vext_form` function (modeled on the existing `unary_gpr_form` for GPRs,
+but with `vreg ()` operands and a two-item `[rd; rs2]` operand/syntax
+list) and six new literal-string dispatch arms in `normalize`.
+`Isa_gen_difficult` gained a new `vext_entry`/`vext_entries` generator
+(operands `[("rd","v1"); ("rs2","v2")]`, no third operand) and six new
+per-mnemonic bindings. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change, so `tools-integration` passed
+clean on the first run despite the new shape. `make asm-fmt` reformatted
+two multi-line record literals in the new `vext_form` onto single lines;
+re-verified `asm-fmt-check` clean afterward.
+
+Implementation commit: (this change).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the "illegal operands" third-operand rejection), cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity; `make tools-test`
+(`isa-norm-riscv` 915->939 checks, `isa-gen-difficult` 2642->2696 checks);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/
+cases.jsonl` from 522 to 534 entries; confirmed via a Python diff script,
+ignoring only the git-rev-embedded `gas.tool_label`/`ours.tool_label`
+fields, that all 522 pre-existing cases are byte-for-byte unchanged and
+exactly the 12 expected new `case_id`s were added, every one `verdict =
+pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+tools-integration` (12 new real-record grounding checks, all pass on the
+first run); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (caught the two-record reformat, fixed via
+`make asm-fmt`, re-verified clean); `make asm-isa-difficult-check` and
+`make asm-test`, both re-run with the RV32 cross-toolchain directory
+stripped from `PATH`, confirming the tier-1 gate does not depend on it;
+two full `make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 24 new `isa-norm-riscv` checks (a new
+`test_vext_form` helper, 4 per mnemonic) against real, verbatim-extracted
+riscv64.jsonl records (identical in riscv32.jsonl, confirmed). 54 new
+`isa-gen-difficult` checks: 6 new `entries has 2 entries` cardinality
+checks, 6 new domain assertions via a new `check_vext` closure (asserting
+exactly the two-operand `rd`/`rs2` shape, no third operand), plus
+`test_no_entry_uses_x0`'s automatic coverage (12 new entries x roughly 2
+checks each). `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (326->332/743->737, 368->374/
+756->750 - straight from blocked to promoted-support on both profiles for
+all 6 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+346->352/398->404. `isa-norm-jsonl`'s real-form round-trip count moved
+762->774 (+12, 6 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free legs)
+all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 255 further `rv_v` records (the widening multiply-accumulate
+`vwmacc*` reordered shape flagged in the previous slice, reductions,
+mask-register logical ops, comparisons that write a MASK register result
+rather than a full vector register - a genuinely new operand shape not
+yet investigated - fixed-point, floating-point vector ops, add-with-
+carry/subtract-with-borrow using `v0` as a real carry input rather than
+the plain mask, and loads/stores needing segment/strided/indexed
+addressing this project's encoder does not have yet) and every `rv_zv*`
+vector-crypto extension; GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 6 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked/boundary
+combination, via a new but minimal two-vector-register lowering shape
+reusing the *existing* `Lowered.R`/`word_r` codec path unchanged; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V mask-register logical family (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next
+bounded family after the sign-/zero-extend arc closed: the widening
+multiply-accumulate `vwmacc*` reordered shape remains deliberately
+deferred (flagged two slices back), so this session surveyed the
+remaining ~255 `rv_v` records and picked the mask-register logical
+family - `vmand`/`vmandn`/`vmor`/`vmxor`/`vmorn`/`vmnand`/`vmnor`/
+`vmxnor` (`.mm`) - as the next cheapest, well-scoped item: structurally
+the same all-vector-register shape {!opivv_form}/`opivv_entries` already
+build, with one genuine difference (`vm` fixed at 1, no masked sibling)
+worth its own dedicated implementation rather than a silent reuse.
+
+Scope manifest and obligations: 8 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships` (no `Req_any` needed): `vmand.mm`,
+`vmandn.mm`, `vmor.mm`, `vmxor.mm`, `vmorn.mm`, `vmnand.mm`, `vmnor.mm`,
+`vmxnor.mm` - all under OPMVV's major opcode/funct3 (0x57/2) with a fixed
+funct6 per mnemonic (0x19/0x18/0x1a/0x1b/0x1c/0x1d/0x1e/0x1f) and `vm`
+hardwired to bit value 1 in the encoding itself (riscv-opcodes' own
+`raw.tokens` shows `25=1` as a fixed bit, not a variable field - `vm` is
+absent from `variable_fields` entirely, unlike every other OPIVV/OPIVX/
+OPIVI/OPMVV/OPMVX mnemonic).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical
+on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`): `vmand.mm v1,v2,v3` ->
+`6621a0d7`, `vmandn.mm` -> `6221a0d7`, `vmor.mm` -> `6a21a0d7`, `vmxor.mm`
+-> `6e21a0d7`, `vmorn.mm` -> `7221a0d7`, `vmnand.mm` -> `7621a0d7`,
+`vmnor.mm` -> `7a21a0d7`, `vmxnor.mm` -> `7e21a0d7` (all with `vd`/`vs2`/
+`vs1` = `v1`/`v2`/`v3`); `v0` as `vd` is legal (`vmand.mm v0,v1,v2` ->
+`57201166`); a trailing `, v0.t` (`vmand.mm v1,v2,v3,v0.t`) is "illegal
+operands" on real GNU as, confirming no masked form exists for this
+family - the architectural reason `vm` is fixed rather than selectable.
+
+Implementation: on the encoder side, a new `mm_funct6` table (separate
+from `opmvv_funct6`, since folding these mnemonics into that shared table
+would let the existing four-operand `, v0.t` lowering arm incorrectly
+accept them) plus a dedicated three-operand-only lowering arm with no
+matching masked arm, reusing the *existing* `Lowered.R`/`word_r` codec
+unchanged (`funct7 = (funct6 lsl 1) lor 1`, the same composition every
+other unmasked OPMVV mnemonic uses). On the normalization side, a new
+`Isa_norm_riscv.mm_form` - structurally identical to `opivv_form`'s
+`[rd; rs1; rs2]`/`rd, rs2, rs1` shape, but with its own `Inferred` fact
+stating there is no masked sibling, rather than reusing `opivv_form` and
+inheriting its (here false) "optional trailing mask operand" note. On the
+generator side, `Isa_gen_difficult` reuses `opivv_entries` unchanged (the
+entry shape carries no mask information either way), needing no new
+generator code. `Isa_family_admission`'s `promoted_case` allow-list was
+updated in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the "illegal operands" masked-form rejection and the legal-`v0`-as-`vd`
+case), cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte
+identity; `make tools-test` (`isa-norm-riscv` 939->971 checks,
+`isa-gen-difficult` 2696->2784 checks); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 534 to 550 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 534 pre-existing
+cases are byte-for-byte unchanged and exactly the 16 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(16 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting`/`isa-family-admission`/`isa-norm-jsonl` totals);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`;
+`make asm-fmt-check` (caught one reflowed comment line in the new
+`mm_form`, fixed via `make asm-fmt`, re-verified clean); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 32 new `isa-norm-riscv` checks (reusing
+`test_opivv_form`, 4 per mnemonic) against real, verbatim-extracted
+riscv64.jsonl records (identical in riscv32.jsonl, confirmed via direct
+JSON diff). 88 new `isa-gen-difficult` checks: 8 new `entries has 2
+entries` cardinality checks, 16 new `check_opivv` shape/rule assertions
+(2 per entry x 8 mnemonics), plus `test_no_entry_uses_x0`'s automatic
+coverage of the 16 new entries. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (332->340/
+737->729, 374->382/750->742 - straight from blocked to
+promoted-support on both profiles for all 8 mnemonics). `isa-norm-
+accounting`'s RV32/RV64 totals moved 352->360/404->412. `isa-norm-
+jsonl`'s real-form round-trip count moved 774->790 (+16, 8 mnemonics x
+two profiles). `tools-test`, `tools-integration`, `tools-boundary`, `dune
+build @runtest`, `asm-fmt-check`, and two full `make asm-ci` runs (with
+the RV32 cross-toolchain directory stripped from `PATH` for the
+toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 247 further `rv_v` records (the widening multiply-accumulate
+`vwmacc*` reordered shape flagged two slices back, reductions, comparisons
+that write a MASK register result rather than a full vector register - a
+genuinely new operand shape not yet investigated - fixed-point,
+floating-point vector ops, add-with-carry/subtract-with-borrow using `v0`
+as a real carry input rather than the plain mask, and loads/stores
+needing segment/strided/indexed addressing this project's encoder does
+not have yet) and every `rv_zv*` vector-crypto extension; GEN-06 still
+has no single named next item.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked-form rejection control, via a dedicated funct6 table and lowering
+arm reusing the *existing* `Lowered.R`/`word_r` codec path unchanged; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V vector-reduction family (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next
+bounded family after the mask-register logical arc closed: the widening
+multiply-accumulate `vwmacc*` reordered shape remains deliberately
+deferred, so this session surveyed the remaining ~247 `rv_v` records and
+picked the vector-reduction family - `vredsum`/`vredand`/`vredor`/
+`vredxor`/`vredminu`/`vredmin`/`vredmaxu`/`vredmax.vs` plus
+`vwredsumu`/`vwredsum.vs` - as the next cheapest item: the same
+`rd, rs2, rs1` shape {!opivv_form}/`opivv_entries` already build, with a
+real, selectable mask this time (unlike the mask-register-logical
+family), so no new normalization/generator code was needed at all -
+only funct6-table extensions on the encoder side and mnemonic-list
+membership on the normalization side.
+
+Scope manifest and obligations: 10 `kind: instruction-form` rv_v
+records, identical on both riscv32.jsonl and riscv64.jsonl (verified via
+a direct JSON diff), empty `relationships` (no `Req_any` needed):
+`vredsum.vs`, `vredand.vs`, `vredor.vs`, `vredxor.vs`, `vredminu.vs`,
+`vredmin.vs`, `vredmaxu.vs`, `vredmax.vs` (OPMVV, funct3=2, funct6
+0x00-0x07) and `vwredsumu.vs`, `vwredsum.vs` (funct6 0x30/0x31, but
+funct3=0 - OPIVV's space, not OPMVV's, despite being widening sum
+reductions). All ten have `vm` as a genuine variable field (present in
+`variable_fields`, unlike the mask-register-logical family's fixed bit),
+so both the existing unmasked and masked lowering arms apply unchanged.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`):
+`vredsum.vs v1,v2,v3` -> `022180d7`, `vredand.vs` -> `062180d7`,
+`vredor.vs` -> `0a2180d7`, `vredxor.vs` -> `0e2180d7`, `vredminu.vs` ->
+`122180d7`, `vredmin.vs` -> `162180d7`, `vredmaxu.vs` -> `1a2180d7`,
+`vredmax.vs` -> `1e2180d7`, `vwredsumu.vs` -> `c22180d7`, `vwredsum.vs`
+-> `c62180d7`; masked (`, v0.t`) drops the low funct7 bit, e.g.
+`vredsum.vs v1,v2,v3,v0.t` -> `002180d7`; disassembly of
+`vwredsumu.vs`'s word confirms funct3 bits are 0, placing it in OPIVV's
+space rather than OPMVV's despite sharing `vwaddu.vv`/`vwadd.vv`'s own
+0x30/0x31 funct6 values (no collision - funct3 keeps the two tables'
+spaces disjoint).
+
+Implementation: 8 new entries added to the *existing* `opmvv_funct6`
+table and 2 to `opivv_funct6` - no new `Opcode.t` shape, lowering arm, or
+normalization function needed, since both tables already feed the
+existing masked/unmasked three-vector-register lowering arms. On the
+normalization side, the 8 OPMVV mnemonics were added to
+`opmvv_mnemonics` and the 2 OPIVV ones to `opivv_mnemonics`, both of
+which already dispatch to `opivv_form` unchanged. On the generator side,
+all 10 reuse `opivv_entries` unchanged, the same as every other
+plain-shape reduction/logical family. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump`
+for every positive combination and the masked-form control above,
+cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte
+identity; `make tools-test` (`isa-norm-riscv` 971->1011 checks,
+`isa-gen-difficult` 2784->2894 checks); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 550 to 570 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 550 pre-existing
+cases are byte-for-byte unchanged and exactly the 20 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(20 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting`/`isa-family-admission`/`isa-norm-jsonl` totals);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`;
+`make asm-fmt-check` (clean on the first run); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 40 new `isa-norm-riscv` checks (reusing
+`test_opivv_form`, 4 per mnemonic) against real, verbatim-extracted
+riscv64.jsonl records (identical in riscv32.jsonl, confirmed via direct
+JSON diff). 110 new `isa-gen-difficult` checks: 10 new `entries has 2
+entries` cardinality checks, 20 new `check_opivv` shape/rule assertions
+(2 per entry x 10 mnemonics), plus `test_no_entry_uses_x0`'s automatic
+coverage of the 20 new entries. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (340->350/
+729->719, 382->392/742->732 - straight from blocked to promoted-support
+on both profiles for all 10 mnemonics). `isa-norm-accounting`'s RV32/RV64
+totals moved 360->370/412->422. `isa-norm-jsonl`'s real-form round-trip
+count moved 790->810 (+20, 10 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 237 further `rv_v` records (the widening multiply-accumulate
+`vwmacc*` reordered shape flagged several slices back, permutes,
+comparisons that write a MASK register result rather than a full vector
+register - a genuinely new operand shape not yet investigated -
+saturating/averaging, fixed-point, floating-point vector ops,
+add-with-carry/subtract-with-borrow using `v0` as a real carry input
+rather than the plain mask, and loads/stores needing segment/strided/
+indexed addressing this project's encoder does not have yet) and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item.
+
+Acceptance gate satisfied: all 10 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested masked/unmasked combination,
+via funct6-table extensions of the *existing* OPIVV/OPMVV lowering paths
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V mask-writing comparison family (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next
+bounded family after the vector-reduction arc closed: the widening
+multiply-accumulate `vwmacc*` reordered shape remains deliberately
+deferred, so this session surveyed the remaining ~237 `rv_v` records and
+picked the mask-writing comparison family - `vmseq`/`vmsne`/`vmsltu`/
+`vmslt`/`vmsleu`/`vmsle`/`vmsgtu`/`vmsgt` - as the next cheapest item:
+the full OPIVV/OPIVX/OPIVI shape {!opivv_form}/[opivx_form]/[opivi_form]
+and their matching entry-builders already build, `vd` just holds a MASK
+result rather than a plain vector value at the architectural level, which
+is invisible to this encoder layer (it only encodes register field
+positions). Like the vector-reduction slice, no new shape, lowering arm,
+or normalization function was needed - only funct6-table extensions and
+mnemonic-list membership.
+
+Scope manifest and obligations: 20 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships` (no `Req_any` needed): `vmseq.vv/.vx/
+.vi`, `vmsne.vv/.vx/.vi`, `vmsltu.vv/.vx`, `vmslt.vv/.vx`, `vmsleu.vv/.vx/
+.vi`, `vmsle.vv/.vx/.vi`, `vmsgtu.vx/.vi`, `vmsgt.vx/.vi` - all under
+OPIVV(funct3=0)/OPIVX(funct3=4)/OPIVI(funct3=3), funct6 0x18-0x1f.
+`vmsltu`/`vmslt` have no `.vi` sibling (an immediate strict-less-than
+would be redundant with `vmsleu`/`vmsle` against one-less, which
+riscv-opcodes' own export already omits accordingly); `vmsgtu`/`vmsgt`
+have no `.vv` sibling in the export at all.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`):
+`vmseq.vv/.vx/.vi` -> `622180d7`/`622540d7`/`622db0d7`, `vmsne.vv/.vx/
+.vi` -> `662180d7`/`662540d7`/`662db0d7`, `vmsltu.vv/.vx` ->
+`6a2180d7`/`6a2540d7`, `vmslt.vv/.vx` -> `6e2180d7`/`6e2540d7`,
+`vmsleu.vv/.vx/.vi` -> `722180d7`/`722540d7`/`722db0d7`, `vmsle.vv/.vx/
+.vi` -> `762180d7`/`762540d7`/`762db0d7`, `vmsgtu.vx/.vi` ->
+`7a2540d7`/`7a2db0d7`, `vmsgt.vx/.vi` -> `7e2540d7`/`7e2db0d7`. A real,
+measured surprise: `vmsgt.vv v1,v2,v3`/`vmsgtu.vv v1,v2,v3` ARE accepted
+by real GNU as - not as a genuine record, but as a documented GAS
+pseudo-instruction that reverses the last two operands and emits
+`vmslt(u).vv v1,v3,v2` instead (confirmed: `vmsgt.vv v1,v2,v3` disassembles
+as `vmslt.vv v1,v3,v2`, bytes `6e2130d7`). This is a genuinely different,
+not-yet-built alias-expansion feature (operand reversal, not funct6
+substitution) and is deliberately not admitted by this slice; the 20
+canonical-spelling records above are unaffected by it.
+
+Implementation: 6 new entries in the *existing* `opivv_funct6` table
+(the `.vv` forms), 8 in `opivx_funct6` (the `.vx` forms, including
+`vmsgtu`/`vmsgt` which have no `.vv` counterpart), and 6 in
+`opivi_funct6` (the `.vi` forms) - no new `Opcode.t` shape, lowering arm,
+or normalization function needed, since all three tables already feed
+the existing masked/unmasked OPIVV/OPIVX/OPIVI lowering arms. On the
+normalization side, the 6 OPIVV mnemonics were added to
+`opivv_mnemonics`, the 8 OPIVX ones to `opivx_mnemonics`, and the 6
+OPIVI ones to `opivi_mnemonics` (all three already dispatch to
+`opivv_form`/`opivx_form`/`opivi_form` unchanged; the `.vi` immediates
+are the default SIGNED `simm5`, not the shift family's UNSIGNED
+`zimm5`, so no `opivi_zimm5_mnemonics` entry was needed). On the
+generator side, all 20 reuse `opivv_entries`/`opivx_entries`/
+`opivi_entries` unchanged. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change. A pre-existing, unrelated
+documentation bug was also fixed in this change: the mask-register
+logical (`.mm`) milestone's own doc comments (in
+`riscv_family_encode.ml`, `Isa_gen_difficult`, and this tracker) had
+quoted the *raw record fixed-bits value* (e.g. `vmand.mm` -> `66002057`,
+with `vd`/`vs2`/`vs1` all zeroed) while claiming it was the real encoded
+bytes for the documented `v1,v2,v3` operands (which are actually
+`6621a0d7`) - a copy-paste error introduced when writing that milestone,
+caught and corrected while re-deriving comparable byte values for this
+slice; it did not affect any test, fixture, or corpus entry, only prose.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump`
+for every positive combination and the `vmsgt(u).vv` pseudo-instruction
+discovery above, cross-checked against `riscv32-linux-gnu-as`/`objdump`
+for byte identity; `make tools-test` (`isa-norm-riscv` 1011->1091 checks,
+`isa-gen-difficult` 2894->3086 checks); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 570 to 610 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 570 pre-existing
+cases are byte-for-byte unchanged and exactly the 40 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(40 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting`/`isa-family-admission`/`isa-norm-jsonl` totals);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`;
+`make asm-fmt-check` (clean on the first run); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 80 new `isa-norm-riscv` checks (reusing
+`test_opivv_form`/[test_opivx_form]/[test_opivi_form], 4 per mnemonic)
+against real, verbatim-extracted riscv64.jsonl records (identical in
+riscv32.jsonl, confirmed via direct JSON diff). 192 new `isa-gen-difficult`
+checks: 20 new `entries has 2 entries` cardinality checks, roughly 2-3
+`check_opivv`/`check_opivx`/`check_opivi` shape/rule assertions per
+entry across 40 entries, plus `test_no_entry_uses_x0`'s automatic
+coverage of the 40 new entries. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (350->370/
+719->699, 392->412/732->712 - straight from blocked to
+promoted-support on both profiles for all 20 mnemonics). `isa-norm-
+accounting`'s RV32/RV64 totals moved 370->390/422->442. `isa-norm-jsonl`'s
+real-form round-trip count moved 810->850 (+40, 20 mnemonics x two
+profiles). `tools-test`, `tools-integration`, `tools-boundary`, `dune
+build @runtest`, `asm-fmt-check`, and two full `make asm-ci` runs (with
+the RV32 cross-toolchain directory stripped from `PATH` for the
+toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. `vmsgt(u).vv`'s own GAS pseudo-instruction
+(operand-reversal alias expansion) is a real, documented follow-up: a
+genuinely different feature from anything built so far, since every
+prior admitted pseudo/alias in this project has been a fixed-register or
+fixed-immediate substitution, never an operand-position swap. The
+remaining vector scope is still large: roughly 217 further `rv_v`
+records (the widening multiply-accumulate `vwmacc*` reordered shape
+flagged several slices back, permutes, saturating/averaging, fixed-point,
+floating-point vector ops, add-with-carry/subtract-with-borrow using `v0`
+as a real carry input rather than the plain mask, and loads/stores
+needing segment/strided/indexed addressing this project's encoder does
+not have yet) and every `rv_zv*` vector-crypto extension; GEN-06 still
+has no single named next item.
+
+Acceptance gate satisfied: all 20 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination, via funct6-table
+extensions of the *existing* OPIVV/OPIVX/OPIVI lowering paths (reused
+unchanged); a persisted, offline-replayed differential corpus entry per
+mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V slide family (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - self-selected as the next
+bounded family after the mask-writing comparison arc closed: surveyed
+the remaining ~217 `rv_v` records and picked the slide family -
+`vslideup`/`vslidedown`/`vslide1up`/`vslide1down` - as the next cheapest
+item, since (unlike `vcompress`/`viota`/`vid`, the family's other
+members, which need genuinely new operand shapes - see follow-up below)
+it fits the existing OPIVX/OPIVI/OPMVX shapes exactly, needing only
+funct6-table extensions.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships` (no `Req_any` needed): `vslideup.vi`,
+`vslideup.vx`, `vslidedown.vi`, `vslidedown.vx` (OPIVX funct3=4/OPIVI
+funct3=3, funct6 0x0e/0x0f, no `.vv` sibling), `vslide1up.vx`,
+`vslide1down.vx` (OPMVX funct3=6, same funct6 values as their
+non-`1` siblings - funct3 keeps the two tables disjoint - no `.vi`
+sibling). The `.vi` immediate is UNSIGNED `zimm5` (0..31), like the
+shift-family shapes, not the default SIGNED `simm5`.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`):
+`vslideup.vx v1,v2,a0` -> `3a2540d7`, `vslideup.vi v1,v2,5` ->
+`3a22b0d7`, `vslidedown.vx` -> `3e2540d7`, `vslidedown.vi` ->
+`3e22b0d7`, `vslide1up.vx` -> `3a2560d7`, `vslide1down.vx` ->
+`3e2560d7`; `vslideup.vi v1,v2,31` -> `3a2fb0d7` (accepted), `,32`
+rejected with "bad value for vector immediate field, value must be
+0...31"; `vslideup.vv`/`vslide1up.vi` are both "unrecognized opcode",
+confirming the missing `.vv`/`.vi` siblings match riscv-opcodes' own
+export; masked `vslideup.vx v1,v2,a0,v0.t` -> `382540d7`.
+
+Implementation: 2 new entries in the *existing* `opivx_funct6` table,
+2 in `opivi_funct6` (plus adding `Vslideup_vi`/`Vslidedown_vi` to the
+existing `opivi_unsigned` predicate), and 2 in `opmvx_funct6` - no new
+`Opcode.t` shape, lowering arm, or normalization function needed, since
+all three tables already feed the existing masked/unmasked OPIVX/OPIVI/
+OPMVX lowering arms. On the normalization side, the 2 OPIVX mnemonics
+were added to `opivx_mnemonics`, the 2 OPIVI ones to both
+`opivi_mnemonics` and `opivi_zimm5_mnemonics` (the latter for the
+UNSIGNED immediate), and the 2 OPMVX ones to `opmvx_mnemonics` (all
+three already dispatch to `opivx_form`/`opivi_form` unchanged). On the
+generator side, all 6 reuse `opivx_entries`/`opivi_entries` unchanged
+(the two `.vi` entries via `opivi_entries`'s existing `imm_name`/
+`imm_value` override, reusing the `zimm5`/`"31"` convention every prior
+UNSIGNED `.vi` family used). `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump`
+for every positive combination and every negative control above
+(including both immediate-range and missing-shape rejections),
+cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte
+identity; `make tools-test` (`isa-norm-riscv` 1091->1115 checks,
+`isa-gen-difficult` 3086->3140 checks); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 610 to 622 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 610 pre-existing
+cases are byte-for-byte unchanged and exactly the 12 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(12 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting`/`isa-family-admission`/`isa-norm-jsonl` totals);
+`make tools-boundary`; `cd asm && opam exec -- dune build @runtest`;
+`make asm-fmt-check` (caught one reflowed line in the `all` list, fixed
+via `make asm-fmt`, re-verified clean); `make asm-isa-difficult-check`
+and `make asm-test`, both re-run with the RV32 cross-toolchain directory
+stripped from `PATH`, confirming the tier-1 gate does not depend on it;
+two full `make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 24 new `isa-norm-riscv` checks (reusing
+`test_opivx_form`/[test_opivi_form], 4 per mnemonic) against real,
+verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed via direct JSON diff). 54 new `isa-gen-difficult` checks: 6
+new `entries has 2 entries` cardinality checks, roughly 1-2
+`check_opivx`/`check_opivi_uimm` shape/rule assertions per entry across
+12 entries, plus `test_no_entry_uses_x0`'s automatic coverage of the 12
+new entries. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (370->376/699->693, 412->418/
+712->706 - straight from blocked to promoted-support on both profiles
+for all 6 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+390->396/442->448. `isa-norm-jsonl`'s real-form round-trip count moved
+850->862 (+12, 6 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The slide family's siblings `vcompress.vm`,
+`viota.m`, and `vid.v` were surveyed but deliberately not admitted here:
+`vcompress.vm` has no `vm` variable field at all (fixed like the
+mask-register-logical family, but with an `[rd, rs2, rs1]`-shaped
+non-mask operand set, so it would need its own dedicated funct6 table
+the way `mm_funct6` is, not a reuse of it), `viota.m` is a genuinely new
+two-vector-register-plus-mask shape distinct from `vext_form`'s (needs
+its own confirmation of masked/unmasked behavior), and `vid.v` is a
+genuinely new single-vector-register-plus-mask shape with no source
+register at all - the first OP-V family this project has surveyed with
+no `vs2`/`vs1`/`rs1` operand whatsoever. The remaining vector scope is
+still large: roughly 211 further `rv_v` records (the widening
+multiply-accumulate `vwmacc*` reordered shape flagged several slices
+back, `vcompress`/`viota`/`vid`'s own new shapes above, saturating/
+averaging, fixed-point, floating-point vector ops, add-with-carry/
+subtract-with-borrow using `v0` as a real carry input rather than the
+plain mask, and loads/stores needing segment/strided/indexed addressing
+this project's encoder does not have yet) and every `rv_zv*`
+vector-crypto extension; GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 6 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including both
+immediate-range and missing-shape rejection controls, via funct6-table
+extensions of the *existing* OPIVX/OPIVI/OPMVX lowering paths (reused
+unchanged); a persisted, offline-replayed differential corpus entry per
+mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V multiply-accumulate family - `vmacc`/`vnmsac`/`vmadd`/`vnmsub` and the widening `vwmaccu`/`vwmacc`/`vwmaccsu`/`vwmaccus` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - picked up the multiply-accumulate
+family flagged as a deliberately deferred candidate across every prior
+slice back through the widening-multiply writeup: its reordered GAS text
+operand order (`vd, vs1-or-rs1, vs2` instead of every other OPMVV/OPMVX
+mnemonic's `vd, vs2, vs1-or-rs1`) needed a genuinely new normalization/
+encoder shape rather than reuse of `opivv_form`/`opivx_form`, so it had
+been left unclaimed in favor of cheaper same-shape families each time.
+
+Scope manifest and obligations: 15 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships` (no `Req_any` needed): `vmacc.vv`/
+`vmacc.vx`, `vnmsac.vv`/`vnmsac.vx`, `vmadd.vv`/`vmadd.vx`, `vnmsub.vv`/
+`vnmsub.vx` (OPMVV/OPMVX, funct6 0x2d/0x2f/0x29/0x2b) plus the widening
+`vwmaccu.vv`/`vwmaccu.vx`, `vwmacc.vv`/`vwmacc.vx`, `vwmaccsu.vv`/
+`vwmaccsu.vx` (funct6 0x3c/0x3d/0x3f) and `vwmaccus.vx` alone (funct6
+0x3e, no `.vv` sibling - real GNU as rejects `vwmaccus.vv` as
+"unrecognized opcode").
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical
+on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`), and - critically, since
+acceptance alone doesn't prove operand order - by decoding the assembled
+word's own vs1/vs2 field bits: `vmacc.vv v1,v2,v3` -> `b63120d7`, decoding
+to vs1=`v2` (the second text operand) and vs2=`v3` (the third), the
+reverse of every other OPMVV/OPMVX mnemonic's field assignment for that
+text position. Full byte table: `vmacc.vv/.vx` -> `b63120d7`/`b63560d7`,
+`vnmsac.vv/.vx` -> `be3120d7`/`be3560d7`, `vmadd.vv/.vx` ->
+`a63120d7`/`a63560d7`, `vnmsub.vv/.vx` -> `ae3120d7`/`ae3560d7`,
+`vwmaccu.vv/.vx` -> `f23120d7`/`f23560d7`, `vwmacc.vv/.vx` ->
+`f63120d7`/`f63560d7`, `vwmaccsu.vv/.vx` -> `fe3120d7`/`fe3560d7`,
+`vwmaccus.vx` -> `fa3560d7` (all vm=1, unmasked); masked forms also
+confirmed, e.g. `vmacc.vv v1,v2,v3,v0.t` -> `b43120d7`; `vwmaccus.vv`
+rejected as "unrecognized opcode", confirming no `.vv` sibling.
+
+Implementation: normalization gained two new form functions,
+`opmacc_vv_form`/`opmacc_vx_form`, structurally identical to
+`opivv_form`/`opivx_form` but with `syntax.operands` swapped to
+`[rd; rs1; rs2]`, plus `opmacc_vv_mnemonics`/`opmacc_vx_mnemonics`
+dispatch lists - deliberately not reusing `opivv_form`/`opivx_form` since
+their fixed `[rd; rs2; rs1]` text order would render the wrong GAS
+spelling. The encoder gained two new funct6 tables, `opmacc_funct6`/
+`opmaccx_funct6`, and four new lowering arms (masked/unmasked x
+OPMVV/OPMVX) matching the reordered `[vd_op; vs1_op; vs2_op]`/
+`[vd_op; rs1_op; vs2_op]` operand-list shape rather than
+`opmvv_funct6`/`opmvx_funct6`'s `[vd_op; vs2_op; vs1_op]` - kept separate
+from those tables specifically because of the shape difference, not
+folded in behind a flag. 15 new `Opcode.t` variants/`name`/`all` entries.
+On the generator side, two new entry builders `opmacc_vv_entry`/
+`opmacc_vx_entry` (operand alist `[("rd","v1"); ("rs1","v2"-or-"a0");
+("rs2","v3")]`, matching the form's own operand-name-to-field mapping so
+the shared syntax-order renderer produces the right text automatically).
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump`
+for every positive combination and every negative control above
+(including the operand-order field-decode check and the `vwmaccus.vv`
+missing-shape rejection), cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv` 1115->1175
+checks, `isa-gen-difficult` 3140->3289 checks, both previously green,
+including new `test_opmacc_vv_form`/`test_opmacc_vx_form` and
+`check_opmacc_vv`/`check_opmacc_vx` helpers mirroring the existing
+`test_opivv_form`/`test_opivx_form`/`check_opivv`/`check_opivx` ones);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/
+cases.jsonl` from 622 to 652 entries; confirmed via a Python diff script,
+ignoring only the git-rev-embedded `gas.tool_label`/`ours.tool_label`
+fields, that all 622 pre-existing cases are byte-for-byte unchanged and
+exactly the 30 expected new `case_id`s were added, every one
+`verdict = pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`);
+`make tools-integration` (30 new real-record grounding checks, all pass
+after updating the pinned `isa-norm-accounting` (396/448 -> 411/463),
+`isa-family-admission` (promoted-support 376/418 -> 391/433, blocked
+693/706 -> 678/691), and `isa-norm-jsonl` (862 -> 892) totals); `make
+tools-boundary`; `cd asm && opam exec -- dune build @runtest`;
+`make asm-fmt` (three files needed reflowing, re-verified clean via
+`make asm-fmt-check`); `make asm-isa-difficult-check` and `make asm-test`,
+both re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: 60 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing the two new `test_opmacc_vv_form`/`test_opmacc_vx_form`
+helpers against real, verbatim-extracted riscv64.jsonl records, identical
+in riscv32.jsonl, confirmed via direct JSON diff). 149 new
+`isa-gen-difficult` checks: 15 new `entries has 2 entries` cardinality
+checks, 2-3 `check_opmacc_vv`/`check_opmacc_vx` assertions per entry
+across 30 entries, plus `test_no_entry_uses_x0`'s automatic coverage of
+the 30 new entries. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(376->391/693->678, 418->433/706->691 - straight from blocked to
+promoted-support on both profiles for all 15 mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 396->411/448->463.
+`isa-norm-jsonl`'s real-form round-trip count moved 862->892 (+30, 15
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full
+`make asm-ci` runs (with the RV32 cross-toolchain directory stripped from
+`PATH` for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 196 further `rv_v` records (permutes needing genuinely new
+shapes - `vcompress.vm`, `viota.m`, `vid.v`, each surveyed and
+deliberately not admitted in the slide-family writeup above - saturating/
+averaging fixed-point narrowing variants, floating-point vector ops,
+add-with-carry/subtract-with-borrow using `v0` as a real carry input
+rather than the plain mask, and loads/stores needing segment/strided/
+indexed addressing this project's encoder does not have yet) and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item.
+
+Acceptance gate satisfied: all 15 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+operand-order field-decode confirmation and the `vwmaccus.vv`
+missing-shape rejection control, via two new funct6 tables and four new
+lowering arms modeling the family's genuinely reordered operand shape; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V permute family - `vid.v`, `viota.m`, `vcompress.vm` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - closed the three permute
+mnemonics explicitly surveyed-but-deferred in the slide-family writeup
+(each needing a genuinely new operand shape), rather than opening a fresh
+survey, since all three turned out cheaper than expected once actually
+measured: `viota.m` reuses `vext_form`'s existing shape verbatim (only a
+new funct6/constant pair), and `vcompress.vm` reuses `mm_form`'s existing
+shape verbatim (only a new funct6 entry); only `vid.v` needed genuinely
+new code, and even that is a small, single-mnemonic form.
+
+Scope manifest and obligations: 3 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vid.v` (funct6 0x14, OPMVV, no real
+source operand at all - both the vs1-position and vs2-position fields are
+fixed constants 0x11/0x0), `viota.m` (funct6 0x14 - same funct6 as
+`vid.v`, disambiguated by the vs2-position field being real rather than
+fixed 0x0 - vs1-position fixed constant 0x10), `vcompress.vm` (funct6
+0x17, vm architecturally fixed at 1, no masked sibling).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical
+on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`), cross-checked by
+decoding each assembled word's own field bits (not just accepted/rejected
+status) to confirm which fields are real operands versus fixed constants:
+`vid.v v1` -> `5208a0d7` (vs1-field=0x11, vs2-field=0x0, vm=1), `vid.v
+v1,v0.t` -> `5008a0d7` (vm=0); `viota.m v1,v2` -> `522820d7` (vs1-field
+constant=0x10, vs2-field=`v2`=0x2, vm=1), `viota.m v1,v2,v0.t` ->
+`502820d7` (vm=0); `vcompress.vm v1,v2,v3` -> `5e21a0d7` (vs2=`v2`,
+vs1=`v3`, vm=1 always); `vcompress.vm v1,v2,v3,v0.t` rejected as "illegal
+operands", confirming no masked sibling.
+
+Implementation: `viota.m` reuses `Isa_norm_riscv.vext_form`'s existing
+"rd, vs2" normalization shape and the encoder's existing
+`opmvv_unary_const` mechanism unchanged in form, but that table's own
+type had to be generalized from a bare `int` (the vs1-position constant)
+to an `int * int` pair (constant, funct6), since `viota.m`'s funct6
+(0x14) differs from the pre-existing `vsext`/`vzext` entries' shared
+0x12 - the table previously hardcoded funct6=0x12 into the two lowering
+arms' `funct7` literals (0x25/0x24), now computed as
+`(funct6 lsl 1) lor 1`/`(funct6 lsl 1)` generically; `vsext`/`vzext`'s six
+existing entries were updated to the new `(constant, 0x12)` shape,
+confirmed behavior-preserving. `vcompress.vm` reuses
+`Isa_norm_riscv.mm_form`'s existing "rd, rs2, rs1" shape (fixed vm=1, no
+masked arm) and the encoder's existing `mm_funct6`/dedicated lowering arm
+unchanged, adding only a `Vcompress_vm -> Some 0x17` table entry. `vid.v`
+needed a genuinely new normalization form, `vid_form` (renders as bare
+"rd", the project's first single-operand OP-V mnemonic), and two new
+dedicated encoder lowering arms (`Opcode.Vid_v, [ vd_op ]` /
+`[ vd_op; mask ]`) hardcoding funct6=0x14 and both non-destination fields
+as constants (0x11, 0x0) - no funct6 table needed since it is the only
+mnemonic in this exact shape. 3 new `Opcode.t` variants/`name`/`all`
+entries. `Isa_family_admission`'s `promoted_case` allow-list was updated
+in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the field-bit-decode confirmation for `vid.v`/`viota.m`'s fixed
+constants and the `vcompress.vm` masked-form rejection), cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 1175->1187 checks, `isa-gen-difficult`
+3289->3301 checks, both green including new `test_vid_form`/`check_vid`
+helpers); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 652 to 658 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 652 pre-existing
+cases are byte-for-byte unchanged and exactly the 6 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(6 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (411/463 -> 414/466), `isa-family-admission`
+(promoted-support 391/433 -> 394/436, blocked 678/691 -> 675/688), and
+`isa-norm-jsonl` (892 -> 898) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt` (two files needed
+reflowing, re-verified clean via `make asm-fmt-check`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 12 new `isa-norm-riscv` checks (4 for the new
+`test_vid_form` helper on `vid.v`, 4 reusing `test_vext_form` on
+`viota.m`, 4 reusing `test_opivv_form` on `vcompress.vm`) against real,
+verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed via direct JSON diff). 12 new `isa-gen-difficult` checks: 3 new
+`entries has 2 entries` cardinality checks, a new `check_vid` assertion
+per `vid.v` entry plus reused `check_vext`/`check_opivv` assertions for
+the other two, plus `test_no_entry_uses_x0`'s automatic coverage of the 6
+new entries. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (391->394/678->675,
+433->436/691->688 - straight from blocked to promoted-support on both
+profiles for all 3 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals
+moved 411->414/463->466. `isa-norm-jsonl`'s real-form round-trip count
+moved 892->898 (+6, 3 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 193 further `rv_v` records (saturating/averaging fixed-point
+narrowing variants, floating-point vector ops, add-with-carry/
+subtract-with-borrow using `v0` as a real carry input rather than the
+plain mask, and loads/stores needing segment/strided/indexed addressing
+this project's encoder does not have yet) and every `rv_zv*` vector-crypto
+extension; GEN-06 still has no single named next item - every mnemonic
+named as a deferred candidate across the entire OP-V arithmetic/permute
+survey to date is now closed.
+
+Acceptance gate satisfied: all 3 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+fixed-constant field-decode confirmation and the `vcompress.vm`
+missing-masked-form rejection control, via two shape reuses
+(`vext_form`/`opmvv_unary_const` generalized to carry funct6,
+`mm_form`/`mm_funct6` extended with one entry) plus one genuinely new
+single-operand shape (`vid_form`); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes
+- the same measured-Pass discipline every other GEN-05 promotion used,
+with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V mask-scalar family - `vcpop.m`, `vfirst.m`, `vmsbf.m`, `vmsif.m`, `vmsof.m` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - surveyed the full remaining
+193-record unclaimed `rv_v` set (via `compcert_tools isa-inventory
+family-admission` plus a direct riscv64.jsonl mnemonic diff) after the
+permute slice closed every previously-named deferred candidate, and
+picked this five-mnemonic mask-scalar group as the next cheapest: three
+(`vmsbf.m`/`vmsif.m`/`vmsof.m`) turned out to reuse `vext_form`'s exact
+shape verbatim (only new funct6/constant table entries), and the other
+two (`vcpop.m`/`vfirst.m`) needed only a GPR-destination variant of that
+same shape, not a new shape family.
+
+Scope manifest and obligations: 5 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vmsbf.m`/`vmsif.m`/`vmsof.m`
+(mask-set-before/including/only-first, funct6 0x14 - the same funct6 as
+`vid.v`/`viota.m`, disambiguated purely by each mnemonic's own distinct
+fixed rs1-position constant 0x1/0x3/0x2) and `vcpop.m`/`vfirst.m`
+(mask-population-count/first-set-bit-index, funct6 0x10, riscv-opcodes'
+own destination field literally named "rd" rather than "vd", confirming
+a GPR result).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical
+on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`), cross-checked by
+decoding each assembled word's own field bits: `vmsbf.m v1,v2` ->
+`5220a0d7`, `vmsif.m v1,v2` -> `5221a0d7`, `vmsof.m v1,v2` -> `522120d7`
+(all vs1-field constants 0x1/0x3/0x2, vs2-field real=`v2`, vm=1;
+masked, e.g. `vmsbf.m v1,v2,v0.t` -> `5020a0d7`); `vcpop.m a0,v2` ->
+`42282557` (rd=`a0`=10, vs1-field constant=0x10, vs2-field real=`v2`,
+vm=1), `vfirst.m a0,v2` -> `4228a557` (vs1-field constant=0x11); a third
+operand is "illegal operands" on real GNU as for every one of the five.
+
+Implementation: `vmsbf.m`/`vmsif.m`/`vmsof.m` dispatch straight to the
+*existing* `Isa_norm_riscv.vext_form` (no normalization change at all)
+and add three entries to the encoder's `opmvv_unary_const` table
+(generalized to carry funct6 in the previous slice, so this needed only
+new `(constant, funct6)` pairs, no lowering-arm change). `vcpop.m`/
+`vfirst.m` needed one new normalization function, `v_to_x_unary_form`
+(literally `vext_form` with `rd`'s `op_kind` changed from `vreg ()` to
+`gpr ()`), and one new encoder table + two new dedicated lowering arms,
+`opmvv_gpr_unary_const`, mirroring `opmvv_unary_const`'s two arms exactly
+but matching `xreg` on the destination instead of `vreg` - kept as a
+separate table/arm pair rather than widening `opmvv_unary_const` itself,
+since that table's existing consumers assume a vector-register
+destination. 5 new `Opcode.t` variants/`name`/`all` entries.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the field-bit-decode confirmation distinguishing real operands from
+fixed constants, and the third-operand rejection for all 5); cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` 1187->1207 checks, `isa-gen-difficult`
+3301->3321 checks, both green including new `test_v_to_x_unary_form`/
+`check_v_to_x_unary` helpers mirroring `test_vext_form`/`check_vext`);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/
+cases.jsonl` from 658 to 668 entries; confirmed via a Python diff script,
+ignoring only the git-rev-embedded `gas.tool_label`/`ours.tool_label`
+fields, that all 658 pre-existing cases are byte-for-byte unchanged and
+exactly the 10 expected new `case_id`s were added, every one `verdict =
+pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+tools-integration` (10 new real-record grounding checks, all pass after
+updating the pinned `isa-norm-accounting` (414/466 -> 419/471),
+`isa-family-admission` (promoted-support 394/436 -> 399/441, blocked
+675/688 -> 670/683), and `isa-norm-jsonl` (898 -> 908) totals); `make
+tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt-check` (clean); `make asm-isa-difficult-check` and `make
+asm-test`, both re-run with the RV32 cross-toolchain directory stripped
+from `PATH`, confirming the tier-1 gate does not depend on it; two full
+`make asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 20 new `isa-norm-riscv` checks (4 per
+mnemonic, 3 reusing `test_vext_form` unchanged and 2 using the new
+`test_v_to_x_unary_form`) against real, verbatim-extracted riscv64.jsonl
+records (identical in riscv32.jsonl, confirmed via direct JSON diff). 20
+new `isa-gen-difficult` checks: 5 new `entries has 2 entries` cardinality
+checks, 1-2 `check_vext`/`check_v_to_x_unary` assertions per entry across
+10 entries, plus `test_no_entry_uses_x0`'s automatic coverage of the 10
+new entries. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (394->399/675->670,
+436->441/688->683 - straight from blocked to promoted-support on both
+profiles for all 5 mnemonics). `isa-norm-accounting`'s RV32/RV64 totals
+moved 414->419/466->471. `isa-norm-jsonl`'s real-form round-trip count
+moved 898->908 (+10, 5 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 183 further `rv_v` records - the add-with-carry/subtract-with-
+borrow family (`vadc`/`vmadc`/`vsbc`/`vmsbc`, ~15 mnemonics, using `v0`
+as a real carry input rather than a plain selectable mask - a genuinely
+different masking discipline not yet investigated against real GNU as),
+the `vmv`/`vmerge` scalar-move and whole-register-move family (`vmv.s.x`/
+`vmv.x.s`/`vmv.v.i`/`vmv.v.v`/`vmv.v.x`/`vmv1r.v`/`vmv2r.v`/`vmv4r.v`/
+`vmv8r.v`, `vmerge.vim`/`vvm`/`vxm`), the saturating fixed-point multiply
+pair `vsmul.vv`/`vsmul.vx`, the entire floating-point vector family
+(`vf*`, roughly 90 mnemonics - needs an FPR-as-vector-operand shape not
+yet built), and every vector load/store mnemonic (`vle*`/`vse*`/`vls*`/
+`vlse*`/`vluxei*`/`vsoxei*`/whole-register `vl*re*`/`vs*r.v`, needing
+segment/strided/indexed addressing this project's encoder does not have
+yet) - and every `rv_zv*` vector-crypto extension; GEN-06 still has no
+single named next item.
+
+Acceptance gate satisfied: all 5 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+fixed-constant field-decode confirmation and the third-operand rejection
+control, via one table extension (`opmvv_unary_const`) plus one new
+table/lowering-arm pair mirroring it exactly for a GPR destination
+(`opmvv_gpr_unary_const`); a persisted, offline-replayed differential
+corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated
+and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V add-with-carry/subtract-with-borrow family - `vadc`, `vmadc`, `vsbc`, `vmsbc` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - picked up the family flagged
+after the mask-scalar slice as needing "a genuinely different masking
+discipline not yet investigated against real GNU as", and confirmed that
+characterization: unlike every other admitted OP-V family, `vm` is never
+a toggleable `, v0.t` suffix here.
+
+Scope manifest and obligations: 15 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vadc.vvm`/`.vxm`/`.vim` (add-with-
+carry, funct6 0x10, no bare form), `vmadc.vvm`/`.vxm`/`.vim`/`.vv`/`.vx`/
+`.vi` (compare-with-carry, funct6 0x11, both "m" and bare forms exist),
+`vsbc.vvm`/`.vxm` (subtract-with-borrow, funct6 0x12, no bare form, no
+[.vi] sibling at all), `vmsbc.vvm`/`.vxm`/`.vv`/`.vx` (compare-with-
+borrow, funct6 0x13, both forms but no [.vi] sibling).
+
+Real, measured findings: riscv-opcodes' own mask for every one of these
+15 records covers bit 25 (`0xfe00707f`, not the usual `0xfc00707f`
+every other OPIVV/OPIVX/OPIVI/OPMVV/OPMVX record uses) - `vm` is baked
+into each opcode's own fixed encoding value rather than left as a
+variable field, confirmed against real GNU as (`riscv64-linux-gnu-as`
+2.44 `-march=rv64gv`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32gv`) by decoding the assembled word's own vm bit for both
+forms of the same funct6: `vadc.vvm v1,v2,v3,v0` -> `402180d7` (vm=0,
+mandatory literal `v0` 4th operand - not the `v0.t` mask-toggle sigil,
+and not any other vector register, both confirmed rejected as "illegal
+operands"), `vmadc.vv v1,v2,v3` -> `462180d7` (vm=1, exactly 3 operands,
+a 4th `v0` operand rejected as "illegal operands" too - no masked
+sibling exists for the bare form either). Full byte table: `vadc.vxm
+v1,v2,a0,v0` -> `402540d7`, `vadc.vim v1,v2,5,v0` -> `4022b0d7`,
+`vmadc.vvm v1,v2,v3,v0` -> `442180d7`, `vmadc.vx v1,v2,a0` -> `462540d7`,
+`vmadc.vi v1,v2,5` -> `4622b0d7`, `vsbc.vvm v1,v2,v3,v0` -> `482180d7`,
+`vsbc.vxm v1,v2,a0,v0` -> `482540d7`, `vmsbc.vvm v1,v2,v3,v0` ->
+`4c2180d7`, `vmsbc.vv v1,v2,v3` -> `4e2180d7`, `vmsbc.vx v1,v2,a0` ->
+`4e2540d7`.
+
+Implementation: six new normalization form functions - `carry_m_vv_form`/
+`carry_m_vx_form`/`carry_m_vi_form` (4 real operands, the carry-in
+modeled as a genuine `vcarry` vector-register operand rather than left to
+the encoder, since GAS's own literal `v0` genuinely appears in the text
+syntax) and `carry_vv_form`/`carry_vx_form`/`carry_vi_form` (3 operands,
+`vm` fixed at 1, no masked sibling - the same "fixed vm, no mask"
+precedent `mm_form` established, applied to OPIVV/OPIVX/OPIVI's shape
+instead of OPMVV's) - deliberately not reusing `opivv_form`/`opivx_form`/
+`opivi_form`, which would both omit the mandatory carry-in and falsely
+claim an optional `, v0.t` mask. Encoder side: a new `is_v0` predicate
+(distinct from the existing `is_v0t` mask-toggle-sigil check) matching a
+literal `Reg.V 0`, six new funct6 tables (`carry_m_vv_funct6`/
+`carry_m_vx_funct6`/`carry_m_vi_funct6` for the "m" forms,
+`carry_vv_funct6`/`carry_vx_funct6`/`carry_vi_funct6` for the bare ones -
+`vm` is a per-opcode constant baked directly into each lowering arm's
+`funct7` computation, not derived from operand-list length), and six new
+dedicated lowering arms mirroring OPIVV/OPIVX/OPIVI's existing
+funct3=0/4/3 composition. 15 new `Opcode.t` variants/`name`/`all`
+entries. `Isa_family_admission`'s `promoted_case` allow-list was updated
+in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the vm-bit field-decode confirmation across both forms of each funct6,
+the mandatory-v0/v0.t/other-register rejections, and the bare-form
+4th-operand rejection); cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv`
+1207->1237 checks, `isa-gen-difficult` 3321->3351 checks, both green
+including new `test_carry_m_vv_form`/`test_carry_m_vx_form`/
+`test_carry_m_vi_form` and `check_carry_m_vv`/`check_carry_m_vx`/
+`check_carry_m_vi` helpers, plus the bare forms reusing
+`test_opivv_form`/`test_opivx_form`/`test_opivi_form`/`check_opivv`/
+`check_opivx`/`check_opivi` unchanged); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 668 to 698 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 668 pre-existing
+cases are byte-for-byte unchanged and exactly the 30 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(30 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (419/471 -> 434/486), `isa-family-admission`
+(promoted-support 399/441 -> 414/456, blocked 670/683 -> 655/668), and
+`isa-norm-jsonl` (908 -> 938) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt` (four files needed
+reflowing, re-verified clean via `make asm-fmt-check`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 55 new `isa-norm-riscv` checks (4 per "m"
+mnemonic via the three new helpers, 4 per bare mnemonic reusing the
+existing OPIVV/OPIVX/OPIVI helpers unchanged) against real,
+verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed via direct JSON diff). 65 new `isa-gen-difficult` checks: 15
+new `entries has 2 entries` cardinality checks, 1-2 domain assertions per
+entry across 30 entries via the three new `check_carry_m_*` helpers plus
+reused `check_opivv`/`check_opivx`/`check_opivi`, plus
+`test_no_entry_uses_x0`'s automatic coverage of the 30 new entries.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (399->414/670->655, 441->456/683->668 -
+straight from blocked to promoted-support on both profiles for all 15
+mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+419->434/471->486. `isa-norm-jsonl`'s real-form round-trip count moved
+908->938 (+30, 15 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 168 further `rv_v` records - the `vmv`/`vmerge` scalar-move and
+whole-register-move family (`vmv.s.x`/`vmv.x.s`/`vmv.v.i`/`vmv.v.v`/
+`vmv.v.x`/`vmv1r.v`/`vmv2r.v`/`vmv4r.v`/`vmv8r.v`, `vmerge.vim`/`vvm`/
+`vxm` - `vmerge` uses `v0` as a real, mandatory selector rather than an
+optional mask, a shape likely close to this slice's own `carry_m_*`
+forms, not yet confirmed against real GNU as), the saturating
+fixed-point multiply pair `vsmul.vv`/`vsmul.vx`, the entire
+floating-point vector family (`vf*`, roughly 90 mnemonics - needs an
+FPR-as-vector-operand shape not yet built), and every vector load/store
+mnemonic (needing segment/strided/indexed addressing this project's
+encoder does not have yet) - and every `rv_zv*` vector-crypto extension;
+GEN-06 still has no single named next item.
+
+Acceptance gate satisfied: all 15 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+vm-bit field-decode confirmation and every mandatory-operand/no-mask
+rejection control, via six new dedicated normalization forms and six new
+funct6-table/lowering-arm pairs modeling the family's genuinely
+non-toggleable `vm` discipline; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes
+- the same measured-Pass discipline every other GEN-05 promotion used,
+with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vmerge` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - confirmed the prediction from the
+carry-family writeup that `vmerge` shares its exact mandatory-`v0` shape,
+making this the cheapest possible next slice: zero new shape code, only
+three new funct6-table entries reusing the *existing*
+`carry_m_vv_form`/`carry_m_vx_form`/`carry_m_vi_form` normalization
+functions and `carry_m_vv_funct6`/`carry_m_vx_funct6`/`carry_m_vi_funct6`
+lowering arms unchanged.
+
+Scope manifest and obligations: 3 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vmerge.vvm`/`.vxm`/`.vim` (funct6
+0x17, no bare non-"m" sibling at all).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical on
+`riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`): `vmerge.vvm v1,v2,v3,v0`
+-> `5c2180d7`, `vmerge.vxm v1,v2,a0,v0` -> `5c2540d7`, `vmerge.vim
+v1,v2,5,v0` -> `5c22b0d7`; `vmerge.vvm v1,v2,v3` (no carry-in operand) is
+"illegal operands" on real GNU as, matching the rest of this family's own
+precedent.
+
+Implementation: three new `Opcode.t` variants/`name`/`all` entries, and
+one new entry each in `carry_m_vv_funct6`/`carry_m_vx_funct6`/
+`carry_m_vi_funct6` (`Vmerge_vvm`/`Vmerge_vxm`/`Vmerge_vim` -> `0x17`) -
+no new lowering arm, normalization form, or generator entry builder;
+`vmerge.vvm`/`.vxm`/`.vim` dispatch straight to the pre-existing
+`carry_m_vv_form`/`carry_m_vx_form`/`carry_m_vi_form` and reuse
+`carry_m_vv_entries`/`carry_m_vx_entries`/`carry_m_vi_entries` verbatim
+for the generator side too. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and the no-carry-in rejection control above,
+cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte identity;
+`make tools-test` (`isa-norm-riscv` 1237->1249 checks, `isa-gen-difficult`
+3351->3360 checks, both green reusing the existing `test_carry_m_vv_form`/
+`test_carry_m_vx_form`/`test_carry_m_vi_form` and
+`check_carry_m_vv`/`check_carry_m_vx`/`check_carry_m_vi` helpers
+unchanged); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 698 to 704 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 698 pre-existing
+cases are byte-for-byte unchanged and exactly the 6 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(6 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (434/486 -> 437/489), `isa-family-admission`
+(promoted-support 414/456 -> 417/459, blocked 655/668 -> 652/665), and
+`isa-norm-jsonl` (938 -> 944) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt` (one file needed
+reflowing, re-verified clean via `make asm-fmt-check`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 12 new `isa-norm-riscv` checks (4 per
+mnemonic, all reusing the three existing `test_carry_m_*` helpers
+unchanged) against real, verbatim-extracted riscv64.jsonl records
+(identical in riscv32.jsonl, confirmed via direct JSON diff). 9 new
+`isa-gen-difficult` checks: 3 new `entries has 2 entries` cardinality
+checks, plus reused `check_carry_m_vv`/`check_carry_m_vx`/
+`check_carry_m_vi` assertions and `test_no_entry_uses_x0`'s automatic
+coverage of the 6 new entries. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(414->417/655->652, 456->459/668->665 - straight from blocked to
+promoted-support on both profiles for all 3 mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 434->437/486->489.
+`isa-norm-jsonl`'s real-form round-trip count moved 938->944 (+6, 3
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full
+`make asm-ci` runs (with the RV32 cross-toolchain directory stripped
+from `PATH` for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. The remaining vector scope is still large:
+roughly 165 further `rv_v` records - the `vmv` scalar-move and
+whole-register-move family (`vmv.s.x`/`vmv.x.s`/`vmv.v.i`/`vmv.v.v`/
+`vmv.v.x`/`vmv1r.v`/`vmv2r.v`/`vmv4r.v`/`vmv8r.v` - genuinely new shapes,
+not yet investigated against real GNU as), the saturating fixed-point
+multiply pair `vsmul.vv`/`vsmul.vx`, the entire floating-point vector
+family (`vf*`, roughly 90 mnemonics - needs an FPR-as-vector-operand
+shape not yet built), and every vector load/store mnemonic (needing
+segment/strided/indexed addressing this project's encoder does not have
+yet) - and every `rv_zv*` vector-crypto extension; GEN-06 still has no
+single named next item.
+
+Acceptance gate satisfied: all 3 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+no-carry-in rejection control, via three funct6-table extensions of the
+*existing* mandatory-`v0` lowering arms (reused unchanged); a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make
+asm-ci` passes - the same measured-Pass discipline every other GEN-05
+promotion used, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vmv` scalar-move and whole-register-move family (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - closed the `vmv` family flagged
+as the next named candidate after `vmerge`, the last item explicitly
+carried forward as "genuinely new shapes, not yet investigated". Found
+three distinct new shapes across the 9 mnemonics, none reusable from
+prior slices, but each individually small.
+
+Scope manifest and obligations: 9 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vmv.x.s` (GPR-destination, funct6
+0x10, OPMVV funct3=2, fixed rs1-position constant 0), `vmv.s.x`
+(mirror-image vector-destination/GPR-source, funct6 0x10, OPMVX
+funct3=6, fixed vs2-position constant 0), `vmv.v.v`/`.v.x`/`.v.i`
+(unconditional move, funct6 0x17, OPIVV/OPIVX/OPIVI funct3=0/4/3, no
+[vs2] operand at all - its field position is a fixed constant 0), and
+`vmv1r.v`/`2r.v`/`4r.v`/`8r.v` (whole-register-group move, funct6 0x27,
+OPIVI-shaped funct3=3, a fixed per-mnemonic constant 0/1/3/7 - one less
+than the register-group count - in the position every other OPIVI
+mnemonic uses for its immediate).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical on
+`riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`), including decoding each
+assembled word's own field bits to distinguish real operands from fixed
+constants: `vmv.x.s a0,v2` -> `42202557` (rd=a0 real, vs2=v2 real,
+rs1-position=0 constant), `vmv.s.x v1,a0` -> `420560d7` (vd=v1 real,
+rs1=a0 real, vs2-position=0 constant), `vmv.v.v v1,v2` -> `5e0100d7`
+(vd=v1, rs1(vs1-position)=v2, vs2-position=0 constant), `vmv.v.x
+v1,a0` -> `5e0540d7`, `vmv.v.i v1,5` -> `5e02b0d7`, `vmv1r.v v1,v2` ->
+`9e2030d7` (field15 constant=0), `vmv2r.v v2,v4` -> `9e40b157`
+(constant=1), `vmv4r.v v4,v8` -> `9e81b257` (constant=3), `vmv8r.v
+v8,v16` -> `9f03b457` (constant=7). None of the 9 has a masked sibling
+(every `, v0.t` spelling tested is "illegal operands" on real GNU as).
+Also confirmed real GNU as does not enforce the whole-register-group's
+own register-number alignment requirement at assembly time (`vmv2r.v
+v1,v2` assembles despite `v1` not being 2-aligned), so this project's
+own encoder does not either.
+
+Implementation: five new normalization forms - `mv_x_s_form`/
+`mv_s_x_form` (GPR-destination/vector-destination two-operand shapes,
+deliberately not reusing `v_to_x_unary_form`/`opmvv_gpr_unary_const`'s
+own shape, which has a real masked sibling for `vcpop.m`/`vfirst.m` and
+would falsely claim one here), `vmv_v_form` (parameterized over
+`` `Vreg``/`` `Gpr``/`` `Imm`` for the three `vmv.v.*` siblings - the
+first OPIVV/OPIVX/OPIVI-shaped form with no `vs2` operand at all), and
+`whole_reg_move_form` (mnemonic-parameterized, reused by all four
+register-group-move mnemonics - `vext_form`'s exact shape under a
+different funct3, so not reusable directly). Encoder side: two new
+single-entry tables (`mv_x_s_const`/`x_to_v_unary_const`), three direct
+per-opcode match arms for `vmv.v.v`/`.v.x`/`.v.i` (each fixing `rs2 = 0`
+since there is no real second vector operand), and one new
+`whole_reg_move_const` table plus its own lowering arm (funct3 = 3,
+funct7 fixed at `0x4f`). 9 new `Opcode.t` variants/`name`/`all` entries.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+every positive combination and every negative control above (including
+the field-bit-decode confirmation for every fixed constant, every
+masked-form rejection, and the whole-register-group alignment
+non-enforcement check); cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv`
+1249->1285 checks, `isa-gen-difficult` 3360->3387 checks, both green
+including new `test_mv_x_s_form`/`test_mv_s_x_form`/`test_vmv_v_v_form`/
+`test_vmv_v_x_form`/`test_vmv_v_i_form`/`test_whole_reg_move_form` and
+`check_vmv_x_s`/`check_vmv_s_x`/`check_vmv_v_vx`/`check_vmv_v_i`/
+`check_whole_reg_move` helpers); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 704 to 722 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 704 pre-existing
+cases are byte-for-byte unchanged and exactly the 18 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(18 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (437/489 -> 446/498), `isa-family-admission`
+(promoted-support 417/459 -> 426/468, blocked 652/665 -> 643/656), and
+`isa-norm-jsonl` (944 -> 962) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt` (three files needed
+reflowing, re-verified clean via `make asm-fmt-check`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1
+gate does not depend on it; two full `make asm-ci` runs (each
+backgrounded, both exit 0).
+
+Results and artifact links: 36 new `isa-norm-riscv` checks (4 per
+mnemonic across the 6 new form-testing helpers) against real,
+verbatim-extracted riscv64.jsonl records (identical in riscv32.jsonl,
+confirmed via direct JSON diff). 27 new `isa-gen-difficult` checks: 9 new
+`entries has 2 entries` cardinality checks, 1 domain assertion per entry
+across 18 entries via the 5 new domain-check helpers, plus
+`test_no_entry_uses_x0`'s automatic coverage of the 18 new entries.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (417->426/652->643, 459->468/665->656 -
+straight from blocked to promoted-support on both profiles for all 9
+mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+437->446/489->498. `isa-norm-jsonl`'s real-form round-trip count moved
+944->962 (+18, 9 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. Whole-register-group register-number
+alignment (e.g. `vmv2r.v`'s destination/source must both be even) is a
+real hardware requirement this project's own encoder does not enforce,
+matching real GNU as's own behavior (measured, not assumed) - not a gap
+introduced here. The remaining vector scope is still large: roughly 156
+further `rv_v` records - the saturating fixed-point multiply pair
+`vsmul.vv`/`vsmul.vx`, the entire floating-point vector family (`vf*`,
+roughly 90 mnemonics - needs an FPR-as-vector-operand shape not yet
+built), and every vector load/store mnemonic (needing segment/strided/
+indexed addressing this project's encoder does not have yet) - and every
+`rv_zv*` vector-crypto extension; GEN-06 still has no single named next
+item.
+
+Acceptance gate satisfied: all 9 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+fixed-constant field-decode confirmation and every masked-form rejection
+control, via five new dedicated normalization forms and encoder
+tables/lowering arms modeling three genuinely distinct new two-operand
+shapes; a persisted, offline-replayed differential corpus entry per
+mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vsmul.vv`/`vsmul.vx` (Claude)
+
+Task / status / owner: GEN-05 vector-extension sub-slice / done; GEN-05
+overall / still implementing / Claude - closed the saturating
+fixed-point multiply pair named as the next candidate after the `vmv`
+family; turned out to need zero new shape code at all, the cheapest
+GEN-05 slice measured this session - despite the "multiply" name
+suggesting OPMVV/OPMVX (where every other multiply family in this
+project lives), real GNU as places it in OPIVV/OPIVX's own funct3 space.
+
+Scope manifest and obligations: 2 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vsmul.vv`/`vsmul.vx` (funct6 0x27,
+OPIVV funct3=0 / OPIVX funct3=4, real selectable mask, no `.vi` sibling).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, byte-identical on
+`riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`) by decoding the assembled
+word's own funct3 bits (not assuming from the mnemonic's own "multiply"
+semantics): `vsmul.vv v1,v2,v3` -> `9e2180d7` (funct3=0, OPIVV, not
+OPMVV's funct3=2), `vsmul.vx v1,v2,a0` -> `9e2540d7` (funct3=4, OPIVX);
+masked, e.g. `vsmul.vv v1,v2,v3,v0.t` -> `9c2180d7`; `vsmul.vi` rejected
+as "unrecognized opcode" on real GNU as, confirming no immediate sibling.
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries, one new
+entry each in the *existing* `opivv_funct6`/`opivx_funct6` tables (funct6
+0x27) - no new lowering arm, normalization form, or generator entry
+builder; `vsmul.vv`/`.vx` were added to the existing `opivv_mnemonics`/
+`opivx_mnemonics` dispatch lists and reuse `opivv_entries`/`opivx_entries`
+verbatim for the generator side. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all`; real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for
+both positive combinations, the masked form, and the `.vi`-sibling
+rejection control above, cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv`
+1285->1293 checks, `isa-gen-difficult` 3387->3396 checks, both green
+reusing `test_opivv_form`/`test_opivx_form`/`check_opivv`/`check_opivx`
+unchanged); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 722 to 726 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 722 pre-existing
+cases are byte-for-byte unchanged and exactly the 4 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(4 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (446/498 -> 448/500), `isa-family-admission`
+(promoted-support 426/468 -> 428/470, blocked 643/656 -> 641/654), and
+`isa-norm-jsonl` (962 -> 966) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`,
+both re-run with the RV32 cross-toolchain directory stripped from
+`PATH`, confirming the tier-1 gate does not depend on it; two full `make
+asm-ci` runs (each backgrounded, both exit 0).
+
+Results and artifact links: 8 new `isa-norm-riscv` checks (4 per
+mnemonic, reusing `test_opivv_form`/`test_opivx_form` unchanged) against
+real, verbatim-extracted riscv64.jsonl records (identical in
+riscv32.jsonl, confirmed via direct JSON diff). 9 new `isa-gen-difficult`
+checks: 2 new `entries has 2 entries` cardinality checks, `check_opivv`/
+`check_opivx` assertions per entry across 4 entries, plus
+`test_no_entry_uses_x0`'s automatic coverage of the 4 new entries.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (426->428/643->641, 468->470/656->654 -
+straight from blocked to promoted-support on both profiles for both
+mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved
+446->448/498->500. `isa-norm-jsonl`'s real-form round-trip count moved
+962->966 (+4, 2 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. Every scalar-shaped OP-V arithmetic/permute/
+move mnemonic surveyed to date is now closed. The remaining vector scope
+is entirely the two large, structurally distinct groups repeatedly
+deferred across this whole GEN-05 vector arc: the entire floating-point
+vector family (`vf*`, roughly 90 mnemonics - needs an FPR-as-vector-
+operand shape not yet built, likely a large multi-slice undertaking of
+its own) and every vector load/store mnemonic (`vle*`/`vse*`/`vlse*`/
+`vluxei*`/`vsoxei*`/whole-register `vl*re*.v`/`vs*r.v`, needing segment/
+strided/indexed memory-addressing modes this project's encoder does not
+have at all) - plus every `rv_zv*` vector-crypto extension. GEN-06 still
+has no single named next item, but for the first time in this session
+the two remaining candidates are both genuinely large (tens of
+mnemonics, new infrastructure each), not small bounded slices - a good
+natural pause point before committing to either.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+funct3-space field-decode confirmation and the `.vi`-sibling rejection
+control, via two funct6-table extensions of the *existing* OPIVV/OPIVX
+lowering arms (reused unchanged); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes
+- the same measured-Pass discipline every other GEN-05 promotion used,
+with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfadd.vv`/`vfadd.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point entry-point sub-slice /
+done; GEN-05 overall / still implementing / Claude - opens the first of the
+two large remaining OP-V groups flagged as a natural pause point after
+`vsmul`: the ~90-mnemonic `vf*` floating-point vector family. Chose the
+entry point (`vfadd`) deliberately, the same way `vsetvl`/`vadd` opened the
+configuration-setting and integer-arithmetic groups respectively.
+
+Scope manifest and obligations: 2 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfadd.vv`/`vfadd.vf` (funct6 0x00,
+OPFVV funct3=1 / OPFVF funct3=5, real selectable mask, no `.vi` sibling).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1): `vfadd.vv v1,v2,v3` -> `022190d7`, `vfadd.vf v1,v2,fa0` ->
+`022550d7`; masked, e.g. `vfadd.vv v1,v2,v3,v0.t` -> `002190d7`;
+`vfadd.vi` rejected as "unrecognized opcode" (no immediate sibling,
+matching riscv-opcodes' own export). Also confirmed real GNU as accepts
+both forms under plain `-march=rv32iv`/`rv64iv` with **no F/D extension at
+all** - unlike every scalar F/D mnemonic in this project's own earlier GEN-05
+arc, OP-V's floating mnemonics have no assembly-time F/D dependency
+enforced by the oracle itself, so this project's admission/generator
+configuration does not add one either (matching every other OP-V family's
+precedent of taking `-march=rv{32,64}iv` alone).
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries; a new
+`opfvv_funct6`/`opfvf_funct6` table pair (funct6 0x00 for both) and two new
+lowering-arm pairs (masked/unmasked) using funct3=1/5 - `.vv` reuses
+`vreg`/`vreg`/`vreg` exactly like OPIVV/OPMVV's shape, `.vf` is the first
+OP-V scalar-broadcast shape whose `rs1` decodes via `freg` (an FPR) instead
+of `xreg` (a GPR). On the normalization side, `.vv` reuses `opivv_form`
+unchanged via a new `opfvv_mnemonics` list (the same reuse `opmvv_mnemonics`
+already established), while `.vf` needed one new `opfvf_form` function -
+`opivx_form`'s exact shape with `fpr ()` in place of `gpr ()` for `rs1`.
+`Isa_family_admission`'s `promoted_case` allow-list and `isa_gen_difficult`'s
+entry builders (`opfvf_entry`/`opfvf_entries`, reusing `opivv_entries`
+unchanged for `.vv`) were updated in the same change, plus new unit-test
+coverage (`test_opfvf_form` in `test_isa_norm_riscv.ml`, a `check_opfvf`
+local helper in `test_isa_gen_difficult.ml`) mirroring the existing
+`opivx`-shape test pattern with an FPR-typed assertion in place of a GPR one.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for both
+positive combinations, the masked form, the F/D-independence probe under
+`-march=rv64iv`/`rv32iv`, and the `.vi`-sibling rejection control above,
+cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte identity;
+`make tools-test` (`isa-norm-riscv` grew to 1328 checks, `isa-gen-difficult`
+to 3650 checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 726 to 730 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 726 pre-existing cases
+are byte-for-byte unchanged and exactly the 4 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (4 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(448/500 -> 450/502), `isa-family-admission` (promoted-support 428/470 ->
+430/472, blocked 641/654 -> 639/652), and `isa-norm-jsonl` (966 -> 970)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean, no reflowing needed); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded, both
+exit 0).
+
+Results and artifact links: 8 new `isa-norm-riscv` checks (4 per mnemonic,
+`test_opivv_form` reused unchanged for `.vv`, a new `test_opfvf_form` for
+`.vf`) against real, verbatim-extracted riscv64.jsonl records (identical in
+riscv32.jsonl, confirmed via direct JSON diff). New `isa-gen-difficult`
+checks: 2 new `entries has 2 entries` cardinality checks, `check_opivv`/a
+new `check_opfvf` assertion per entry across 4 entries, plus the total-count
+accumulator and `test_no_entry_uses_x0`'s automatic coverage of the 4 new
+entries. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (428->430/641->639, 470->472/654->652 -
+straight from blocked to promoted-support on both profiles for both
+mnemonics). `isa-norm-accounting`'s RV32/RV64 totals moved 448->450/500->502.
+`isa-norm-jsonl`'s real-form round-trip count moved 966->970 (+4, 2
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. This opens but does not close the `vf*` family - the
+remaining ~88 floating-point vector mnemonics (subtract/multiply/divide,
+widening variants, comparisons, sign-injection, min/max, conversions,
+reductions, slides, merges, classification) still need surveying and
+slicing, now that the entry-point shape (`opfvf_form`, `freg`-typed `.vf`
+scalar operand) exists to reuse. The F/D-independence finding (real GNU as
+enforces no F/D dependency on any OP-V floating mnemonic at assembly time)
+is recorded here as the governing precedent for the rest of the family, not
+re-derived per mnemonic. Every vector load/store mnemonic and every
+`rv_zv*` vector-crypto extension remain the other large deferred groups,
+unchanged from the prior writeup.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the F/D-
+independence probe and the `.vi`-sibling rejection control, via one new
+funct6-table/lowering-arm pair per OP-space (OPFVV/OPFVF) plus one new
+normalization form (`opfvf_form`); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfsub.vv`/`vfsub.vf`/`vfrsub.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the cheapest possible next `vf*`
+increment now that `vfadd` established the OPFVV/OPFVF shape: a pure
+funct6-table extension with zero new normalization or lowering code.
+
+Scope manifest and obligations: 3 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfsub.vv`/`vfsub.vf` (funct6 0x02,
+OPFVV funct3=1 / OPFVF funct3=5) and `vfrsub.vf` (funct6 0x27, OPFVF only).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfsub.vv v1,v2,v3`
+-> `0a2190d7`, `vfsub.vf v1,v2,fa0` -> `0a2550d7`, `vfrsub.vf v1,v2,fa0` ->
+`9e2550d7`; masked, e.g. `vfsub.vv v1,v2,v3,v0.t` -> `082190d7`; `vfrsub.vv`
+rejected as "unrecognized opcode" (no such riscv-opcodes record either - a
+reverse vector-vector subtract would duplicate plain `vfsub.vv`).
+
+Implementation: 3 new `Opcode.t` variants/`name`/`all` entries; `vfsub.vv`/
+`vfsub.vf`/`vfrsub.vf` added directly to the *existing* `opfvv_funct6`/
+`opfvf_funct6` tables `vfadd` introduced - no new lowering arm, normalization
+form, or generator entry builder. `vfsub.vv` reuses `opivv_form`/
+`opivv_entries` via a new `opfvv_mnemonics` list entry (the same reuse
+`vfadd.vv` established); `vfsub.vf`/`vfrsub.vf` reuse `opfvf_form`/
+`opfvf_entries` via new `opfvf_mnemonics` list entries. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, plus unit-test
+coverage reusing the existing `test_opivv_form`/`test_opfvf_form`/
+`check_opivv`/`check_opfvf` helpers unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all three
+positive combinations, the masked form, and the `vfrsub.vv` rejection
+control above, cross-checked against `riscv32-linux-gnu-as`/`objdump` for
+byte identity; `make tools-test` (`isa-norm-riscv` grew to 1340 checks,
+`isa-gen-difficult` to 3679 checks, both green); `cd asm && opam exec --
+dune build @fmt --auto-promote` (one reflow needed on the new `opfvv_funct6`
+match, matching `ocamlformat`'s single-line-collapse rule for a
+two-constructor-plus-wildcard match); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 730 to 736 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 730 pre-existing cases
+are byte-for-byte unchanged and exactly the 6 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (6 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(450/502 -> 453/505), `isa-family-admission` (promoted-support 430/472 ->
+433/475, blocked 639/652 -> 636/649), and `isa-norm-jsonl` (970 -> 976)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean after the promotion above); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded, both
+exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(430->433/639->636, 472->475/652->649 - straight from blocked to
+promoted-support on both profiles for all three mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 450->453/502->505.
+`isa-norm-jsonl`'s real-form round-trip count moved 970->976 (+6, 3
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub` closed; the
+remaining ~85 floating-point vector mnemonics (multiply/divide,
+widening variants, comparisons, sign-injection, min/max, conversions,
+reductions, slides, merges, classification) are unchanged from the prior
+writeup's survey and still need slicing.
+
+Acceptance gate satisfied: all three mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the `vfrsub.vv`
+rejection control, via a pure funct6-table extension of the *existing*
+OPFVV/OPFVF lowering arms (reused unchanged); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfmul.vv`/`vfmul.vf`/`vfdiv.vv`/`vfdiv.vf`/`vfrdiv.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the multiply/divide/reverse-divide
+triple, confirmed to stay in OPFVV/OPFVF like every other admitted `vf*`
+arithmetic mnemonic, unlike integer multiply/divide's own OPMVV/OPMVX space.
+
+Scope manifest and obligations: 5 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfmul.vv`/`vfmul.vf` (funct6 0x24),
+`vfdiv.vv`/`vfdiv.vf` (funct6 0x20), `vfrdiv.vf` (funct6 0x21, OPFVF only).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfmul.vv v1,v2,v3`
+-> `922190d7`, `vfmul.vf v1,v2,fa0` -> `922550d7`, `vfdiv.vv v1,v2,v3` ->
+`822190d7`, `vfdiv.vf v1,v2,fa0` -> `822550d7`, `vfrdiv.vf v1,v2,fa0` ->
+`862550d7`; masked, e.g. `vfmul.vv v1,v2,v3,v0.t` -> `902190d7`; `vfrdiv.vv`
+rejected as "unrecognized opcode" (no such riscv-opcodes record either -
+same reasoning as `vfrsub`: a reverse vector-vector divide would duplicate
+plain `vfdiv.vv`); `vfmul.vi` also rejected (no `.vi` sibling for either).
+
+Implementation: 5 new `Opcode.t` variants/`name`/`all` entries; all five
+added directly to the *existing* `opfvv_funct6`/`opfvf_funct6` tables - no
+new lowering arm, normalization form, or generator entry builder. `vfmul.vv`/
+`vfdiv.vv` reuse `opivv_form`/`opivv_entries` via new `opfvv_mnemonics`
+entries; `vfmul.vf`/`vfdiv.vf`/`vfrdiv.vf` reuse `opfvf_form`/`opfvf_entries`
+via new `opfvf_mnemonics` entries. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change, plus unit-test coverage reusing
+the existing `test_opivv_form`/`test_opfvf_form`/`check_opivv`/`check_opfvf`
+helpers unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all five
+positive combinations, the masked form, and the `vfrdiv.vv`/`vfmul.vi`
+rejection controls above, cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv` grew to
+1360 checks, `isa-gen-difficult` to 3728 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 736 to 746 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+736 pre-existing cases are byte-for-byte unchanged and exactly the 10
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(10 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (453/505 -> 458/510), `isa-family-admission`
+(promoted-support 433/475 -> 438/480, blocked 636/649 -> 631/644), and
+`isa-norm-jsonl` (976 -> 986) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`, both
+re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(433->438/636->631, 475->480/649->644 - straight from blocked to
+promoted-support on both profiles for all five mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 453->458/505->510.
+`isa-norm-jsonl`'s real-form round-trip count moved 976->986 (+10, 5
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv` closed; the remaining ~80 floating-point vector mnemonics
+(widening variants, comparisons, sign-injection, min/max, conversions,
+reductions, slides, merges, classification) are unchanged from the prior
+writeup's survey and still need slicing.
+
+Acceptance gate satisfied: all five mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the
+`vfrdiv.vv`/`vfmul.vi` rejection controls, via a pure funct6-table
+extension of the *existing* OPFVV/OPFVF lowering arms (reused unchanged);
+a persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than left
+stale.
+
+##### GEN-05 continuation: RISC-V V `vfmin.vv`/`vfmin.vf`/`vfmax.vv`/`vfmax.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the min/max pair, another pure
+funct6-table extension with no new shape needed.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfmin.vv`/`vfmin.vf` (funct6 0x04),
+`vfmax.vv`/`vfmax.vf` (funct6 0x06), full `.vv`/`.vf` pairs for both.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfmin.vv v1,v2,v3`
+-> `122190d7`, `vfmin.vf v1,v2,fa0` -> `122550d7`, `vfmax.vv v1,v2,v3` ->
+`1a2190d7`, `vfmax.vf v1,v2,fa0` -> `1a2550d7`; masked, e.g. `vfmin.vv
+v1,v2,v3,v0.t` -> `102190d7`; `vfmin.vi` rejected as "unrecognized opcode"
+(no `.vi` sibling for either mnemonic, matching riscv-opcodes' own export).
+
+Implementation: 4 new `Opcode.t` variants/`name`/`all` entries; all four
+added directly to the *existing* `opfvv_funct6`/`opfvf_funct6` tables - no
+new lowering arm, normalization form, or generator entry builder. `vfmin.vv`/
+`vfmax.vv` reuse `opivv_form`/`opivv_entries` via new `opfvv_mnemonics`
+entries; `vfmin.vf`/`vfmax.vf` reuse `opfvf_form`/`opfvf_entries` via new
+`opfvf_mnemonics` entries. `Isa_family_admission`'s `promoted_case`
+allow-list was updated in the same change, plus unit-test coverage reusing
+the existing `test_opivv_form`/`test_opfvf_form`/`check_opivv`/`check_opfvf`
+helpers unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all
+four positive combinations, the masked form, and the `vfmin.vi` rejection
+control above, cross-checked against `riscv32-linux-gnu-as`/`objdump` for
+byte identity; `make tools-test` (`isa-norm-riscv` grew to 1376 checks,
+`isa-gen-difficult` to 3768 checks, both green); `cd asm && opam exec --
+dune build @fmt --auto-promote` (one reflow needed on the new
+`opfvf_mnemonics` list, matching `ocamlformat`'s line-width wrap rule);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 746 to 754 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+746 pre-existing cases are byte-for-byte unchanged and exactly the 8
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(8 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (458/510 -> 462/514), `isa-family-admission`
+(promoted-support 438/480 -> 442/484, blocked 631/644 -> 627/640), and
+`isa-norm-jsonl` (986 -> 994) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean after the
+promotion above); `make asm-isa-difficult-check` and `make asm-test`, both
+re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(438->442/631->627, 480->484/644->640 - straight from blocked to
+promoted-support on both profiles for all four mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 458->462/510->514.
+`isa-norm-jsonl`'s real-form round-trip count moved 986->994 (+8, 4
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax` closed; the remaining ~76 floating-point
+vector mnemonics (widening variants, comparisons, sign-injection,
+conversions, reductions, slides, merges, classification) are unchanged
+from the prior writeup's survey and still need slicing.
+
+Acceptance gate satisfied: all four mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the `vfmin.vi`
+rejection control, via a pure funct6-table extension of the *existing*
+OPFVV/OPFVF lowering arms (reused unchanged); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfsgnj.vv`/`vfsgnj.vf`/`vfsgnjn.vv`/`vfsgnjn.vf`/`vfsgnjx.vv`/`vfsgnjx.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the sign-injection triple, another
+pure funct6-table extension confirmed to need no new alias-priority
+handling, unlike scalar `fsgnj.s`/`fsgnj.d`.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfsgnj.vv`/`vfsgnj.vf` (funct6 0x08),
+`vfsgnjn.vv`/`vfsgnjn.vf` (funct6 0x09), `vfsgnjx.vv`/`vfsgnjx.vf` (funct6
+0x0a), full `.vv`/`.vf` pairs for all three.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfsgnj.vv
+v1,v2,v3` -> `222190d7`, `vfsgnj.vf v1,v2,fa0` -> `222550d7`, `vfsgnjn.vv`
+-> `262190d7`, `vfsgnjn.vf` -> `262550d7`, `vfsgnjx.vv` -> `2a2190d7`,
+`vfsgnjx.vf` -> `2a2550d7`; masked, e.g. `vfsgnj.vv v1,v2,v3,v0.t` ->
+`202190d7`; `vfsgnj.vi` rejected as "unrecognized opcode" (no `.vi`
+sibling for any of the three mnemonics, matching riscv-opcodes' own
+export). Unlike scalar `fsgnj.s`/`fsgnj.d` - where the encoder previously
+had to disambiguate the `rs1 = rs2` pseudo-aliases `fneg.s`/`fabs.s`/`fmv.s`
+from the general two-operand form - the vector forms have no such alias:
+riscv-opcodes' own export contains no `vfneg.v`/`vfabs.v` mnemonics, so
+this is a plain table extension with no alias-priority concern.
+
+Implementation: 6 new `Opcode.t` variants/`name`/`all` entries; all six
+added directly to the *existing* `opfvv_funct6`/`opfvf_funct6` tables - no
+new lowering arm, normalization form, or generator entry builder.
+`vfsgnj.vv`/`vfsgnjn.vv`/`vfsgnjx.vv` reuse `opivv_form`/`opivv_entries`
+via new `opfvv_mnemonics` entries; `vfsgnj.vf`/`vfsgnjn.vf`/`vfsgnjx.vf`
+reuse `opfvf_form`/`opfvf_entries` via new `opfvf_mnemonics` entries.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, plus unit-test coverage reusing the existing
+`test_opivv_form`/`test_opfvf_form`/`check_opivv`/`check_opfvf` helpers
+unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all six
+positive combinations, the masked form, and the `vfsgnj.vi` rejection
+control above, cross-checked against `riscv32-linux-gnu-as`/`objdump` for
+byte identity; `make tools-test` (`isa-norm-riscv` grew to 1400 checks,
+`isa-gen-difficult` to 3828 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 754 to 766 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+754 pre-existing cases are byte-for-byte unchanged and exactly the 12
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(12 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (462/514 -> 468/520), `isa-family-admission`
+(promoted-support 442/484 -> 448/490, blocked 627/640 -> 621/634), and
+`isa-norm-jsonl` (994 -> 1006) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`, both
+re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(442->448/627->621, 484->490/640->634 - straight from blocked to
+promoted-support on both profiles for all six mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 462->468/514->520.
+`isa-norm-jsonl`'s real-form round-trip count moved 994->1006 (+12, 6
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx` closed; the
+remaining ~70 floating-point vector mnemonics (scalar-move family
+`vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f`, mandatory-`v0` `vfmerge.vfm`, the
+reduction family, the mask-writing comparison family, unary classify/sqrt/
+reciprocal-estimate mnemonics, and every widening `vfw*`/narrowing `vfn*`
+form) are unchanged from the prior writeup's survey and still need
+slicing.
+
+Acceptance gate satisfied: all six mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the `vfsgnj.vi`
+rejection control, via a pure funct6-table extension of the *existing*
+OPFVV/OPFVF lowering arms (reused unchanged); a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfsqrt.v`/`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the floating unary family, the
+first `vf*` slice needing a genuinely new encoder table (not just another
+`opfvv_funct6`/`opfvf_funct6` entry), since every prior `vf*` slice shared
+the three-operand `vd, vs2, vs1-or-rs1` shape and this one has no third
+operand at all.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfsqrt.v` (rs1-position constant
+0x00), `vfrsqrt7.v` (0x04), `vfrec7.v` (0x05), `vfclass.v` (0x10), all
+sharing funct6 0x13 under OPFVV (funct3 = 1). None of the four records
+even lists `rs1`/`vs1` among `provenance.operands` or `variable_fields` -
+that field position is a fully fixed per-mnemonic constant, not merely an
+unused operand.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfsqrt.v v1,v2`
+-> `4e2010d7`, `vfrsqrt7.v v1,v2` -> `4e2210d7`, `vfrec7.v v1,v2` ->
+`4e2290d7`, `vfclass.v v1,v2` -> `4e2810d7`; masked, e.g. `vfsqrt.v
+v1,v2,v0.t` -> `4c2010d7`; a third operand is "illegal operands" on real
+GNU as for every one of the four (not "unrecognized opcode"), matching the
+existing `vext_form` family's own precedent (`vsext.vf2`/`viota.m`/etc.).
+
+Implementation: 4 new `Opcode.t` variants/`name`/`all` entries; a new
+`opfvv_unary_const` encoder table modeled directly on the existing
+`opmvv_unary_const` (same `(rs1_constant, funct6)` pair shape) but with
+funct3 fixed at 1 (OPFVV) instead of 2 (OPMVV) in its own two new
+lowering arms (masked/unmasked) - kept as a separate table/arm pair since
+`opmvv_unary_const`'s own arms hardcode funct3 = 2. On the normalization
+side, no new code was needed at all: `vext_form` (already reused across
+`vsext.vf2`/`vzext.vf2`/`viota.m`/`vmsbf.m`/`vmsif.m`/`vmsof.m`) covers
+this exact "vd, vs2" shape verbatim, wired in via 4 new dispatch-match-arm
+entries. `isa_gen_difficult.ml` likewise reused `vext_entries` verbatim -
+no new entry-builder function either. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, plus unit-test
+coverage reusing the existing `test_vext_form`/`check_vext` helpers
+unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all
+four positive combinations, the masked form, and the third-operand
+rejection control above, cross-checked against `riscv32-linux-gnu-as`/
+`objdump` for byte identity; `make tools-test` (`isa-norm-riscv` grew to
+1416 checks, `isa-gen-difficult` to 3864 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 766 to 774 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+766 pre-existing cases are byte-for-byte unchanged and exactly the 8
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(8 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (468/520 -> 472/524), `isa-family-admission`
+(promoted-support 448/490 -> 452/494, blocked 621/634 -> 617/630), and
+`isa-norm-jsonl` (1006 -> 1014) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`, both
+re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(448->452/621->617, 490->494/634->630 - straight from blocked to
+promoted-support on both profiles for all four mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 468->472/520->524.
+`isa-norm-jsonl`'s real-form round-trip count moved 1006->1014 (+8, 4
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx`/`vfsqrt.v`/
+`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v` closed; the remaining ~66
+floating-point vector mnemonics (scalar-move family `vfmv.f.s`/
+`vfmv.s.f`/`vfmv.v.f`, mandatory-`v0` `vfmerge.vfm`, the reduction family,
+the mask-writing comparison family, and every widening `vfw*`/narrowing
+`vfn*` form) are unchanged from the prior writeup's survey and still need
+slicing.
+
+Acceptance gate satisfied: all four mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the third-operand
+rejection control, via a new `opfvv_unary_const` table/lowering-arm pair
+mirroring the existing `opmvv_unary_const` family and reusing `vext_form`/
+`vext_entries` unchanged on the normalization/generator side; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes - the same measured-Pass discipline every other GEN-05 promotion
+used, with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfredosum.vs`/`vfredusum.vs`/`vfredmin.vs`/`vfredmax.vs` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the floating vector-reduction
+family, the cheapest `vf*` slice yet: no new encoder table, no new
+normalization shape, no new generator entry builder.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfredosum.vs` (funct6 0x03),
+`vfredusum.vs` (0x01), `vfredmin.vs` (0x05), `vfredmax.vs` (0x07), all
+under OPFVV (funct3 = 1) with the same `vd, vs2, vs1` all-vector shape as
+`vfadd.vv`/etc.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vfredosum.vs
+v1,v2,v3` -> `0e2190d7`, `vfredusum.vs` -> `062190d7`, `vfredmin.vs` ->
+`162190d7`, `vfredmax.vs` -> `1e2190d7`; masked, e.g. `vfredosum.vs
+v1,v2,v3,v0.t` -> `0c2190d7`; no `.vf`/`.vx` sibling exists for any of the
+four (real GNU as rejects `vfredosum.vf`/`vfredosum.vx` as "unrecognized
+opcode").
+
+Implementation: 4 new `Opcode.t` variants/`name`/`all` entries, all four
+added directly to the *existing* `opfvv_funct6` table - no new table,
+lowering arm, normalization form, or generator entry builder at all. This
+is the mirror image of the integer `vredsum`/etc. family: that family
+needed its own separate `opmvv_funct6` table because integer reductions
+live in OPMVV (funct3 = 2), but these floating reductions stay in OPFVV
+(funct3 = 1) alongside every other `vf*` arithmetic mnemonic, so they slot
+straight into `opfvv_funct6`. `vfredosum.vs`/etc. reuse `opivv_form`/
+`opivv_entries` via new `opfvv_mnemonics` entries, and `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, plus unit-test
+coverage reusing the existing `test_opivv_form`/`check_opivv` helpers
+unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all
+four positive combinations and the masked form, cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity; `make tools-test`
+(`isa-norm-riscv` grew to 1432 checks, `isa-gen-difficult` to 3908 checks,
+both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 774 to 782 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 774 pre-existing cases
+are byte-for-byte unchanged and exactly the 8 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (8 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(472/524 -> 476/528), `isa-family-admission` (promoted-support 452/494 ->
+456/498, blocked 617/630 -> 613/626), and `isa-norm-jsonl` (1014 -> 1022)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean, no reflowing needed); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(452->456/617->613, 494->498/630->626 - straight from blocked to
+promoted-support on both profiles for all four mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 472->476/524->528.
+`isa-norm-jsonl`'s real-form round-trip count moved 1014->1022 (+8, 4
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx`/`vfsqrt.v`/
+`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v`/`vfredosum.vs`/`vfredusum.vs`/
+`vfredmin.vs`/`vfredmax.vs` closed; the remaining ~62 floating-point vector
+mnemonics (scalar-move family `vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f`,
+mandatory-`v0` `vfmerge.vfm`, the mask-writing comparison family, and every
+widening `vfw*`/narrowing `vfn*` form) are unchanged from the prior
+writeup's survey and still need slicing.
+
+Acceptance gate satisfied: all four mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination, via a pure funct6-table
+extension of the *existing* OPFVV lowering arms (reused unchanged); a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V `vmfeq.vv`/`vmfeq.vf`/`vmfle.vv`/`vmfle.vf`/`vmflt.vv`/`vmflt.vf`/`vmfne.vv`/`vmfne.vf`/`vmfgt.vf`/`vmfge.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the mask-writing floating
+comparison family, the largest single `vf*` slice yet (10 mnemonics), but
+another pure funct6-table extension.
+
+Scope manifest and obligations: 10 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vmfeq.vv`/`.vf` (funct6 0x18),
+`vmfle.vv`/`.vf` (0x19), `vmflt.vv`/`.vf` (0x1b), `vmfne.vv`/`.vf` (0x1c),
+`vmfgt.vf` (0x1d), `vmfge.vf` (0x1f) - `vmfgt`/`vmfge` have no `.vv`
+record.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under plain `-march=rv{32,64}iv`, no F/D): `vmfeq.vv
+v1,v2,v3` -> `622190d7`, `vmfeq.vf v1,v2,fa0` -> `622550d7`, `vmfle.vv`/
+`vmfle.vf` -> `662190d7`/`662550d7`, `vmflt.vv`/`vmflt.vf` -> `6e2190d7`/
+`6e2550d7`, `vmfne.vv`/`vmfne.vf` -> `722190d7`/`722550d7`, `vmfgt.vf` ->
+`762550d7`, `vmfge.vf` -> `7e2550d7`. Critically, `vmfgt.vv v1,v2,v3` is
+*accepted* by real GNU as - but only as a pseudo-instruction reversing
+operands, assembling identically to `vmflt.vv v1,v3,v2` (confirmed by
+decoding the assembled word's own vs1/vs2 field bits, not just
+accepted/rejected status) - the same genuinely different alias-expansion
+feature this project's integer `vmsgt`/`vmsgtu` deliberately do not admit
+either, and riscv-opcodes' own export has no `vmfgt.vv`/`vmfge.vv` record
+to begin with, so only the six real `.vv`/`.vf` pairs plus the two `.vf`-
+only reverse comparisons are admitted here.
+
+Implementation: 10 new `Opcode.t` variants/`name`/`all` entries, all ten
+added directly to the *existing* `opfvv_funct6`/`opfvf_funct6` tables - no
+new lowering arm, normalization form, or generator entry builder.
+`vmfeq.vv`/`vmfle.vv`/`vmflt.vv`/`vmfne.vv` reuse `opivv_form`/
+`opivv_entries` via new `opfvv_mnemonics` entries; all six `.vf` mnemonics
+reuse `opfvf_form`/`opfvf_entries` via new `opfvf_mnemonics` entries.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, plus unit-test coverage reusing the existing
+`test_opivv_form`/`test_opfvf_form`/`check_opivv`/`check_opfvf` helpers
+unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all ten
+positive combinations and the `vmfgt.vv` pseudo-instruction reversal
+control above, cross-checked against `riscv32-linux-gnu-as`/`objdump` for
+byte identity; `make tools-test` (`isa-norm-riscv` grew to 1472 checks,
+`isa-gen-difficult` to 4006 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 782 to 802 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+782 pre-existing cases are byte-for-byte unchanged and exactly the 20
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(20 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (476/528 -> 486/538), `isa-family-admission`
+(promoted-support 456/498 -> 466/508, blocked 613/626 -> 603/616), and
+`isa-norm-jsonl` (1022 -> 1042) totals); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`, both
+re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(456->466/613->603, 498->508/626->616 - straight from blocked to
+promoted-support on both profiles for all ten mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 476->486/528->538.
+`isa-norm-jsonl`'s real-form round-trip count moved 1022->1042 (+20, 10
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx`/`vfsqrt.v`/
+`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v`/`vfredosum.vs`/`vfredusum.vs`/
+`vfredmin.vs`/`vfredmax.vs`/`vmfeq`/`vmfle`/`vmflt`/`vmfne`/`vmfgt.vf`/
+`vmfge.vf` closed; the remaining ~52 floating-point vector mnemonics
+(scalar-move family `vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f`, mandatory-`v0`
+`vfmerge.vfm`, and every widening `vfw*`/narrowing `vfn*` form) are
+unchanged from the prior writeup's survey and still need slicing - these
+remaining families all plausibly need genuinely new normalization shapes
+(FPR-typed scalar-move forms, mandatory-`v0` FPR-scalar carry-style forms,
+and widened-result operand shapes respectively), unlike every `vf*` slice
+closed so far, which reused existing shapes verbatim or needed only one
+new funct6-keyed table.
+
+Acceptance gate satisfied: all ten mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the `vmfgt.vv`
+pseudo-instruction reversal control, via a pure funct6-table extension of
+the *existing* OPFVV/OPFVF lowering arms (reused unchanged); a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes - the same measured-Pass discipline every other GEN-05 promotion
+used, with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the FPR-typed scalar-move family,
+the first `vf*` slice needing genuinely new normalization forms rather
+than pure funct6-table extensions or verbatim reuse of an existing shape.
+
+Scope manifest and obligations: 3 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfmv.f.s` (funct6 0x10, OPFVV funct3
+= 1, vs2 variable / rd an FPR), `vfmv.s.f` (funct6 0x10, OPFVF funct3 =
+5, rs1 an FPR / vd variable), `vfmv.v.f` (funct6 0x17, OPFVF funct3 = 5,
+rs1 an FPR / vd variable, sharing `vmv.v.v`/`.v.x`/`.v.i`'s own funct6).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under `-mabi=lp64f`/`ilp32f` `-march=rv{32,64}iv`):
+`vfmv.f.s fa0,v2` -> `42201557`, `vfmv.s.f v1,fa0` -> `420550d7`,
+`vfmv.v.f v1,fa0` -> `5e0550d7`; masked forms all rejected as "illegal
+operands" for every one of the three (no `, v0.t` sibling exists),
+matching the `vmv.x.s`/`vmv.s.x`/`vmv.v.x` family's own established
+precedent exactly.
+
+Implementation: 3 new `Opcode.t` variants/`name`/`all` entries. Two new
+normalization forms, `vfmv_f_s_form`/`vfmv_s_f_form`, mirror `mv_x_s_form`/
+`mv_s_x_form` verbatim with `fpr ()` in place of `gpr ()` on the scalar
+side; `vfmv.v.f` needed no new normalization form at all - `vmv_v_form`'s
+`rs1_kind` variant type was generalized from `` [ `Vreg | `Gpr | `Imm ] ``
+to `` [ `Vreg | `Gpr | `Imm | `Fpr ] ``, a one-line addition reused by
+`vmv.v.v`/`.v.x`/`.v.i` unchanged. On the encoder side: two new const
+tables, `fmv_f_s_const`/`f_to_v_unary_const`, mirror `mv_x_s_const`/
+`x_to_v_unary_const` with `freg` in place of `xreg`, each with its own new
+lowering arm (funct3 = 1/5 rather than 2/6); `vfmv.v.f` needed one new
+dedicated lowering arm (`Opcode.Vfmv_v_f`, funct3 = 5, funct6 0x17,
+reusing the fixed-`vs2`-position-constant/`rs2 = 0` composition
+`vmv.v.x`'s own arm already established) rather than a table, since it is
+the only OPFVF member of that funct6. `isa_gen_difficult.ml` reused the
+existing generic `vmv_v_entries` function for `vfmv.v.f` unchanged, but
+needed two new entry-builder blocks for `vfmv.f.s`/`vfmv.s.f` mirroring
+`vmv_x_s_entries`/`vmv_s_x_entries`. `Isa_family_admission`'s
+`promoted_case` allow-list was updated in the same change, plus three new
+dedicated unit-test functions (`test_vfmv_f_s_form`/`test_vfmv_s_f_form`/
+`test_vfmv_v_f_form`) mirroring the existing `test_mv_x_s_form`/
+`test_mv_s_x_form`/`test_vmv_v_x_form` with FPR-class assertions.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all
+three positive combinations and the masked-rejection control for each,
+cross-checked against `riscv32-linux-gnu-as`/`objdump` for byte identity;
+`make tools-test` (`isa-norm-riscv` grew to 1483 checks, `isa-gen-difficult`
+to 4027 checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 802 to 808 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 802 pre-existing cases
+are byte-for-byte unchanged and exactly the 6 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (6 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(486/538 -> 489/541), `isa-family-admission` (promoted-support 466/508 ->
+469/511, blocked 603/616 -> 600/613), and `isa-norm-jsonl` (1042 -> 1048)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean, no reflowing needed); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(466->469/603->600, 508->511/616->613 - straight from blocked to
+promoted-support on both profiles for all three mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 486->489/538->541.
+`isa-norm-jsonl`'s real-form round-trip count moved 1042->1048 (+6, 3
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. `vf*` now has `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx`/`vfsqrt.v`/
+`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v`/`vfredosum.vs`/`vfredusum.vs`/
+`vfredmin.vs`/`vfredmax.vs`/`vmfeq`/`vmfle`/`vmflt`/`vmfne`/`vmfgt.vf`/
+`vmfge.vf`/`vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f` closed; the remaining ~49
+floating-point vector mnemonics are the mandatory-`v0` `vfmerge.vfm`
+(structurally close to `vmerge.vxm`/`vadc.vxm`, a plausible next bounded
+slice) and every widening `vfw*`/narrowing `vfn*` form (which need a
+genuinely new widened-result operand shape this project does not have
+yet, a larger undertaking).
+
+Acceptance gate satisfied: all three mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked-
+rejection controls, via two new FPR-typed normalization forms plus a
+generalized `vmv_v_form` variant on the normalization side, and two new
+FPR-typed const tables plus one new dedicated lowering arm on the encoder
+side; a persisted, offline-replayed differential corpus entry per
+mnemonic per profile with real GNU agreement; admission-matrix promotion;
+and two full `make asm-ci` passes - the same measured-Pass discipline
+every other GEN-05 promotion used, with every affected pinned count in
+the repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V `vfmerge.vfm` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the FPR-typed mirror of
+`vmerge.vxm`, closing every named-and-bounded `vf*` candidate identified
+across this whole session.
+
+Scope manifest and obligations: 1 `kind: instruction-form` rv_v record,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfmerge.vfm` (funct6 0x17, OPFVF
+funct3 = 5, `vm` architecturally fixed at 0, mandatory literal fourth
+operand).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under `-mabi=lp64f`/`ilp32f` `-march=rv{32,64}iv`):
+`vfmerge.vfm v1,v2,fa0,v0` -> `5c2550d7`. `vfmerge.vfm v1,v2,fa0` (no
+carry-in operand) and `vfmerge.vfm v1,v2,fa0,v0.t` (the `, v0.t`
+mask-toggle sigil instead of a literal `v0`) are both rejected as
+"illegal operands" - matching `vmerge.vxm`'s own established precedent
+exactly (no bare non-"m" sibling, no optional mask, a real mandatory
+fourth operand).
+
+Implementation: 1 new `Opcode.t` variant/`name`/`all` entry. One new
+normalization form, `carry_m_vf_form`, mirrors `carry_m_vx_form` verbatim
+with `fpr ()` in place of `gpr ()` on the scalar side. On the encoder
+side: one new single-entry const table, `carry_m_vf_funct6`, mirrors
+`carry_m_vx_funct6`'s shape, with one new dedicated lowering arm
+(funct3 = 5 rather than `vmerge.vxm`'s funct3 = 4, `freg` in place of
+`xreg`). `isa_gen_difficult.ml` needed one new entry-builder pair,
+`carry_m_vf_entry`/`carry_m_vf_entries`, mirroring `carry_m_vx_entry`/
+`carry_m_vx_entries`. `Isa_family_admission`'s `promoted_case` allow-list
+was updated in the same change, plus one new dedicated unit-test function
+(`test_carry_m_vf_form`) mirroring `test_carry_m_vx_form` with an FPR-class
+assertion, and a local `check_carry_m_vf` helper mirroring `check_carry_m_vx`.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for the
+positive combination and both rejection controls above, cross-checked
+against `riscv32-linux-gnu-as`/`objdump` for byte identity; `make
+tools-test` (`isa-norm-riscv` grew to 1487 checks, `isa-gen-difficult` to
+4038 checks, both green); `cd asm && opam exec -- dune build @fmt
+--auto-promote` (one reflow needed - a removed blank line after the new
+single-line `carry_m_vf_funct6` definition, matching `ocamlformat`'s
+adjacent-single-line-binding collapse rule); `make asm-isa-difficult-regen`
+(grew `asm/fixtures/isa-difficult/cases.jsonl` from 808 to 810 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 808 pre-existing cases
+are byte-for-byte unchanged and exactly the 2 expected new `case_id`s were
+added, both `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (2 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(489/541 -> 490/542), `isa-family-admission` (promoted-support 469/511 ->
+470/512, blocked 600/613 -> 599/612), and `isa-norm-jsonl` (1048 -> 1050)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean after the promotion above); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (469->470/
+600->599, 511->512/613->612 - straight from blocked to promoted-support
+on both profiles). `isa-norm-accounting`'s RV32/RV64 totals moved
+489->490/541->542. `isa-norm-jsonl`'s real-form round-trip count moved
+1048->1050 (+2, 1 mnemonic x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs (with the RV32
+cross-toolchain directory stripped from `PATH` for the toolchain-free
+legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. This closes every `vf*` mnemonic named as a bounded
+candidate across this entire session: `vfadd`/`vfsub`/`vfrsub`/`vfmul`/
+`vfdiv`/`vfrdiv`/`vfmin`/`vfmax`/`vfsgnj`/`vfsgnjn`/`vfsgnjx`/`vfsqrt.v`/
+`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v`/`vfredosum.vs`/`vfredusum.vs`/
+`vfredmin.vs`/`vfredmax.vs`/`vmfeq`/`vmfle`/`vmflt`/`vmfne`/`vmfgt.vf`/
+`vmfge.vf`/`vfmv.f.s`/`vfmv.s.f`/`vfmv.v.f`/`vfmerge.vfm` - roughly 50
+mnemonics across 14 commits. The only remaining `vf*` mnemonics are the
+widening `vfw*` (`vfwadd`/`vfwsub`/`vfwmul` `.vv`/`.vf`/`.wv`/`.wf`,
+`vfwmacc` family, `vfwcvt`/`vfwcvtbf16` conversions, `vfwredosum`/
+`vfwredusum` reductions) and narrowing `vfn*` (`vfncvt`/`vfncvtbf16`
+conversions) families - roughly 49 mnemonics needing a genuinely new
+widened-result operand shape this project does not have at all (the
+integer `vwadd`/`vwmul` widening family's own shape is a plausible model
+to adapt, but doing so is a distinct design task, not another same-shape
+slice); GEN-06 candidate, not started.
+
+Acceptance gate satisfied: the one mnemonic has real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including both rejection
+controls, via one new FPR-typed normalization form and one new FPR-typed
+const table plus one new dedicated lowering arm; a persisted,
+offline-replayed differential corpus entry per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes -
+the same measured-Pass discipline every other GEN-05 promotion used, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfcvt.xu.f.v`/`vfcvt.x.f.v`/`vfcvt.f.xu.v`/`vfcvt.f.x.v`/`vfcvt.rtz.xu.f.v`/`vfcvt.rtz.x.f.v` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the scalar-width float<->integer
+conversion family, the cheapest `vf*` slice since `vfredosum`/etc.: zero
+new table or lowering-arm code, reusing the *existing* `opfvv_unary_const`
+table verbatim with just six new entries under a different funct6.
+
+Scope manifest and obligations: 6 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfcvt.xu.f.v` (rs1-position constant
+0x00), `vfcvt.x.f.v` (0x01), `vfcvt.f.xu.v` (0x02), `vfcvt.f.x.v` (0x03),
+`vfcvt.rtz.xu.f.v` (0x06), `vfcvt.rtz.x.f.v` (0x07), all sharing funct6
+0x12 under OPFVV (funct3 = 1) - a different funct6 from `vfsqrt.v`/etc.'s
+0x13, but the identical two-vector-register "vd, vs2" shape.
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under `-mabi=lp64f`/`ilp32f` `-march=rv{32,64}iv`):
+`vfcvt.xu.f.v v1,v2` -> `4a2010d7`, `vfcvt.x.f.v` -> `4a2090d7`,
+`vfcvt.f.xu.v` -> `4a2110d7`, `vfcvt.f.x.v` -> `4a2190d7`,
+`vfcvt.rtz.xu.f.v` -> `4a2310d7`, `vfcvt.rtz.x.f.v` -> `4a2390d7`; masked,
+e.g. `vfcvt.xu.f.v v1,v2,v0.t` -> `482010d7`.
+
+Implementation: 6 new `Opcode.t` variants/`name`/`all` entries, all six
+added directly to the *existing* `opfvv_unary_const` table (the same
+table `vfsqrt.v`/`vfrsqrt7.v`/`vfrec7.v`/`vfclass.v` already populate) -
+no new table, lowering arm, normalization form, or generator entry
+builder at all. On the normalization side, `vext_form` (already reused
+across the whole `vsext`/`viota.m`/`vfsqrt.v` family) covers this exact
+shape verbatim, wired in via 6 new dispatch-match-arm entries;
+`isa_gen_difficult.ml` likewise reused `vext_entries` verbatim.
+`Isa_family_admission`'s `promoted_case` allow-list was updated in the
+same change, plus unit-test coverage reusing the existing
+`test_vext_form`/`check_vext` helpers unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all six
+positive combinations and the masked form, cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity; `make tools-test`
+(`isa-norm-riscv` grew to 1511 checks, `isa-gen-difficult` to 4092 checks,
+both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 810 to 822 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 810 pre-existing cases
+are byte-for-byte unchanged and exactly the 12 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (12 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(490/542 -> 496/548), `isa-family-admission` (promoted-support 470/512 ->
+476/518, blocked 599/612 -> 593/606), and `isa-norm-jsonl` (1050 -> 1062)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean, no reflowing needed); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs (each backgrounded,
+both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(470->476/599->593, 512->518/612->606 - straight from blocked to
+promoted-support on both profiles for all six mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 490->496/542->548.
+`isa-norm-jsonl`'s real-form round-trip count moved 1050->1062 (+12, 6
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs (with the RV32 cross-toolchain directory stripped from `PATH`
+for the toolchain-free legs) all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. Remaining `vf*` mnemonics after this slice: the FMA
+family `vfmacc`/`vfmadd`/`vfmsac`/`vfmsub`/`vfnmacc`/`vfnmadd`/`vfnmsac`/
+`vfnmsub` `.vv`/`.vf` (16 mnemonics, expected to mirror the integer
+`vmacc`/etc. reordered-operand shape), `vfslide1up.vf`/`vfslide1down.vf`
+(2 mnemonics, expected to mirror `vslide1up.vx`/`vslide1down.vx`), and the
+widening `vfw*`/narrowing `vfn*` families (~49 mnemonics, needing a
+genuinely new widened-result operand shape).
+
+Acceptance gate satisfied: all six mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form,
+via a pure table-entry extension of the *existing* `opfvv_unary_const`
+table (reused unchanged); a persisted, offline-replayed differential
+corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion; and two full `make asm-ci` passes - the same
+measured-Pass discipline every other GEN-05 promotion used, with every
+affected pinned count in the repository's own regression suite updated
+and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfmadd.vv`/`.vf`/`vfnmadd.vv`/`.vf`/`vfmsub.vv`/`.vf`/`vfnmsub.vv`/`.vf`/`vfmacc.vv`/`.vf`/`vfnmacc.vv`/`.vf`/`vfmsac.vv`/`.vf`/`vfnmsac.vv`/`.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the 16-mnemonic floating fused
+multiply-add family, the largest single `vf*` batch of the session, admitted
+in one slice because the `.vv` half is a near-total reuse of machinery
+already built for the integer `vmacc` family.
+
+Scope manifest and obligations: 16 `kind: instruction-form` rv_v records
+(8 mnemonics x 2 operand forms), identical on both riscv32.jsonl and
+riscv64.jsonl (verified via a direct JSON diff), empty `relationships`:
+`vfmadd.vv`/`.vf` (funct6 0x28), `vfnmadd.vv`/`.vf` (0x29), `vfmsub.vv`/`.vf`
+(0x2a), `vfnmsub.vv`/`.vf` (0x2b), `vfmacc.vv`/`.vf` (0x2c),
+`vfnmacc.vv`/`.vf` (0x2d), `vfmsac.vv`/`.vf` (0x2e), `vfnmsac.vv`/`.vf`
+(0x2f), all under OPFVV (funct3 = 1) / OPFVF (funct3 = 5).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under `-mabi=lp64f`/`ilp32f` `-march=rv{32,64}ivf`): GNU as
+reorders the assembly-text operands for this whole family exactly like the
+integer `vmacc`/etc. precedent - `vfmadd.vv v1, v2, v3` assembles as
+`vd=v1, vs1=v2, vs2=v3` (`d7 10 31 a2`), and `vfmadd.vf v1, fa0, v3` as
+`vd=v1, rs1=fa0, vs2=v3` (`d7 50 35 a2`) - verified by decoding the raw
+assembled word bit-for-bit in Python, not just trusting objdump's rendered
+text. All 8 funct6 values and both masked/unmasked forms spot-checked the
+same way; e.g. `vfnmsac.vf v1, fa0, v3` -> `d7 50 35 be`.
+
+Implementation: 16 new `Opcode.t` variants/`name`/`all` entries, plus two
+new funct6 tables (`opfmacc_funct6` for the 8 `.vv` mnemonics,
+`opfmaccf_funct6` for the 8 `.vf` mnemonics) and four new lowering arms
+(OPFVV unmasked/masked, OPFVF unmasked/masked) in
+`riscv_family_encode.ml`. On the normalization side the `.vv` half reuses
+the *existing* `opmacc_vv_form`/`opmacc_vv_mnemonics` machinery verbatim
+(the same reordered `[vd, vs1, vs2]` shape the integer `vmacc` family
+already established); the `.vf` half needed a genuinely new
+`opfmacc_vf_form`, mirroring `opmacc_vx_form` but with an `rs1` operand
+typed `fpr ()` instead of `gpr ()`. `isa_gen_difficult.ml` mirrors this
+split: `.vv` entries reuse `opmacc_vv_entries` verbatim, `.vf` entries use
+a new `opfmacc_vf_entry`/`opfmacc_vf_entries` (FPR operand `("rs1",
+"fa0")`). `Isa_family_admission`'s `promoted_case` allow-list gained 16
+new lines. Unit-test coverage added a new `test_opfmacc_vf_form` (mirrors
+`test_opmacc_vx_form` with a `Riscv_fpr` class assertion on `rs1`) and a
+new `check_opfmacc_vf` generator-cardinality/shape helper, alongside 16
+real-record JSON fixtures captured from `isa-db/export/riscv_opcodes/
+riscv64.jsonl`.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for all 16
+mnemonics' `.vv`/`.vf` unmasked and masked forms, cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity, including explicit
+Python bit-decoding of the reordered-operand assembled words; `make
+tools-test` (`isa-norm-riscv` grew to 1575 checks, `isa-gen-difficult` to
+4252 checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 822 to 854 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 822 pre-existing cases
+are byte-for-byte unchanged and exactly the 32 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (32 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(496/548 -> 512/564), `isa-family-admission` (promoted-support 476/518 ->
+492/534, blocked 593/606 -> 577/590), and `isa-norm-jsonl` (1062 -> 1094)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (one reflow needed and auto-promoted - a
+masked-OPFVV lowering arm's `when` guard line exceeded the length limit -
+then re-confirmed clean); `make asm-isa-difficult-check` and `make
+asm-test`, both re-run with the RV32 cross-toolchain directory stripped
+from `PATH`, confirming the tier-1 gate does not depend on it; two full
+`make asm-ci` runs with the full PATH (each backgrounded, both exit 0) -
+note `make asm-ci` itself needs the RV32 cross-toolchain on `PATH` for its
+`tools-oracle-diff` leg, unlike the PATH-independent tier-1 checks.
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(476->492/593->577, 518->534/606->590 - straight from blocked to
+promoted-support on both profiles for all 16 mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 496->512/548->564.
+`isa-norm-jsonl`'s real-form round-trip count moved 1062->1094 (+32, 16
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior OP-V
+slice's own precedent. Remaining `vf*` mnemonics after this slice:
+`vfslide1up.vf`/`vfslide1down.vf` (2 mnemonics, expected to mirror
+`vslide1up.vx`/`vslide1down.vx`), and the widening `vfw*`/narrowing `vfn*`
+families (~49 mnemonics, needing a genuinely new widened-result operand
+shape - deferred pending a design pass, not a small bounded slice).
+
+Acceptance gate satisfied: all 16 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including reordered
+operands and masked forms, via reuse of the existing `vmacc`-family
+machinery for `.vv` and a new FPR-typed mirror for `.vf`; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes - the same measured-Pass discipline every other GEN-05 promotion
+used, with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfslide1up.vf`/`vfslide1down.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / paused pending a design pass / Claude - the slide family's
+floating single-element siblings, the cheapest possible slice: a pure
+funct6-table extension of machinery already built for `vfadd.vf`/etc.
+This is the last small bounded `vf*` candidate; only the widening `vfw*`/
+narrowing `vfn*` families remain, and those need a genuinely new
+widened-result operand shape rather than a same-shape table extension, so
+this slice's completion is a deliberate stopping point.
+
+Scope manifest and obligations: 2 `kind: instruction-form` rv_v records,
+identical on both riscv32.jsonl and riscv64.jsonl (verified via a direct
+JSON diff), empty `relationships`: `vfslide1up.vf` (funct6 0x0e),
+`vfslide1down.vf` (funct6 0x0f), both under OPFVF (funct3 = 5) - the same
+funct6 values as the integer `vslide1up.vx`/`vslide1down.vx` siblings
+under OPMVX (funct3 = 6), the two spaces kept disjoint by funct3. No
+`.vi` sibling exists (matching the integer siblings' own precedent -
+inserting one element needs a real scalar).
+
+Real, measured findings: confirmed against real GNU as
+(`riscv64-linux-gnu-as` 2.44, byte-identical on `riscv32-linux-gnu-as`
+2.43.1, both under `-mabi=lp64f`/`ilp32f` `-march=rv{32,64}ivf`):
+`vfslide1up.vf v1,v2,fa0` -> `3a2550d7`, `vfslide1down.vf v1,v2,fa0` ->
+`3e2550d7`; masked, `vfslide1up.vf v1,v2,fa0,v0.t` -> `382550d7`,
+`vfslide1down.vf v1,v2,fa0,v0.t` -> `3c2550d7`. Operand order/shape is the
+plain `[vd, vs2, rs1]` `opfvf_form`/`opfvf_funct6` shape already used by
+every other OPFVF mnemonic (not the `vmacc`-family reordered shape).
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries, and two
+new entries added directly to the *existing* `opfvf_funct6` table (the
+same table `vfadd.vf`/`vfsub.vf`/etc. already populate) - no new table,
+lowering arm, normalization form, or generator entry builder at all. On
+the normalization side, `opfvf_form` (already reused across the whole
+`vfadd.vf`/`vmfeq.vf`/etc. family) covers this exact shape verbatim,
+wired in via 2 new `opfvf_mnemonics` list entries; `isa_gen_difficult.ml`
+likewise reused the existing `opfvf_entries` verbatim.
+`Isa_family_admission`'s `promoted_case` allow-list gained 2 new lines.
+Unit-test coverage reused the existing `test_opfvf_form`/`check_opfvf`
+helpers unchanged, with 2 new real-record JSON fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`;
+real-toolchain smoke tests via `riscv64-linux-gnu-as`/`objdump` for both
+mnemonics' unmasked and masked forms, cross-checked against
+`riscv32-linux-gnu-as`/`objdump` for byte identity; `make tools-test`
+(`isa-norm-riscv` grew to 1583 checks, `isa-gen-difficult` to 4270 checks,
+both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 854 to 858 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 854 pre-existing cases
+are byte-for-byte unchanged and exactly the 4 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (4 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(512/564 -> 514/566), `isa-family-admission` (promoted-support 492/534 ->
+494/536, blocked 577/590 -> 575/588), and `isa-norm-jsonl` (1094 -> 1098)
+totals); `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (clean, no reflowing needed); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`, confirming the tier-1 gate
+does not depend on it; two full `make asm-ci` runs with the full `PATH`
+(each backgrounded, both exit 0) - `make asm-ci` itself needs the RV32
+cross-toolchain on `PATH` for its `tools-oracle-diff` leg, unlike the
+PATH-independent tier-1 checks.
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(492->494/577->575, 534->536/590->588 - straight from blocked to
+promoted-support on both profiles for both mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 512->514/564->566.
+`isa-norm-jsonl`'s real-form round-trip count moved 1094->1098 (+4, 2
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full `make
+asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. Remaining `vf*` mnemonics: only the widening
+`vfw*`/narrowing `vfn*` families (~49 mnemonics), which need a genuinely
+new widened-result operand shape (the vector-register destination is
+double the element width of the source operands, unlike every shape
+implemented so far) - this needs a design pass before implementation,
+not a same-shape table extension, so GEN-05's vector-floating-point work
+pauses here pending that design conversation.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form,
+via a pure table-entry extension of the *existing* `opfvf_funct6` table
+(reused unchanged); a persisted, offline-replayed differential corpus
+entry per mnemonic per profile with real GNU agreement; admission-matrix
+promotion; and two full `make asm-ci` passes - the same measured-Pass
+discipline every other GEN-05 promotion used, with every affected pinned
+count in the repository's own regression suite updated and re-verified
+rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfwadd.vv`/`.vf`/`.wv`/`.wf`, `vfwsub.vv`/`.vf`/`.wv`/`.wf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the widening floating add/subtract
+pair, and a correction to the prior entry's stopping point: that entry
+paused GEN-05's floating work on the premise that the whole `vfw*`/`vfn*`
+widening/narrowing family "needs a genuinely new widened-result operand
+shape". Checking riscv-opcodes' own records before writing any code showed
+this premise was wrong - `vfwadd.vv`/`vfwadd.vf`/etc.'s `operands` field is
+`["vm", "vs2", "vs1-or-rs1", "vd"]`, byte-for-byte the same field layout
+`vfadd.vv`/`vfadd.vf` already use. Operand *width* (whether an element is
+narrow or double-width) is an execution-time SEW/vtype interpretation, not
+something the assembler encodes - the exact "width doesn't change the
+encoding" precedent `vwaddu`/`vwadd`/`vwsubu`/`vwsub`'s own earlier
+GEN-05 entry already established for the integer side. So this slice is,
+like every OPFVV/OPFVF slice before it, a plain funct6-table extension of
+machinery already built for `vfadd`/etc., not a new shape.
+
+Scope manifest and obligations: 16 `kind: instruction-form` rv_v records (8
+mnemonics x 2 profiles), identical on both riscv32.jsonl and riscv64.jsonl
+(verified via a direct JSON diff), empty `relationships`: `vfwadd.vv`/
+`vfwadd.vf` (funct6 0x30), `vfwadd.wv`/`vfwadd.wf` (funct6 0x34),
+`vfwsub.vv`/`vfwsub.vf` (funct6 0x32), `vfwsub.wv`/`vfwsub.wf` (funct6
+0x36) - `.vv`/`.wv` under OPFVV (funct3 = 1), `.vf`/`.wf` under OPFVF
+(funct3 = 5). No `.vi` sibling for either mnemonic (rejected as
+"unrecognized opcode" on real GNU as, matching riscv-opcodes' own export).
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64ivf -mabi=lp64f`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32ivf
+-mabi=ilp32f`): `vfwadd.vv v1,v2,v3` -> `c22190d7`, `vfwadd.vf v1,v2,fa0`
+-> `c22550d7`, `vfwadd.wv` -> `d22190d7`, `vfwadd.wf` -> `d22550d7`,
+`vfwsub.vv` -> `ca2190d7`, `vfwsub.vf` -> `ca2550d7`, `vfwsub.wv` ->
+`da2190d7`, `vfwsub.wf` -> `da2550d7`; masked, e.g. `vfwadd.vv
+v1,v2,v3,v0.t` -> `c02190d7`. `vfwadd.vi`/`vfwsub.vi` are "unrecognized
+opcode" on real GNU as, confirming no `.vi` sibling.
+
+Implementation: 8 new `Opcode.t` variants/`name`/`all` entries, and 4 new
+entries each added directly to the *existing* `opfvv_funct6` (`.vv`/`.wv`)
+and `opfvf_funct6` (`.vf`/`.wf`) tables (the same tables `vfadd.vv`/
+`vfadd.vf`/etc. already populate) - no new table, lowering arm,
+normalization form, or generator entry builder at all.
+`Isa_norm_riscv.opfvv_mnemonics`/`opfvf_mnemonics` gained the 8 new
+dispatch-table entries, reusing `opivv_form`/`opfvf_form` unchanged.
+`Isa_gen_difficult` gained 8 new entry bindings reusing `opivv_entries`
+(`.vv`/`.wv`) and `opfvf_entries` (`.vf`/`.wf`) unchanged, plus `all` list
+and `.mli` additions. `Isa_family_admission`'s `promoted_case` allow-list
+gained 8 new lines. Unit-test coverage reused the existing
+`test_opivv_form`/`check_opivv` (`.vv`/`.wv`) and `test_opfvf_form`/
+`check_opfvf` (`.vf`/`.wf`) helpers unchanged, with 8 new real-record JSON
+fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`
+(both the `asm` and `asm/tools` dune projects); real-toolchain smoke tests
+via `riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` (dedicated
+`/usr/local/riscv32-linux-gnu-toolchain`) plus `objdump -M no-aliases` for
+every positive combination (unmasked/masked) and the `.vi` negative
+control, cross-checked for byte identity; `make tools-test`
+(`isa-norm-riscv` 1583->1615 checks, `isa-gen-difficult` 4270->4350
+checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 858 to 874 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 858 pre-existing cases
+are byte-for-byte unchanged and exactly the 16 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (16 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(514/566 -> 522/574), `isa-family-admission` (promoted-support 494/536 ->
+502/544, blocked 575/588 -> 567/580), and `isa-norm-jsonl` (1098 -> 1114)
+totals in `asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd
+asm && opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflowing needed); `make asm-isa-difficult-check` and `make asm-test`,
+both re-run with the RV32 cross-toolchain directory stripped from `PATH`,
+confirming the tier-1 gate does not depend on it; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(494->502/575->567, 536->544/588->580 - straight from blocked to
+promoted-support on both profiles for all 8 mnemonics).
+`isa-norm-accounting`'s RV32/RV64 totals moved 514->522/566->574.
+`isa-norm-jsonl`'s real-form round-trip count moved 1098->1114 (+16, 8
+mnemonics x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full
+`make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side (word-to-text
+disassembly) support was deliberately not added, matching every prior
+OP-V slice's own precedent. This entry retracts the prior one's "needs a
+design pass" conclusion: checking riscv-opcodes' actual `operands` field
+layout for the remaining `vfw*`/`vfn*` mnemonics before starting shows
+every one of them reuses an existing shape - `vfwmul.vv`/`.vf` (4
+mnemonics) is another plain `opfvv_funct6`/`opfvf_funct6` extension exactly
+like this slice; `vfwmacc`/`vfwmsac`/`vfwnmacc`/`vfwnmsac`'s `.vv`/`.vf` plus
+the `bf16` variants (~20 mnemonics) share `opfmacc_funct6`/`opfmaccf_funct6`'s
+reordered-operand shape, the same one `vfmadd`/`vfmacc`/etc. already use;
+`vfwredosum.vs`/`vfwredusum.vs`/`vfwredsum.vs` (3 mnemonics x 2 profiles)
+share `vfredosum.vs`/etc.'s `opfvv_funct6` `.vs` shape verbatim; and
+`vfwcvt.*`/`vfncvt.*` plus their `bf16` variants (~24 mnemonics) share
+`vfcvt.*`/`vfsqrt.v`/etc.'s `opfvv_unary_const` fixed-rs1-position shape
+verbatim (confirmed by inspecting real records, e.g. `vfwcvt.f.x.v`'s
+`31..26=0x12 vm vs2 19..15=0x0B 14..12=0x1 vd`, the identical layout
+`vfcvt.f.x.v`'s own `opfvv_unary_const` entry already models). So GEN-05's
+remaining `vfw*`/`vfn*` scope (~48 mnemonics) is a sequence of further
+same-shape table extensions, not blocked on any design work; the next
+smallest bounded slice is `vfwmul.vv`/`.vf`.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form
+and the `.vi` negative control, via a pure table-entry extension of the
+*existing* `opfvv_funct6`/`opfvf_funct6` tables (reused unchanged); a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes - the same measured-Pass discipline every other
+GEN-05 promotion used, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V `vfwmul.vv`/`.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the widening floating multiply, the
+next smallest bounded slice the prior entry's follow-up section named.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records (2
+mnemonics x 2 profiles), identical on both riscv32.jsonl and riscv64.jsonl
+(verified via a direct JSON diff), empty `relationships`: `vfwmul.vv`/
+`vfwmul.vf` (funct6 0x38) - `.vv` under OPFVV (funct3 = 1), `.vf` under
+OPFVF (funct3 = 5). Unlike `vfwadd`/`vfwsub`'s symmetric `.vv`/`.vf`/`.wv`/
+`.wf` quartets, `vfwmul` has no `.wv`/`.wf` sibling (a wide-times-narrow
+multiply is not part of riscv-opcodes' own export) and no `.vi` sibling.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64ivf -mabi=lp64f`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32ivf
+-mabi=ilp32f`): `vfwmul.vv v1,v2,v3` -> `e22190d7`, `vfwmul.vf v1,v2,fa0`
+-> `e22550d7`; masked, e.g. `vfwmul.vv v1,v2,v3,v0.t` -> `e02190d7`.
+`vfwmul.wv` and `vfwmul.vi` are both "unrecognized opcode" on real GNU as,
+confirming neither sibling exists.
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries, and one new
+entry each added directly to the *existing* `opfvv_funct6`/`opfvf_funct6`
+tables - no new table, lowering arm, normalization form, or generator
+entry builder. `Isa_norm_riscv.opfvv_mnemonics`/`opfvf_mnemonics` gained
+the 2 new dispatch-table entries. `Isa_gen_difficult` gained 2 new entry
+bindings reusing `opivv_entries`/`opfvf_entries` unchanged, plus `all`
+list and `.mli` additions. `Isa_family_admission`'s `promoted_case`
+allow-list gained 2 new lines. Unit-test coverage reused the existing
+`test_opivv_form`/`test_opfvf_form`/`check_opivv`/`check_opfvf` helpers
+unchanged, with 2 new real-record JSON fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`
+(both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every positive combination and both negative controls (`.wv`, `.vi`),
+cross-checked for byte identity; `make tools-test` (`isa-norm-riscv`
+1615->1623 checks, `isa-gen-difficult` 4350->4370 checks, both green);
+`make asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 874 to 878 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+874 pre-existing cases are byte-for-byte unchanged and exactly the 4
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(4 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (522/574 -> 524/576), `isa-family-admission`
+(promoted-support 502/544 -> 504/546, blocked 567/580 -> 565/578), and
+`isa-norm-jsonl` (1114 -> 1118) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(502->504/567->565, 544->546/580->578). `isa-norm-accounting`'s RV32/RV64
+totals moved 522->524/574->576. `isa-norm-jsonl`'s real-form round-trip
+count moved 1114->1118 (+4, 2 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Remaining `vfw*`/`vfn*` scope
+(~44 mnemonics) per the prior entry's survey: `vfwmacc`/`vfwmsac`/
+`vfwnmacc`/`vfwnmsac`'s `.vv`/`.vf` plus their `bf16` variants (the
+`opfmacc_funct6`/`opfmaccf_funct6` reordered shape), `vfwredosum.vs`/
+`vfwredusum.vs`/`vfwredsum.vs` (the `opfvv_funct6` `.vs` shape), and
+`vfwcvt.*`/`vfncvt.*` plus their `bf16` variants (the `opfvv_unary_const`
+fixed-rs1-position shape) - none blocked on design work.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form
+and both negative controls, via a pure table-entry extension of the
+*existing* `opfvv_funct6`/`opfvf_funct6` tables; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfwredosum.vs`/`vfwredusum.vs` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the widening floating reduction
+pair, continuing down the prior entry's remaining-scope list.
+
+Scope manifest and obligations: 4 `kind: instruction-form` rv_v records (2
+mnemonics x 2 profiles), identical on both riscv32.jsonl and riscv64.jsonl,
+empty `relationships`: `vfwredosum.vs` (funct6 0x33), `vfwredusum.vs`
+(funct6 0x31), both OPFVV (funct3 = 1), reusing `vfredosum.vs`/
+`vfredusum.vs`'s own `[rd, rs2, rs1]` shape (`rs1` the scalar/initial
+value, `rs2` the vector to reduce). No `.vf`/`.vx` sibling for either.
+riscv-opcodes also carries a third name, `vfwredsum.vs`, but its own
+record has `kind: pseudo-op` (a `$pseudo_op rv_v::vfwredusum.vs` alias
+record in `extensions/rv_v_aliases`, not `extensions/rv_v`), not `kind:
+instruction-form` - confirmed on real GNU as too: `vfwredsum.vs
+v1,v2,v3` assembles to the identical bytes as `vfwredusum.vs v1,v2,v3`
+and `objdump` disassembles it back as `vfwredusum.vs`, not as a
+independently-surviving mnemonic. So, matching this project's own
+"promote `kind: instruction-form` records" scope and every other
+alias-mnemonic precedent in the codebase, `vfwredsum.vs` is not
+separately admitted.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64ivf -mabi=lp64f`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32ivf
+-mabi=ilp32f`): `vfwredosum.vs v1,v2,v3` -> `ce2190d7`, `vfwredusum.vs
+v1,v2,v3` -> `c62190d7`, `vfwredsum.vs v1,v2,v3` (the pseudo-op alias)
+also -> `c62190d7`; masked, e.g. `vfwredosum.vs v1,v2,v3,v0.t` ->
+`cc2190d7`. `vfwredosum.vf` is "unrecognized opcode" on real GNU as,
+confirming no `.vf`/`.vx` sibling.
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries, and one new
+entry each added directly to the *existing* `opfvv_funct6` table - no new
+table, lowering arm, normalization form, or generator entry builder.
+`Isa_norm_riscv.opfvv_mnemonics` gained the 2 new dispatch-table entries.
+`Isa_gen_difficult` gained 2 new entry bindings reusing `opivv_entries`
+unchanged, plus `all` list and `.mli` additions. `Isa_family_admission`'s
+`promoted_case` allow-list gained 2 new lines. Unit-test coverage reused
+the existing `test_opivv_form`/`check_opivv` helpers unchanged, with 2 new
+real-record JSON fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`
+(both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`,
+including the `vfwredsum.vs` pseudo-op-alias check and the `.vf` negative
+control, cross-checked for byte identity; `make tools-test`
+(`isa-norm-riscv` 1623->1631 checks, `isa-gen-difficult` 4370->4392
+checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 878 to 882 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 878 pre-existing cases
+are byte-for-byte unchanged and exactly the 4 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (4 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(524/576 -> 526/578), `isa-family-admission` (promoted-support 504/546 ->
+506/548, blocked 565/578 -> 563/576), and `isa-norm-jsonl` (1118 -> 1122)
+totals in `asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd
+asm && opam exec -- dune build @runtest`; `make asm-fmt-check` (clean);
+`make asm-isa-difficult-check` and `make asm-test`, both re-run with the
+RV32 cross-toolchain directory stripped from `PATH`; two full `make
+asm-ci` runs with the full `PATH` (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(504->506/565->563, 546->548/578->576). `isa-norm-accounting`'s RV32/RV64
+totals moved 524->526/576->578. `isa-norm-jsonl`'s real-form round-trip
+count moved 1118->1122 (+4, 2 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent; `vfwredsum.vs`'s pseudo-op
+alias status was checked and deliberately excluded, not merely
+overlooked. Remaining `vfw*`/`vfn*` scope (~40 mnemonics): `vfwmacc`/
+`vfwmsac`/`vfwnmacc`/`vfwnmsac`'s `.vv`/`.vf` plus their `bf16` variants
+(the `opfmacc_funct6`/`opfmaccf_funct6` reordered shape), and `vfwcvt.*`/
+`vfncvt.*` plus their `bf16` variants (the `opfvv_unary_const`
+fixed-rs1-position shape) - none blocked on design work; the next
+smallest bounded slice is the `vfwcvt.*`/`vfncvt.*` conversion family,
+since it needs no operand-shape work at all (pure `opfvv_unary_const`
+table rows), whereas the FMA family needs the reordered-operand lowering
+arm wired for OPFVV/OPFVF the same way `opmacc_funct6`/`opmaccx_funct6`
+already are for OPMVV/OPMVX.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form,
+the pseudo-op-alias check, and the `.vf` negative control, via a pure
+table-entry extension of the *existing* `opfvv_funct6` table; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion; and two full
+`make asm-ci` passes, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V V `vfwcvt.*`/`vfncvt.*` widening/narrowing conversion family (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the widening/narrowing
+float<->integer conversion families, the next item on the prior entry's
+remaining-scope list; unlike the FMA family it named as needing the
+reordered-operand lowering arm, this one needs no operand-shape work at
+all.
+
+Scope manifest and obligations: 30 `kind: instruction-form` rv_v records
+(15 mnemonics x 2 profiles), identical on both riscv32.jsonl and
+riscv64.jsonl, empty `relationships`: `vfwcvt.xu.f.v`/`vfwcvt.x.f.v`/
+`vfwcvt.f.xu.v`/`vfwcvt.f.x.v`/`vfwcvt.f.f.v`/`vfwcvt.rtz.xu.f.v`/
+`vfwcvt.rtz.x.f.v` (rs1-position 0x08-0x0f, skipping 0x0d) and
+`vfncvt.xu.f.w`/`vfncvt.x.f.w`/`vfncvt.f.xu.w`/`vfncvt.f.x.w`/
+`vfncvt.f.f.w`/`vfncvt.rod.f.f.w`/`vfncvt.rtz.xu.f.w`/`vfncvt.rtz.x.f.w`
+(rs1-position 0x10-0x17, skipping 0x1d) - all under the *same* funct6
+(0x12) `vfcvt.*.v`'s own six entries already use, reusing
+`opfvv_unary_const`'s exact `vd, vs2` shape verbatim, disambiguated purely
+by rs1-position like every other member of that table. riscv-opcodes also
+lists two `bf16` sibling mnemonics, `vfwcvtbf16.f.f.v` (rs1 0x0d) and
+`vfncvtbf16.f.f.w` (rs1 0x1d) - both `rv_zvfbfmin`, a sub-extension with
+no existing requirement/admission plumbing anywhere in this codebase
+(checked: `zvfbfmin` appears only in the whole-ISA-inventory fixture
+catalog, never in any normalization/admission/generator code), unlike
+every other mnemonic promoted so far (all plain `rv_v`) - so, matching
+this project's discipline of not bundling genuinely new extension-support
+work into a same-shape table-extension slice, they are deliberately not
+admitted here.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64ivf -mabi=lp64f`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32ivf
+-mabi=ilp32f`): `vfwcvt.xu.f.v v1,v2` -> `4a2410d7`, `vfwcvt.x.f.v` ->
+`4a2490d7`, `vfwcvt.f.xu.v` -> `4a2510d7`, `vfwcvt.f.x.v` -> `4a2590d7`,
+`vfwcvt.f.f.v` -> `4a2610d7`, `vfwcvt.rtz.xu.f.v` -> `4a2710d7`,
+`vfwcvt.rtz.x.f.v` -> `4a2790d7`, `vfncvt.xu.f.w` -> `4a2810d7`,
+`vfncvt.x.f.w` -> `4a2890d7`, `vfncvt.f.xu.w` -> `4a2910d7`,
+`vfncvt.f.x.w` -> `4a2990d7`, `vfncvt.f.f.w` -> `4a2a10d7`,
+`vfncvt.rod.f.f.w` -> `4a2a90d7`, `vfncvt.rtz.xu.f.w` -> `4a2b10d7`,
+`vfncvt.rtz.x.f.w` -> `4a2b90d7`; masked, e.g. `vfwcvt.f.x.v v1,v2,v0.t`
+-> `482590d7`. A third operand is "illegal operands" (not "unrecognized
+opcode") on real GNU as for every one of the 15, matching `vfcvt.*.v`'s
+own precedent - no `.vx`/`.vf`/`.vi` sibling exists for any of them. The
+two `rv_zvfbfmin` siblings were also spot-checked assembling correctly
+under `-march=rv64iv_zvfbfmin` (`vfwcvtbf16.f.f.v` -> `4a2690d7`,
+`vfncvtbf16.f.f.w` -> `4a2e90d7`), confirming they are real, only
+deliberately deferred, not broken.
+
+Implementation: 15 new `Opcode.t` variants/`name`/`all` entries, and 15
+new entries added directly to the *existing* `opfvv_unary_const` table
+(the same table `vfcvt.*.v`/`vfsqrt.v`/etc. already populate) - no new
+table, lowering arm, normalization form, or generator entry builder at
+all. `Isa_norm_riscv`'s per-mnemonic dispatch match gained 15 new arms
+reusing `vext_form` unchanged (mirroring `vfcvt.*.v`'s own arms).
+`Isa_gen_difficult` gained 15 new entry bindings reusing `vext_entries`
+unchanged, plus `all` list and `.mli` additions. `Isa_family_admission`'s
+`promoted_case` allow-list gained 15 new lines. Unit-test coverage reused
+the existing `test_vext_form`/`check_vext` helpers unchanged, with 15 new
+real-record JSON fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`
+(both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and the third-operand negative
+control, plus the `rv_zvfbfmin` spot-check, cross-checked for byte
+identity; `make tools-test` (`isa-norm-riscv` 1631->1691 checks,
+`isa-gen-difficult` 4392->4527 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 882 to 912 entries; confirmed via a Python diff script, ignoring only
+the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+882 pre-existing cases are byte-for-byte unchanged and exactly the 30
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(30 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (526/578 -> 541/593), `isa-family-admission`
+(promoted-support 506/548 -> 521/563, blocked 563/576 -> 548/561), and
+`isa-norm-jsonl` (1122 -> 1152) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(506->521/563->548, 548->563/576->561). `isa-norm-accounting`'s RV32/RV64
+totals moved 526->541/578->593. `isa-norm-jsonl`'s real-form round-trip
+count moved 1122->1152 (+30, 15 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. The two `rv_zvfbfmin`
+mnemonics (`vfwcvtbf16.f.f.v`/`vfncvtbf16.f.f.w`) remain a genuine
+follow-up, needing new extension-requirement plumbing before they can be
+admitted - not bounded-slice work, so left for a dedicated task if this
+project ever takes up `Zvfbfmin` more broadly. Remaining `vfw*`/`vfn*`
+scope: `vfwmacc`/`vfwmsac`/`vfwnmacc`/`vfwnmsac`'s `.vv`/`.vf` (8
+mnemonics, `opfmacc_funct6`/`opfmaccf_funct6`'s reordered-operand shape,
+already built and working for `vfmadd`/`vfmacc`/etc. - needs no new
+lowering arm either, just table rows in the existing OPFVV/OPFVF FMA
+tables) plus their `bf16` variants (also deferred, same `rv_zvfbfmin`
+reason). With this slice, GEN-05's entire non-`rv_zvfbfmin` `vfw*`/`vfn*`
+scope is now either done or reduced to the single `vfwmacc` family.
+
+Acceptance gate satisfied: all 15 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form
+and the third-operand negative control, via a pure table-entry extension
+of the *existing* `opfvv_unary_const` table; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci` passes,
+with every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vfwmacc`/`vfwmsac`/`vfwnmacc`/`vfwnmsac` `.vv`/`.vf` (Claude)
+
+Task / status / owner: GEN-05 vector-floating-point sub-slice / done; GEN-05
+overall / still implementing / Claude - the widening floating
+fused-multiply-add family, closing out GEN-05's entire non-`rv_zvfbfmin`
+`vfw*`/`vfn*` scope as the prior entry's follow-up section predicted.
+
+Scope manifest and obligations: 16 `kind: instruction-form` rv_v records
+(8 mnemonics x 2 profiles), identical on both riscv32.jsonl and
+riscv64.jsonl, empty `relationships`: `vfwmacc.vv`/`.vf` (funct6 0x3c),
+`vfwnmacc.vv`/`.vf` (funct6 0x3d), `vfwmsac.vv`/`.vf` (funct6 0x3e),
+`vfwnmsac.vv`/`.vf` (funct6 0x3f), all under the identical reordered
+`[vm, vs2, vs1-or-rs1, vd]` operand-field layout `vfmacc`/etc.'s own
+records use - `.vv` OPFVV (funct3 = 1), `.vf` OPFVF (funct3 = 5). No
+`.vi` sibling for any of the eight.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64ivf -mabi=lp64f`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32ivf
+-mabi=ilp32f`), decoding the assembled word's own vs1/vs2 field bits (not
+just accepted/rejected status) to confirm the reordered text-operand
+order: `vfwmacc.vv v1,v2,v3` places `v2` in the vs1 field position and
+`v3` in the vs2 one (vd=1, vs1-field=2, vs2-field=3, funct6=0x3c) ->
+`f23110d7`; `vfwmacc.vf v1,fa0,v3` -> `f23550d7`, `vfwmsac.vv` ->
+`fa3110d7`, `vfwmsac.vf` -> `fa3550d7`, `vfwnmacc.vv` -> `f63110d7`,
+`vfwnmacc.vf` -> `f63550d7`, `vfwnmsac.vv` -> `fe3110d7`, `vfwnmsac.vf`
+-> `fe3550d7`; masked, e.g. `vfwmacc.vv v1,v2,v3,v0.t` -> `f03110d7`.
+`vfwmacc.vi` is "unrecognized opcode" on real GNU as, confirming no `.vi`
+sibling.
+
+Implementation: 8 new `Opcode.t` variants/`name`/`all` entries, and one
+new entry each added directly to the *existing* `opfmacc_funct6`/
+`opfmaccf_funct6` tables (the same tables `vfmadd`/`vfmacc`/etc. already
+populate) - no new table, lowering arm, normalization form, or generator
+entry builder at all. `Isa_norm_riscv`'s `opfmacc_vv_mnemonics`/
+`opfmacc_vf_mnemonics` lists gained the 8 new dispatch entries, reusing
+`opmacc_vv_form`/`opfmacc_vf_form` unchanged. `Isa_gen_difficult` gained 8
+new entry bindings reusing `opmacc_vv_entries`/`opfmacc_vf_entries`
+unchanged, plus `all` list and `.mli` additions. `Isa_family_admission`'s
+`promoted_case` allow-list gained 8 new lines. Unit-test coverage reused
+the existing `test_opmacc_vv_form`/`test_opfmacc_vf_form`/
+`check_opmacc_vv`/`check_opfmacc_vf` helpers unchanged, with 8 new
+real-record JSON fixtures.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build @all`
+(both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and the `.vi` negative control,
+cross-checked for byte identity; `make tools-test` (`isa-norm-riscv`
+1691->1723 checks, `isa-gen-difficult` 4527->4607 checks, both green);
+`make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 912 to 928 entries; confirmed
+via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 912 pre-existing cases
+are byte-for-byte unchanged and exactly the 16 expected new `case_id`s were
+added, every one `verdict = pass` on both `riscv32-linux-gnu-as`/
+`riscv64-linux-gnu-as`); `make tools-integration` (16 new real-record
+grounding checks, all pass after updating the pinned `isa-norm-accounting`
+(541/593 -> 549/601), `isa-family-admission` (promoted-support 521/563 ->
+529/571, blocked 548/561 -> 540/553), and `isa-norm-jsonl` (1152 -> 1168)
+totals in `asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd
+asm && opam exec -- dune build @runtest`; `make asm-fmt-check` (one line
+in `isa_gen_difficult.ml`'s `all` list exceeded the column limit after
+the last `@`-append; `make asm-fmt` reflowed it and the promoted file was
+re-verified with a full rebuild/retest before continuing); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected
+(521->529/548->540, 563->571/561->553). `isa-norm-accounting`'s RV32/RV64
+totals moved 541->549/593->601. `isa-norm-jsonl`'s real-form round-trip
+count moved 1152->1168 (+16, 8 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. With this slice,
+GEN-05's entire non-`rv_zvfbfmin` `vfw*`/`vfn*` scope (widening
+add/subtract/multiply/reduction/conversion/FMA) is done; the only
+remaining `vfw*`/`vfn*` mnemonics are the four `rv_zvfbfmin` ones
+(`vfwcvtbf16.f.f.v`/`vfncvtbf16.f.f.w` plus `vfwmaccbf16.vv`/`.vf`, none
+of which have any existing requirement/admission plumbing in this
+codebase), deliberately left for a dedicated `Zvfbfmin` task rather than
+bundled into any same-shape slice. GEN-05's broader vector scope still has
+unexamined territory beyond `vfw*`/`vfn*`: segment/strided/indexed vector
+loads/stores (a genuinely new addressing-mode shape, never investigated),
+fixed-point rounding-mode instructions beyond what `vsmul`/`vssrl`/`vssra`
+already cover, and every `rv_zv*` vector-crypto extension - GEN-06 still
+has no single named next item, matching the standing note from the
+`vwaddu`/etc. entry much earlier in this log.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-
+gnu-as` output across every tested combination including the masked form
+and the `.vi` negative control, via a pure table-entry extension of the
+*existing* `opfmacc_funct6`/`opfmaccf_funct6` tables; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vle8.v`/`vle16.v`/`vle32.v`/`vle64.v`/`vse8.v`/`vse16.v`/`vse32.v`/`vse64.v` unit-stride load/store (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the first entry point into the
+58-record blocked-only load/store territory the prior `vfwmacc`/etc. entry
+flagged as unexamined: V's unit-stride vector-register loads/stores, a
+genuinely new "vd/vs3, (base)" memory-operand shape (opcode LOAD-FP/
+STORE-FP, no offset field, an element-width `funct3`, and a single `vm`
+bit folded into the top of the word) rather than a variation on any
+existing OPIVV/OPIVX/OPMACC register-only shape.
+
+Scope manifest and obligations: every `rv_v` record with a native name
+matching `vle{8,16,32,64}.v`/`vse{8,16,32,64}.v` - 8 mnemonics, identical
+on both riscv32.jsonl and riscv64.jsonl, empty `relationships`, 16
+records total. Confirmed these are exactly the whole of `rv_v`'s
+58-record blocker before starting (`isa-inventory family-admission`
+showed `rv_v total=375 promoted-support=317 blocker=unhandled-native-
+name=58`, and a source-record scan of every unhandled `rv_v` native name
+came back as precisely 58 load/store mnemonics: this unit-stride slice's
+8, plus the still-unexamined mask load/store `vlm.v`/`vsm.v` (2), the
+fault-only-first `vle*ff.v` (4), whole-register `vl{1,2,4,8}re{8,16,32,
+64}.v`/`vs{1,2,4,8}r.v` (20), strided `vlse*`/`vsse*` (8), and indexed
+`vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` (16) - none of which this slice
+touches). Each source record's own `provenance.operands` lists `nf` and
+`vm` as free/variable fields (riscv-opcodes models the same opcode
+template as shared with the segmented `vlseg<nf>e<eew>.v` family this
+snapshot's export has zero records for), while `encoding.mask` fixes
+`lumop`/`sumop` to 0 (unit-stride) - so only the canonical bare `nf=0`
+spelling is normalized here, matching `lr_form`'s own precedent of
+normalizing only the bare `aq=0,rl=0` spelling out of a record that
+architecturally allows more.
+
+Real, measured findings: confirmed against real GNU as before writing any
+encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv -mabi=lp64`,
+byte-identical on `riscv32-linux-gnu-as` 2.43.1 `-march=rv32iv
+-mabi=ilp32`), decoding the assembled word's own field bits (not just
+accepted/rejected status): `vle8.v v1,(a0)` -> `02050087` (opcode 0x07,
+vd=1, width=0, rs1=10, vs2/lumop=0, vm=1), `vle16.v` -> `02055087`
+(width=5), `vle32.v` -> `02056087` (width=6), `vle64.v` -> `02057087`
+(width=7); `vse8/16/32/64.v v1,(a0)` -> `020500a7`/`020550a7`/
+`020560a7`/`020570a7` (opcode 0x27, otherwise identical); masked, e.g.
+`vle8.v v1,(a0),v0.t` -> `00050087` (vm=0 only, every other field
+unchanged) and `vse8.v v1,(a0),v0.t` -> `000500a7`. Negative controls:
+`vle32.v v1,4(a0)` is "illegal operands" (no offset field exists - GAS
+parses `offset(base)` generically but only tolerates a literal-zero
+fold), `vle32.v v1,(a0),a1` is "illegal operands" (the mask operand slot
+only accepts `v0.t`, never a second address operand), and both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as` produced byte-identical
+output for every case above (V is XLEN-independent).
+
+Implementation: 8 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), and two new funct3-only lookup tables
+(`vload_desc`/`vstore_desc`, mirroring `lr_desc`'s "no offset field, real
+GNU rejects any nonzero fold" shape but with an element-width `funct3`
+selecting each of the 4 widths instead of a fixed opcode). Both encode via
+the *existing* generic `Lowered.R`/`word_r` R-type packer unchanged - the
+word's bit layout is bit-for-bit identical to R-type (`opcode`/`rd`/
+`funct3`/`rs1`/`rs2`/`funct7`), so `vs2`/lumop/sumop=0 becomes `rs2=0` and
+`vm` becomes the bottom bit of `funct7` (1=unmasked, 0=masked), exactly
+the same "vm folds into funct7's bottom bit" pattern OPIVV/OPIVX already
+use for their own funct6/vm split. Four new encoder match clauses (load
+unmasked/masked, store unmasked/masked) parallel to `lr_desc`'s own
+clause, requiring `vreg` on the data operand (not `xreg`) and
+`zero_offset m.offset`. `Isa_norm_riscv` gained `v_load_form`/
+`v_store_form` (new functions, not a reuse of `lr_form`, since the data
+operand is a vector register and the source field names differ - `vd`/
+`vs3` rather than `rd`), plus 8 new mnemonic-dispatch entries.
+`Isa_gen_difficult` gained `v_load_entry`/`v_store_entry` builders (the
+generic per-mnemonic/per-target shape `opivv_entry`/`sw_entry` already
+use) and 8 new `*_entries` bindings, spliced into `all`, plus `.mli`
+declarations. `Isa_family_admission`'s `promoted_case` allow-list gained
+8 new lines. New unit tests: `test_vle32_v`/`test_vse32_v` in
+`test_isa_norm_riscv.ml` (one representative fixture per shape, matching
+`lr.w`'s own precedent of not separately testing `lr.d`) with two new
+real-record JSON fixtures, and `test_v_ldst_domain` in
+`test_isa_gen_difficult.ml` covering all 8 mnemonics' entries.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and the offset/second-operand
+negative controls, cross-checked for byte identity; `make tools-test`
+(`isa-norm-riscv` 1723->1731 checks, `isa-gen-difficult` 4639->4679
+checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 928 to 944 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 928 pre-existing
+cases are byte-for-byte unchanged and exactly the 16 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(16 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (549/601 -> 557/609), `isa-family-admission`
+(promoted-support 529/571 -> 537/579, blocked 540/553 -> 532/545), and
+`isa-norm-jsonl` (1168 -> 1184) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (one line in
+`isa_gen_difficult.ml`'s new `v_store_entries` definition exceeded the
+column limit; `make asm-fmt` reflowed it and the promoted file was
+re-verified with a full rebuild/retest before continuing); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (529->537/
+540->532, 571->579/553->545). `isa-norm-accounting`'s RV32/RV64 totals
+moved 549->557/601->609. `isa-norm-jsonl`'s real-form round-trip count
+moved 1168->1184 (+16, 8 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. `nf` (segment count) is left
+unmodeled beyond the canonical `nf=0` spelling, matching this snapshot's
+own lack of segmented-mnemonic records. GEN-05's vector-memory territory
+still has 50 of the original 58 blocked records remaining, all
+load/store: mask load/store `vlm.v`/`vsm.v` (2, the same shape as this
+slice but with a fixed `lumop`/`sumop=0b01011` rather than a width-keyed
+`funct3`), fault-only-first `vle{8,16,32,64}ff.v` (4, same shape,
+`lumop=0b10000`), whole-register `vl{1,2,4,8}re{8,16,32,64}.v`/
+`vs{1,2,4,8}r.v` (20, a genuinely new "register-group count" concept -
+`nf` becomes a real operand rather than fixed to 0, and the data operand
+spans `nf+1` consecutive vector registers), strided `vlse*`/`vsse*` (8, a
+new "(base), stride-GPR" operand shape), and indexed `vluxei*`/
+`vloxei*`/`vsuxei*`/`vsoxei*` (16, a new "(base), index-vector-register"
+shape) - none named as a single next item yet, each its own bounded
+GEN-05 continuation candidate. Every `rv_zv*` vector-crypto/bf16
+extension (`rv_zvbb`, `rv_zvbc`, `rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkg`,
+`rv_zvkn`, `rv_zvkned`, `rv_zvknha`, `rv_zvknhb`, `rv_zvks`, `rv_zvksed`,
+`rv_zvksh`) remains entirely unadmitted, matching the standing note from
+the `vwaddu`/etc. entry much earlier in this log.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked form and both negative controls, via a new memory-operand shape
+built on the existing generic R-type encoder; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vlm.v`/`vsm.v` mask-register load/store (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the prior unit-stride entry's
+own follow-up: the identical "vd/vs3, (base)" shape, but with a fixed
+`lumop`/`sumop = 0b01011` (rather than 0) and `vm` permanently 1 (real
+GNU as rejects a trailing mask operand outright), so it reuses the prior
+slice's encoder/normalization/generator machinery almost verbatim rather
+than introducing anything new.
+
+Scope manifest and obligations: `vlm.v`/`vsm.v`, 2 `kind: instruction-
+form` rv_v records, identical on both riscv32.jsonl/riscv64.jsonl, empty
+`relationships`. Unlike the unit-stride family, each record's own
+`provenance.operands` is just `["rs1","vd"]`/`["rs1","vs3"]` - `nf` is
+not even a free field here (the record's `encoding.mask` covers those
+bits as fixed), so there is no nf-not-modeled diagnostic to emit, unlike
+`v_load_form`/`v_store_form`.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv
+-mabi=lp64`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32iv -mabi=ilp32`), decoding the assembled word's own field
+bits: `vlm.v v1,(a0)` -> `02b50087` (opcode 0x07, vd=1, funct3=0, rs1=10,
+rs2/lumop=0xb, vm=1), `vsm.v v1,(a0)` -> `02b500a7` (opcode 0x27,
+otherwise identical). Negative control: `vlm.v v1,(a0),v0.t` is "illegal
+operands" (unlike `vle*.v`/`vse*.v`, no masked spelling exists at all),
+confirming `vm` really is permanently 1 rather than merely defaulting to
+it.
+
+Implementation: 2 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), and two dedicated encoder match clauses
+(`Opcode.Vlm_v`/`Opcode.Vsm_v`, keyed directly on the opcode rather than
+a lookup table since there is no width variation) reusing the same
+`Lowered.R`/`word_r` R-type packer with `rs2 = 0xb` and `funct7 = 1`
+hardcoded. `Isa_norm_riscv` gained dedicated `vlm_form`/`vsm_form`
+functions (not a reuse of `v_load_form`/`v_store_form`, since the
+diagnostics differ - no nf-not-modeled note, and the mask-suffix
+`Inferred` fact says the opposite of the unit-stride one), plus 2 new
+mnemonic-dispatch entries. `Isa_gen_difficult` gained 2 new `*_entries`
+bindings built directly from the *existing* `v_load_entries`/
+`v_store_entries` builders (the generator layer never sees `lumop`/`vm`,
+so no new builder was needed), spliced into `all`, plus `.mli`
+declarations. `Isa_family_admission`'s `promoted_case` allow-list gained
+2 new lines. New unit tests: `test_vlm_v`/`test_vsm_v` in
+`test_isa_norm_riscv.ml` with two new real-record JSON fixtures
+(asserting the *absence* of the nf-not-modeled diagnostic, not just its
+presence), and `test_v_ldst_domain` in `test_isa_gen_difficult.ml`
+extended to cover both new mnemonics' entries.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for both mnemonics plus the masked negative control, cross-checked for
+byte identity; `make tools-test` (`isa-norm-riscv` 1731->1739 checks,
+`isa-gen-difficult` 4679->4697 checks, both green); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 944 to 948 entries; confirmed via a Python diff script, ignoring
+only the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that
+all 944 pre-existing cases are byte-for-byte unchanged and exactly the 4
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(4 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (557/609 -> 559/611), `isa-family-admission`
+(promoted-support 537/579 -> 539/581, blocked 532/545 -> 530/543), and
+`isa-norm-jsonl` (1184 -> 1188) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (two lines -
+one each in `riscv_family_encode.ml`'s new encoder clauses and
+`isa_norm_riscv.ml`'s new forms - exceeded the column limit; `make
+asm-fmt` reflowed them and the promoted files were re-verified with a
+full rebuild/retest before continuing); `make asm-isa-difficult-check`
+and `make asm-test`, both re-run with the RV32 cross-toolchain directory
+stripped from `PATH`; two full `make asm-ci` runs with the full `PATH`
+(each backgrounded with an explicit captured exit code, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (537->539/
+579->581, 532->530/545->543). `isa-norm-accounting`'s RV32/RV64 totals
+moved 557->559/609->611. `isa-norm-jsonl`'s real-form round-trip count
+moved 1184->1188 (+4, 2 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. GEN-05's vector-memory
+territory now has 48 of the original 58 blocked records remaining, all
+load/store: fault-only-first `vle{8,16,32,64}ff.v` (4, the unit-stride
+shape with `lumop=0b10000` instead of 0 - the next smallest bounded
+candidate, directly reusing this slice's own dedicated-clause pattern),
+whole-register `vl{1,2,4,8}re{8,16,32,64}.v`/`vs{1,2,4,8}r.v` (20, a
+genuinely new "register-group count" concept where `nf` becomes a real
+operand), strided `vlse*`/`vsse*` (8, a new "(base), stride-GPR" operand
+shape), and indexed `vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` (16, a new
+"(base), index-vector-register" shape) - none named as a single next
+item yet. Every `rv_zv*` vector-crypto/bf16 extension remains entirely
+unadmitted, matching the standing note from the `vwaddu`/etc. entry much
+earlier in this log.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output, including the rejected-mask negative control that
+distinguishes this shape from its unit-stride sibling; a persisted,
+offline-replayed differential corpus entry per mnemonic per profile with
+real GNU agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vle8ff.v`/`vle16ff.v`/`vle32ff.v`/`vle64ff.v` fault-only-first load (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the next-smallest bounded
+candidate named by the prior `vlm.v`/`vsm.v` entry's own follow-up:
+`v_load_form`'s identical "vd, (base)" shape, differing only in the
+source record's fixed `lumop` value (0x10 instead of 0), reused
+verbatim at the normalization layer with zero new code there.
+
+Scope manifest and obligations: `vle8ff.v`/`vle16ff.v`/`vle32ff.v`/
+`vle64ff.v`, 4 `kind: instruction-form` rv_v records, identical on both
+riscv32.jsonl/riscv64.jsonl, empty `relationships`. Each record's
+`provenance.operands` is `["nf","vm","rs1","vd"]`, the identical free-
+field shape as `vle32.v` (unlike `vlm.v`/`vsm.v`), so `Isa_norm_riscv`'s
+existing `v_load_form` dispatches these four mnemonics directly with no
+new form function - only the encoder needs a fixed-`lumop` variant. No
+store counterpart exists (fault-only-first is a read-side-only trap
+policy).
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv
+-mabi=lp64`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32iv -mabi=ilp32`), decoding the assembled word's own field
+bits: `vle8ff.v v1,(a0)` -> `03050087` (opcode 0x07, vd=1, funct3=0,
+rs1=10, rs2/lumop=0x10, vm=1), `vle16ff.v` -> `03055087` (funct3=5),
+`vle32ff.v` -> `03056087` (funct3=6), `vle64ff.v` -> `03057087`
+(funct3=7); masked, e.g. `vle8ff.v v1,(a0),v0.t` -> `01050087` (vm=0
+only) - unlike `vlm.v`/`vsm.v`, the masked spelling *is* accepted here,
+matching the plain unit-stride family's own precedent rather than the
+mask-register one. Negative control: `vle32ff.v v1,4(a0)` is "illegal
+operands" (no offset field, same as every other slice in this family).
+
+Implementation: 4 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), one new funct3-only lookup table
+(`vloadff_desc`, `vload_desc`'s identical shape) plus two new encoder
+match clauses (unmasked/masked) parallel to `vload_desc`'s own, with
+`rs2 = 0x10` hardcoded instead of threaded through the table. No changes
+to `Isa_norm_riscv` beyond 4 new mnemonic-dispatch entries reusing
+`v_load_form` verbatim - the fixed `lumop` value lives entirely in the
+source record's own `encoding.mask`/`value`, invisible to the
+normalization layer. `Isa_gen_difficult` gained 4 new `*_entries`
+bindings built directly from the *existing* `v_load_entries` builder
+(same reasoning), spliced into `all`, plus `.mli` declarations.
+`Isa_family_admission`'s `promoted_case` allow-list gained 4 new lines.
+New unit tests: `test_vle32ff_v` in `test_isa_norm_riscv.ml` (one
+representative fixture, matching `vle32.v`'s own single-representative
+precedent within the unit-stride family) with a new real-record JSON
+fixture asserting the nf-not-modeled diagnostic *is* present (unlike
+`vlm.v`/`vsm.v`), and `test_v_ldst_domain` in `test_isa_gen_difficult.ml`
+extended to cover all four new mnemonics' entries.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and the offset negative
+control, cross-checked for byte identity; `make tools-test`
+(`isa-norm-riscv` 1739->1743 checks, `isa-gen-difficult` 4697->4733
+checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 948 to 956 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 948 pre-existing
+cases are byte-for-byte unchanged and exactly the 8 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(8 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (559/611 -> 563/615), `isa-family-admission`
+(promoted-support 539/581 -> 543/585, blocked 530/543 -> 526/539), and
+`isa-norm-jsonl` (1188 -> 1196) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (two lines in
+`riscv_family_encode.ml`'s new encoder clauses exceeded the column
+limit; `make asm-fmt` reflowed them and the promoted file was
+re-verified with a full rebuild/retest before continuing); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (539->543/
+581->585, 530->526/543->539). `isa-norm-accounting`'s RV32/RV64 totals
+moved 559->563/611->615. `isa-norm-jsonl`'s real-form round-trip count
+moved 1188->1196 (+8, 4 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. GEN-05's vector-memory
+territory now has 44 of the original 58 blocked records remaining, all
+load/store: whole-register `vl{1,2,4,8}re{8,16,32,64}.v`/
+`vs{1,2,4,8}r.v` (20, a genuinely new "register-group count" concept
+where `nf` becomes a real operand and the data operand spans `nf+1`
+consecutive vector registers - the largest remaining bounded slice),
+strided `vlse*`/`vsse*` (8, a new "(base), stride-GPR" operand shape),
+and indexed `vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` (16, a new "(base),
+index-vector-register" shape) - none named as a single next item yet.
+Every `rv_zv*` vector-crypto/bf16 extension remains entirely unadmitted,
+matching the standing note from the `vwaddu`/etc. entry much earlier in
+this log.
+
+Acceptance gate satisfied: all 4 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked form and the negative control; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vlse8.v`/`vlse16.v`/`vlse32.v`/`vlse64.v`/`vsse8.v`/`vsse16.v`/`vsse32.v`/`vsse64.v` strided load/store (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the next bounded candidate named
+by the prior `vle*ff.v` entry's own follow-up: a genuinely new
+three-operand "vd/vs3, (base), rs2" shape, the first vector-memory
+family in this log with a real plain-GPR operand alongside the memory
+pair.
+
+Scope manifest and obligations: `vlse8.v`/`vlse16.v`/`vlse32.v`/
+`vlse64.v`/`vsse8.v`/`vsse16.v`/`vsse32.v`/`vsse64.v`, 8 `kind:
+instruction-form` rv_v records, identical on both riscv32.jsonl/
+riscv64.jsonl, empty `relationships`. Each record's `provenance.operands`
+is `["nf","vm","rs2","rs1","vd"]`/`["nf","vm","rs2","rs1","vs3"]` - the
+same free `nf`/`vm` pair as the unit-stride family, plus a genuinely free
+`rs2` (the byte-stride GPR, distinct from `vs2` on the indexed family
+still to come) - `encoding.mask` fixes `mop = 0b10` (bits 27:26) instead
+of the unit-stride family's `0b00`.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv
+-mabi=lp64`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32iv -mabi=ilp32`), decoding the assembled word's own field
+bits: `vlse8.v v1,(a0),a1` -> `0ab50087` (opcode 0x07, vd=1, funct3=0,
+rs1=10, rs2=11, mop=2, vm=1), `vlse16.v` -> `0ab55087` (funct3=5),
+`vlse32.v` -> `0ab56087` (funct3=6), `vlse64.v` -> `0ab57087` (funct3=7);
+`vsse8/16/32/64.v v1,(a0),a1` -> `0ab500a7`/`0ab550a7`/`0ab560a7`/
+`0ab570a7` (opcode 0x27, otherwise identical); masked, e.g. `vlse32.v
+v1,(a0),a1,v0.t` -> `08b56087` (vm=0 only). Negative controls: `vlse32.v
+v1,4(a0),a1` (nonzero offset) and `vlse32.v v1,(a0)` (missing the stride
+operand entirely) are both "illegal operands".
+
+Implementation: 8 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), two new funct3-only lookup tables
+(`vstride_load_desc`/`vstride_store_desc`, `vload_desc`/[vstore_desc]'s
+identical shape) plus four new encoder match clauses (load/store x
+unmasked/masked), each requiring a third `xreg` operand (the stride) in
+addition to the existing `vreg`/`Reg.x m.base` pair, with
+`funct7 = 5`/`4` (mop=0b10 folded with vm, the same "funct6-then-vm"
+pattern OPIVV's own masked/unmasked pair already uses) hardcoded rather
+than table-driven, since mop is fixed for the whole family. `Isa_norm_riscv`
+gained genuinely new `v_strided_load_form`/`v_strided_store_form`
+functions (not a reuse of `v_load_form`/`v_store_form`, since a third
+`rs2` GPR operand needs its own `operands`/`syntax` list entry), plus 8
+new mnemonic-dispatch entries. `Isa_gen_difficult` gained new
+`v_strided_load_entry`/`v_strided_store_entry` builders (the three-
+operand generalization of `v_load_entry`/`v_store_entry`) and 8 new
+`*_entries` bindings, spliced into `all`, plus `.mli` declarations.
+`Isa_family_admission`'s `promoted_case` allow-list gained 8 new lines.
+New unit tests: `test_vlse32_v`/`test_vsse32_v` in
+`test_isa_norm_riscv.ml` (one representative fixture per shape, matching
+the unit-stride family's own single-representative precedent) with two
+new real-record JSON fixtures, and `test_v_ldst_domain` in
+`test_isa_gen_difficult.ml` extended with two new three-operand checks
+(asserting the `stride-gpr-operand` rule tag) covering all 8 new
+mnemonics' entries.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and both negative controls,
+cross-checked for byte identity; `make tools-test` (`isa-norm-riscv`
+1743->1751 checks, `isa-gen-difficult` 4733->4821 checks, both green);
+`make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 956 to 972 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 956 pre-existing
+cases are byte-for-byte unchanged and exactly the 16 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(16 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (563/615 -> 571/623), `isa-family-admission`
+(promoted-support 543/585 -> 551/593, blocked 526/539 -> 518/531), and
+`isa-norm-jsonl` (1196 -> 1212) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean this time,
+no reflow needed); `make asm-isa-difficult-check` and `make asm-test`,
+both re-run with the RV32 cross-toolchain directory stripped from
+`PATH`; two full `make asm-ci` runs with the full `PATH` (each
+backgrounded with an explicit captured exit code, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (543->551/
+585->593, 526->518/539->531). `isa-norm-accounting`'s RV32/RV64 totals
+moved 563->571/615->623. `isa-norm-jsonl`'s real-form round-trip count
+moved 1196->1212 (+16, 8 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. GEN-05's vector-memory
+territory now has 36 of the original 58 blocked records remaining, all
+load/store: whole-register `vl{1,2,4,8}re{8,16,32,64}.v`/
+`vs{1,2,4,8}r.v` (20, a genuinely new "register-group count" concept
+where `nf` becomes a real operand and the data operand spans `nf+1`
+consecutive vector registers - now the largest remaining bounded slice,
+and the only one left with no plain-GPR-stride precedent to reuse), and
+indexed `vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` (16, this slice's own
+direct precedent for a "(base), index-vector-register" shape - swap the
+third operand's `xreg`/`gpr ()` for `vreg ()`/`vreg ()` and the fixed
+`mop`/`funct7` for the ordered/unordered mop values 0b01/0b11) - neither
+named as a single next item yet. Every `rv_zv*` vector-crypto/bf16
+extension remains entirely unadmitted, matching the standing note from
+the `vwaddu`/etc. entry much earlier in this log.
+
+Acceptance gate satisfied: all 8 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked form and both negative controls; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V `vluxei*`/`vloxei*`/`vsuxei*`/`vsoxei*` indexed load/store (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the strided family's own named
+follow-up: swap the third operand's `xreg`/`gpr ()` for `vreg ()` and
+the fixed mop value for the unordered/ordered pair (0b01/0b11), closing
+out every remaining blocked `rv_v` load/store record except the
+whole-register family.
+
+Scope manifest and obligations: `vluxei8.v`/`vluxei16.v`/`vluxei32.v`/
+`vluxei64.v`/`vloxei8.v`/`vloxei16.v`/`vloxei32.v`/`vloxei64.v`/
+`vsuxei8.v`/`vsuxei16.v`/`vsuxei32.v`/`vsuxei64.v`/`vsoxei8.v`/
+`vsoxei16.v`/`vsoxei32.v`/`vsoxei64.v` - 16 `kind: instruction-form`
+rv_v records, identical on both riscv32.jsonl/riscv64.jsonl, empty
+`relationships`. Each record's `provenance.operands` is
+`["nf","vm","vs2","rs1","vd"]`/`["nf","vm","vs2","rs1","vs3"]` - the
+identical free `nf`/`vm`/index shape as the strided family, just with
+the third field genuinely named `vs2` (a vector register) rather than
+`rs2`; `encoding.mask` fixes `mop` to `0b01` (unordered, "u") or `0b11`
+(ordered, "o") instead of the strided family's `0b10`. The `ei8`/`ei16`/
+`ei32`/`ei64` suffix names the *index* element width (still encoded in
+the word's `funct3` field, mechanically identical to every other width
+suffix in this family - the data-element-width/index-element-width
+semantic distinction is not modeled, matching this log's standing
+policy of not modeling semantics beyond what encode/decode needs).
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv
+-mabi=lp64`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32iv -mabi=ilp32`), decoding the assembled word's own field
+bits: `vluxei8.v v1,(a0),v2` -> `06250087` (opcode 0x07, vd=1, funct3=0,
+rs1=10, vs2=2, mop=1, vm=1), `vloxei8.v` -> `0e250087` (mop=3);
+`vsuxei8.v`/`vsoxei8.v` -> `062500a7`/`0e2500a7` (opcode 0x27); widths
+16/32/64 shift funct3 to 5/6/7 exactly as every other family in this
+log; masked, e.g. `vluxei32.v v1,(a0),v2,v0.t` -> `04256087` (vm=0
+only). Negative controls: `vluxei32.v v1,4(a0),v2` (nonzero offset) and
+`vluxei32.v v1,(a0)` (missing the index operand) are both "illegal
+operands".
+
+Implementation: 16 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), four new funct3-only lookup tables
+(`vindexed_u_load_desc`/`vindexed_o_load_desc`/`vindexed_u_store_desc`/
+`vindexed_o_store_desc` - one per ordering x direction, each `vload_desc`'s
+identical shape) plus eight new encoder match clauses (load/store x
+ordered/unordered x masked/unmasked), each requiring a third `vreg`
+operand (the index) in place of `vstride_load_desc`'s `xreg`, with
+`funct7` hardcoded per ordering (3/2 unordered, 7/6 ordered). `Isa_norm_riscv`
+gained `v_indexed_load_form`/`v_indexed_store_form` - a single pair of
+functions covering all 16 mnemonics (ordered vs. unordered differs only
+in the encoder's fixed mop value, invisible at the normalization layer,
+so unlike the strided family this needed no per-ordering duplication),
+plus 16 new mnemonic-dispatch entries. `Isa_gen_difficult` gained new
+`v_indexed_load_entry`/`v_indexed_store_entry` builders (the strided
+builders' shape with a `vs2` vector-register operand value instead of a
+GPR one) and 16 new `*_entries` bindings, spliced into `all`, plus
+`.mli` declarations. `Isa_family_admission`'s `promoted_case` allow-list
+gained 16 new lines. New unit tests: `test_vluxei32_v`/`test_vsuxei32_v`
+in `test_isa_norm_riscv.ml` (one representative fixture per shape - the
+ordered siblings share the identical normalization-layer shape, so
+`vloxei32.v`/`vsoxei32.v` are not separately fixture-tested, matching
+this family's own "ordering is encoder-only" finding) with two new
+real-record JSON fixtures, and `test_v_ldst_domain` in
+`test_isa_gen_difficult.ml` extended with two new three-operand checks
+(asserting the `index-vreg-operand` rule tag) covering all 16 new
+mnemonics' entries.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); real-toolchain smoke tests via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` plus `objdump -M no-aliases`
+for every mnemonic's unmasked/masked form and both negative controls,
+cross-checked for byte identity; `make tools-test` (`isa-norm-riscv`
+1751->1759 checks, `isa-gen-difficult` 4821->4997 checks, both green);
+`make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 972 to 1004 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 972 pre-existing
+cases are byte-for-byte unchanged and exactly the 32 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(32 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (571/623 -> 587/639), `isa-family-admission`
+(promoted-support 551/593 -> 567/609, blocked 518/531 -> 502/515), and
+`isa-norm-jsonl` (1212 -> 1244) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (two lines in
+`isa_norm_riscv.ml`'s new forms exceeded the column limit; `make
+asm-fmt` reflowed them and the promoted file was re-verified with a
+full rebuild/retest before continuing); `make asm-isa-difficult-check`
+and `make asm-test`, both re-run with the RV32 cross-toolchain directory
+stripped from `PATH`; two full `make asm-ci` runs with the full `PATH`
+(each backgrounded with an explicit captured exit code, both exit 0).
+
+Results and artifact links: `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (551->567/
+593->609, 518->502/531->515). `isa-norm-accounting`'s RV32/RV64 totals
+moved 571->587/623->639. `isa-norm-jsonl`'s real-form round-trip count
+moved 1212->1244 (+32, 16 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. GEN-05's vector-memory
+territory now has only 20 of the original 58 blocked records
+remaining, all in a single family: whole-register
+`vl{1,2,4,8}re{8,16,32,64}.v`/`vs{1,2,4,8}r.v` (20 mnemonics, a
+genuinely new "register-group count" concept where `nf` becomes a real
+operand controlling how many consecutive vector registers the data
+operand spans, rather than being fixed/unmodeled as in every load/store
+slice so far) - not yet started, no sub-slice named. Every `rv_zv*`
+vector-crypto/bf16 extension remains entirely unadmitted, matching the
+standing note from the `vwaddu`/etc. entry much earlier in this log.
+
+Acceptance gate satisfied: all 16 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked form and both negative controls; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion; and two full `make asm-ci`
+passes, with every affected pinned count in the repository's own
+regression suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V V whole-register load/store `vl{1,2,4,8}re{8,16,32,64}.v`/`vs{1,2,4,8}r.v` - closing every `rv_v` blocker (Claude)
+
+Task / status / owner: GEN-05 vector-memory sub-slice / done; GEN-05
+overall / still implementing / Claude - the last-named `rv_v` follow-up:
+what the prior indexed-load/store entry flagged as "a genuinely new
+register-group count concept" turned out, on inspection of the real
+records, not to be a new concept at all - the register count is baked
+into the mnemonic (`vl2re8.v` vs. `vl4re8.v`, not one mnemonic plus a
+count operand), so `nf` is fully fixed per record exactly like the
+mask-register family, and this slice closes with **zero new
+normalization code**, reusing `vlm_form`/`vsm_form` verbatim.
+
+Scope manifest and obligations: `vl1re8.v`/`vl1re16.v`/`vl1re32.v`/
+`vl1re64.v`/`vl2re8.v`/`vl2re16.v`/`vl2re32.v`/`vl2re64.v`/`vl4re8.v`/
+`vl4re16.v`/`vl4re32.v`/`vl4re64.v`/`vl8re8.v`/`vl8re16.v`/`vl8re32.v`/
+`vl8re64.v`/`vs1r.v`/`vs2r.v`/`vs4r.v`/`vs8r.v` - 20 `kind: instruction-
+form` rv_v records, identical on both riscv32.jsonl/riscv64.jsonl, empty
+`relationships`. Each record's `provenance.operands` is exactly
+`["rs1","vd"]`/`["rs1","vs3"]` - `nf` is not a free field (unlike every
+other family before `vlm.v`/`vsm.v`), confirmed by inspecting `vl1re8.v`,
+`vl2re8.v`, `vl2re32.v`, `vs1r.v`, `vs4r.v` directly rather than assumed
+from the mnemonic-naming pattern alone. Store mnemonics have no width
+suffix at all (`vs1r.v`, not `vs1re8.v`) - the register dump is
+width-agnostic, so there are only 4 store mnemonics against the loads'
+16 (4 counts x 4 widths).
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as` 2.44 `-march=rv64iv
+-mabi=lp64`, byte-identical on `riscv32-linux-gnu-as` 2.43.1
+`-march=rv32iv -mabi=ilp32`, all 20 mnemonics assembled in one file),
+decoding the assembled word's own field bits: `vl1re8.v v1,(a0)` ->
+`02850087` (opcode 0x07, vd=1, funct3=0, rs1=10, lumop=8, nf=0, vm=1,
+funct7=0x01), `vl2re8.v v2,(a0)` -> `22850107` (nf=1, funct7=0x11),
+`vl4re8.v v4,(a0)` -> `62850207` (nf=3, funct7=0x31), `vl8re8.v
+v8,(a0)` -> `e2850407` (nf=7, funct7=0x71); widths 16/32/64 shift
+funct3 to 5/6/7 exactly as every width-suffixed family in this log
+(`vl1re16/32/64.v` -> `02855087`/`02856087`/`02857087`, and identically
+for counts 2/4/8); `vs1r.v v1,(a0)`/`vs2r.v v2,(a0)`/`vs4r.v v4,(a0)`/
+`vs8r.v v8,(a0)` -> `028500a7`/`22850127`/`62850227`/`e2850427`
+(funct3 fixed at 0, no width suffix). Negative controls: `vl2re8.v
+v1,(a0)` (register-count/operand-count mismatch - `v1` instead of
+`v2`) is *accepted* by real GNU as, since it is a semantic ABI
+convention rather than an encoding constraint, so it is not rejected
+here either; `vl3re8.v` (non-power-of-2 count) is "unrecognized
+opcode" (no such mnemonic exists at all); `vl1re8.v v1,(a0),v0.t`
+(masked) and `vl1re8.v v1,4(a0)` (nonzero offset) are both "illegal
+operands", matching `vlm.v`/`vsm.v`'s own precedent of rejecting a mask
+suffix outright rather than merely defaulting it.
+
+Implementation: 20 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), two new lookup tables (`vwhole_load_desc`
+returning a `(funct3, funct7)` pair keyed on both count and width,
+`vwhole_store_desc` returning just `funct7` since stores have no width
+axis) plus two new encoder match clauses (load, store - no masked
+variant, matching `vlm_v`/`vsm_v`'s own two-clause-only shape), reusing
+`Lowered.R`/`word_r` with `rs2 = 8` (lumop/sumop) hardcoded and
+`funct7` fully table-driven this time (unlike every prior family, `vm`
+is not OR'd in separately - it is baked into each table entry's `funct7`
+value alongside `nf`, since there is no masked sibling to differ by
+just that one bit). Zero new code in `Isa_norm_riscv` - all 20
+mnemonics dispatch through the *existing* `vlm_form`/`vsm_form`
+functions unchanged. `Isa_gen_difficult` likewise added no new entry
+builder - all 20 `*_entries` bindings reuse the *existing*
+`v_load_entries`/`v_store_entries` builders, spliced into `all`, plus
+`.mli` declarations. `Isa_family_admission`'s `promoted_case`
+allow-list gained 20 new lines. New unit tests: `test_vl2re32_v`/
+`test_vs4r_v` in `test_isa_norm_riscv.ml` (one representative fixture
+per shape - count 2/width 32 chosen specifically to *not* be the
+first-encountered count/width combination, verifying the general case
+rather than just the boundary) with two new real-record JSON fixtures
+asserting the *absence* of the nf-not-modeled diagnostic (matching
+`vlm.v`/`vsm.v`'s own precedent), and `test_v_ldst_domain` in
+`test_isa_gen_difficult.ml` extended by folding all 20 new mnemonics'
+entries directly into the *existing* "vd, base"/"vs3, base" shape
+checks (no new check block needed, since the shape is identical to the
+unit-stride family's).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a single real-toolchain smoke test file
+covering all 20 mnemonics via `riscv64-linux-gnu-as`/`riscv32-linux-gnu-as`
+plus `objdump -M no-aliases`, plus the three negative controls
+(register-count mismatch accepted, non-power-of-2 count rejected,
+masked/offset rejected), cross-checked for byte identity; `make
+tools-test` (`isa-norm-riscv` 1759->1767 checks, `isa-gen-difficult`
+4997->5177 checks, both green); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1004 to 1044 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1004 pre-existing
+cases are byte-for-byte unchanged and exactly the 40 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make tools-integration`
+(40 new real-record grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (587/639 -> 607/659), `isa-family-admission`
+(promoted-support 567/609 -> 587/629, blocked 502/515 -> 482/495), and
+`isa-norm-jsonl` (1244 -> 1284) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (a stray blank
+line in `isa_gen_difficult.ml`/`riscv_family_encode.ml` from the
+mechanical append needed `make asm-fmt`'s reflow; the promoted files
+were re-verified with a full rebuild/retest before continuing); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_v total=375 promoted-support=375 blocker=-` on both
+profiles - the entire 375-record `rv_v` family is promoted, zero
+blockers remaining. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (567->587/
+609->629, 502->482/515->495). `isa-norm-accounting`'s RV32/RV64 totals
+moved 587->607/639->659. `isa-norm-jsonl`'s real-form round-trip count
+moved 1244->1284 (+40, 20 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Segment loads/stores
+(`vlseg<nf>e<eew>.v`/`vsseg<nf>e<eew>.v` and their strided/indexed/
+fault-only-first siblings) are architecturally real but have zero
+records in this snapshot's checked-in riscv-opcodes export, so they
+were never a blocker to begin with and remain entirely out of scope -
+not a gap in this work, just outside what the source data covers. With
+every `rv_v` record now promoted, GEN-05's remaining named-but-
+unstarted territory is exclusively the twelve `rv_zv*` vector-crypto/
+bf16 extensions (`rv_zvbb`, `rv_zvbc`, `rv_zvfbfmin`, `rv_zvfbfwma`,
+`rv_zvkg`, `rv_zvkn`, `rv_zvkned`, `rv_zvknha`, `rv_zvknhb`, `rv_zvks`,
+`rv_zvksed`, `rv_zvksh` - matching the standing note from the
+`vwaddu`/etc. entry much earlier in this log) - none yet investigated,
+no sub-slice named.
+
+Acceptance gate satisfied: all 20 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including all
+three negative controls; a persisted, offline-replayed differential
+corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion completing the entire `rv_v` family; and two
+full `make asm-ci` passes, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V Zvbc `vclmul.vv`/`vclmul.vx`/`vclmulh.vv`/`vclmulh.vx` - first of the twelve `rv_zv*` vector-crypto/bf16 extensions (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - the first of the twelve
+`rv_zv*` families named as unstarted territory at the end of the prior
+entry. Zvbc (vector carry-less multiply) was picked first for being the
+smallest well-scoped family with a shape the engine already models
+completely (OPMVV/OPMVX, identical to `vmul`/`vdivu`/etc.), the same
+"smallest first" discipline every earlier sub-slice in this log used.
+
+Scope manifest and obligations: `vclmul.vv`/`vclmul.vx`/`vclmulh.vv`/
+`vclmulh.vx` - 4 `kind: instruction-form` `rv_zvbc` records, identical
+on both riscv32.jsonl/riscv64.jsonl, empty `relationships`. Each
+record's `provenance.operands` is exactly `["vm","vs2","vs1","vd"]`
+(`.vv`) or `["vm","vs2","rs1","vd"]` (`.vx`) - the identical three-
+vector-register / vector-plus-GPR shape `vmul`/`vdivu`/etc. already
+use, funct6 0x0c (`vclmul`)/0x0d (`vclmulh`), OPMVV (funct3=2)/OPMVX
+(funct3=6), no `.vi` sibling.
+
+Real, measured findings: confirmed against real GNU as before writing
+any encoder code (`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` 2.44/
+2.43.1), decoding the assembled word's own field bits: `vclmul.vv
+v1,v2,v3` -> `3221a0d7`, `vclmul.vx v1,v2,a0` -> `322560d7`,
+`vclmulh.vv v1,v2,v3` -> `3621a0d7`, `vclmulh.vx v1,v2,a0` ->
+`362560d7`, byte-identical on both profiles; masked (`, v0.t`) drops
+the low funct7 bit as usual (`vclmul.vv v1,v2,v3,v0.t` -> `3021a0d7`).
+Negative control: `vclmul.vi v1,v2,3` is "unrecognized opcode" (no
+`.vi` sibling exists), matching every other OPMVV/OPMVX-only family's
+own precedent. The one genuinely new finding this slice produced,
+not visible from the encoding alone: despite Zvbc formally being a V
+sub-extension, real GNU as accepts these four mnemonics under
+`-march=rv64i_zvbc`/`-march=rv32i_zvbc` **alone** - no explicit `v`
+needed, confirmed byte-identical to `-march=rv64iv_zvbc` - while
+rejecting `-march=rv64iv` (`v` without `zvbc`) with "extension `zvbc'
+required". So the normalized requirement is `riscv:zvbc` alone, not a
+`Req_all` combining it with `riscv:v` as the formal spec dependency
+might suggest; the fixture-oracle's own march configuration for these
+four entries follows the same finding (`-march=rv32i_zvbc`/
+`-march=rv64i_zvbc`, no `v`) - first attempt regenerated fixtures
+under the reused `v_configuration_for`'s plain `-march=rv32iv`/
+`rv64iv` and every one of the four came back `GAS-REJECTED`
+("extension `zvbc' required"), caught before any fixture was
+committed.
+
+Implementation: 4 new `Opcode.t` variants/`name`/`all` entries
+(`riscv_family_encode.ml`), two new `opmvv_funct6`/`opmvx_funct6`
+table entries each (0x0c/0x0d) - zero new encoder match clauses, the
+existing OPMVV/OPMVX dispatch arms cover them generically exactly like
+every prior family in this shape. `Isa_norm_riscv` gained one new
+`feature_of_extension` case (`"rv_zvbc" -> Req_feature "riscv:zvbc"`,
+with the real-GNU-as finding above recorded as its own comment) and
+two mnemonics each added to the existing `opmvv_mnemonics`/
+`opmvx_mnemonics` lists - zero new normalization code, dispatch reuses
+`opivv_form`/`opivx_form` unchanged via that existing generic path.
+`Isa_gen_difficult` could *not* reuse the existing `opivv_entries`/
+`opivx_entries` builders as-is (they hardcode `v_configuration_for`,
+which only sets `-march=...v`) - added a dedicated
+`zvbc_configuration_for` (`-march=rv32i_zvbc`/`-march=rv64i_zvbc`,
+matching the real-GNU-as finding above) plus `zvbc_opivv_entry`/
+`zvbc_opivx_entry` builders mirroring `opivv_entry`/`opivx_entry`'s own
+shape with that configuration substituted in, the same
+"one-configuration-per-extension-family" pattern `zbb_configuration_for`/
+`zbc_configuration_for`/`zbkx_configuration_for`/`zknh_configuration_for`
+already established for other non-`v`-rooted families. `Isa_family_admission`'s
+`promoted_case` allow-list gained 4 new lines. New unit tests:
+`test_opivv_form`/`test_opivx_form` in `test_isa_norm_riscv.ml`
+generalized with an optional `?(feature = "v")` parameter (defaulting
+to the prior hardcoded behavior, so every existing call site is
+unchanged) so the four new `test_vclmul_vv`/`test_vclmul_vx`/
+`test_vclmulh_vv`/`test_vclmulh_vx` tests could pass `~feature:"zvbc"`
+against real-record JSON fixtures taken verbatim from the checked-in
+riscv64.jsonl; `test_isa_gen_difficult.ml` gained four
+`*_entries`-length checks plus four `check_opivv`/`check_opivx` domain
+calls, reusing those existing generic shape-checkers unchanged since
+operand shape is identical to `vmul`/etc.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+all four mnemonics plus the masked variant via `riscv64-linux-gnu-as`/
+`riscv32-linux-gnu-as` under `-march=...iv_zvbc`, `-march=...i_zvbc`
+(no `v`), `-march=...iv` (no `zvbc`, confirms the requirement finding),
+plus the `.vi` negative control, cross-checked for byte identity;
+`make tools-test`; `make tools-integration` (4 new real-record
+grounding checks, all pass after updating the pinned
+`isa-norm-accounting` (607/659 -> 611/663), `isa-family-admission`
+(promoted-support 587/629 -> 591/633, blocked 482/495 -> 478/491), and
+`isa-norm-jsonl` (1284 -> 1292) totals in
+`asm/tools/test/repo/repo_tests.ml`); `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check`; `make
+tools-isa-inventory` (no diff - the manifest tracks isa-db rows, not
+promotion status); `make asm-isa-difficult-regen` (first attempt with
+the reused `v_configuration_for` produced 8 `GAS-REJECTED` cases,
+caught and fixed before commit, per the finding above; the corrected
+regen grew `asm/fixtures/isa-difficult/cases.jsonl` from 1044 to 1052
+entries; confirmed via a Python diff script, ignoring only the
+git-rev-embedded `gas.tool_label`/`ours.tool_label` fields, that all
+1044 pre-existing cases are byte-for-byte unchanged and exactly the 8
+expected new `case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvbc total=4 promoted-support=4 blocker=-` on both
+profiles - the entire 4-record `rv_zvbc` family is promoted, zero
+blockers remaining. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (587->591/
+629->633, 482->478/495->491). `isa-norm-accounting`'s RV32/RV64 totals
+moved 607->611/659->663. `isa-norm-jsonl`'s real-form round-trip count
+moved 1284->1292 (+8, 4 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Eleven `rv_zv*`
+vector-crypto/bf16 extensions remain entirely unstarted: `rv_zvbb`,
+`rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkg`, `rv_zvkn`, `rv_zvkned`,
+`rv_zvknha`, `rv_zvknhb`, `rv_zvks`, `rv_zvksed`, `rv_zvksh`. Note for
+whoever picks up the next one: `rv_zvkn`/`rv_zvks` (and likely others
+in this group) are *composite* extensions whose own records are
+`kind: import` (`$import rv_zvkned::...` etc.), re-exporting another
+family's mnemonics rather than defining new ones - re-check each
+family's own record `kind` before assuming it needs its own encoder
+work, the way this slice's Zvbc-alone-suffices finding above shows
+real GNU as's extension-implication behavior is not always what the
+formal spec dependency graph would suggest.
+
+Acceptance gate satisfied: all 4 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+`.vi` negative control and the requirement-finding controls; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion completing
+the entire `rv_zvbc` family; and two full `make asm-ci` passes, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvkg `vghsh.vv`/`vgmul.vv` - the vector-crypto engine's first non-OP-V major opcode (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - second of the twelve `rv_zv*`
+families, picked next for being the smallest remaining primary
+(non-import) family after Zvbc.
+
+Scope manifest and obligations: `vghsh.vv`/`vgmul.vv` - 2 `kind:
+instruction-form` `rv_zvkg` records, identical on both riscv32.jsonl/
+riscv64.jsonl, empty `relationships`. `vghsh.vv`'s `provenance.operands`
+is `["vs2","vs1","vd"]` - no `vm` field at all, unlike every family in
+this log so far. `vgmul.vv`'s is `["vs2","vd"]`, also no `vm`, with a
+`vs1`-field-position constant (`0x11`) baked into the encoding the way
+`vsext.vf2`/etc. already established for OP-V proper.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code (`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` 2.44/2.43.1):
+`vghsh.vv v1,v2,v3` -> `b221a0f7`, `vgmul.vv v1,v2` -> `a228a0f7`,
+byte-identical on both profiles. Decoding the word's own bits was the
+real discovery this slice turned on: bits[6:0] (the major opcode) is
+`0x77`, **not** OP-V's `0x57` - the first record this project has
+modeled outside the OP-V major-opcode space entirely. Bit 25 (the
+position OP-V uses for `vm`) is fixed to `1` in every record here, not
+a toggle: `vghsh.vv v1,v2,v3,v0.t` and `vgmul.vv v1,v2,v0.t` are both
+"illegal operands" on real GNU as, confirming there is no masked
+sibling for either mnemonic and none to ever expect in this opcode
+space. The Zvbc extension-implication finding repeats identically:
+`-march=rv64i_zvkg`/`-march=rv32i_zvkg` alone (no explicit `v`) assembles
+both mnemonics byte-identical to `-march=...iv_zvkg`, while plain
+`-march=...iv` (no `zvkg`) rejects both with "extension `zvkg'
+required" - so `riscv:zvkg` alone is the accurate requirement, matching
+Zvbc's own precedent rather than a coincidence specific to Zvbc.
+
+Implementation: this is the first `rv_zv*` slice needing genuinely new
+shape support rather than reusing an existing table, since no shape in
+this repository is mask-free with three vector-register operands
+(`opivv_form` et al. all document GAS's optional trailing mask, falsely
+for this space) or mask-free unary-with-fixed-vs1 (`vext_form` likewise
+documents an optional mask). `Isa_norm_riscv` gained two new dedicated
+form functions, `zvk_ternary_form` (three vector registers, no mask
+fact) and `zvk_unary_form` (two vector registers plus a fixed-constant
+note, no mask fact) - deliberately not reusing `opivv_form`/`vext_form`
+since their "Inferred" facts would be actively wrong for this opcode
+space - plus one `feature_of_extension` case (`"rv_zvkg" -> Req_feature
+"riscv:zvkg"`) and two explicit mnemonic dispatch lines (this shape has
+no existing "mnemonic list" to append to, unlike every OPIVV/OPMVV/
+OPFVV-shaped slice before it). `riscv_family_encode.ml` gained two new
+`Opcode.t` variants, a `zvk_ternary_funct6` table (funct6 0x2c) and a
+`zvk_unary_const` table (`(vs1_const, funct6)` = `(0x11, 0x28)`), and
+two new encoder match clauses using opcode `0x77` literally (the
+`Lowered.R` record shape is opcode-agnostic, so no lowering-stage
+changes were needed) - each with only ONE match arm (no masked sibling
+arm exists for this shape, unlike every OPIVV/OPMVV/OPFVV clause pair
+elsewhere in this file). `Isa_gen_difficult` could not reuse
+`opivv_entries`/`vext`-style builders (wrong configuration and,
+for `vghsh.vv`, no existing three-vector-register-no-mask builder
+existed) - added a dedicated `zvkg_configuration_for` plus
+`vghsh_vv_entry`/`vgmul_vv_entry` builders. `Isa_family_admission`'s
+`promoted_case` allow-list gained 2 new lines. New unit tests:
+`test_vghsh_vv`/`test_vgmul_vv` in `test_isa_norm_riscv.ml` (bespoke,
+not the generic `test_opivv_form`/`test_opivx_form` helpers, since
+those assert the OP-V mask fact this space doesn't have) against
+real-record JSON fixtures; `test_isa_gen_difficult.ml` gained two
+`*_entries`-length checks plus reused the *existing* generic
+`check_opivv`/`check_vext` domain checkers unchanged, since operand
+shape (though not configuration or opcode) is identical to `vmul_vv`'s/
+`vext`'s own three-register/two-register patterns.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+both mnemonics plus both masked negative controls via
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` under `-march=...iv_zvkg`,
+`-march=...i_zvkg` (no `v`), `-march=...iv` (no `zvkg`, confirms the
+requirement finding), cross-checked for byte identity; `make
+tools-test`; `make tools-integration` (2 new real-record grounding
+checks, all pass after updating the pinned `isa-norm-accounting` (611/
+663 -> 613/665), `isa-family-admission` (promoted-support 591/633 ->
+593/635, blocked 478/491 -> 476/489), and `isa-norm-jsonl` (1292 ->
+1296) totals in `asm/tools/test/repo/repo_tests.ml`); `make
+tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt-check` (one comment line needed `make asm-fmt`'s reflow); `make
+tools-isa-inventory` (no diff); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1052 to 1056 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1052 pre-existing
+cases are byte-for-byte unchanged and exactly the 4 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvkg total=2 promoted-support=2 blocker=-` on both
+profiles - the entire 2-record `rv_zvkg` family is promoted, zero
+blockers remaining. `Isa_family_admission`'s pinned RV32/RV64
+promoted-support/blocked totals moved exactly as expected (591->593/
+633->635, 478->476/491->489). `isa-norm-accounting`'s RV32/RV64 totals
+moved 611->613/663->665. `isa-norm-jsonl`'s real-form round-trip count
+moved 1292->1296 (+4, 2 mnemonics x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Ten `rv_zv*` vector-crypto/
+bf16 extensions remain entirely unstarted: `rv_zvbb`, `rv_zvfbfmin`,
+`rv_zvfbfwma`, `rv_zvkn`, `rv_zvkned`, `rv_zvknha`, `rv_zvknhb`,
+`rv_zvks`, `rv_zvksed`, `rv_zvksh`. The new `zvk_ternary_form`/
+`zvk_unary_form` norm-side shapes and the opcode-0x77/no-mask encoder
+pattern established here are directly reusable for `rv_zvksh`
+(`vsm3c.vi` needs a third new shape - ternary with a `zimm5` immediate
+rather than a third vector register, still opcode 0x77/no-mask;
+`vsm3me.vv` fits `zvk_ternary_form` verbatim), `rv_zvknha` (all three
+mnemonics fit `zvk_ternary_form` verbatim), `rv_zvksed` (`vsm4k.vi`
+needs the same new zimm5-ternary shape as `vsm3c.vi`; `vsm4r.vs`/
+`vsm4r.vv` fit `zvk_unary_form` verbatim), and `rv_zvkned` (all eleven
+mnemonics fit `zvk_unary_form` or the zimm5-ternary shape). Recommended
+order for whoever continues: build the zimm5-ternary shape once
+(smallest need is `rv_zvksh`'s 2 records), then `rv_zvknha` (3,
+`zvk_ternary_form` only, zero new shape work), then `rv_zvksed` (3),
+then `rv_zvkned` (11, the biggest of the remaining "no-vm" families,
+but every mnemonic reuses a by-then-established shape) - deferring
+`rv_zvkn`/`rv_zvks`/`rv_zvknhb` (the pure `kind: import` composites)
+until every family they import from is promoted, since their own
+admission likely needs a `Req_any`-style alternative-extensions table
+like the one `alternative_extensions_by_mnemonic` already established
+for the Zbb import group.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including both
+masked negative controls and the requirement-finding controls; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion completing
+the entire `rv_zvkg` family; and two full `make asm-ci` passes, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvknha `vsha2ms.vv`/`vsha2ch.vv`/`vsha2cl.vv` - zero new shape work, plus the first `rv_zv*` `Req_any` (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - third of the twelve `rv_zv*`
+families, exactly the reuse slice the prior entry's own recommendation
+predicted: all three mnemonics fit `zvk_ternary_form`/
+`zvk_ternary_funct6` verbatim, needing only new `Opcode.t` variants and
+funct6 table entries - zero new encoder match clauses, zero new
+norm-side shape functions.
+
+Scope manifest and obligations: `vsha2ms.vv`/`vsha2ch.vv`/`vsha2cl.vv` -
+3 `kind: instruction-form` `rv_zvknha` records, identical on both
+riscv32.jsonl/riscv64.jsonl, empty `relationships`. Same shape as
+`vghsh.vv`: `provenance.operands` exactly `["vs2","vs1","vd"]`, opcode
+0x77, funct3 2, bit 25 fixed to 1 (no mask), funct6 0x2d/0x2e/0x2f
+respectively.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code: `vsha2ms.vv v1,v2,v3` -> `b621a0f7`, `vsha2ch.vv v1,v2,v3` ->
+`ba21a0f7`, `vsha2cl.vv v1,v2,v3` -> `be21a0f7`, byte-identical on both
+profiles; masked (`, v0.t`) is "illegal operands" on all three, matching
+`vghsh.vv`'s own precedent. The real discovery this slice turned on:
+riscv-opcodes' own `relationships` field only ever names ONE importer
+per record (confirmed earlier for the whole Zbb import-group table), so
+grepping the checked-in export for `"rv_zvknha"` surfaced not just the
+3 primary records but also `rv_zvknhb`'s own 3 `kind: import` records
+(SHA-256-and-512's superset extension) - and separately, real GNU as's
+own rejection message under plain V names a THIRD alternative this
+project's tables don't yet track: `unrecognized opcode ... extension
+'zvknha' or 'zvknhb' required`. Testing directly (not trusting the
+error message alone) found a fourth: `-march=...i_zvkn` (the 23-record
+NIST vector-crypto bundle extension, `rv_zvkn`, which separately imports
+Zvbb's and Zvkned's own mnemonics too - neither promoted yet) also
+assembles all three mnemonics byte-identical, even though GNU as's own
+"unrecognized opcode" message doesn't mention it. So the accurate
+requirement is a **three-way** `Req_any [zvknha; zvknhb; zvkn]`, not
+the two-way group the first pass at this slice implemented and then had
+to correct after `tools-integration`'s normalized-count delta came back
++9 per profile instead of the expected +3 - the extra +6 was
+`rv_zvknhb`'s 3 import records plus `rv_zvkn`'s 3 (of its 23) import
+records for these same three mnemonics, both now normalizing
+successfully through the same mnemonic-string dispatch, just with a
+`Req_unknown` for `rv_zvkn` until the group was widened to include it.
+
+Implementation: `riscv_family_encode.ml` gained 3 new `Opcode.t`
+variants and 3 new `zvk_ternary_funct6` table entries (0x2d/0x2e/0x2f) -
+reusing the *existing* single match-arm clause `zvk_ternary_funct6`
+already dispatches through, zero new encoder code. `Isa_norm_riscv`
+gained: two new `feature_of_extension` cases (`rv_zvknha`, `rv_zvknhb`,
+plus `rv_zvkn` for the three-way group); a new `zvknha_import_group =
+["rv_zvknha"; "rv_zvknhb"; "rv_zvkn"]` entry in
+`alternative_extensions_by_mnemonic` (three lines, one per mnemonic);
+`zvk_ternary_form` itself changed from `requirement_of rec_` to
+`requirement_of_mnemonic ~mnemonic rec_` - the *first* caller of that
+function needing the `Req_any` path, since `vghsh.vv` (this shape's
+only prior user) has no alternative-extension group and
+`requirement_of_mnemonic` falls back to plain `requirement_of` for any
+mnemonic absent from the table, so `vghsh.vv`'s own behavior is
+unchanged; three new explicit mnemonic dispatch lines (no existing
+"mnemonic list" for this shape, matching `vghsh.vv`'s own precedent).
+`Isa_gen_difficult` gained a `zvknha_configuration_for`
+(`-march=rv32i_zvknha`/`-march=rv64i_zvknha` - the "one configuration
+proves promotion" discipline, not testing all three alternatives) plus
+three concrete `vsha2*_vv_entry`/`_entries` bindings mirroring
+`vghsh_vv_entry`'s own shape verbatim (not generalized into a shared
+parameterized builder - only 4 total ternary-shaped entries exist
+project-wide so far, not enough reuse pressure to justify the
+abstraction yet). `Isa_family_admission`'s `promoted_case` allow-list
+gained 3 new lines - these alone suffice for all 9 promoted records
+per profile (3 mnemonics x 3 extensions), since `promoted_case`
+matches on `(target, form_id, lookup_key)`, not on which extension's
+record produced them. New unit tests: `test_vsha2ms_vv`/
+`test_vsha2ch_vv`/`test_vsha2cl_vv` in `test_isa_norm_riscv.ml`
+(bespoke, asserting the three-way `Req_any` explicitly) against
+real-record JSON fixtures; `test_isa_gen_difficult.ml` gained three
+`*_entries`-length checks plus reused the *existing* `check_opivv`
+domain checker unchanged (operand shape identical to `vghsh_vv`'s).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+all three mnemonics under `-march=...i_zvknha`, `-march=...i_zvknhb`
+(no `zvknha`), `-march=...i_zvkn` (no `zvknha`/`zvknhb`), and plain
+`-march=...iv` (confirms the "or zvknhb" wording and the separate,
+message-silent `zvkn` alternative), plus the masked negative control,
+cross-checked for byte identity; `make tools-test`; `make
+tools-integration` run twice - first with the (incorrect) two-way
+`Req_any`, showing the unexpected +9-not-+3 normalized delta that
+surfaced the `zvkn` alternative, then again after widening the group,
+both times updating the pinned `isa-norm-accounting` (613/665 ->
+622/674), `isa-family-admission` (promoted-support 593/635 -> 602/644,
+blocked 476/489 -> 467/480), and `isa-norm-jsonl` (1296 -> 1314) totals
+in `asm/tools/test/repo/repo_tests.ml` to match the corrected, final
+numbers; `make tools-boundary`; `cd asm && opam exec -- dune build
+@runtest`; `make asm-fmt-check` (one over-long check-message line
+needed `make asm-fmt`'s reflow); `make tools-isa-inventory` (no diff);
+`make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1056 to 1062 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1056 pre-existing
+cases are byte-for-byte unchanged and exactly the 6 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvknha total=3 promoted-support=3 blocker=-` (fully
+promoted) and `rv_zvknhb total=3 promoted-support=3 blocker=-` (fully
+promoted, since every one of its records is one of these three
+imports) on both profiles; `rv_zvkn total=23 promoted-support=3
+blocker=unhandled-native-name=20` - only these three of its 23 records
+promote, the other 20 (Zvbb's/Zvkned's own mnemonics) remain blocked
+until those families are promoted in their own right.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (593->602/635->644, 476->467/
+489->480). `isa-norm-accounting`'s RV32/RV64 totals moved 613->622/
+665->674 (+9, not +3 - the `Req_any` widening's own signature).
+`isa-norm-jsonl`'s real-form round-trip count moved 1296->1314 (+18, 9
+records x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full
+`make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Nine `rv_zv*` vector-crypto/
+bf16 extensions remain entirely unstarted or only partially promoted:
+`rv_zvbb`, `rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkn` (20 of 23 records
+still blocked, all belonging to Zvbb/Zvkned), `rv_zvkned`, `rv_zvks`,
+`rv_zvksed`, `rv_zvksh` (`rv_zvknhb` is fully closed - see above). The
+`Req_any`-widening lesson from this slice generalizes: **any** `rv_zv*`
+mnemonic that riscv-opcodes marks as imported by more than one
+extension needs its own real-GNU-as-verified alternative-extensions
+group before trusting a plain `requirement_of` - checking only
+riscv-opcodes' own `relationships`/`import-reference` field is not
+enough, since (a) a record only ever names ONE importer even when GNU
+as accepts several, and (b) GNU as's own "unrecognized opcode" message
+can itself omit a real alternative (as `zvkn` was here) - the
+`tools-integration` normalized-count delta is the cross-check that
+catches both gaps, not the source data or the error message alone.
+Recommended next slice: `rv_zvksed` (3 records: `vsm4k.vi` needs a new
+zimm5-ternary shape at opcode 0x77 - the same shape `rv_zvksh`'s
+`vsm3c.vi` will also need - while `vsm4r.vs`/`vsm4r.vv` fit
+`zvk_unary_form` verbatim) or `rv_zvksh` (2 records, same zimm5-ternary
+need but smaller); either one should also grep its own mnemonics against
+every `rv_zvk*`/`rv_zvbb` import list before trusting a plain
+`Req_feature`, not just its own primary extension.
+
+Acceptance gate satisfied: all three mnemonics have real encoder
+support verified byte-for-byte against real `riscv64-linux-gnu-as`/
+`riscv32-linux-gnu-as` output across every tested combination including
+the masked negative control and every requirement-alternative control;
+a persisted, offline-replayed differential corpus entry per mnemonic
+per profile with real GNU agreement; admission-matrix promotion
+completing both `rv_zvknha` and `rv_zvknhb` in full (plus partial
+`rv_zvkn` progress); and two full `make asm-ci` passes, with every
+affected pinned count in the repository's own regression suite updated
+and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvksed `vsm4k.vi`/`vsm4r.vv`/`vsm4r.vs` - the opcode-0x77 zimm5-ternary shape (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - fourth of the twelve `rv_zv*`
+families, exactly the prior entry's own recommendation: `vsm4k.vi`
+needed one genuinely new shape (opcode 0x77, no mask, unsigned zimm5 in
+`vs1`'s field position), while `vsm4r.vv`/`vsm4r.vs` reuse
+`zvk_unary_form` verbatim.
+
+Scope manifest and obligations: `vsm4k.vi`/`vsm4r.vv`/`vsm4r.vs` - 3
+`kind: instruction-form` `rv_zvksed` records, identical on both
+riscv32.jsonl/riscv64.jsonl, empty `relationships`. `vsm4k.vi`'s
+`provenance.operands` is `["vs2","zimm5","vd"]` (funct6 0x21); `vsm4r.vv`/
+`vsm4r.vs` are `["vs2","vd"]` with `vs1` fixed to 0x10 for both (funct6
+0x28/0x29 respectively - confirmed by inspecting the real records
+directly, not assumed identical to `vgmul.vv`'s own 0x11 constant).
+Grepping every mnemonic's own `provenance.extension` across the whole
+checked-in export up front (the lesson from the prior slice's `Req_any`
+correction) found exactly one importer each: `rv_zvks` alone, no
+`rv_zvkn`-style hidden third alternative this time.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code: `vsm4k.vi v1,v2,5` -> `8622a0f7`, `vsm4r.vv v1,v2` ->
+`a22820f7`, `vsm4r.vs v1,v2` -> `a62820f7`, byte-identical on both
+profiles; `-march=...i_zvks` alone (no explicit `zvksed`) assembles all
+three identically, confirming the two-way alternative directly rather
+than trusting riscv-opcodes' `relationships` field or GNU as's own
+error-message wording alone (this slice's own version of the prior
+entry's lesson). Masked (`, v0.t`) is "illegal operands" on all three.
+`vsm4k.vi`'s `zimm5` is confirmed UNSIGNED (0..31): real GNU as accepts
+0 and 31, rejects both 32 and -1 with "bad value for vector immediate
+field, value must be 0...31" - the same range-check wording
+{!Isa_norm_riscv.opivi_zimm5_mnemonics}'s own family already
+established for OP-V proper, now confirmed to hold in this opcode-0x77
+space too rather than assumed.
+
+Implementation: `Isa_norm_riscv` gained a new `zvk_zimm5_form` (a third
+opcode-0x77 shape alongside `zvk_ternary_form`/`zvk_unary_form` - `[rd,
+rs2, zimm5]`, always unsigned since this shape has no signed sibling to
+disambiguate against, unlike {!opivi_form}'s own `simm5`/`zimm5` split),
+one new `feature_of_extension` case each for `rv_zvksed`/`rv_zvks`, a
+new `zvksed_import_group = ["rv_zvksed"; "rv_zvks"]` entry in
+`alternative_extensions_by_mnemonic` (three lines), and three explicit
+dispatch lines; `zvk_unary_form` itself changed from `requirement_of
+rec_` to `requirement_of_mnemonic ~mnemonic rec_` (its second caller
+needing the `Req_any` path, after `zvk_ternary_form` needed the same
+change last slice - `vgmul.vv`, this shape's only prior user, has no
+alternative-extension group, so its own behavior is unchanged).
+`riscv_family_encode.ml` gained 3 new `Opcode.t` variants, two new
+`zvk_unary_const` table entries (reusing the *existing* match clause),
+and one new `zvk_zimm5_funct6` table plus its own single (unmasked)
+encoder match clause - modeled directly on {!opivi_funct6}'s own
+immediate-in-`rs1`-field-position encoding trick, but always
+`fits_unsigned 5` rather than switching on a per-mnemonic
+signed/unsigned flag, since only one mnemonic occupies this table so
+far. `Isa_gen_difficult` gained a `zvksed_configuration_for` plus three
+concrete entry bindings (not generalized into a shared builder, same
+"not enough reuse pressure yet" call as the Zvknha slice). New unit
+tests: `test_vsm4k_vi` (the first check asserting an `Immediate {
+width_bits = 5; signed = false; _ }` operand kind for this opcode-0x77
+family) plus `test_vsm4r_vv`/`test_vsm4r_vs` in `test_isa_norm_riscv.ml`
+against real-record JSON fixtures; `test_isa_gen_difficult.ml` gained
+three `*_entries`-length checks plus reused the *existing*
+`check_opivi_uimm ~imm_value:"5"` and `check_vext` domain checkers
+unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+all three mnemonics under `-march=...i_zvksed`, `-march=...i_zvks` (no
+`zvksed`), and plain `-march=...iv` (confirms the requirement), plus
+the masked negative control and the zimm5 range controls (0, 31, 32,
+-1), cross-checked for byte identity; `make tools-test`; `make
+tools-integration` (a clean +6-per-profile delta this time, matching
+the expected 3 mnemonics x 2 extensions with no surprise third
+alternative, unlike the prior slice) updating the pinned
+`isa-norm-accounting` (622/674 -> 628/680), `isa-family-admission`
+(promoted-support 602/644 -> 608/650, blocked 467/480 -> 461/474), and
+`isa-norm-jsonl` (1314 -> 1326) totals in
+`asm/tools/test/repo/repo_tests.ml`; `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (one
+pattern-match line needed `make asm-fmt`'s reflow); `make
+tools-isa-inventory` (no diff); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1062 to 1068 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1062 pre-existing
+cases are byte-for-byte unchanged and exactly the 6 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvksed total=3 promoted-support=3 blocker=-` (fully
+promoted) and `rv_zvks total=14 promoted-support=3
+blocker=unhandled-native-name=11` - only these 3 of its 14 records
+promote, the other 11 (Zvbb's/Zvksh's own mnemonics) remain blocked
+until those families are promoted in their own right.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (602->608/644->650, 467->461/
+480->474). `isa-norm-accounting`'s RV32/RV64 totals moved 622->628/
+674->680 (+6, matching the plain two-way group with no surprise).
+`isa-norm-jsonl`'s real-form round-trip count moved 1314->1326 (+12, 6
+records x two profiles). `tools-test`, `tools-integration`,
+`tools-boundary`, `dune build @runtest`, `asm-fmt-check`, and two full
+`make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Eight `rv_zv*` vector-crypto/
+bf16 extensions remain entirely unstarted or only partially promoted:
+`rv_zvbb`, `rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkn` (still 20/23 blocked,
+belonging to not-yet-promoted Zvbb/Zvkned), `rv_zvkned`, `rv_zvks`
+(still 11/14 blocked, belonging to not-yet-promoted Zvbb/Zvksh),
+`rv_zvksh`. Recommended next slice: `rv_zvksh` (2 records: `vsm3c.vi`
+reuses `zvk_zimm5_form` verbatim - the exact reuse case this slice's
+own new shape was built to enable - while `vsm3me.vv` reuses
+`zvk_ternary_form` verbatim; both need their own real-GNU-as-verified
+alternative-extensions check against `rv_zvks` before trusting a plain
+`Req_feature`, per every slice's own standing lesson) - a zero-new-
+shape slice that should also close 2 more of `rv_zvks`'s remaining 11
+blocked records. After that, `rv_zvbb` (16 records, a new family with
+mixed shapes: `vandn`/`vrol`/`vror`'s `.vv`/`.vx` fit existing OP-V
+tables, `vbrev`/`vbrev8`/`vclz`/`vcpop`/`vctz`/`vrev8` fit
+`opfvv_unary_const`-style OP-V shapes, but `vror.vi`'s split
+`zimm6hi`/`zimm6lo` immediate and `vwsll`'s widening shift are
+genuinely new - and closing it also closes several more of `rv_zvkn`'s/
+`rv_zvks`'s remaining blocked records simultaneously) is the natural
+next investment, then `rv_zvkned` (11 records, all fitting
+`zvk_unary_form`/`zvk_zimm5_form` verbatim - zero new shape work,
+closing the rest of `rv_zvkn`).
+
+Acceptance gate satisfied: all three mnemonics have real encoder
+support verified byte-for-byte against real `riscv64-linux-gnu-as`/
+`riscv32-linux-gnu-as` output across every tested combination including
+the masked negative control, the zimm5 range controls, and the
+requirement-alternative control; a persisted, offline-replayed
+differential corpus entry per mnemonic per profile with real GNU
+agreement; admission-matrix promotion completing `rv_zvksed` in full
+(plus partial `rv_zvks` progress); and two full `make asm-ci` passes,
+with every affected pinned count in the repository's own regression
+suite updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvksh `vsm3c.vi`/`vsm3me.vv` - zero new shape work (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - fifth of the twelve `rv_zv*`
+families, exactly the prior entry's own recommendation: both mnemonics
+reuse shapes already built (`vsm3c.vi` reuses `zvk_zimm5_form`
+verbatim - the same shape `vsm4k.vi` built last slice - and `vsm3me.vv`
+reuses `zvk_ternary_form` verbatim), so this slice touches only
+`Opcode.t` variants, funct6 table entries, and the surrounding
+admission/test/config plumbing - zero new encoder match clauses, zero
+new norm-side shape functions.
+
+Scope manifest and obligations: `vsm3c.vi`/`vsm3me.vv` - 2 `kind:
+instruction-form` `rv_zvksh` records, identical on both riscv32.jsonl/
+riscv64.jsonl, empty `relationships`. `vsm3c.vi`'s `provenance.operands`
+is `["vs2","zimm5","vd"]` (funct6 0x2b); `vsm3me.vv`'s is
+`["vs2","vs1","vd"]` (funct6 0x20). Grepped every mnemonic's own
+`provenance.extension` across the whole checked-in export up front and
+found exactly one importer, `rv_zvks` - the same clean two-way shape as
+the prior `rv_zvksed` slice, no `rv_zvkn`-style hidden third
+alternative.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code: `vsm3c.vi v1,v2,5` -> `ae22a0f7`, `vsm3me.vv v1,v2,v3` ->
+`8221a0f7`, byte-identical on both profiles; `-march=...i_zvks` alone
+assembles both identically to `-march=...i_zvksh`; masked (`, v0.t`) is
+"illegal operands" on `vsm3me.vv`.
+
+Implementation: `riscv_family_encode.ml` gained 2 new `Opcode.t`
+variants, one new `zvk_ternary_funct6` entry (0x20, reusing the
+*existing* match clause) and one new `zvk_zimm5_funct6` entry (0x2b,
+reusing the *existing* match clause from last slice) - zero new encoder
+code at all. `Isa_norm_riscv` gained two `feature_of_extension` cases
+(`rv_zvksh`, plus `rv_zvks` already present from the prior slice), a
+new `zvksh_import_group = ["rv_zvksh"; "rv_zvks"]` entry in
+`alternative_extensions_by_mnemonic`, and two explicit dispatch lines
+calling `zvk_zimm5_form`/`zvk_ternary_form` directly (both already
+compute `requirement_of_mnemonic`, so no shape-function changes were
+needed this time, unlike the two prior `Req_any`-introducing slices).
+`Isa_gen_difficult` gained a `zvksh_configuration_for` plus two
+concrete entry bindings (following the same "one function per mnemonic,
+not yet generalized" call as every ternary/zimm5-shaped slice so far).
+New unit tests: `test_vsm3c_vi`/`test_vsm3me_vv` in
+`test_isa_norm_riscv.ml` against real-record JSON fixtures;
+`test_isa_gen_difficult.ml` gained two `*_entries`-length checks plus
+reused the *existing* `check_opivi_uimm ~imm_value:"5"` and
+`check_opivv` domain checkers unchanged.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+both mnemonics under `-march=...i_zvksh`, `-march=...i_zvks` (no
+`zvksh`), and plain `-march=...iv`, plus the masked negative control,
+cross-checked for byte identity; `make tools-test`; `make
+tools-integration` (a clean +4-per-profile delta, matching the expected
+2 mnemonics x 2 extensions with no surprise, same shape as the prior
+`rv_zvksed` slice) updating the pinned `isa-norm-accounting` (628/680
+-> 632/684), `isa-family-admission` (promoted-support 608/650 ->
+612/654, blocked 461/474 -> 457/470), and `isa-norm-jsonl` (1326 ->
+1334) totals in `asm/tools/test/repo/repo_tests.ml`; `make
+tools-boundary`; `cd asm && opam exec -- dune build @runtest`; `make
+asm-fmt-check` (clean, no reflow needed this time); `make
+tools-isa-inventory` (no diff); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1068 to 1072 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1068 pre-existing
+cases are byte-for-byte unchanged and exactly the 4 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvksh total=2 promoted-support=2 blocker=-` (fully
+promoted) and `rv_zvks total=14 promoted-support=5
+blocker=unhandled-native-name=9` - 5 of its 14 records now promote
+(the 3 from Zvksed's own slice plus these 2), the other 9 (Zvbb's own
+mnemonics) remain blocked until that family is promoted in its own
+right. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (608->612/650->654, 461->457/
+474->470). `isa-norm-accounting`'s RV32/RV64 totals moved 628->632/
+680->684 (+4). `isa-norm-jsonl`'s real-form round-trip count moved
+1326->1334 (+8, 4 records x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Six `rv_zv*` vector-crypto/
+bf16 extensions remain entirely unstarted or only partially promoted:
+`rv_zvbb`, `rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkn` (still 20/23
+blocked, belonging to not-yet-promoted Zvbb/Zvkned), `rv_zvkned`,
+`rv_zvks` (now 9/14 blocked, all belonging to not-yet-promoted Zvbb).
+Every `rv_zvk*` sub-extension of the two NIST/ShangMi bundles
+(`rv_zvkn`, `rv_zvks`) is now fully promoted except the records they
+share with `rv_zvbb` - so `rv_zvbb` (16 records: `vandn`/`vrol`/`vror`'s
+`.vv`/`.vx` fit existing OP-V tables directly, `vbrev`/`vbrev8`/`vclz`/
+`vcpop`/`vctz`/`vrev8` fit `opfvv_unary_const`-style OP-V unary tables,
+but `vror.vi`'s split `zimm6hi`/`zimm6lo` immediate and `vwsll.vv`/
+`.vx`/`.vi`'s widening shift are genuinely new shapes) is now the single
+highest-leverage remaining investment: closing it alone would also
+close `rv_zvkn`'s remaining 20 blocked records and `rv_zvks`'s
+remaining 9, on top of its own 16. After that, `rv_zvkned` (11 records,
+all fitting `zvk_unary_form`/`zvk_zimm5_form` verbatim - zero new shape
+work) is the last vector-crypto family, and would close the very last
+of `rv_zvkn`'s 23 records. `rv_zvfbfmin`/`rv_zvfbfwma` (bf16, OP-V
+proper rather than opcode 0x77) remain entirely uninvestigated - their
+own shapes have not yet been grepped/verified against real GNU as at
+all.
+
+Acceptance gate satisfied: both mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked negative control and the requirement-alternative control; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion completing
+`rv_zvksh` in full (plus partial `rv_zvks` progress); and two full
+`make asm-ci` passes, with every affected pinned count in the
+repository's own regression suite updated and re-verified rather than
+left stale.
+
+##### GEN-05 continuation: RISC-V Zvbb bit-manipulation family - closes `rv_zvbb`/`rv_zvks` entirely, `rv_zvkn` down to Zvkned alone (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - sixth of the twelve `rv_zv*`
+families, and the highest-leverage one identified: unlike every prior
+`rv_zv*` slice, Zvbb lives at OP-V's own major opcode 0x57 (not the
+vector-crypto opcode 0x77 every family since Zvkg has used), with a
+real, always-selectable [vm] bit throughout.
+
+Scope manifest and obligations: 16 `kind: instruction-form` `rv_zvbb`
+records, identical on both riscv32.jsonl/riscv64.jsonl, empty
+`relationships`: `vandn.vv`/`.vx` (funct6 0x01, the plain OPIVV/OPIVX
+shape {!opivv_form}/{!opivx_form} already model), `vrol.vv`/`.vx`
+(funct6 0x15), `vror.vv`/`.vx` (funct6 0x14), `vwsll.vv`/`.vx`/`.vi`
+(funct6 0x35, the first widening family in this repo with a real `.vi`
+sibling - UNSIGNED `zimm5` like `vsll.vi`), `vbrev.v`/`vbrev8.v`/
+`vclz.v`/`vcpop.v`/`vctz.v`/`vrev8.v` (funct6 0x12, the same
+fixed-vs1-unary shape {!vext_form}/`opmvv_unary_const` already model,
+disambiguated by 6 distinct vs1-position constants: 0x8/0x9/0xa/0xc/
+0xd/0xe), and `vror.vi` - the one genuinely new shape, a 6-bit unsigned
+immediate riscv-opcodes splits across two non-adjacent fields
+(`zimm6hi`, 1 bit, occupying the position one bit above where `vm`
+normally sits; `zimm6lo`, 5 bits, the usual immediate position).
+
+Real, measured findings: confirmed against real GNU as before writing
+any code, byte-identical on RV32/RV64: `vandn.vv/.vx` -> `062180d7`/
+`062540d7`, `vrol.vv/.vx` -> `562180d7`/`562540d7`, `vror.vv/.vx` ->
+`522180d7`/`522540d7`, `vwsll.vv/.vx/.vi(5)` -> `d62180d7`/`d62540d7`/
+`d622b0d7`, `vbrev.v` -> `4a2520d7`, `vbrev8.v` -> `4a2420d7`, `vclz.v`
+-> `4a2620d7`, `vcpop.v` -> `4a2720d7`, `vctz.v` -> `4a26a0d7`,
+`vrev8.v` -> `4a24a0d7`, `vror.vi(5/63/40)` -> `5222b0d7`/`562fb0d7`/
+`562430d7` (63 -> zimm6hi=1/zimm6lo=0x1f; 32 and -1 both rejected as
+"bad value for vector immediate field, value must be 0...63" -
+confirming 6 bits, not 5). The real discovery this slice turned on:
+`vandn.vv v1,v2,v3` under plain `-march=...iv` is rejected not with
+"extension `zvbb' required" but "extension `zvkb' required" - `zvkb`
+never appears as an extension in this snapshot's riscv-opcodes export
+at all (`grep -c '"rv_zvkb"'` is 0). Testing directly (not trusting
+riscv-opcodes' own data or assuming the error message names the only
+alternative) found a real, GNU-as-only four-way alternative,
+`Req_any [zvbb; zvkb; zvkn; zvks]`, covering exactly 9 of the 16
+mnemonics (`vandn.vv/.vx`, `vbrev8.v`, `vrev8.v`, `vrol.vv/.vx`,
+`vror.vv/.vx/.vi`) - hand-verified mnemonic-by-mnemonic under
+`-march=...i_zvkb` alone (9/9 assemble) and confirmed the remaining 7
+(`vbrev.v`/`vclz.v`/`vcpop.v`/`vctz.v`/`vwsll.*`) are rejected under
+`zvkb` alone ("extension `zvbb' required"), needing full Zvbb. Cross-
+checked against the checked-in export: `rv_zvkn`/`rv_zvks` each import
+exactly this same 9-mnemonic subset (not all 16), confirming Zvkb's
+real membership rather than a coincidence of GNU as's own
+implementation.
+
+Implementation: `Isa_norm_riscv`'s `opivv_form`/`opivx_form`/
+`vext_form` (used by `vsext.vf2`/`vfsqrt.v`/etc. since the very first
+slices in this log) changed from `requirement_of rec_` to
+`requirement_of_mnemonic ~mnemonic rec_` - their third/fourth/fifth
+caller needing the `Req_any` path (after `zvk_ternary_form`/
+`zvk_unary_form` last slice), with every existing caller's behavior
+provably unchanged since `requirement_of_mnemonic` falls back to plain
+`requirement_of` for any mnemonic absent from the alternatives table. A
+new `zvkb_subset_group = ["rv_zvbb"; "rv_zvkb"; "rv_zvkn"; "rv_zvks"]`
+entry in `alternative_extensions_by_mnemonic` (9 lines) plus two new
+`feature_of_extension` cases (`rv_zvbb`; `rv_zvkb`, the latter
+documented as never matching a real record's own extension, existing
+solely so `Req_any` can name it). `vwsll.vi`/`vandn.vv`/etc. needed only
+mnemonic-list additions (`opivv_mnemonics`/`opivx_mnemonics`/
+`opivi_zimm5_mnemonics`) - zero new dispatch lines for 10 of the 16
+mnemonics; the 6 fixed-vs1-unary mnemonics and `vror.vi` needed explicit
+dispatch lines (no shared "mnemonic list" mechanism exists for
+`vext_form`). A new `vror_vi_form` models the split 6-bit immediate as
+ONE logical `zimm6` operand via two `runs` entries (`zimm6hi`
+dest-bits 5, `zimm6lo` dest-bits 4..0) - the same "multiple raw fields
+concatenate into one logical operand" technique `sw_form`'s own
+`imm12hi`/`imm12lo` split already established, just unsigned.
+`riscv_family_encode.ml` gained 16 new `Opcode.t` variants, table
+entries in the *existing* `opivv_funct6`/`opivx_funct6`/`opivi_funct6`/
+`opivi_unsigned`/`opmvv_unary_const` tables (zero new encoder match
+clauses for 15 of the 16 mnemonics - fully reusing the dispatch
+machinery), and one dedicated `Vror_vi` encoder clause pair (masked/
+unmasked) computing `funct7 = (0xa lsl 2) lor (zimm6hi lsl 1) lor vm`
+rather than the usual `(funct6 lsl 1) lor vm`, extracting `zimm6hi` as
+bit 5 of the parsed immediate value - verified against a direct
+`asm.exe --dump-bytes` smoke test of all 16 mnemonics (plus 2 masked
+variants) before touching any of the surrounding
+admission/gen-difficult/test plumbing, confirming byte-for-byte
+agreement with every real-GNU-as value recorded above. `Isa_gen_difficult`
+gained a `zvbb_configuration_for` plus `zvbb_opivv_entry`/
+`zvbb_opivx_entry`/`zvbb_vext_entry` builders (parameterized, unlike
+every single-mnemonic-family builder in prior slices - the first
+repeated shape at high enough mnemonic count, 16, to justify it) plus
+one bespoke `vror_vi_entry`. `Isa_family_admission`'s `promoted_case`
+allow-list gained 16 new lines. New unit tests: generalized
+`test_vext_form`/`test_opivi_form` with the same `?(feature = "v")`
+pattern `test_opivv_form`/`test_opivx_form` already established; a
+shared `test_zvkb_opivv_form`/`test_zvkb_vext_form` pair (`Req_any`
+assertion) for the 9-mnemonic subset; a bespoke `test_vror_vi`
+asserting the two-run `zimm6` operand shape directly - caught one bug
+during development (the test's own operand-order expectation was
+wrong, `[rd; rs2; imm]` instead of `vror_vi_form`'s actual `[rd; imm;
+rs2]`, matching `opivi_form`'s own internal ordering convention
+exactly) before it could mask a real regression; `test_isa_gen_difficult.ml`
+gained 16 `*_entries`-length checks (initially missing entirely,
+caught by the "all includes every difficult-form family" accounting
+check itself failing) plus reused the *existing* `check_opivv`/
+`check_opivx`/`check_vext`/`check_opivi_uimm` domain checkers for 15 of
+16 (one bespoke inline check for `vror.vi`'s `zimm6`-named operand,
+since `check_opivi_uimm` hardcodes `zimm5`).
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); `/workspaces/devcontainer.CompCert/asm/_build/default/tool/asm.exe
+--target riscv64 --fixed-base 0x0 --dump-bytes` smoke test of all 16
+mnemonics plus 2 masked variants, cross-checked byte-for-byte against
+the real-GNU-as values recorded above, run *before* any gen-difficult/
+admission/test plumbing was added; a real-toolchain smoke test file
+covering all 16 mnemonics under `-march=...iv_zvbb`, `-march=...i_zvbb`
+(no `v`), `-march=...i_zvkb` (the 9-mnemonic subset only), plain
+`-march=...iv` (confirms the "extension `zvkb' required" wording), the
+`vror.vi` range boundaries (0/63 accepted, 64/-1 rejected), and 3 masked
+negative/positive controls, cross-checked for byte identity; `make
+tools-test`; `make tools-integration` (a clean +34-per-profile delta -
+16 (rv_zvbb, non-import) + 9 (rv_zvkn, import) + 9 (rv_zvks, import),
+matching the Zvkb-subset finding exactly) updating the pinned
+`isa-norm-accounting` (632/684 -> 666/718), `isa-family-admission`
+(promoted-support 612/654 -> 646/688, blocked 457/470 -> 423/436), and
+`isa-norm-jsonl` (1334 -> 1402) totals in
+`asm/tools/test/repo/repo_tests.ml`; `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (two
+over-long check-message lines and one over-long `Printf.sprintf`
+argument needed `make asm-fmt`'s reflow); `make tools-isa-inventory`
+(no diff); `make asm-isa-difficult-regen` (grew
+`asm/fixtures/isa-difficult/cases.jsonl` from 1072 to 1104 entries;
+confirmed via a Python diff script, ignoring only the git-rev-embedded
+`gas.tool_label`/`ours.tool_label` fields, that all 1072 pre-existing
+cases are byte-for-byte unchanged and exactly the 32 expected new
+`case_id`s were added, every one `verdict = pass` on both
+`riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvbb total=16 promoted-support=16 blocker=-` (fully
+promoted), `rv_zvks total=14 promoted-support=14 blocker=-` (fully
+promoted - its last 9 blocked records all belonged to this Zvkb
+subset), and `rv_zvkn total=23 promoted-support=12
+blocker=unhandled-native-name=11` - 12 of its 23 records now promote
+(the 3 Zvknha ones from an earlier slice plus these 9 Zvkb ones), the
+remaining 11 belonging exclusively to not-yet-promoted Zvkned.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (612->646/654->688, 457->423/
+470->436). `isa-norm-accounting`'s RV32/RV64 totals moved 632->666/
+684->718 (+34). `isa-norm-jsonl`'s real-form round-trip count moved
+1334->1402 (+68, 34 records x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Two `rv_zv*` families
+remain: `rv_zvkned` (11 records - the *only* thing keeping `rv_zvkn` at
+12/23 rather than 23/23; every mnemonic fits `zvk_unary_form` (the
+`vd,vs2` fixed-vs1 shape `vaesdf.vs`/etc. all use) or `zvk_zimm5_form`
+(`vaeskf1.vi`/`vaeskf2.vi`) verbatim - zero new shape work expected,
+matching the pattern `rv_zvksh` already demonstrated) and
+`rv_zvfbfmin`/`rv_zvfbfwma` (bf16, 2+2 records, OP-V proper rather than
+opcode 0x77 like Zvbb - genuinely uninvestigated, their own shapes not
+yet grepped/verified against real GNU as at all, and no `rv_zvk*`
+bundle imports them so no `Req_any` risk is expected there).
+Recommended next slice: `rv_zvkned`, since closing it also closes
+`rv_zvkn` completely (the very last vector-crypto-bundle blocker) and
+is the largest remaining zero-new-shape win in this family.
+
+Acceptance gate satisfied: all 16 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including every
+masked negative/positive control, the `vror.vi` range-boundary
+controls, and the four-way requirement-alternative control; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion completing
+both `rv_zvbb` and `rv_zvks` in full (plus `rv_zvkn` reduced to exactly
+its Zvkned-only remainder); and two full `make asm-ci` passes, with
+every affected pinned count in the repository's own regression suite
+updated and re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvkned AES family - closes `rv_zvkned`/`rv_zvkn` entirely, zero new shape work (Claude)
+
+Task / status / owner: GEN-05 vector-crypto sub-slice / done; GEN-05
+overall / still implementing / Claude - seventh of the twelve `rv_zv*`
+families, and exactly the prior entry's own recommendation: every one
+of the 11 mnemonics reuses `zvk_unary_form`/`zvk_unary_const` (9
+mnemonics) or `zvk_zimm5_form`/`zvk_zimm5_funct6` (2) verbatim - zero
+new shape work, zero new encoder match clauses.
+
+Scope manifest and obligations: `vaesdf.vv`/`.vs`, `vaesdm.vv`/`.vs`,
+`vaesef.vv`/`.vs`, `vaesem.vv`/`.vs`, `vaesz.vs` (no `.vv` sibling -
+real GNU as rejects `vaesz.vv` as "unrecognized opcode", matching
+riscv-opcodes' own export), `vaeskf1.vi`, `vaeskf2.vi` - 11 `kind:
+instruction-form` `rv_zvkned` records, identical on both riscv32.jsonl/
+riscv64.jsonl, empty `relationships`. All opcode 0x77, no mask bit;
+the 9 `.vv`/`.vs` mnemonics share funct6 0x28 (`.vv`)/0x29 (`.vs`),
+disambiguated by 5 distinct vs1-position constants (0x0/0x1/0x2/0x3/
+0x7); `vaeskf1.vi`/`vaeskf2.vi` have their own funct6 (0x22/0x2a).
+Grepped every mnemonic's own `provenance.extension` across the whole
+checked-in export up front and found exactly one importer, `rv_zvkn` -
+a clean two-way group like `rv_zvksed`'s own, no `rv_zvbb`-style hidden
+third alternative.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code, byte-identical on RV32/RV64: `vaesdf.vv/.vs` -> `a220a0f7`/
+`a620a0f7`, `vaesdm.vv/.vs` -> `a22020f7`/`a62020f7`, `vaesef.vv/.vs`
+-> `a221a0f7`/`a621a0f7`, `vaesem.vv/.vs` -> `a22120f7`/`a62120f7`,
+`vaesz.vs` -> `a623a0f7`, `vaeskf1.vi/vaeskf2.vi v1,v2,5` ->
+`8a22a0f7`/`aa22a0f7`; `-march=...i_zvkn` alone assembles all 11
+identically to `-march=...i_zvkned`; masked (`, v0.t`) is "illegal
+operands" on every mnemonic tested. Decoded each word's own funct7/
+vs1-field bits directly (not assumed from the mnemonic-naming pattern)
+to confirm the 5 vs1 constants and 2 standalone funct6 values before
+writing any table entry.
+
+Implementation: `riscv_family_encode.ml` gained 11 new `Opcode.t`
+variants, 9 new `zvk_unary_const` entries and 2 new `zvk_zimm5_funct6`
+entries (both *existing* tables, reused verbatim) - zero new encoder
+code at all, the cleanest slice in this family to date. `Isa_norm_riscv`
+gained one `feature_of_extension` case (`rv_zvkned`; `rv_zvkn` already
+existed), a new `zvkned_import_group = ["rv_zvkned"; "rv_zvkn"]` entry
+in `alternative_extensions_by_mnemonic` (11 lines), and 11 explicit
+dispatch lines calling `zvk_unary_form`/`zvk_zimm5_form` directly (both
+already compute `requirement_of_mnemonic`, so no shape-function changes
+were needed, matching the `rv_zvksh` precedent). `Isa_gen_difficult`
+gained a `zvkned_configuration_for` plus *parameterized*
+`zvkned_unary_entry`/`zvkned_zimm5_entry` builders (11 mnemonics is
+enough repetition to justify this, the same threshold `rv_zvbb`'s own
+16-mnemonic slice crossed last time). `Isa_family_admission`'s
+`promoted_case` allow-list gained 11 new lines. New unit tests: a
+shared `test_zvkned_unary_form`/`test_zvkned_zimm5_form` pair (`Req_any`
+assertion) reused across all 11 mnemonics against real-record JSON
+fixtures; `test_isa_gen_difficult.ml` gained 11 `*_entries`-length
+checks plus reused the *existing* `check_vext`/`check_opivi_uimm`
+domain checkers unchanged (operand shape identical to `vgmul_vv`'s/
+`vsm4k_vi`'s own). Every check passed on the first build/test run this
+slice - no bugs caught mid-development, unlike the two prior slices
+that introduced new shapes.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); a real-toolchain smoke test file covering
+all 11 mnemonics under `-march=...i_zvkned`, `-march=...i_zvkn` (no
+`zvkned`), and plain `-march=...iv`, plus the masked negative control,
+cross-checked for byte identity; `make tools-test`; `make
+tools-integration` (a clean +22-per-profile delta - 11 (rv_zvkned,
+non-import) + 11 (rv_zvkn, import), no surprise) updating the pinned
+`isa-norm-accounting` (666/718 -> 688/740), `isa-family-admission`
+(promoted-support 646/688 -> 668/710, blocked 423/436 -> 401/414), and
+`isa-norm-jsonl` (1402 -> 1446) totals in
+`asm/tools/test/repo/repo_tests.ml`; `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflow needed); `make tools-isa-inventory` (no diff); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 1104 to 1126 entries; confirmed via a Python diff script, ignoring
+only the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields,
+that all 1104 pre-existing cases are byte-for-byte unchanged and
+exactly the 22 expected new `case_id`s were added, every one `verdict =
+pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvkned total=11 promoted-support=11 blocker=-` (fully
+promoted) and, notably, `rv_zvkn total=23 promoted-support=23
+blocker=-` - the entire 23-record NIST vector-crypto bundle extension
+is now fully promoted, its every mnemonic drawn from `rv_zvbb`/
+`rv_zvknha`/`rv_zvkned` each now fully promoted in their own right.
+Querying every `rv_zv*` family after this slice: `rv_zvbb`,
+`rv_zvbc`, `rv_zvkg`, `rv_zvkn`, `rv_zvkned`, `rv_zvknha`, `rv_zvknhb`,
+`rv_zvks`, `rv_zvksed`, `rv_zvksh` are ALL fully promoted (10 of 12
+families, plus both bundle extensions) - only `rv_zvfbfmin` (2 records)
+and `rv_zvfbfwma` (2 records) remain, both entirely uninvestigated.
+`Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked
+totals moved exactly as expected (646->668/688->710, 423->401/
+436->414). `isa-norm-accounting`'s RV32/RV64 totals moved 666->688/
+718->740 (+22). `isa-norm-jsonl`'s real-form round-trip count moved
+1402->1446 (+44, 22 records x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent. Exactly two `rv_zv*`
+families remain, both entirely uninvestigated: `rv_zvfbfmin` (2
+records: `vfncvtbf16.f.f.w`, `vfwcvtbf16.f.f.v` - bf16<->f32 narrowing/
+widening conversion) and `rv_zvfbfwma` (2 records: `vfwmaccbf16.vv`/
+`.vf` - bf16 widening FMA). Both live at OP-V's own opcode 0x57 (not
+opcode 0x77 - confirmed from `provenance.raw.line`'s own `6..0=0x57`
+in this snapshot's export), so they likely reuse existing OPFVV-family
+shapes (`vext_form`-style unary for `rv_zvfbfmin`, `opfvv_form`/
+`opfvf_form`-style for `rv_zvfbfwma`'s widening FMA, matching
+`vfwmacc.vv`/`.vf`'s own precedent from much earlier in this log) -
+genuinely unconfirmed until grepped/verified against real GNU as, the
+standing rule every slice in this log has followed. Neither is
+imported by `rv_zvkn`/`rv_zvks` (grepped, confirmed absent), so no
+`Req_any` risk is expected. Completing both would close the entire
+twelve-family `rv_zv*` vector-crypto/bf16 scope this section of GEN-05
+set out to cover.
+
+Acceptance gate satisfied: all 11 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked negative control and the requirement-alternative control; a
+persisted, offline-replayed differential corpus entry per mnemonic per
+profile with real GNU agreement; admission-matrix promotion completing
+both `rv_zvkned` and `rv_zvkn` in full (the entire NIST vector-crypto
+bundle); and two full `make asm-ci` passes, with every affected pinned
+count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
+##### GEN-05 continuation: RISC-V Zvfbfmin/Zvfbfwma bf16 pair - closes the entire twelve-family `rv_zv*` scope (Claude)
+
+Task / status / owner: GEN-05 vector-crypto/bf16 sub-slice / done; GEN-05
+overall - the `rv_zv*` portion is now **complete**; Claude - eighth and
+final family in this section of GEN-05. Confirmed a standing note from
+much earlier in this log (the `vfwcvt.*`/`vfncvt.*` slice's own comment
+had already decoded these two mnemonics' real GNU-as bytes and rs1
+constants, deliberately deferring admission for lack of
+requirement/admission plumbing at the time - that plumbing now exists).
+
+Scope manifest and obligations: `vfwcvtbf16.f.f.v`/`vfncvtbf16.f.f.w`
+(`rv_zvfbfmin`, 2 records) and `vfwmaccbf16.vv`/`.vf` (`rv_zvfbfwma`, 2
+records) - 4 `kind: instruction-form` records total, identical on both
+riscv32.jsonl/riscv64.jsonl, empty `relationships`. All at OP-V's own
+opcode 0x57 (not opcode 0x77 like every family since Zvkg), with a
+real, selectable `vm` bit. `vfwcvtbf16.f.f.v`/`vfncvtbf16.f.f.w` are
+funct6 0x12 (the same table `vfcvt.*.v`/`vfwcvt.*`/`vfncvt.*` already
+share), vs1-position constants 0x0d/0x1d. `vfwmaccbf16.vv`/`.vf` are
+funct6 0x3b (a free slot immediately below `vfwmacc.vv`'s own
+0x3c-0x3f range), the same reordered-operand macc shape
+`vfwmacc.vv`/etc. use. Grepped every mnemonic's own
+`provenance.extension` and every `rv_zvk*`/`rv_zvbb` import list up
+front and confirmed neither family is imported by anything else - a
+plain `Req_feature`, no `Req_any`, the simplest requirement shape any
+`rv_zv*` slice in this log has needed.
+
+Real, measured findings: confirmed against real GNU as before writing
+any code, byte-identical on RV32/RV64: `vfwcvtbf16.f.f.v v1,v2` ->
+`4a2690d7`, `vfncvtbf16.f.f.w v1,v2` -> `4a2e90d7`, `vfwmaccbf16.vv
+v1,v2,v3` -> `ee3110d7`, `vfwmaccbf16.vf v1,fa0,v3` -> `ee3550d7`;
+`-march=...i_zvfbfmin`/`-march=...i_zvfbfwma` alone (no explicit `v`)
+assemble each family identically, matching every other `rv_zv*`
+family's own finding; masked (`, v0.t`) is accepted on all four
+(`vfwcvtbf16.f.f.v v1,v2,v0.t` -> `482690d7`, `vfwmaccbf16.vv
+v1,v2,v3,v0.t` -> `ec3110d7`) - unlike the opcode-0x77 vector-crypto
+families, these are real OP-V mnemonics with a genuine mask bit, the
+same as `vfwcvt.*`/`vfwmacc.*` already model.
+
+Implementation: `riscv_family_encode.ml` gained 4 new `Opcode.t`
+variants, 2 new `opfvv_unary_const` entries (0x0d/0x1d under the
+*existing* funct6-0x12 table) and 2 new `opfmacc_funct6`/
+`opfmaccf_funct6` entries (0x3b) - zero new encoder code at all, every
+table already existed. `Isa_norm_riscv` gained two `feature_of_extension`
+cases (`rv_zvfbfmin`, `rv_zvfbfwma`) and two explicit `vext_form`
+dispatch lines for the conversion pair; `vfwmaccbf16.vv`/`.vf` needed
+only mnemonic-list additions (`opfmacc_vv_mnemonics`/
+`opfmacc_vf_mnemonics`) - zero new dispatch lines. Neither `opmacc_vv_form`/
+`opfmacc_vf_form` needed the `requirement_of_mnemonic` generalization
+this slice's predecessors needed, since no `Req_any` is involved here -
+plain `requirement_of rec_` already resolves correctly from each
+record's own `provenance.extension`. `Isa_gen_difficult` gained a
+`zvfbfmin_configuration_for`/`zvfbfwma_configuration_for` pair plus one
+`zvfbfmin_vext_entry` builder (parameterized, reused for both
+conversion mnemonics) and two concrete `vfwmaccbf16_vv_entry`/
+`vfwmaccbf16_vf_entry` bindings (only 2 mnemonics each - not enough
+repetition to justify a shared macc builder, matching every prior
+single/double-mnemonic-family's own choice). `Isa_family_admission`'s
+`promoted_case` allow-list gained 4 new lines. Generalized
+`test_opmacc_vv_form`/`test_opfmacc_vf_form` with the same
+`?(feature = "v")` pattern every reused form-tester in this family has
+adopted; new unit tests reusing `test_vext_form ~feature:"zvfbfmin"`/
+`test_opmacc_vv_form ~feature:"zvfbfwma"`/`test_opfmacc_vf_form
+~feature:"zvfbfwma"` against real-record JSON fixtures;
+`test_isa_gen_difficult.ml` gained 4 `*_entries`-length checks plus
+reused the *existing* `check_vext`/`check_opmacc_vv`/`check_opfmacc_vf`
+domain checkers unchanged. Verified with a direct `asm.exe
+--dump-bytes` smoke test (all 4 mnemonics plus 2 masked variants,
+byte-for-byte against the real-GNU-as values above) before touching any
+surrounding plumbing, matching the `rv_zvbb` slice's own verification
+discipline. Every check passed on the first build/test run - no bugs
+caught mid-development.
+
+Source snapshots and input hashes: riscv-opcodes
+`7afd3dc8772909d8c94ceeb208467cff93896396` (unchanged; reads the existing
+checked-in export only).
+
+Tool versions and exact commands: `cd asm && opam exec -- dune build
+@all` (both dune projects); `/workspaces/devcontainer.CompCert/asm/_build/default/tool/asm.exe
+--target riscv64 --fixed-base 0x0 --dump-bytes` smoke test of all 4
+mnemonics plus 2 masked variants, run *before* any gen-difficult/
+admission/test plumbing was added; a real-toolchain smoke test file
+covering all 4 mnemonics under `-march=...i_zvfbfmin`/
+`-march=...i_zvfbfwma` (no `v`) and plain `-march=...iv`, plus the
+masked positive controls, cross-checked for byte identity; `make
+tools-test`; `make tools-integration` (a clean +4-per-profile delta -
+4 mnemonics, no import duplicates, no surprise) updating the pinned
+`isa-norm-accounting` (688/740 -> 692/744), `isa-family-admission`
+(promoted-support 668/710 -> 672/714, blocked 401/414 -> 397/410), and
+`isa-norm-jsonl` (1446 -> 1454) totals in
+`asm/tools/test/repo/repo_tests.ml`; `make tools-boundary`; `cd asm &&
+opam exec -- dune build @runtest`; `make asm-fmt-check` (clean, no
+reflow needed); `make tools-isa-inventory` (no diff); `make
+asm-isa-difficult-regen` (grew `asm/fixtures/isa-difficult/cases.jsonl`
+from 1126 to 1134 entries; confirmed via a Python diff script, ignoring
+only the git-rev-embedded `gas.tool_label`/`ours.tool_label` fields,
+that all 1126 pre-existing cases are byte-for-byte unchanged and
+exactly the 8 expected new `case_id`s were added, every one `verdict =
+pass` on both `riscv32-linux-gnu-as`/`riscv64-linux-gnu-as`); `make
+asm-isa-difficult-check` and `make asm-test`, both re-run with the RV32
+cross-toolchain directory stripped from `PATH`; two full `make asm-ci`
+runs with the full `PATH` (each backgrounded with an explicit captured
+exit code, both exit 0).
+
+Results and artifact links: `isa-inventory family-admission` now
+reports `rv_zvfbfmin total=2 promoted-support=2 blocker=-` and
+`rv_zvfbfwma total=2 promoted-support=2 blocker=-` (both fully
+promoted). Querying every `rv_zv*` family after this slice: `rv_zvbb`,
+`rv_zvbc`, `rv_zvfbfmin`, `rv_zvfbfwma`, `rv_zvkg`, `rv_zvkn`,
+`rv_zvkned`, `rv_zvknha`, `rv_zvknhb`, `rv_zvks`, `rv_zvksed`,
+`rv_zvksh` - **every one of the twelve families is fully promoted, zero
+blockers** - the entire scope this section of GEN-05 set out to cover
+is closed. `Isa_family_admission`'s pinned RV32/RV64 promoted-support/
+blocked totals moved exactly as expected (668->672/710->714, 401->397/
+414->410). `isa-norm-accounting`'s RV32/RV64 totals moved 688->692/
+740->744 (+4). `isa-norm-jsonl`'s real-form round-trip count moved
+1446->1454 (+8, 4 records x two profiles). `tools-test`,
+`tools-integration`, `tools-boundary`, `dune build @runtest`,
+`asm-fmt-check`, and two full `make asm-ci` runs all pass.
+
+Unknowns, exceptions and follow-up task IDs: decode-side support
+deliberately not added, matching precedent throughout this section.
+With the entire `rv_zv*` vector-crypto/bf16 scope now closed, GEN-05's
+remaining named-but-unstarted territory (per the standing note this
+section opened with, many entries back) reverts to whatever GEN-05's
+own broader plan names next outside vector extensions - consult
+`.ai/isa-consumption-plan.md` and the top of this tracker file for
+the next un-promoted family/extension group across the whole
+instruction set (not scoped to `rv_zv*`), since RISC-V vector and
+vector-crypto/bf16 (`rv_v` plus all twelve `rv_zv*` families) are both
+now fully promoted in this snapshot.
+
+Acceptance gate satisfied: all 4 mnemonics have real encoder support
+verified byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-
+linux-gnu-as` output across every tested combination including the
+masked positive controls; a persisted, offline-replayed differential
+corpus entry per mnemonic per profile with real GNU agreement;
+admission-matrix promotion completing both `rv_zvfbfmin` and
+`rv_zvfbfwma` in full - closing the entire twelve-family `rv_zv*`
+scope; and two full `make asm-ci` passes, with every affected pinned
+count in the repository's own regression suite updated and
+re-verified rather than left stale.
+
 ### MOD — Behavior-preserving component extraction
 
 Scope: x86/RISC-V family implementation organization and form descriptors.
@@ -6133,6 +12647,19 @@ rules, scope and acceptance obligations can be stated concretely.
 | 2026-09-06 | Re-confirmed `andn`/`orn`/`xnor`/`rol`/`ror` are exported identically under five extension files each in both checked-in riscv-opcodes profiles (same mask/value, `provenance.extension` in `{rv_zbb, rv_zbkb, rv_zk, rv_zkn, rv_zks}`), and inspected the four import records' own JSON before designing `Req_any` | The primary `rv_zbb` record has `kind: "instruction-form"` and empty `relationships`; each of the other four is `kind: "import"` with `relationships: [{kind: "imports", target: "riscv-opcodes:rv_zbb:<name>@L.."}]` and a matching `relationship-resolution` `status: "exact"` - real structural data distinguishing primary from alias, but only pairwise (importer -> one target), not a full five-way set any single record can read off itself; `Req_any` needs a small hand-verified table, not a cross-record join |
 | 2026-09-06 | Hand-computed expected little-endian bytes for `andn`/`orn`/`xnor`/`rol`/`ror a0, a1, a2` from the riscv-opcodes mask/value, matched this project's own `--dump-bytes` output, then confirmed against real GNU `as` (RV32 2.43.1, RV64 2.44) with `-march=rv{32,64}im_zbb -mabi={ilp32,lp64} -mno-relax` | Expected `33 f5 c5 40`/`33 e5 c5 40`/`33 c5 c5 40`/`33 95 c5 60`/`33 d5 c5 60` matched exactly on all three (isa-db mask/value, this assembler, real GNU `as`) on both profiles |
 | 2026-09-06 | Implement and validate GEN-05's Zbb `andn`/`orn`/`xnor`/`rol`/`ror` sub-slice (`Isa_norm_riscv`'s `alternative_extensions_by_mnemonic`/`requirement_of_any`/`requirement_of_mnemonic`, the four new `feature_of_extension` entries, `riscv_family_encode.ml`'s five new R-type table entries, `Isa_gen_difficult`'s five new entry lists, `Isa_family_admission` promotion, new `isa-norm-riscv`/`isa-gen-difficult` tests, and `repo_tests.ml`'s pinned-count updates) | 94 `isa-norm-riscv` checks (up from 77, including a check that the `rv_zbkb` import record and the `rv_zbb` primary record normalize to the identical `Req_any`) and 368 `isa-gen-difficult` checks (up from 317: 21 added by hand, 30 from the pre-existing `test_no_entry_uses_x0` automatically covering the new entries) all pass; a real `asm-isa-difficult-regen` run against the new 69-entry corpus (was 59) reproduced all 69 cases `Pass` (10 new + 59 unchanged, confirmed record-by-record byte-identical ignoring only the git-rev `ours.tool_label`) across two runs; `asm-isa-difficult-check`/`asm-test` both pass with every cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved exactly as expected (22->47/1047->1022, 26->51/1098->1073 - each mnemonic's `Req_any` promotes all five underlying extension-membership records, not one, so this slice moves 25 records per profile); `isa-norm-accounting`'s paired totals moved 42->67/56->81 and the `isa-norm-jsonl` real-form round-trip count moved 116->166, all pinned `repo_tests.ml` expectations updated and re-verified passing; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, `asm-purity`, `asm-planted`, `asm-js-portable`, `tools-isa-inventory-diff`, `tools-gasxref-diff`, and the full `asm-ci` target all pass; see the GEN-05 `Req_any` continuation milestone above |
+| 2026-09-09 | Hand-computed expected little-endian bytes for `vsub`/`vrsub`/`vand`/`vor`/`vxor`'s `.vv`/`.vx`/`.vi` forms from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, `objdump -M no-aliases`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1) for all 18 positive combinations and 7 rejection classes before writing any encoder code | All 18 matched exactly; confirmed `vsub.vi`/`vrsub.vv` are genuinely absent mnemonics ("unrecognized opcode", matching riscv-opcodes' own export having no such records), `vand.vi` out-of-range immediates give GAS's own "-16...15" diagnostic, and malformed `vand.vv` operand counts/mask spellings are "illegal operands" |
+| 2026-09-09 | Implement and validate GEN-05's `vsub`/`vrsub`/`vand`/`vor`/`vxor` sub-slice, generalizing `vadd`'s six bespoke lowering arms into three funct6-table-driven generic ones (`opivv_funct6`/`opivx_funct6`/`opivi_funct6`) plus `~mnemonic`-parameterized normalization/entry-builder functions covering all six mnemonic families including `vadd` itself | 52 new `isa-norm-riscv` checks (483->535) and 125 new `isa-gen-difficult` checks (1578->1703) pass; a real `asm-isa-difficult-regen` run against the new 332-entry corpus (was 306) reproduced all 306 pre-existing cases - including all 6 `vadd` ones, proving the refactor behavior-preserving - byte-for-byte unchanged plus the 26 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with cross-toolchain directories stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (218->231/851->838, 260->273/864->851); `isa-norm-accounting` moved 238->251/290->303 and `isa-norm-jsonl` moved 546->572; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and the full `asm-ci` target all pass; see the GEN-05 vector-logical continuation milestone above |
+| 2026-09-09 | Grepped `vsll`/`vsrl`/`vsra`/`vminu`/`vmin`/`vmaxu`/`vmax`/`vmul`/`vmulh`/`vmulhu`/`vmulhsu` in both checked-in riscv-opcodes profiles, reading each record's `provenance.operands` field name directly to decide `.vi` signedness before choosing GEN-05's next vector sub-slice | All 25 records identical on both profiles, `rv_v`-only, no relationships; `vsll.vi`/`vsrl.vi`/`vsra.vi` carry riscv-opcodes' own `zimm5` field name (not `simm5`), the first direct record-level evidence of an unsigned `.vi` immediate; `vminu`/`vmin`/`vmaxu`/`vmax` and `vmul`/`vmulh`/`vmulhu`/`vmulhsu` have no `.vi` records at all in either export |
+| 2026-09-09 | Hand-computed expected little-endian bytes for all 25 mnemonics' positive forms plus every rejection class from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, `riscv64-linux-gnu-objdump -M no-aliases`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1/`riscv32-linux-gnu-objdump`) before writing any encoder code | All matched exactly; confirmed `vsll.vi v1,v2,32`/`,-1` both give GAS's own "0...31" diagnostic (the unsigned mirror of `vand.vi`'s "-16...15"), and `vminu.vi`/`vmul.vi` are both "unrecognized opcode" (no OPIVI sibling in either family) |
+| 2026-09-09 | Implement and validate GEN-05's `vsll`/`vsrl`/`vsra`/`vminu`/`vmin`/`vmaxu`/`vmax`/`vmul`/`vmulh`/`vmulhu`/`vmulhsu` sub-slice: a new `opivi_unsigned` predicate plus `imm_name`/`signed` parameters on `opivi_form`/`opivi_entry` for the shift trio, new funct6 table entries reusing `opivv_form`/`opivx_form` unchanged for min/max, and new `opmvv_funct6`/`opmvx_funct6` tables plus two new funct3=2/6 lowering arms for multiply | 100 new `isa-norm-riscv` checks (535->635) and 247 new `isa-gen-difficult` checks (1703->1950) pass; a real `asm-isa-difficult-regen` run against the new 382-entry corpus (was 332) reproduced all 332 pre-existing cases byte-for-byte unchanged plus the 50 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with the RV32 cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (231->256/838->813, 273->298/851->826); `isa-norm-accounting` moved 251->276/303->328 and `isa-norm-jsonl` moved 572->622; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and two full `asm-ci` runs all pass; see the GEN-05 vector shift/min-max/multiply continuation milestone above |
+| 2026-09-10 | Hand-computed expected little-endian bytes for `vmand`/`vmandn`/`vmor`/`vmxor`/`vmorn`/`vmnand`/`vmnor`/`vmxnor.mm` from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`) before writing any encoder code | All 8 matched exactly; `v0` as `vd` is legal (`vmand.mm v0,v1,v2` -> `57201166`); a trailing `, v0.t` is "illegal operands" on real GNU as, confirming this family has no masked form (architecturally `vm` is fixed at 1, not a real field) |
+| 2026-09-10 | Implement and validate GEN-05's RISC-V V mask-register logical sub-slice (`vmand`/`vmandn`/`vmor`/`vmxor`/`vmorn`/`vmnand`/`vmnor`/`vmxnor.mm`): a new `mm_funct6` table and dedicated three-operand-only lowering arm on the encoder side (kept separate from `opmvv_funct6` so the existing masked lowering arm cannot wrongly accept a `, v0.t` operand), a new `Isa_norm_riscv.mm_form` reusing `opivv_form`'s exact operand shape but with its own no-masked-sibling fact, `Isa_gen_difficult` reusing `opivv_entries` unchanged, and `Isa_family_admission` promotion | 32 new `isa-norm-riscv` checks (939->971) and 88 new `isa-gen-difficult` checks (2696->2784) pass; a real `asm-isa-difficult-regen` run against the new 550-entry corpus (was 534) reproduced all 534 pre-existing cases byte-for-byte unchanged plus the 16 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with the RV32 cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (332->340/737->729, 374->382/750->742); `isa-norm-accounting` moved 352->360/404->412 and `isa-norm-jsonl` moved 774->790; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and two full `asm-ci` runs all pass; see the GEN-05 mask-register logical continuation milestone above |
+| 2026-09-10 | Hand-computed expected little-endian bytes for `vredsum`/`vredand`/`vredor`/`vredxor`/`vredminu`/`vredmin`/`vredmaxu`/`vredmax.vs` and `vwredsumu`/`vwredsum.vs` from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`) before writing any encoder code | All 10 matched exactly; masked (`, v0.t`) drops the low funct7 bit as expected; disassembly of `vwredsumu.vs`'s word confirmed funct3=0 (OPIVV's space), not OPMVV's, despite sharing `vwaddu.vv`/`vwadd.vv`'s own 0x30/0x31 funct6 values - no collision since funct3 keeps the two tables disjoint |
+| 2026-09-10 | Implement and validate GEN-05's RISC-V V vector-reduction sub-slice (`vredsum`/`vredand`/`vredor`/`vredxor`/`vredminu`/`vredmin`/`vredmaxu`/`vredmax.vs`, `vwredsumu`/`vwredsum.vs`): 8 new entries in the existing `opmvv_funct6` table and 2 in `opivv_funct6` - no new shape, lowering arm, or normalization function needed since both already feed the existing masked/unmasked lowering arms; mnemonics added to `opmvv_mnemonics`/`opivv_mnemonics` (both already dispatch to `opivv_form`); `Isa_gen_difficult` reusing `opivv_entries` unchanged; `Isa_family_admission` promotion | 40 new `isa-norm-riscv` checks (971->1011) and 110 new `isa-gen-difficult` checks (2784->2894) pass; a real `asm-isa-difficult-regen` run against the new 570-entry corpus (was 550) reproduced all 550 pre-existing cases byte-for-byte unchanged plus the 20 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with the RV32 cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (340->350/729->719, 382->392/742->732); `isa-norm-accounting` moved 360->370/412->422 and `isa-norm-jsonl` moved 790->810; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and two full `asm-ci` runs all pass; see the GEN-05 vector-reduction continuation milestone above |
+| 2026-09-10 | Hand-computed expected little-endian bytes for `vmseq`/`vmsne`/`vmsltu`/`vmslt`/`vmsleu`/`vmsle`/`vmsgtu`/`vmsgt`'s `.vv`/`.vx`/`.vi` forms from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`) before writing any encoder code | All 20 matched exactly; a genuine surprise: `vmsgt(u).vv` IS accepted by real GNU as, but only as a documented pseudo-instruction reversing the last two operands and emitting `vmslt(u).vv` instead (confirmed via disassembly) - a different, not-yet-built alias-expansion feature, not a real riscv-opcodes record, deliberately not admitted here |
+| 2026-09-10 | Implement and validate GEN-05's RISC-V V mask-writing comparison sub-slice (`vmseq`/`vmsne`/`vmsltu`/`vmslt`/`vmsleu`/`vmsle`/`vmsgtu`/`vmsgt`): 6 new entries in the existing `opivv_funct6` table, 8 in `opivx_funct6`, 6 in `opivi_funct6` - no new shape, lowering arm, or normalization function needed since all three already feed the existing masked/unmasked OPIVV/OPIVX/OPIVI lowering arms; mnemonics added to `opivv_mnemonics`/`opivx_mnemonics`/`opivi_mnemonics` (all three already dispatch to `opivv_form`/`opivx_form`/`opivi_form`); `Isa_gen_difficult` reusing `opivv_entries`/`opivx_entries`/`opivi_entries` unchanged; `Isa_family_admission` promotion; also fixed a pre-existing documentation-only copy-paste error in the earlier mask-register-logical milestone's byte-value comments (they had quoted the raw record fixed-bits value rather than the real encoded bytes for the documented operands) | 80 new `isa-norm-riscv` checks (1011->1091) and 192 new `isa-gen-difficult` checks (2894->3086) pass; a real `asm-isa-difficult-regen` run against the new 610-entry corpus (was 570) reproduced all 570 pre-existing cases byte-for-byte unchanged plus the 40 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with the RV32 cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (350->370/719->699, 392->412/732->712); `isa-norm-accounting` moved 370->390/422->442 and `isa-norm-jsonl` moved 810->850; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and two full `asm-ci` runs all pass; see the GEN-05 mask-writing comparison continuation milestone above |
+| 2026-09-10 | Hand-computed expected little-endian bytes for `vslideup`/`vslidedown`/`vslide1up`/`vslide1down`'s `.vx`/`.vi` forms from the riscv-opcodes mask/value, then confirmed against real GNU `as` (`riscv64-linux-gnu-as` 2.44 `-march=rv64gv`, cross-checked byte-identically against `riscv32-linux-gnu-as` 2.43.1 `-march=rv32gv`) before writing any encoder code | All 6 matched exactly; confirmed `vslideup.vv`/`vslide1up.vi` are both "unrecognized opcode" (no such records in riscv-opcodes' own export), `vslideup.vi v1,v2,32` gives the same "0...31" UNSIGNED-range diagnostic as the shift-family `.vi` shapes, and masked `vslideup.vx v1,v2,a0,v0.t` drops the low funct7 bit as expected |
+| 2026-09-10 | Implement and validate GEN-05's RISC-V V slide sub-slice (`vslideup`/`vslidedown`/`vslide1up`/`vslide1down`): 2 new entries in the existing `opivx_funct6` table, 2 in `opivi_funct6` (plus `opivi_unsigned`), 2 in `opmvx_funct6` - no new shape, lowering arm, or normalization function needed since all three already feed the existing masked/unmasked OPIVX/OPIVI/OPMVX lowering arms; mnemonics added to `opivx_mnemonics`/`opivi_mnemonics`/`opivi_zimm5_mnemonics`/`opmvx_mnemonics` (all three already dispatch to `opivx_form`/`opivi_form`); `Isa_gen_difficult` reusing `opivx_entries`/`opivi_entries` unchanged; `Isa_family_admission` promotion | 24 new `isa-norm-riscv` checks (1091->1115) and 54 new `isa-gen-difficult` checks (3086->3140) pass; a real `asm-isa-difficult-regen` run against the new 622-entry corpus (was 610) reproduced all 610 pre-existing cases byte-for-byte unchanged plus the 12 expected new `Pass` cases; `asm-isa-difficult-check`/`asm-test` both pass with the RV32 cross-toolchain directory stripped from `PATH`; `Isa_family_admission`'s pinned RV32/RV64 promoted-support/blocked totals moved as expected (370->376/699->693, 412->418/712->706); `isa-norm-accounting` moved 390->396/442->448 and `isa-norm-jsonl` moved 850->862; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check`, and two full `asm-ci` runs all pass; see the GEN-05 slide continuation milestone above |
 
 No implementation task above is complete merely because S0's existing tests
 passed. The compressed-width finding is deliberately still an open CAP-01
