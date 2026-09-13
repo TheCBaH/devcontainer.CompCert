@@ -120,11 +120,12 @@ val x86_alu_rr_entries : entry list
     this project's own x86 frontend. *)
 
 val x86_alu_memv_entries : entry list
-(** [addl]/[adcl]/[xorl] register<-memory (base+disp8 SIB) on x86-32 and
-    x86-64, {!x86_mov_entries}'s own addressing generalized to the three
-    [to_r_rm] opcodes this project's encoder currently lowers with a
-    memory source; AND/OR/SUB/CMP/SBB/TEST's own GPRv_MEMv iforms are not
-    included since their memory-source lowering does not exist yet. *)
+(** [addl]/[adcl]/[xorl]/[subl]/[andl]/[orl]/[sbbl]/[cmpl] register<-memory
+    (base+disp8 SIB) on x86-32 and x86-64, {!x86_mov_entries}'s own
+    addressing generalized to every [to_r_rm] opcode this project's
+    encoder lowers with a memory source; [testl]'s own GPRv_MEMv form is
+    not included since it has no upstream-named XED iform to admit,
+    even though real GNU as accepts it. *)
 
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's

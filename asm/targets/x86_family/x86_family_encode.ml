@@ -477,9 +477,27 @@ module Opcode = struct
 
   (* The reg<-rm ALU direction ([Alu_r_rm]): one byte per operation, the
      register field is the DESTINATION. M4's own [adcl 0x20(%esp),%edx] and
-     [add 0x1c(%esp),%eax] are the only two measured uses; a row nothing
-     selects is a row nothing checks. *)
-  let to_r_rm = function Adc -> Some 0x13L | Add -> Some 0x03L | Xor -> Some 0x33L | _ -> None
+     [add 0x1c(%esp),%eax] were the first two measured uses; [Xor] joined
+     them without its own row-specific comment. [Sub]/[And]/[Or]/[Sbb]/[Cmp]
+     (ISA-consumption GEN-05) join the rest of {!to_rm_r}'s own opcode set
+     into this direction too, confirmed against real GNU as: [subl
+     16(%esp),%ecx] -> [2b 4c 24 10], [andl 16(%esp),%ecx] -> [23 4c 24 10],
+     [orl 16(%esp),%ecx] -> [0b 4c 24 10], [sbbl 16(%esp),%ecx] -> [1b 4c 24
+     10], [cmpl 16(%esp),%ecx] -> [3b 4c 24 10]. [Test] is not added here:
+     real GNU as does accept [testl 16(%esp),%ecx] (encoding it with the
+     same opcode [0x85] as the register-register form), but the checked-in
+     XED export has no [TEST_GPRv_MEMv]-named record to admit through the
+     ISA-consumption pipeline, unlike the other five. *)
+  let to_r_rm = function
+    | Adc -> Some 0x13L
+    | Add -> Some 0x03L
+    | Xor -> Some 0x33L
+    | Sub -> Some 0x2bL
+    | And -> Some 0x23L
+    | Or -> Some 0x0bL
+    | Sbb -> Some 0x1bL
+    | Cmp -> Some 0x3bL
+    | _ -> None
 
   (* Group-3 unary forms (opcode 0xF7): the ModR/M reg field selects the
      operation, exactly [to_ext]'s idea but a different opcode and a disjoint
@@ -2093,8 +2111,12 @@ module Make (M : MODE) = struct
     (* The reg<-rm ALU direction: {!Opcode.to_r_rm}'s mirror image of the form
        above. Only measured with a memory source ([adcl 0x20(%esp),%edx],
        [add 0x1c(%esp),%eax]) - a register-register source would also be
-       valid x86, but nothing here selects it, so it is not built. *)
-    | (Opcode.Adc | Opcode.Add | Opcode.Xor), [ Operand.Mem m; Operand.Reg r ] -> (
+       valid x86, but nothing here selects it, so it is not built. [Sub]/
+       [And]/[Or]/[Sbb]/[Cmp] (ISA-consumption GEN-05) join [Adc]/[Add]/
+       [Xor] here for the same reason they joined {!Opcode.to_r_rm} above. *)
+    | ( ( Opcode.Adc | Opcode.Add | Opcode.Xor | Opcode.Sub | Opcode.And | Opcode.Or | Opcode.Sbb
+        | Opcode.Cmp ),
+        [ Operand.Mem m; Operand.Reg r ] ) -> (
         match width_ok r with
         | Error e -> Error e
         | Ok () ->
@@ -2548,7 +2570,16 @@ module Make (M : MODE) = struct
       ~entries:
         (List.filter_map
            (fun op -> Option.map (fun b -> (op, b)) (Opcode.to_r_rm op))
-           [ Opcode.Adc; Opcode.Add; Opcode.Xor ])
+           [
+             Opcode.Adc;
+             Opcode.Add;
+             Opcode.Xor;
+             Opcode.Sub;
+             Opcode.And;
+             Opcode.Or;
+             Opcode.Sbb;
+             Opcode.Cmp;
+           ])
       (C.field ~width:8 "opcode")
 
   let cc_codec =

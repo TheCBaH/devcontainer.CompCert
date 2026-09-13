@@ -181,12 +181,11 @@ let x86_alu_rr_entries =
         ])
     [ Target.X86_32; Target.X86_64 ]
 
-(* The register<-memory ALU direction (ADD_GPRv_MEMv/ADC_GPRv_MEMv/
-   XOR_GPRv_MEMv): {!x86_mov_entry}'s own base+disp8 SIB addressing,
-   generalized to a caller-chosen explicit-32-bit mnemonic. AND/OR/SUB/CMP/
-   SBB/TEST's own GPRv_MEMv iforms are deliberately excluded - their
-   to_r_rm memory lowering does not exist in this project's encoder yet,
-   a real gap rather than a capture/normalization one (see
+(* The register<-memory ALU direction (ADD/ADC/XOR/SUB/AND/OR/SBB/CMP
+   GPRv_MEMv): {!x86_mov_entry}'s own base+disp8 SIB addressing,
+   generalized to a caller-chosen explicit-32-bit mnemonic. TEST's own
+   GPRv_MEMv form is deliberately excluded - it has no upstream-named XED
+   iform to admit at all, even though real GNU as accepts it (see
    {!Isa_norm_xed.alu_gprv_memv_form}'s own doc comment). *)
 let x86_alu_memv_entry ~target ~form_id ~lookup_key =
   let stack, _, _ = x86_registers target in
@@ -207,7 +206,16 @@ let x86_alu_memv_entries =
     (fun target ->
       List.map
         (fun lookup_key -> x86_alu_memv_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
-        [ "ADD_GPRv_MEMv"; "ADC_GPRv_MEMv"; "XOR_GPRv_MEMv" ])
+        [
+          "ADD_GPRv_MEMv";
+          "ADC_GPRv_MEMv";
+          "XOR_GPRv_MEMv";
+          "SUB_GPRv_MEMv";
+          "AND_GPRv_MEMv";
+          "OR_GPRv_MEMv";
+          "SBB_GPRv_MEMv";
+          "CMP_GPRv_MEMv";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 let fadd_entry target =
@@ -3670,12 +3678,18 @@ let pilot_entry_of (entry : entry) =
           "x86_family_encode.ml's Opcode.to_rm_r table entry (opcode %s) / Lowered.Alu_rm_r codec \
            alternative"
           opcode
-    | ("ADD_GPRv_MEMv" | "ADC_GPRv_MEMv" | "XOR_GPRv_MEMv") as lookup_key ->
+    | ( "ADD_GPRv_MEMv" | "ADC_GPRv_MEMv" | "XOR_GPRv_MEMv" | "SUB_GPRv_MEMv" | "AND_GPRv_MEMv"
+      | "OR_GPRv_MEMv" | "SBB_GPRv_MEMv" | "CMP_GPRv_MEMv" ) as lookup_key ->
         let opcode =
           match lookup_key with
           | "ADD_GPRv_MEMv" -> "0x03"
           | "ADC_GPRv_MEMv" -> "0x13"
           | "XOR_GPRv_MEMv" -> "0x33"
+          | "SUB_GPRv_MEMv" -> "0x2b"
+          | "AND_GPRv_MEMv" -> "0x23"
+          | "OR_GPRv_MEMv" -> "0x0b"
+          | "SBB_GPRv_MEMv" -> "0x1b"
+          | "CMP_GPRv_MEMv" -> "0x3b"
           | _ -> assert false
         in
         Printf.sprintf

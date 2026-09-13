@@ -482,25 +482,34 @@ let normalize (rec_ : R.t) =
       two_operand_gprv_form ~form_id:"CMP_GPRv_GPRv_39" ~mnemonic:"cmpl" rec_
   | Ok { iform = Some "TEST_GPRv_GPRv"; _ } ->
       two_operand_gprv_form ~form_id:"TEST_GPRv_GPRv" ~mnemonic:"testl" rec_
-  (* The register<-memory ALU direction: ADD/ADC/XOR are the only three
-     to_r_rm opcodes this project's encoder currently lowers with a memory
-     source ({!alu_gprv_memv_form}'s own doc comment); AND/OR/SUB/CMP/SBB/
-     TEST's own GPRv_MEMv iforms stay unhandled since their to_r_rm memory
-     lowering does not exist yet - a real encoder gap, not a capture or
-     normalization one. *)
+  (* The register<-memory ALU direction: every to_r_rm opcode this
+     project's encoder lowers with a memory source ({!alu_gprv_memv_form}'s
+     own doc comment) except TEST, whose own GPRv_MEMv form has no
+     upstream-named XED iform to admit at all (real GNU as does accept it,
+     see x86_family_encode.ml's own Opcode.to_r_rm comment). *)
   | Ok { iform = Some "ADD_GPRv_MEMv"; _ } ->
       alu_gprv_memv_form ~form_id:"ADD_GPRv_MEMv" ~mnemonic:"addl" rec_
   | Ok { iform = Some "ADC_GPRv_MEMv"; _ } ->
       alu_gprv_memv_form ~form_id:"ADC_GPRv_MEMv" ~mnemonic:"adcl" rec_
   | Ok { iform = Some "XOR_GPRv_MEMv"; _ } ->
       alu_gprv_memv_form ~form_id:"XOR_GPRv_MEMv" ~mnemonic:"xorl" rec_
+  | Ok { iform = Some "SUB_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"SUB_GPRv_MEMv" ~mnemonic:"subl" rec_
+  | Ok { iform = Some "AND_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"AND_GPRv_MEMv" ~mnemonic:"andl" rec_
+  | Ok { iform = Some "OR_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"OR_GPRv_MEMv" ~mnemonic:"orl" rec_
+  | Ok { iform = Some "SBB_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"SBB_GPRv_MEMv" ~mnemonic:"sbbl" rec_
+  | Ok { iform = Some "CMP_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"CMP_GPRv_MEMv" ~mnemonic:"cmpl" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
            "Isa_norm_xed only normalizes the frozen pilot iforms, the register/register and \
             register/immediate legacy ADD/MOV forms, the explicit-32-bit-width \
             SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms, and the explicit-32-bit-width \
-            ADD/ADC/XOR register<-memory forms; %s is not one of them"
+            ADD/ADC/XOR/SUB/AND/OR/SBB/CMP register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

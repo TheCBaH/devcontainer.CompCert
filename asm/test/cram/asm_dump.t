@@ -240,7 +240,7 @@
   alu-rm-r-op[9]{opcode:8u}
   le32(){<target:32@0 pcrel32-call>}
   cc[16]{cc:4u}
-  alu-r-rm-op[3]{opcode:8u}
+  alu-r-rm-op[8]{opcode:8u}
   no-asz(){()}
   no-rex(){()}
   sse-binop-f2-op[5]{opcode:8u}
@@ -491,7 +491,7 @@
   alu-rm-r-op[9]{opcode:8u}
   le32(){<target:32@0 pcrel32-call>}
   cc[16]{cc:4u}
-  alu-r-rm-op[3]{opcode:8u}
+  alu-r-rm-op[8]{opcode:8u}
   alt asz
     [0 cost=0] asz-present      asz-present(){01100111}
     [1 cost=0] asz-absent       asz-absent(){()}

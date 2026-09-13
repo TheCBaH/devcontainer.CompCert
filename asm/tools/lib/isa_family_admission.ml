@@ -101,8 +101,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "ADC_GPRv_GPRv_11" | "SBB_GPRv_GPRv_19" | "CMP_GPRv_GPRv_39" | "TEST_GPRv_GPRv" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
-      ("x86:ADD_GPRv_MEMv" | "x86:ADC_GPRv_MEMv" | "x86:XOR_GPRv_MEMv"),
-      ("ADD_GPRv_MEMv" | "ADC_GPRv_MEMv" | "XOR_GPRv_MEMv") ) ->
+      ( "x86:ADD_GPRv_MEMv" | "x86:ADC_GPRv_MEMv" | "x86:XOR_GPRv_MEMv" | "x86:SUB_GPRv_MEMv"
+      | "x86:AND_GPRv_MEMv" | "x86:OR_GPRv_MEMv" | "x86:SBB_GPRv_MEMv" | "x86:CMP_GPRv_MEMv" ),
+      ( "ADD_GPRv_MEMv" | "ADC_GPRv_MEMv" | "XOR_GPRv_MEMv" | "SUB_GPRv_MEMv" | "AND_GPRv_MEMv"
+      | "OR_GPRv_MEMv" | "SBB_GPRv_MEMv" | "CMP_GPRv_MEMv" ) ) ->
       true
   | (Target.Riscv32 | Target.Riscv64), "riscv:sw", "sw" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:beq", "beq" -> true
