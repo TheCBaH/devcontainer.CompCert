@@ -434,11 +434,14 @@ module Opcode = struct
      fact and live together. [-1] is "not an ALU-immediate operation". [Adc]
      (M4, .ai/asm_plan.md §12: the CompCert-runtime-helper fixture) needs only
      this immediate form - [i64_sdiv.S]/[i64_smod.S] never add it to a memory
-     destination. *)
+     destination. [Sbb] (ISA-consumption GEN-05) fills ext 3, the one gap in
+     this table, confirmed against real GNU as: [sbbl $1000000,%ecx] -> [81
+     d9 40 42 0f 00]. *)
   let to_ext = function
     | Add -> 0
     | Or -> 1
     | Adc -> 2
+    | Sbb -> 3
     | And -> 4
     | Sub -> 5
     | Xor -> 6
@@ -449,6 +452,7 @@ module Opcode = struct
     | 0 -> Some Add
     | 1 -> Some Or
     | 2 -> Some Adc
+    | 3 -> Some Sbb
     | 4 -> Some And
     | 5 -> Some Sub
     | 6 -> Some Xor
@@ -1987,7 +1991,8 @@ module Make (M : MODE) = struct
       else bad (`Sse_operand_class { sse_reg = r.name; sse_reg_width = r.width })
     in
     match (i.Instruction.op, i.Instruction.ops) with
-    | ( (Opcode.Add | Opcode.Adc | Opcode.And | Opcode.Sub | Opcode.Cmp | Opcode.Or | Opcode.Xor),
+    | ( ( Opcode.Add | Opcode.Adc | Opcode.And | Opcode.Sub | Opcode.Cmp | Opcode.Or | Opcode.Xor
+        | Opcode.Sbb ),
         [ Operand.Imm v; dst ] ) -> (
         match imm_of v with
         | Error e -> Error e

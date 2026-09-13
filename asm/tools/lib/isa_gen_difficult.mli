@@ -127,6 +127,14 @@ val x86_alu_memv_entries : entry list
     not included since it has no upstream-named XED iform to admit,
     even though real GNU as accepts it. *)
 
+val x86_alu_immz_entries : entry list
+(** [orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl] register/immediate on
+    x86-32 and x86-64, {!Isa_norm_xed.add_gprv_immz_form}'s own shape and
+    canonical S3-pilot immediate value generalized to an explicit-width
+    mnemonic for every ALU op except [add] itself (whose own
+    ADD_GPRv_IMMz form is a deliberate bare-mnemonic frontier-gap design
+    test, not reused here). *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2503,7 +2511,8 @@ val lr_d_entries : entry list
 
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
-    x86_alu_rr_entries @ x86_alu_memv_entries @ x86_fadd_entries @ fadd_s_entries @
+    x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_immz_entries @
+    x86_fadd_entries @ fadd_s_entries @
     fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @
     fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries @
