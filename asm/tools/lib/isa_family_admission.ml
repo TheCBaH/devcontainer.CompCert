@@ -187,6 +187,12 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "COMISS_XMMss_MEMss" | "XORPD_XMMxuq_MEMxuq" | "PXOR_XMMdq_MEMdq" | "MOVAPD_XMMpd_MEMpd"
       | "CVTSD2SS_XMMss_MEMsd" | "CVTSS2SD_XMMsd_MEMss" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:MOVSD_XMM_XMMdq_MEMsd" | "x86:MOVSD_XMM_MEMsd_XMMsd" | "x86:MOVSS_XMMdq_MEMss"
+      | "x86:MOVSS_MEMss_XMMss" ),
+      ("MOVSD_XMM_XMMdq_MEMsd" | "MOVSD_XMM_MEMsd_XMMsd" | "MOVSS_XMMdq_MEMss" | "MOVSS_MEMss_XMMss")
+    ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

@@ -1125,6 +1125,65 @@ let xmm_binop_rm_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* [movsd]/[movss] load/store (MOVSD_XMM_XMMdq_MEMsd/MOVSD_XMM_MEMsd_XMMsd
+   and their MOVSS siblings): {!mov_gprv_memv_form}'s own load/store shape
+   with [X86_xmm] replacing [X86_gpr], and the mnemonic ("movsd"/"movss")
+   passed in rather than fixed to "movl", since GAS spells each mnemonic
+   explicitly rather than via a shared suffix. XED orders REG0 before MEM0
+   for the load direction and MEM0 before REG0 for the store direction,
+   exactly as {!mov_gprv_memv_form} already handles via [load]. Role is
+   fixed write-only(load)/read-only(store) rather than read off [rw],
+   matching MOVSD_XMM's own REG0/MEM0 facts ("w"/"r" for load, "r"/"w" for
+   store - never "rw" the way a real binop's destination is): a plain move,
+   unlike {!xmm_binop_rr_form}/{!xmm_binop_rm_form}'s shape above.
+   Register-register [movsd]/[movss] is deliberately not covered here,
+   matching x86_family_encode.ml's own comment that this project's encoder
+   does not build it (unevidenced by the corpus). *)
+let xmm_mov_form ~form_id ~mnemonic ~load (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when (a.op_name = "REG0" && b.op_name = "MEM0") || (a.op_name = "MEM0" && b.op_name = "REG0") ->
+      let reg =
+        {
+          op_name = "reg";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = (if load then Out else In);
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = (if load then In else Out);
+          explicit = true;
+        }
+      in
+      let operands, syntax_operands =
+        if load then ([ mem; reg ], [ Syn_operand "mem"; Syn_decorated ("%", Syn_operand "reg") ])
+        else ([ reg; mem ], [ Syn_decorated ("%", Syn_operand "reg"); Syn_operand "mem" ])
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands;
+          syntax = { dialect = "gas-att"; mnemonic; operands = syntax_operands };
+          concreteness = Concrete;
+          facts =
+            [ { label = Upstream; note = "REG0 and MEM0 taken verbatim from encoding.operands" } ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0 operands, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 let normalize (rec_ : R.t) =
   match xed_provenance_of rec_ with
   | Ok { iform = Some "ADD_GPRv_IMMz"; _ } -> add_gprv_immz_form rec_
@@ -1420,6 +1479,15 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"CVTSD2SS_XMMss_MEMsd" ~mnemonic:"cvtsd2ss" rec_
   | Ok { iform = Some "CVTSS2SD_XMMsd_MEMss"; _ } ->
       xmm_binop_rm_form ~form_id:"CVTSS2SD_XMMsd_MEMss" ~mnemonic:"cvtss2sd" rec_
+  (* [movsd]/[movss] load/store ({!xmm_mov_form}'s own doc comment). *)
+  | Ok { iform = Some "MOVSD_XMM_XMMdq_MEMsd"; _ } ->
+      xmm_mov_form ~form_id:"MOVSD_XMM_XMMdq_MEMsd" ~mnemonic:"movsd" ~load:true rec_
+  | Ok { iform = Some "MOVSD_XMM_MEMsd_XMMsd"; _ } ->
+      xmm_mov_form ~form_id:"MOVSD_XMM_MEMsd_XMMsd" ~mnemonic:"movsd" ~load:false rec_
+  | Ok { iform = Some "MOVSS_XMMdq_MEMss"; _ } ->
+      xmm_mov_form ~form_id:"MOVSS_XMMdq_MEMss" ~mnemonic:"movss" ~load:true rec_
+  | Ok { iform = Some "MOVSS_MEMss_XMMss"; _ } ->
+      xmm_mov_form ~form_id:"MOVSS_MEMss_XMMss" ~mnemonic:"movss" ~load:false rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1432,10 +1500,10 @@ let normalize (rec_ : R.t) =
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb forms, the explicit-32-bit-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP memory/immb and memory/immz forms, the byte-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb, memory/immb, and accumulator/immb forms, \
-            the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms, and the \
+            the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms, the \
             plain xmm-xmm/xmm-memory binop shape's MULSS/DIVSS/COMISD/UCOMISD/COMISS/XORPD/PXOR/ \
-            MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms; %s is not one \
-            of them"
+            MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms, and the \
+            MOVSD/MOVSS load/store forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

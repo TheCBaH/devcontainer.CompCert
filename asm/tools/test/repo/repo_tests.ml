@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:117;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:117
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:121;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:121
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -728,15 +728,25 @@ let test_isa_family_admission repo =
      unadmitted, matching this file's to_rm_r "low-numbered iform" precedent
      (confirmed against real GNU as: `movapd %xmm1, %xmm0` selects opcode
      0x28). This slice moves 20 more records per x86 profile (10 mnemonics x
-     2 directions). *)
+     2 directions).
+
+     `MOVSD`/`MOVSS` load/store (`MOVSD_XMM_XMMdq_MEMsd`/
+     `MOVSD_XMM_MEMsd_XMMsd` and their MOVSS siblings) are a plain move, not
+     another binop: `x86_family_encode.ml`'s own comment on
+     `Lowered.Sse_mov_r_rm`/`Sse_mov_rm_r` already notes register-register
+     `movsd`/`movss` is unbuilt (unevidenced by the corpus), so only the
+     load/store direction is admitted here, via a new `Isa_norm_xed.
+     xmm_mov_form` generalizing `mov_gprv_memv_form`'s own `~load` direction
+     flag to the `X86_xmm` register class instead of `X86_gpr`. No encoder
+     change. This slice moves 4 more records per x86 profile. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:112 ~blocked:7770;
+    ~promoted_support:116 ~blocked:7766;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:112 ~blocked:10454
+    ~promoted_support:116 ~blocked:10450
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -790,9 +800,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1730)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1738)"
        !roundtrip_count)
-    (!roundtrip_count = 1730)
+    (!roundtrip_count = 1738)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's
