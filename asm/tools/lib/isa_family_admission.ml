@@ -170,6 +170,11 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "x86:DIVSD_XMMsd_XMMsd" ),
       ("ADDSD_XMMsd_XMMsd" | "SUBSD_XMMsd_XMMsd" | "MULSD_XMMsd_XMMsd" | "DIVSD_XMMsd_XMMsd") ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADDSD_XMMsd_MEMsd" | "x86:SUBSD_XMMsd_MEMsd" | "x86:MULSD_XMMsd_MEMsd"
+      | "x86:DIVSD_XMMsd_MEMsd" ),
+      ("ADDSD_XMMsd_MEMsd" | "SUBSD_XMMsd_MEMsd" | "MULSD_XMMsd_MEMsd" | "DIVSD_XMMsd_MEMsd") ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

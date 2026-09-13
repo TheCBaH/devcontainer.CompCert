@@ -1125,6 +1125,7 @@ let test_counts () =
       + List.length Isa_gen_difficult.x86_alu_memb_immb_entries
       + List.length Isa_gen_difficult.x86_alu_al_immb_entries
       + List.length Isa_gen_difficult.x86_sse_binop_rr_entries
+      + List.length Isa_gen_difficult.x86_sse_binop_rm_entries
       + List.length Isa_gen_difficult.x86_fadd_entries
       + List.length Isa_gen_difficult.fadd_s_entries
       + List.length Isa_gen_difficult.fsub_s_entries

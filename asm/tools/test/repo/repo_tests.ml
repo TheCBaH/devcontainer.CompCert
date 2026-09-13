@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:93;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:93
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:97;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:97
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -706,22 +706,29 @@ let test_isa_family_admission repo =
      profile and opens the entirely-unadmitted x86 vector/SIMD space the
      prior milestone flagged as needing new infrastructure - register-memory
      SSE forms, the remaining SSE/SSE2 op families, and VEX/EVEX all remain
-     unadmitted. *)
+     unadmitted.
+
+     `ADDSD`/`SUBSD`/`MULSD`/`DIVSD_XMMsd_MEMsd` (the register<-memory
+     sibling, `addsd 16(%esp), %xmm0`) close that immediate follow-up: the
+     encoder's own `Lowered.Sse_binop_r_rm` already builds both directions
+     off one `rm : Rm.t` field, so this needed only the new
+     `Isa_norm_xed.xmm_binop_rm_form` normalizer, no encoder change. This
+     slice moves 4 more records per x86 profile. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:88 ~blocked:7794;
+    ~promoted_support:92 ~blocked:7790;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:88 ~blocked:10478
+    ~promoted_support:92 ~blocked:10474
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+93+93); a drop here without a
+   tests' own pinned normalized counts (722+774+97+97); a drop here without a
    matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -768,9 +775,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1682)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1690)"
        !roundtrip_count)
-    (!roundtrip_count = 1682)
+    (!roundtrip_count = 1690)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

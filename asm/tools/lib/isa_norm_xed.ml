@@ -1056,6 +1056,74 @@ let xmm_binop_rr_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected REG0/REG1 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* SSE2 scalar-float register<-memory binops (ADDSD/SUBSD/MULSD/
+   DIVSD_XMMsd_MEMsd): {!xmm_binop_rr_form}'s own register-register sibling
+   with MEM0 standing in for REG1 - x86_family_encode.ml's own
+   [Lowered.Sse_binop_r_rm] already builds both directions off the same
+   [rm : Rm.t] field (its own doc comment: "a memory [rm] needs no check
+   here"), so this is a second normalizer over that one shape, not a second
+   encoder path. XED orders REG0 (rw, destination) before MEM0 (r, source)
+   here too, matching {!alu_gprv_memv_form}'s own REG0-before-MEM0
+   convention, so this mirrors that function's [mem; reg] operand order and
+   AT&T syntax exactly, with [X86_xmm] replacing [X86_gpr]. *)
+let xmm_binop_rm_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ mem; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_operand "mem"; Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "REG0 (rw=%s), MEM0 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source, then destination) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 let normalize (rec_ : R.t) =
   match xed_provenance_of rec_ with
   | Ok { iform = Some "ADD_GPRv_IMMz"; _ } -> add_gprv_immz_form rec_
@@ -1282,6 +1350,15 @@ let normalize (rec_ : R.t) =
       xmm_binop_rr_form ~form_id:"MULSD_XMMsd_XMMsd" ~mnemonic:"mulsd" rec_
   | Ok { iform = Some "DIVSD_XMMsd_XMMsd"; _ } ->
       xmm_binop_rr_form ~form_id:"DIVSD_XMMsd_XMMsd" ~mnemonic:"divsd" rec_
+  (* Its register<-memory sibling ({!xmm_binop_rm_form}'s own doc comment). *)
+  | Ok { iform = Some "ADDSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"ADDSD_XMMsd_MEMsd" ~mnemonic:"addsd" rec_
+  | Ok { iform = Some "SUBSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"SUBSD_XMMsd_MEMsd" ~mnemonic:"subsd" rec_
+  | Ok { iform = Some "MULSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MULSD_XMMsd_MEMsd" ~mnemonic:"mulsd" rec_
+  | Ok { iform = Some "DIVSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"DIVSD_XMMsd_MEMsd" ~mnemonic:"divsd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1294,7 +1371,8 @@ let normalize (rec_ : R.t) =
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb forms, the explicit-32-bit-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP memory/immb and memory/immz forms, the byte-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb, memory/immb, and accumulator/immb forms, \
-            and the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register forms; %s is not one of them"
+            and the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms; %s \
+            is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

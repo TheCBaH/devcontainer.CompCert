@@ -187,6 +187,12 @@ val x86_sse_binop_rr_entries : entry list
     fixture-verified by this project's own encoder before this
     ISA-consumption slice admitted them. *)
 
+val x86_sse_binop_rm_entries : entry list
+(** [addsd]/[subsd]/[mulsd]/[divsd 16(%esp|%rsp), %xmm0] on x86-32 and
+    x86-64, {!x86_sse_binop_rr_entries}'s own register<-memory sibling,
+    also already fully built and fixture-verified by this project's own
+    encoder before this ISA-consumption slice admitted it. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2612,7 +2618,7 @@ val all : entry list
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @
     x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @
     x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries @
-    x86_sse_binop_rr_entries @ x86_fadd_entries @ fadd_s_entries @
+    x86_sse_binop_rr_entries @ x86_sse_binop_rm_entries @ x86_fadd_entries @ fadd_s_entries @
     fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @
     fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries @
