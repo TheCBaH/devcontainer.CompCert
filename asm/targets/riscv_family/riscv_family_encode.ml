@@ -217,6 +217,8 @@ module Make (P : PROFILE) = struct
       | Clmulr
       | Czero_eqz
       | Czero_nez
+      | Sm3p0
+      | Sm3p1
       | Xperm4
       | Xperm8
       | Sha256sum0
@@ -886,6 +888,8 @@ module Make (P : PROFILE) = struct
       | Clmulr -> "clmulr"
       | Czero_eqz -> "czero.eqz"
       | Czero_nez -> "czero.nez"
+      | Sm3p0 -> "sm3p0"
+      | Sm3p1 -> "sm3p1"
       | Xperm4 -> "xperm4"
       | Xperm8 -> "xperm8"
       | Sha256sum0 -> "sha256sum0"
@@ -1556,6 +1560,8 @@ module Make (P : PROFILE) = struct
         Clmulr;
         Czero_eqz;
         Czero_nez;
+        Sm3p0;
+        Sm3p1;
         Xperm4;
         Xperm8;
         Sha256sum0;
@@ -2879,6 +2885,14 @@ module Make (P : PROFILE) = struct
     | Sha256sum1 -> Some (0x13, 1, 0x101)
     | Sha256sig0 -> Some (0x13, 1, 0x102)
     | Sha256sig1 -> Some (0x13, 1, 0x103)
+    (* Zksh's SM3 message-schedule helpers - the same two-GPR unary shape,
+       XLEN-independent, identical mnemonic/encoding on both profiles.
+       Hand-verified against the checked-in riscv32.jsonl/riscv64.jsonl
+       mask/value (sm3p0 0x10801013, sm3p1 0x10901013), then confirmed
+       against real riscv32-linux-gnu-as 2.43.1 / riscv64-linux-gnu-as
+       2.44. *)
+    | Sm3p0 -> Some (0x13, 1, 0x108)
+    | Sm3p1 -> Some (0x13, 1, 0x109)
     (* SHA-512's own message-schedule helpers - the same shape as SHA-256's
        above, RV64-only (gated below; riscv-opcodes has no RV32 record at
        all for these four - RV32 instead gets a genuinely different,

@@ -2181,6 +2181,15 @@ val czero_nez_entries : entry list
 (** [czero.nez a0, a1, a2] on both profiles, {!czero_eqz_entries}'s
     complementary condition (same opcode/funct7; only funct3 differs). *)
 
+val sm3p0_entries : entry list
+(** [sm3p0 a0, a1] on both profiles - Zksh's SM3 message-schedule helper,
+    the same two-GPR unary shape as {!sha256sum0_entries} but a two-way
+    Req_any group (rv_zksh primary, imported by rv_zks alone). *)
+
+val sm3p1_entries : entry list
+(** [sm3p1 a0, a1] on both profiles, {!sm3p0_entries}'s sibling (same
+    Req_any group; only the funct12 differs). *)
+
 val xperm4_entries : entry list
 (** [xperm4 a0, a1, a2] on both profiles - Zbkx's crossbar-permute-nibble,
     the same three-GPR R-type shape {!clmul_entries} uses but a four-way
@@ -2480,7 +2489,8 @@ val all : entry list
     rori_entries @ roriw_entries @ bclr_entries @ bext_entries @
     binv_entries @ bset_entries @ bclri_entries @ bexti_entries @
     binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @
-    clmulh_entries @ clmulr_entries @ czero_eqz_entries @ czero_nez_entries @ xperm4_entries @
+    clmulh_entries @ clmulr_entries @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @
+    sm3p1_entries @ xperm4_entries @
     xperm8_entries @ sha256sum0_entries @
     sha256sum1_entries @ sha256sig0_entries @ sha256sig1_entries @
     sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries @

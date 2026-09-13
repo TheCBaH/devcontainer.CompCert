@@ -21,6 +21,7 @@ let feature_of_extension = function
   | "rv_zks" -> Req_feature "riscv:zks"
   | "rv_zbc" -> Req_feature "riscv:zbc"
   | "rv_zicond" -> Req_feature "riscv:zicond"
+  | "rv_zksh" -> Req_feature "riscv:zksh"
   | "rv_zbkc" -> Req_feature "riscv:zbkc"
   | "rv_zbkx" -> Req_feature "riscv:zbkx"
   | "rv_zbs" -> Req_feature "riscv:zbs"
@@ -207,6 +208,14 @@ let alternative_extensions_by_mnemonic =
      zknd-rooted pair or vice versa - hand-verified, not assumed). *)
   let aes32d_import_group_rv32 = [ "rv32_zknd"; "rv32_zk"; "rv32_zkn" ] in
   let aes32e_import_group_rv32 = [ "rv32_zkne"; "rv32_zk"; "rv32_zkn" ] in
+  (* sm3p0/sm3p1 (Zksh's SM3 message-schedule helpers) are a two-way import
+     group like Zvksed/Zvksh's own vector groups: primary rv_zksh, imported
+     by rv_zks alone (confirmed directly against real GNU as:
+     `-march=...i_zks` alone assembles both mnemonics byte-identical to
+     `-march=...i_zksh`), hand-verified no third alternative exists by
+     grepping every candidate's own provenance.extension across the whole
+     checked-in export before writing any code. *)
+  let zksh_import_group = [ "rv_zksh"; "rv_zks" ] in
   (* vsha2ms.vv/vsha2ch.vv/vsha2cl.vv (Zvknha's SHA-256 vector helpers) are a
      three-way import group, XLEN-independent: riscv-opcodes' primary record
      is rv_zvknha, imported by rv_zvknhb (SHA-256-and-512's superset
@@ -318,6 +327,8 @@ let alternative_extensions_by_mnemonic =
     ("aes32dsmi", aes32d_import_group_rv32);
     ("aes32esi", aes32e_import_group_rv32);
     ("aes32esmi", aes32e_import_group_rv32);
+    ("sm3p0", zksh_import_group);
+    ("sm3p1", zksh_import_group);
     ("vsha2ms.vv", zvknha_import_group);
     ("vsha2ch.vv", zvknha_import_group);
     ("vsha2cl.vv", zvknha_import_group);
@@ -1991,6 +2002,8 @@ let unary_gpr_mnemonics =
     "sha512sig0";
     "sha512sig1";
     "aes64im";
+    "sm3p0";
+    "sm3p1";
   ]
 
 (* The scalar floating-point arithmetic forms' rd/rs1/rs2 are floating

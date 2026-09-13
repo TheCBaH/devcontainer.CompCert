@@ -2446,6 +2446,12 @@ let czero_eqz_json =
 let czero_nez_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xe007033", "width_bits": 32}, "kind": "instruction-form", "native_name": "czero.nez", "origin": {"line": 2, "path": "extensions/rv_zicond"}, "provenance": {"extension": "rv_zicond", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "czero.nez   rd rs1 rs2 31..25=7 14..12=7 6..2=0x0C 1..0=3", "tokens": ["czero.nez", "rd", "rs1", "rs2", "31..25=7", "14..12=7", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xe007033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zicond:czero.nez@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
+let sm3p0_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 30, "name": "bits[31:30]", "width": 2}, {"lsb": 25, "name": "bits[29:25]", "width": 5}, {"lsb": 20, "name": "bits[24:20]", "width": 5}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 0, "name": "bits[6:0]", "width": 7}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}], "kind": "fixed_bits", "mask": "0xfff0707f", "value": "0x10801013", "width_bits": 32}, "kind": "instruction-form", "native_name": "sm3p0", "origin": {"line": 2, "path": "extensions/rv_zksh"}, "provenance": {"extension": "rv_zksh", "operands": ["rd", "rs1"], "raw": {"line": "sm3p0         rd rs1 31..30=0 29..25=0b01000 24..20=0b01000 14..12=1 6..0=0x13", "tokens": ["sm3p0", "rd", "rs1", "31..30=0", "29..25=0b01000", "24..20=0b01000", "14..12=1", "6..0=0x13"]}, "upstream-resolved": {"mask": "0xfff0707f", "match": "0x10801013", "variable_fields": ["rd", "rs1"]}}, "record_id": "riscv-opcodes:rv_zksh:sm3p0@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
+let sm3p1_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 30, "name": "bits[31:30]", "width": 2}, {"lsb": 25, "name": "bits[29:25]", "width": 5}, {"lsb": 20, "name": "bits[24:20]", "width": 5}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 0, "name": "bits[6:0]", "width": 7}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}], "kind": "fixed_bits", "mask": "0xfff0707f", "value": "0x10901013", "width_bits": 32}, "kind": "instruction-form", "native_name": "sm3p1", "origin": {"line": 3, "path": "extensions/rv_zksh"}, "provenance": {"extension": "rv_zksh", "operands": ["rd", "rs1"], "raw": {"line": "sm3p1         rd rs1 31..30=0 29..25=0b01000 24..20=0b01001 14..12=1 6..0=0x13", "tokens": ["sm3p1", "rd", "rs1", "31..30=0", "29..25=0b01000", "24..20=0b01001", "14..12=1", "6..0=0x13"]}, "upstream-resolved": {"mask": "0xfff0707f", "match": "0x10901013", "variable_fields": ["rd", "rs1"]}}, "record_id": "riscv-opcodes:rv_zksh:sm3p1@L3", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
 let xperm4_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0x28002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "xperm4", "origin": {"line": 1, "path": "extensions/rv_zbkx"}, "provenance": {"extension": "rv_zbkx", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "xperm4     rd rs1 rs2 31..25=20 14..12=2 6..2=0x0C 1..0=3", "tokens": ["xperm4", "rd", "rs1", "rs2", "31..25=20", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0x28002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbkx:xperm4@L1", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
@@ -2661,6 +2667,17 @@ let test_clmulr () = test_r_type_gpr ~feature:"zbc" ~mnemonic:"clmulr" ~json:clm
    rv_zicond record on each profile, no Req_any needed. *)
 let test_czero_eqz () = test_r_type_gpr ~feature:"zicond" ~mnemonic:"czero.eqz" ~json:czero_eqz_json
 let test_czero_nez () = test_r_type_gpr ~feature:"zicond" ~mnemonic:"czero.nez" ~json:czero_nez_json
+
+(* sm3p0/sm3p1: Zksh's SM3 message-schedule helpers, the same two-GPR
+   unary shape as sha256sum0/etc but a two-way Req_any group (primary
+   rv_zksh, imported by rv_zks alone). *)
+let zksh_import_group = [ "zksh"; "zks" ]
+
+let test_sm3p0 () =
+  test_unary_gpr_any ~import_group:zksh_import_group ~mnemonic:"sm3p0" ~json:sm3p0_json
+
+let test_sm3p1 () =
+  test_unary_gpr_any ~import_group:zksh_import_group ~mnemonic:"sm3p1" ~json:sm3p1_json
 
 (* xperm4/xperm8: the same three-GPR Req_any R-type shape, but a four-way
    zbkx-only group (rv_zbkx/rv_zk/rv_zkn/rv_zks - no separate non-K sibling
@@ -5052,6 +5069,8 @@ let () =
   test_clmulr ();
   test_czero_eqz ();
   test_czero_nez ();
+  test_sm3p0 ();
+  test_sm3p1 ();
   test_xperm4 ();
   test_xperm8 ();
   test_sha256sum0 ();

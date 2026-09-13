@@ -87,6 +87,9 @@ let test_counts () =
   check "czero.eqz/czero.nez entries have 2 entries each (Zicond-only, no Req_any, 2 profiles)"
     (List.length Isa_gen_difficult.czero_eqz_entries = 2
     && List.length Isa_gen_difficult.czero_nez_entries = 2);
+  check "sm3p0/sm3p1 entries have 2 entries each (Zksh Req_any x 2 profiles)"
+    (List.length Isa_gen_difficult.sm3p0_entries = 2
+    && List.length Isa_gen_difficult.sm3p1_entries = 2);
   check "xperm4/xperm8 entries have 2 entries each (Zbkx Req_any x 2 profiles)"
     (List.length Isa_gen_difficult.xperm4_entries = 2
     && List.length Isa_gen_difficult.xperm8_entries = 2);
@@ -1170,6 +1173,8 @@ let test_counts () =
       + List.length Isa_gen_difficult.clmulr_entries
       + List.length Isa_gen_difficult.czero_eqz_entries
       + List.length Isa_gen_difficult.czero_nez_entries
+      + List.length Isa_gen_difficult.sm3p0_entries
+      + List.length Isa_gen_difficult.sm3p1_entries
       + List.length Isa_gen_difficult.xperm4_entries
       + List.length Isa_gen_difficult.xperm8_entries
       + List.length Isa_gen_difficult.sha256sum0_entries
@@ -2785,7 +2790,8 @@ let test_unary_gpr_domain () =
    @ Isa_gen_difficult.sha256sum1_entries @ Isa_gen_difficult.sha256sig0_entries
    @ Isa_gen_difficult.sha256sig1_entries @ Isa_gen_difficult.sha512sum0_entries
    @ Isa_gen_difficult.sha512sum1_entries @ Isa_gen_difficult.sha512sig0_entries
-   @ Isa_gen_difficult.sha512sig1_entries @ Isa_gen_difficult.aes64im_entries)
+   @ Isa_gen_difficult.sha512sig1_entries @ Isa_gen_difficult.aes64im_entries
+   @ Isa_gen_difficult.sm3p0_entries @ Isa_gen_difficult.sm3p1_entries)
 
 let test_shamt_domain () =
   List.iter
