@@ -357,6 +357,21 @@ module Opcode = struct
         (** [mulpd rm, reg] - packed multiply, double precision ([66 0F 59 /r]), {!Addpd}'s sibling. *)
     | Divpd
         (** [divpd rm, reg] - packed divide, double precision ([66 0F 5E /r]), {!Addpd}'s sibling. *)
+    | Vaddsd
+        (** [vaddsd src2, src1, dst] - VEX-encoded scalar-double add ([VEX.LIG.F2.0F.WIG 58 /r]),
+            the first x86 vector-extension (AVX) form this project admits: unlike every opcode
+            above, which shares {!Addsd}'s legacy destructive two-operand [dst := dst op src]
+            shape, VEX's non-destructive three-operand form reads [dst := src1 op src2] with
+            [src1] carried in the VEX prefix's own [vvvv] field rather than the ModR/M byte. Only
+            the two-byte VEX prefix ([0xC5]) is built - [src2] (the ModR/M r/m operand) is
+            therefore restricted to xmm0-7, since encoding xmm8-15 there needs REX.B's VEX
+            counterpart, which only the three-byte VEX prefix ([0xC4]) carries; [dst] and [src1]
+            are unrestricted since the two-byte prefix's own R and vvvv bits already reach all of
+            xmm0-15. Register-register only in this slice - no memory [src2], no YMM (VEX.L),
+            no three-byte VEX, no EVEX; each is future work, not built here. *)
+    | Vsubsd  (** [vsubsd src2, src1, dst] - {!Vaddsd}'s sibling ([VEX.LIG.F2.0F.WIG 5C /r]). *)
+    | Vmulsd  (** [vmulsd src2, src1, dst] - {!Vaddsd}'s sibling ([VEX.LIG.F2.0F.WIG 59 /r]). *)
+    | Vdivsd  (** [vdivsd src2, src1, dst] - {!Vaddsd}'s sibling ([VEX.LIG.F2.0F.WIG 5E /r]). *)
     | Fldl
     | Fstpl
     | Fstps
@@ -483,6 +498,10 @@ module Opcode = struct
     | Subpd -> "subpd"
     | Mulpd -> "mulpd"
     | Divpd -> "divpd"
+    | Vaddsd -> "vaddsd"
+    | Vsubsd -> "vsubsd"
+    | Vmulsd -> "vmulsd"
+    | Vdivsd -> "vdivsd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -714,9 +733,10 @@ module Instruction = struct
           | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
           | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
           | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
-          | Opcode.Divpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
-          | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
-          | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
+          | Opcode.Divpd | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd
+          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
+          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
+          | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -849,6 +869,15 @@ module Lowered = struct
     | Cvtf2i_r_rm of { width : int; reg : Reg.t; rm : Rm.t }
         (** [F2 0F 2C /r], (r32 or r64)<-(xmm or m64) - [cvttsd2si] only ([cvttss2si] is unevidenced
             by this corpus). [reg] is a GPR at [width]; [rm] is xmm (or memory). *)
+    | Vex_binop_rrr of { op : Opcode.t; dst : Reg.t; src1 : Reg.t; src2 : Reg.t }
+        (** [VEX.LIG.F2.0F.WIG opcode /r] - {!Opcode.Vaddsd}'s three-real-register shape:
+            [dst := src1 op src2], non-destructive unlike every other binop here. [src2] is
+            always the ModR/M r/m register field (xmm0-7 only, the two-byte-VEX restriction
+            {!Opcode.Vaddsd}'s own comment explains); [src1] is the VEX prefix's own [vvvv]
+            field, which reaches all of xmm0-15 directly with no separate extension bit; [dst]
+            is the ModR/M reg field, extended by the VEX prefix's own R bit exactly as REX.R
+            would. No {!Rm.t} here at all - unlike every other constructor in this type, a
+            memory [src2] is not represented, since this slice builds no such alternative. *)
     | Setcc_rm of { cc : Cc.t; rm : Rm.t }
         (** [0F 90+cc /0] (M5 corpus evidence - [sete %al], [setl %r8b]). Always 8-bit; the ModR/M
             reg field is a fixed 0, not an operand or an extension table lookup - the condition is
@@ -962,6 +991,8 @@ module Lowered = struct
     | Sse_mov_rm_r { op; rm; reg } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Reg.pp reg Rm.pp rm
     | Cvtsi2f_r_rm { op; reg; rm; _ } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Rm.pp rm Reg.pp reg
     | Cvtf2i_r_rm { reg; rm; _ } -> Fmt.pf ppf "cvttsd2si %a, %a" Rm.pp rm Reg.pp reg
+    | Vex_binop_rrr { op; dst; src1; src2 } ->
+        Fmt.pf ppf "%s %a, %a, %a" (Opcode.name op) Reg.pp src2 Reg.pp src1 Reg.pp dst
     | Fpu_mem { op; mem } -> Fmt.pf ppf "%s %a" (Opcode.name op) Mem.pp mem
     | Fadd_st0_x87 { src } -> Fmt.pf ppf "fadd %a, %%st" Reg.pp src
     | Fucomp -> Fmt.string ppf "fucomp %st(1)"
@@ -1021,6 +1052,8 @@ module Lowered = struct
         x.op = y.op && x.width = y.width && Reg.equal x.reg y.reg && Rm.equal x.rm y.rm
     | Cvtf2i_r_rm x, Cvtf2i_r_rm y ->
         x.width = y.width && Reg.equal x.reg y.reg && Rm.equal x.rm y.rm
+    | Vex_binop_rrr x, Vex_binop_rrr y ->
+        x.op = y.op && Reg.equal x.dst y.dst && Reg.equal x.src1 y.src1 && Reg.equal x.src2 y.src2
     | Fpu_mem x, Fpu_mem y -> x.op = y.op && Mem.equal x.mem y.mem
     | Fadd_st0_x87 x, Fadd_st0_x87 y -> Reg.equal x.src y.src
     | Fucomp, Fucomp -> true
@@ -1603,7 +1636,8 @@ module Make (M : MODE) = struct
     | `Register_width_mismatch of register_width_mismatch
     | `Shift_count_not_one of int64
     | `Setcc_operands
-    | `Sse_operand_class of sse_operand_class_mismatch ]
+    | `Sse_operand_class of sse_operand_class_mismatch
+    | `Vex_rm_extended_register of string ]
 
   and bad_branch_suffix = { mnemonic : string; rungs : string list }
   and register_width_mismatch = { reg : string; reg_width : int; insn_width : int }
@@ -1660,6 +1694,11 @@ module Make (M : MODE) = struct
           n
     | `Sse_operand_class { sse_reg; sse_reg_width } ->
         Fmt.pf ppf "%s is %d-bit, expected an xmm register" sse_reg sse_reg_width
+    | `Vex_rm_extended_register reg ->
+        Fmt.pf ppf
+          "%s cannot be the r/m operand of a two-byte-VEX-encoded instruction (xmm8-xmm15 there \
+           needs the three-byte VEX prefix, not yet supported)"
+          reg
 
   (* The phase that detected it, which is what the code has always named. The
      codec arm delegates: [Codec.code] is [Some] only where that layer is the
@@ -1673,7 +1712,7 @@ module Make (M : MODE) = struct
     | `Bad_branch_suffix _ -> "x86.branch-suffix"
     | `Immediate_too_wide | `No_form _ | `Immediate_destination | `Imm_to_mem_only_movb
     | `Mov8_only_movb | `Register_width_mismatch _ | `Shift_count_not_one _ | `Sse_operand_class _
-      ->
+    | `Vex_rm_extended_register _ ->
         "x86.lower"
     | `Codec e -> Option.value (Codec.code e) ~default:"x86.encode"
     | `Decode_no_match | `Decode_partial_bytes | `Decode_no_normalized -> "x86.decode"
@@ -1872,6 +1911,13 @@ module Make (M : MODE) = struct
     | "subpd", _ -> Ok (Instruction.mk Opcode.Subpd 32 s.Surface.ops)
     | "mulpd", _ -> Ok (Instruction.mk Opcode.Mulpd 32 s.Surface.ops)
     | "divpd", _ -> Ok (Instruction.mk Opcode.Divpd 32 s.Surface.ops)
+    (* {!Opcode.Vaddsd}'s VEX-encoded family (GEN-05, x86 vector extensions): three real
+       operands, [src2, src1, dst], not a suffix-bearing GPR mnemonic - matched the same
+       fixed-mnemonic way as the rest of this SSE block. *)
+    | "vaddsd", _ -> Ok (Instruction.mk Opcode.Vaddsd 32 s.Surface.ops)
+    | "vsubsd", _ -> Ok (Instruction.mk Opcode.Vsubsd 32 s.Surface.ops)
+    | "vmulsd", _ -> Ok (Instruction.mk Opcode.Vmulsd 32 s.Surface.ops)
+    | "vdivsd", _ -> Ok (Instruction.mk Opcode.Vdivsd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2535,6 +2581,21 @@ module Make (M : MODE) = struct
         match width_ok reg with
         | Error e -> Error e
         | Ok () -> Ok [ Lowered.Cvtf2i_r_rm { width = i.Instruction.width; reg; rm = Rm.Mem m } ])
+    (* {3 x86 VEX (GEN-05, x86 vector extensions)}
+
+       [vaddsd src2, src1, dst]: real GNU as's own AT&T operand order for the
+       non-destructive three-register form, [src2] first as for every other
+       binop above, [src1] (the [vvvv] operand) in the middle, [dst] last.
+       [src2] is checked against the two-byte-VEX ModR/M restriction here,
+       at lowering, rather than left to the codec to reject silently -
+       {!Vex_rm_extended_register} names exactly which operand and why. *)
+    | ( (Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd),
+        [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] ) -> (
+        match (xmm_ok src2, xmm_ok src1, xmm_ok dst) with
+        | Ok (), Ok (), Ok () ->
+            if src2.num >= 8 then bad (`Vex_rm_extended_register src2.name)
+            else Ok [ Lowered.Vex_binop_rrr { op = i.Instruction.op; dst; src1; src2 } ]
+        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
     (* [fldl]/[fstpl]/[fstps]/[flds] (M5, asm/docs/corpus.md): ccomp's own x87
        double/single-precision spill-and-reload sequence around a `%st(0)`
        return value - always to/from a stack memory operand in this corpus,
@@ -3189,6 +3250,70 @@ module Make (M : MODE) = struct
              (Lowered.Cvtf2i_r_rm
                 { width; reg = reg_field ~p ~width e.re_reg; rm = rm_of ~p ~width:128 e.re_rm }))
          C.(asz_codec ** const ~width:8 0xF2L ** rex_codec ** const ~width:16 0x0F2CL ** rm_codec))
+
+  (* {3 x86 VEX (GEN-05, x86 vector extensions)}
+
+     The two-byte VEX prefix ([0xC5]), built only for {!Opcode.Vaddsd}'s own
+     scalar-double [VEX.LIG.F2.0F.WIG] group: no [asz_codec]/[rex_codec] at
+     all - VEX and REX never coexist, VEX's second byte carries what REX
+     would have (here, only R) plus [vvvv]/[L]/[pp], which is why this is
+     not built as one more [sse_binop_alt]-style mandatory-prefix group. The
+     second byte is a single opaque 8-bit field rather than a record of
+     sub-fields the way [rm_enc] is: nothing else in this codec needs to
+     name its pieces, since [vaddsd]/[vsubsd]/[vmulsd]/[vdivsd] all share
+     one fixed [L]/[pp] (confirmed against real GNU as: [c5 f3 58 c2] for
+     [vaddsd %xmm2, %xmm1, %xmm0], [c5 e3 58 ef] for
+     [vaddsd %xmm7, %xmm3, %xmm5] on both [x86_64-linux-gnu-as] and
+     [i686-linux-gnu-as] 2.44).
+
+     [dst] (the ModR/M reg field) and [src1] ([vvvv]) reuse [rm_codec]'s and
+     [reg_at]'s existing machinery; [src2] (the ModR/M r/m field) is a plain
+     register field with no REX/VEX.B counterpart in this two-byte-prefix
+     slice, so it is packed and unpacked directly rather than through
+     [rm_of]/[extend_rex], which assume a REX byte that does not exist here. *)
+  let vex_scalar_f2_codec =
+    C.iso_table ~name:"vex-scalar-f2-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vaddsd, 0x58L);
+          (Opcode.Vsubsd, 0x5CL);
+          (Opcode.Vmulsd, 0x59L);
+          (Opcode.Vdivsd, 0x5EL);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let vex_scalar_f2_rrr_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_binop_rrr { op; dst; src1; src2 } when src2.num < 8 ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let vvvv = lnot src1.num land 0xF in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (vvvv lsl 3) lor 3) in
+               Some ((), (byte2, (op, { re_reg = dst.num; re_rm = Rm.Reg src2 })))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, (op, e))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let vvvv = (b lsr 3) land 0xF in
+           let l = (b lsr 2) land 1 in
+           let pp = b land 3 in
+           if l <> 0 || pp <> 3 then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src1_num = lnot vvvv land 0xF in
+             match e.re_rm with
+             | Rm.Mem _ -> None
+             | Rm.Reg r ->
+                 Some
+                   (Lowered.Vex_binop_rrr
+                      {
+                        op;
+                        dst = reg_at ~width:128 dst_num;
+                        src1 = reg_at ~width:128 src1_num;
+                        src2 = retype ~width:128 r;
+                      }))
+         C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** vex_scalar_f2_codec ** rm_codec))
 
   (* Zero-/sign-extending move (M5, asm/docs/corpus.md): [0F B6/B7/BE/BF /r].
      No mandatory prefix, so this reuses [prefixes_codec] directly rather than
@@ -4086,6 +4211,7 @@ module Make (M : MODE) = struct
           sse_cvtsi2f_alt ~label:"cvtsi2sd-r-rm" ~priority:32 ~mandatory:0xF2 ~op:Opcode.Cvtsi2sd;
           sse_cvtsi2f_alt ~label:"cvtsi2ss-r-rm" ~priority:33 ~mandatory:0xF3 ~op:Opcode.Cvtsi2ss;
           sse_cvtf2i_alt ~label:"cvttsd2si-r-rm" ~priority:34;
+          vex_scalar_f2_rrr_alt ~label:"vex-scalar-f2-rrr" ~priority:67;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)
@@ -4691,6 +4817,8 @@ module Make (M : MODE) = struct
               ];
             form = None;
           }
+    | Lowered.Vex_binop_rrr { op; dst; src1; src2 } ->
+        Some (Instruction.mk op 32 [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ])
     | Lowered.Fpu_mem { op; mem } -> Some (Instruction.mk op 32 [ Operand.Mem mem ])
     | Lowered.Fadd_st0_x87 { src } ->
         Some (Instruction.mk Opcode.Fadd 32 [ Operand.Reg src; Operand.Reg (reg_at ~width:80 0) ])

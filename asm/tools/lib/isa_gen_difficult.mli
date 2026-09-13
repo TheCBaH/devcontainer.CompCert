@@ -200,6 +200,13 @@ val x86_sse_mov_entries : entry list
     addressing and destination register are reused with a load/store
     direction flag rather than folded into that entry builder. *)
 
+val x86_vex_binop_rrr_entries : entry list
+(** [vaddsd]/[vsubsd]/[vmulsd]/[vdivsd %xmm2, %xmm1, %xmm0] on x86-32 and
+    x86-64 - the first x86 vector-extension (AVX/VEX) admission and this
+    project's first genuine three-real-register x86 entry, confirmed
+    against real GNU as before {!Isa_norm_xed.vex_binop_rrr_form} and
+    x86_family_encode.ml's own two-byte-VEX encoder were built. *)
+
 val x86_cvtsi2f_rr_entries : entry list
 (** [cvtsi2sd]/[cvtsi2ss %eax, %xmm0] on x86-32 and x86-64, plus
     [cvtsi2sdq]/[cvtsi2ssq %rax, %xmm0] on x86-64 only (a GPR64 source

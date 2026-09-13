@@ -243,6 +243,12 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "ADDPS_XMMps_MEMps" | "SUBPS_XMMps_MEMps" | "MULPS_XMMps_MEMps" | "DIVPS_XMMps_MEMps"
       | "ADDPD_XMMpd_MEMpd" | "SUBPD_XMMpd_MEMpd" | "MULPD_XMMpd_MEMpd" | "DIVPD_XMMpd_MEMpd" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
+      | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq" ),
+      ( "VADDSD_XMMdq_XMMdq_XMMq" | "VSUBSD_XMMdq_XMMdq_XMMq" | "VMULSD_XMMdq_XMMdq_XMMq"
+      | "VDIVSD_XMMdq_XMMdq_XMMq" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

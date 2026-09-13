@@ -669,6 +669,38 @@ let x86_sse_mov_entries =
       ])
     [ Target.X86_32; Target.X86_64 ]
 
+(* VEX-encoded scalar-double register-register binops (VADDSD/VSUBSD/VMULSD/VDIVSD): the
+   first x86 vector-extension (AVX) admission and this project's first genuine
+   three-real-register x86 entry, fixed to [%xmm2] (src2)/[%xmm1] (src1)/[%xmm0] (dest) -
+   confirmed against real GNU as ({!Isa_norm_xed.vex_binop_rrr_form}'s own doc comment) -
+   rather than {!x86_sse_binop_rr_entry}'s two-operand shape. *)
+let x86_vex_binop_rrr_entry ~target ~form_id ~lookup_key =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "vex-three-register-operands" ];
+    operands = [ ("src2", "xmm2"); ("src1", "xmm1"); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vex_binop_rrr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_binop_rrr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VADDSD_XMMdq_XMMdq_XMMq";
+          "VSUBSD_XMMdq_XMMdq_XMMq";
+          "VMULSD_XMMdq_XMMdq_XMMq";
+          "VDIVSD_XMMdq_XMMdq_XMMq";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
 (* [cvtsi2sd]/[cvtsi2ss] register-source ({!Isa_norm_xed.cvtsi2f_rr_form}'s
    own doc comment): [%eax] (32-bit) is valid on both targets, while [%rax]
    (64-bit, [cvtsi2sdq]/[cvtsi2ssq]) only exists in 64-bit mode - unlike
@@ -4290,6 +4322,7 @@ let all =
   @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries @ vpopc_m_entries @ vmandnot_mm_entries
   @ vmornot_mm_entries @ vfredsum_vs_entries @ vfwredsum_vs_entries @ vl1r_v_entries
   @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
+  @ x86_vex_binop_rrr_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc
