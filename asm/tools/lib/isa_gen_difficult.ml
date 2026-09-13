@@ -633,6 +633,140 @@ let x86_sse_mov_entries =
       ])
     [ Target.X86_32; Target.X86_64 ]
 
+(* [cvtsi2sd]/[cvtsi2ss] register-source ({!Isa_norm_xed.cvtsi2f_rr_form}'s
+   own doc comment): [%eax] (32-bit) is valid on both targets, while [%rax]
+   (64-bit, [cvtsi2sdq]/[cvtsi2ssq]) only exists in 64-bit mode - unlike
+   every prior SSE entry list, the 64-bit variants' own entry list is
+   X86_64-only rather than sweeping both targets. *)
+let x86_cvtsi2f_rr_entry ~target ~form_id ~lookup_key ~reg =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("src", reg); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_cvtsi2f_rr_entries =
+  List.concat_map
+    (fun target ->
+      [
+        x86_cvtsi2f_rr_entry ~target ~form_id:"x86:CVTSI2SD_XMMsd_GPR32d"
+          ~lookup_key:"CVTSI2SD_XMMsd_GPR32d" ~reg:"eax";
+        x86_cvtsi2f_rr_entry ~target ~form_id:"x86:CVTSI2SS_XMMss_GPR32d"
+          ~lookup_key:"CVTSI2SS_XMMss_GPR32d" ~reg:"eax";
+      ])
+    [ Target.X86_32; Target.X86_64 ]
+  @ [
+      x86_cvtsi2f_rr_entry ~target:Target.X86_64 ~form_id:"x86:CVTSI2SD_XMMsd_GPR64q"
+        ~lookup_key:"CVTSI2SD_XMMsd_GPR64q" ~reg:"rax";
+      x86_cvtsi2f_rr_entry ~target:Target.X86_64 ~form_id:"x86:CVTSI2SS_XMMss_GPR64q"
+        ~lookup_key:"CVTSI2SS_XMMss_GPR64q" ~reg:"rax";
+    ]
+
+(* [cvtsi2sd]/[cvtsi2ss] memory-source sibling
+   ({!Isa_norm_xed.cvtsi2f_rm_form}'s own doc comment): the same
+   base+disp8 SIB addressing {!x86_sse_binop_rm_entry} already uses, with
+   the 64-bit [MEMq] variants kept X86_64-only for the same reason as
+   {!x86_cvtsi2f_rr_entries} above. *)
+let x86_cvtsi2f_rm_entry ~target ~form_id ~lookup_key =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("src", Printf.sprintf "16(%%%s)" stack); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_cvtsi2f_rm_entries =
+  List.concat_map
+    (fun target ->
+      [
+        x86_cvtsi2f_rm_entry ~target ~form_id:"x86:CVTSI2SD_XMMsd_MEMd"
+          ~lookup_key:"CVTSI2SD_XMMsd_MEMd";
+        x86_cvtsi2f_rm_entry ~target ~form_id:"x86:CVTSI2SS_XMMss_MEMd"
+          ~lookup_key:"CVTSI2SS_XMMss_MEMd";
+      ])
+    [ Target.X86_32; Target.X86_64 ]
+  @ [
+      x86_cvtsi2f_rm_entry ~target:Target.X86_64 ~form_id:"x86:CVTSI2SD_XMMsd_MEMq"
+        ~lookup_key:"CVTSI2SD_XMMsd_MEMq";
+      x86_cvtsi2f_rm_entry ~target:Target.X86_64 ~form_id:"x86:CVTSI2SS_XMMss_MEMq"
+        ~lookup_key:"CVTSI2SS_XMMss_MEMq";
+    ]
+
+(* [cvttsd2si] register-source ({!Isa_norm_xed.cvtf2i_rr_form}'s own doc
+   comment): the one bare mnemonic covers both GPR widths, so only the
+   operand register spelling ([%eax]/[%rax]) distinguishes the two entries;
+   the 64-bit destination variant is X86_64-only for the same reason as
+   {!x86_cvtsi2f_rr_entries} above. *)
+let x86_cvtf2i_rr_entry ~target ~form_id ~lookup_key ~reg =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("src", "xmm0"); ("dest", reg) ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_cvtf2i_rr_entries =
+  List.concat_map
+    (fun target ->
+      [
+        x86_cvtf2i_rr_entry ~target ~form_id:"x86:CVTTSD2SI_GPR32d_XMMsd"
+          ~lookup_key:"CVTTSD2SI_GPR32d_XMMsd" ~reg:"eax";
+      ])
+    [ Target.X86_32; Target.X86_64 ]
+  @ [
+      x86_cvtf2i_rr_entry ~target:Target.X86_64 ~form_id:"x86:CVTTSD2SI_GPR64q_XMMsd"
+        ~lookup_key:"CVTTSD2SI_GPR64q_XMMsd" ~reg:"rax";
+    ]
+
+(* [cvttsd2si] memory-source sibling ({!Isa_norm_xed.cvtf2i_rm_form}'s own
+   doc comment): MEM0 is always a double regardless of GPR destination
+   width, so only the destination register spelling varies between the two
+   entries, the same base+disp8 SIB addressing as every other MEM0 entry
+   above. *)
+let x86_cvtf2i_rm_entry ~target ~form_id ~lookup_key ~reg =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("src", Printf.sprintf "16(%%%s)" stack); ("dest", reg) ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_cvtf2i_rm_entries =
+  List.concat_map
+    (fun target ->
+      [
+        x86_cvtf2i_rm_entry ~target ~form_id:"x86:CVTTSD2SI_GPR32d_MEMsd"
+          ~lookup_key:"CVTTSD2SI_GPR32d_MEMsd" ~reg:"eax";
+      ])
+    [ Target.X86_32; Target.X86_64 ]
+  @ [
+      x86_cvtf2i_rm_entry ~target:Target.X86_64 ~form_id:"x86:CVTTSD2SI_GPR64q_MEMsd"
+        ~lookup_key:"CVTTSD2SI_GPR64q_MEMsd" ~reg:"rax";
+    ]
+
 let fadd_entry target =
   {
     form_id = "x86:FADD_ST0_X87";
@@ -3989,7 +4123,8 @@ let all =
   @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @ x86_alu_immb_entries
   @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @ x86_alu_gpr8_immb_entries
   @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries @ x86_sse_binop_rr_entries
-  @ x86_sse_binop_rm_entries @ x86_sse_mov_entries @ x86_fadd_entries @ fadd_s_entries
+  @ x86_sse_binop_rm_entries @ x86_sse_mov_entries @ x86_cvtsi2f_rr_entries @ x86_cvtsi2f_rm_entries
+  @ x86_cvtf2i_rr_entries @ x86_cvtf2i_rm_entries @ x86_fadd_entries @ fadd_s_entries
   @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries
   @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries
   @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries @ sh2adduw_entries

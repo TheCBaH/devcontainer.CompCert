@@ -200,6 +200,28 @@ val x86_sse_mov_entries : entry list
     addressing and destination register are reused with a load/store
     direction flag rather than folded into that entry builder. *)
 
+val x86_cvtsi2f_rr_entries : entry list
+(** [cvtsi2sd]/[cvtsi2ss %eax, %xmm0] on x86-32 and x86-64, plus
+    [cvtsi2sdq]/[cvtsi2ssq %rax, %xmm0] on x86-64 only (a GPR64 source
+    register only exists in 64-bit mode) - the first mixed-GPR/XMM entries
+    in this corpus. *)
+
+val x86_cvtsi2f_rm_entries : entry list
+(** [cvtsi2sd]/[cvtsi2ss 16(%esp|%rsp), %xmm0] on x86-32 and x86-64, plus
+    [cvtsi2sdq]/[cvtsi2ssq 16(%rsp), %xmm0] on x86-64 only,
+    {!x86_cvtsi2f_rr_entries}'s own memory-source sibling. *)
+
+val x86_cvtf2i_rr_entries : entry list
+(** [cvttsd2si %xmm0, %eax] on x86-32 and x86-64, plus [cvttsd2si %xmm0,
+    %rax] on x86-64 only - the one bare mnemonic covers both GPR
+    destination widths, so only the register operand distinguishes the
+    two entries. *)
+
+val x86_cvtf2i_rm_entries : entry list
+(** [cvttsd2si 16(%esp|%rsp), %eax] on x86-32 and x86-64, plus [cvttsd2si
+    16(%rsp), %rax] on x86-64 only, {!x86_cvtf2i_rr_entries}'s own
+    memory-source sibling. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)

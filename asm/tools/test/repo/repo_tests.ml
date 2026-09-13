@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:121;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:121
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:133;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:133
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -738,15 +738,34 @@ let test_isa_family_admission repo =
      load/store direction is admitted here, via a new `Isa_norm_xed.
      xmm_mov_form` generalizing `mov_gprv_memv_form`'s own `~load` direction
      flag to the `X86_xmm` register class instead of `X86_gpr`. No encoder
-     change. This slice moves 4 more records per x86 profile. *)
+     change. This slice moves 4 more records per x86 profile.
+
+     `CVTSI2SD`/`CVTSI2SS` (GPR/memory source, XMM dest) and `CVTTSD2SI`
+     (XMM/memory source, GPR dest) close the named GPR-mixed conversion
+     follow-up: the model's first mixed-register-class shape, via four new
+     `Isa_norm_xed` forms (`cvtsi2f_rr_form`/`cvtsi2f_rm_form`/
+     `cvtf2i_rr_form`/`cvtf2i_rm_form`), no encoder change -
+     `x86_family_encode.ml`'s `Lowered.Cvtsi2f_r_rm`/`Cvtf2i_r_rm` already
+     implement both directions. XED reports the 32-bit and 64-bit GPR
+     widths (`GPR32d`/`GPR64q`, `MEMd`/`MEMq`) as separate records with
+     `provenance.mode_restriction` "unspecified"; a GPR64 operand implies
+     64-bit mode by register-class fact alone, so the 64-bit records carry
+     a derived `Req_mode {mode="mode64"; equals=true}` and are promoted on
+     `X86_64` only (confirmed against real GNU as: `cvtsi2sdq %rax, %xmm0`/
+     `cvttsd2si %xmm0, %rax` assemble only in 64-bit mode), while the
+     32-bit records promote on both targets like every prior x86 form.
+     This slice moves 12 more records per x86 profile (6 promoted on both
+     targets, 6 additionally promoted on `X86_64` only), closing the named
+     SSE/SSE2 admission follow-ups; only VEX/EVEX remain unadmitted in x86
+     vector/SIMD. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:116 ~blocked:7766;
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
+    ~promoted_support:122 ~blocked:7754;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:116 ~blocked:10450
+    ~promoted_support:128 ~blocked:10438
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -800,9 +819,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1738)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1762)"
        !roundtrip_count)
-    (!roundtrip_count = 1738)
+    (!roundtrip_count = 1762)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

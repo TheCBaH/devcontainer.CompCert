@@ -193,6 +193,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("MOVSD_XMM_XMMdq_MEMsd" | "MOVSD_XMM_MEMsd_XMMsd" | "MOVSS_XMMdq_MEMss" | "MOVSS_MEMss_XMMss")
     ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:CVTSI2SD_XMMsd_GPR32d" | "x86:CVTSI2SS_XMMss_GPR32d" | "x86:CVTSI2SD_XMMsd_MEMd"
+      | "x86:CVTSI2SS_XMMss_MEMd" | "x86:CVTTSD2SI_GPR32d_XMMsd" | "x86:CVTTSD2SI_GPR32d_MEMsd" ),
+      ( "CVTSI2SD_XMMsd_GPR32d" | "CVTSI2SS_XMMss_GPR32d" | "CVTSI2SD_XMMsd_MEMd"
+      | "CVTSI2SS_XMMss_MEMd" | "CVTTSD2SI_GPR32d_XMMsd" | "CVTTSD2SI_GPR32d_MEMsd" ) ) ->
+      true
+  | ( Target.X86_64,
+      ( "x86:CVTSI2SD_XMMsd_GPR64q" | "x86:CVTSI2SS_XMMss_GPR64q" | "x86:CVTSI2SD_XMMsd_MEMq"
+      | "x86:CVTSI2SS_XMMss_MEMq" | "x86:CVTTSD2SI_GPR64q_XMMsd" | "x86:CVTTSD2SI_GPR64q_MEMsd" ),
+      ( "CVTSI2SD_XMMsd_GPR64q" | "CVTSI2SS_XMMss_GPR64q" | "CVTSI2SD_XMMsd_MEMq"
+      | "CVTSI2SS_XMMss_MEMq" | "CVTTSD2SI_GPR64q_XMMsd" | "CVTTSD2SI_GPR64q_MEMsd" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),
