@@ -1883,6 +1883,24 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"ANDNPD_XMMxuq_MEMxuq" ~mnemonic:"andnpd" rec_
   | Ok { iform = Some "ORPD_XMMxuq_MEMxuq"; _ } ->
       xmm_binop_rm_form ~form_id:"ORPD_XMMxuq_MEMxuq" ~mnemonic:"orpd" rec_
+  (* {!Opcode.Movapd}'s data-movement siblings: aligned/unaligned packed move, single/double
+     precision. Same plain xmm-xmm/xmm-memory binop shape, load direction only - the register-
+     register iform carries an explicit `_0F28`/`_0F10` suffix in XED's own naming, disambiguating
+     it from the (unadmitted) `_0F29`/`_0F11` store direction the way MOVAPD's own iform already
+     does. Confirmed against real GNU as (i686-linux-gnu-as 2.44): `0F 28`/`0F 10` for MOVAPS/
+     MOVUPS (no mandatory prefix, XED extension SSE), `66 0F 10` for MOVUPD (SSE2, like MOVAPD). *)
+  | Ok { iform = Some "MOVAPS_XMMps_XMMps_0F28"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVAPS_XMMps_XMMps_0F28" ~mnemonic:"movaps" rec_
+  | Ok { iform = Some "MOVUPS_XMMps_XMMps_0F10"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVUPS_XMMps_XMMps_0F10" ~mnemonic:"movups" rec_
+  | Ok { iform = Some "MOVUPD_XMMpd_XMMpd_0F10"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVUPD_XMMpd_XMMpd_0F10" ~mnemonic:"movupd" rec_
+  | Ok { iform = Some "MOVAPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"MOVAPS_XMMps_MEMps" ~mnemonic:"movaps" rec_
+  | Ok { iform = Some "MOVUPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"MOVUPS_XMMps_MEMps" ~mnemonic:"movups" rec_
+  | Ok { iform = Some "MOVUPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MOVUPD_XMMpd_MEMpd" ~mnemonic:"movupd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1899,8 +1917,10 @@ let normalize (rec_ : R.t) =
             plain xmm-xmm/xmm-memory binop shape's MULSS/DIVSS/COMISD/UCOMISD/COMISS/XORPD/PXOR/ \
             MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms, the MOVSD/MOVSS \
             load/store forms, the mixed-GPR/XMM CVTSI2SD/CVTSI2SS/CVTTSD2SI register-register and \
-            register<-memory forms, and the packed bitwise-logical ANDPS/ANDNPS/ORPS/XORPS/ \
-            ANDPD/ANDNPD/ORPD register-register and register<-memory forms; %s is not one of them"
+            register<-memory forms, the packed bitwise-logical ANDPS/ANDNPS/ORPS/XORPS/ \
+            ANDPD/ANDNPD/ORPD register-register and register<-memory forms, and the MOVAPS/ \
+            MOVUPS/MOVUPD load-direction register-register and register<-memory forms; %s is not \
+            one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

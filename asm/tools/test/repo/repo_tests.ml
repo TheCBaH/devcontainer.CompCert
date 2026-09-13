@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:147;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:147
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:153;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:153
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -756,23 +756,51 @@ let test_isa_family_admission repo =
      32-bit records promote on both targets like every prior x86 form.
      This slice moves 12 more records per x86 profile (6 promoted on both
      targets, 6 additionally promoted on `X86_64` only), closing the named
-     SSE/SSE2 admission follow-ups; only VEX/EVEX remain unadmitted in x86
-     vector/SIMD. *)
+     GPR-mixed conversion follow-up.
+
+     `ANDPS`/`ANDNPS`/`ORPS`/`XORPS` (SSE, no mandatory prefix) and
+     `ANDPD`/`ANDNPD`/`ORPD` (SSE2, 66 mandatory prefix) - `XORPD`'s packed
+     bitwise-logical siblings - reuse the plain xmm-xmm/xmm-memory binop
+     shape's normalization (`xmm_binop_rr_form`/`xmm_binop_rm_form`)
+     unchanged, but unlike every prior slice in this shape, none of the
+     seven existed in the encoder yet: this needed seven new `Opcode.t`
+     variants and opcode-table entries (generalizing the previously
+     hardcoded-single-member `sse_binop_none_alt` into a table-driven
+     `sse_binop_none_codec` the same way the 66-prefixed group already was),
+     still emitting the unchanged `Lowered.Sse_binop_r_rm` representation.
+     This slice moves 14 records per x86 profile (7 mnemonics x 2
+     directions).
+
+     `MOVAPS`/`MOVUPS` (SSE, no mandatory prefix) and `MOVUPD` (SSE2, 66
+     mandatory prefix) are `MOVAPD`'s data-movement siblings - aligned and
+     unaligned packed move - reusing the identical plain xmm-xmm/xmm-memory
+     binop shape and normalization unchanged; like `ANDPS`/etc., none
+     existed in the encoder, so this added three more `Opcode.t` variants
+     and opcode-table entries (`MOVAPS`/`MOVUPS` into `sse_binop_none_codec`,
+     `MOVUPD` into `sse_binop_66_codec`). Only the reg-dest load direction is
+     admitted, matching `MOVAPD`'s own precedent: each mnemonic's reverse
+     store direction (`MEMxx<-XMMxx`) is a distinct, real form not yet
+     built. Confirmed against real GNU as (i686-linux-gnu-as 2.44):
+     `movaps %xmm1,%xmm2` -> `0f 28 d1`, `movaps (%eax),%xmm2` -> `0f 28 10`,
+     `movups %xmm1,%xmm2` -> `0f 10 d1`, `movupd %xmm1,%xmm2` ->
+     `66 0f 10 d1`. This slice moves 6 more records per x86 profile (3
+     mnemonics x 2 directions), closing the named SSE/SSE2 admission
+     follow-ups; only VEX/EVEX remain unadmitted in x86 vector/SIMD. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:136 ~blocked:7740;
+    ~promoted_support:142 ~blocked:7734;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:142 ~blocked:10424
+    ~promoted_support:148 ~blocked:10418
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+117+117); a drop here without
+   tests' own pinned normalized counts (722+774+153+153); a drop here without
    a matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -819,9 +847,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1790)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1802)"
        !roundtrip_count)
-    (!roundtrip_count = 1790)
+    (!roundtrip_count = 1802)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

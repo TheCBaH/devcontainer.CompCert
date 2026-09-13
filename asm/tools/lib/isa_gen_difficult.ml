@@ -557,6 +557,9 @@ let x86_sse_binop_rr_entries =
           "ANDPD_XMMxuq_XMMxuq";
           "ANDNPD_XMMxuq_XMMxuq";
           "ORPD_XMMxuq_XMMxuq";
+          "MOVAPS_XMMps_XMMps_0F28";
+          "MOVUPS_XMMps_XMMps_0F10";
+          "MOVUPD_XMMpd_XMMpd_0F10";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -607,6 +610,9 @@ let x86_sse_binop_rm_entries =
           "ANDPD_XMMxuq_MEMxuq";
           "ANDNPD_XMMxuq_MEMxuq";
           "ORPD_XMMxuq_MEMxuq";
+          "MOVAPS_XMMps_MEMps";
+          "MOVUPS_XMMps_MEMps";
+          "MOVUPD_XMMpd_MEMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

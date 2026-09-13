@@ -322,6 +322,21 @@ module Opcode = struct
     | Andnpd
         (** [andnpd rm, reg] - packed bitwise ANDN ([66 0F 55 /r]), {!Andpd}'s exact sibling. *)
     | Orpd  (** [orpd rm, reg] - packed bitwise OR ([66 0F 56 /r]), {!Andpd}'s exact sibling. *)
+    | Movaps
+        (** [movaps rm, reg] - aligned packed move, single precision ([0F 28 /r], no mandatory
+            prefix), {!Movapd}'s mandatory-prefix-free counterpart at the same opcode byte and
+            {!Andps}'s own mandatory-prefix-free group at a different opcode byte. Only the
+            reg-dest load direction is admitted here, matching {!Movapd}'s own precedent: the
+            reverse store direction ([0F 29]) is a distinct, real form this project does not yet
+            build. *)
+    | Movups
+        (** [movups rm, reg] - unaligned packed move, single precision ([0F 10 /r], no mandatory
+            prefix), {!Movaps}'s own mandatory-prefix-free group at a different opcode byte.
+            Load direction only, matching {!Movaps}'s precedent. *)
+    | Movupd
+        (** [movupd rm, reg] - unaligned packed move, double precision ([66 0F 10 /r]),
+            {!Movups}'s mandatory-66-prefix counterpart at the same opcode byte. Load direction
+            only, matching {!Movaps}'s precedent. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -437,6 +452,9 @@ module Opcode = struct
     | Andpd -> "andpd"
     | Andnpd -> "andnpd"
     | Orpd -> "orpd"
+    | Movaps -> "movaps"
+    | Movups -> "movups"
+    | Movupd -> "movupd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -666,9 +684,9 @@ module Instruction = struct
           | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
           | Opcode.Movsd | Opcode.Movss | Opcode.Cvtsi2sd | Opcode.Cvtsi2ss | Opcode.Cvttsd2si
           | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-          | Opcode.Orpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
-          | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
-          | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
+          | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Fldl | Opcode.Fstpl
+          | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw
+          | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1808,6 +1826,11 @@ module Make (M : MODE) = struct
     | "andpd", _ -> Ok (Instruction.mk Opcode.Andpd 32 s.Surface.ops)
     | "andnpd", _ -> Ok (Instruction.mk Opcode.Andnpd 32 s.Surface.ops)
     | "orpd", _ -> Ok (Instruction.mk Opcode.Orpd 32 s.Surface.ops)
+    (* {!Opcode.Movapd}'s data-movement siblings: aligned/unaligned packed move, single/double
+       precision, load direction only (GEN-05, matching {!Opcode.Movapd}'s own precedent). *)
+    | "movaps", _ -> Ok (Instruction.mk Opcode.Movaps 32 s.Surface.ops)
+    | "movups", _ -> Ok (Instruction.mk Opcode.Movups 32 s.Surface.ops)
+    | "movupd", _ -> Ok (Instruction.mk Opcode.Movupd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2390,7 +2413,7 @@ module Make (M : MODE) = struct
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
         | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
         | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-        | Opcode.Orpd ),
+        | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -2400,7 +2423,7 @@ module Make (M : MODE) = struct
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
         | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
         | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-        | Opcode.Orpd ),
+        | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -2970,6 +2993,7 @@ module Make (M : MODE) = struct
           (Opcode.Andpd, 0x54L);
           (Opcode.Andnpd, 0x55L);
           (Opcode.Orpd, 0x56L);
+          (Opcode.Movupd, 0x10L);
         ]
       (C.field ~width:8 "opcode")
 
@@ -3008,6 +3032,8 @@ module Make (M : MODE) = struct
           (Opcode.Andnps, 0x55L);
           (Opcode.Orps, 0x56L);
           (Opcode.Xorps, 0x57L);
+          (Opcode.Movaps, 0x28L);
+          (Opcode.Movups, 0x10L);
         ]
       (C.field ~width:8 "opcode")
 

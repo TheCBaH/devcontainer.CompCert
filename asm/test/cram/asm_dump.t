@@ -248,8 +248,8 @@
   no-rex(){()}
   sse-binop-f2-op[5]{opcode:8u}
   sse-binop-f3-op[5]{opcode:8u}
-  sse-binop-66-op[8]{opcode:8u}
-  sse-binop-none-op[5]{opcode:8u}
+  sse-binop-66-op[9]{opcode:8u}
+  sse-binop-none-op[7]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -507,8 +507,8 @@
     [1 cost=0] rex-absent       rex-absent(){()}
   sse-binop-f2-op[5]{opcode:8u}
   sse-binop-f3-op[5]{opcode:8u}
-  sse-binop-66-op[8]{opcode:8u}
-  sse-binop-none-op[5]{opcode:8u}
+  sse-binop-66-op[9]{opcode:8u}
+  sse-binop-none-op[7]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
