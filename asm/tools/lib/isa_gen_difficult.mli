@@ -119,6 +119,13 @@ val x86_alu_rr_entries : entry list
     32-bit spelling since - unlike [add] - none of them assemble bare in
     this project's own x86 frontend. *)
 
+val x86_alu_memv_entries : entry list
+(** [addl]/[adcl]/[xorl] register<-memory (base+disp8 SIB) on x86-32 and
+    x86-64, {!x86_mov_entries}'s own addressing generalized to the three
+    [to_r_rm] opcodes this project's encoder currently lowers with a
+    memory source; AND/OR/SUB/CMP/SBB/TEST's own GPRv_MEMv iforms are not
+    included since their memory-source lowering does not exist yet. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2495,7 +2502,8 @@ val lr_d_entries : entry list
 
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
-    x86_alu_rr_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @
+    x86_alu_rr_entries @ x86_alu_memv_entries @ x86_fadd_entries @ fadd_s_entries @
+    fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @
     fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries @
     sh1add_entries @ sh2add_entries @ sh3add_entries @

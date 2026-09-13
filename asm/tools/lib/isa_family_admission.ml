@@ -100,6 +100,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "SUB_GPRv_GPRv_29" | "AND_GPRv_GPRv_21" | "OR_GPRv_GPRv_09" | "XOR_GPRv_GPRv_31"
       | "ADC_GPRv_GPRv_11" | "SBB_GPRv_GPRv_19" | "CMP_GPRv_GPRv_39" | "TEST_GPRv_GPRv" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:ADD_GPRv_MEMv" | "x86:ADC_GPRv_MEMv" | "x86:XOR_GPRv_MEMv"),
+      ("ADD_GPRv_MEMv" | "ADC_GPRv_MEMv" | "XOR_GPRv_MEMv") ) ->
+      true
   | (Target.Riscv32 | Target.Riscv64), "riscv:sw", "sw" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:beq", "beq" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:c.addi", "c.addi" -> true

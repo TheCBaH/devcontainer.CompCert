@@ -187,6 +187,8 @@ let fadd_st0_x87_form (rec_ : R.t) =
           diagnostics = [];
         }
 
+let role_of_rw = function "r" -> In | "w" -> Out | _ -> In_out
+
 (* XED reports [MEM0] as an [imm_const] operand with [oc2 = v]; its name and
    MOD!=3 pattern establish that it is memory, while the [v] data width stays
    variable.  This deliberately admits only the 32-bit GAS spelling [movl]
@@ -248,6 +250,77 @@ let mov_gprv_memv_form ~form_id ~load (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* The register<-memory ALU direction (ADD_GPRv_MEMv/ADC_GPRv_MEMv/
+   XOR_GPRv_MEMv): {!mov_gprv_memv_form}'s own shape, generalized to read
+   each operand's real [rw] fact instead of hardcoding write-only/read-only
+   roles - unlike MOV, these read-modify-write the destination register
+   (REG0's rw is "rw", not "w"), so a hardcoded [Out] would misreport it.
+   XED always orders REG0 before MEM0 for this iform family (unlike
+   {!two_operand_gprv_form}'s two GPRv operands, there is only ever one
+   register<-memory direction present per mnemonic here - the reverse
+   MEMv<-GPRv direction, e.g. ADD_MEMv_GPRv, is a separate, currently
+   encoder-unsupported [Alu_rm_r] memory-destination lowering). Deliberately
+   admits only the explicit 32-bit AT&T spelling on each target, the same
+   bound {!mov_gprv_memv_form} already uses. *)
+let alu_gprv_memv_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" ->
+      let reg =
+        {
+          op_name = "reg";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ mem; reg ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_operand "mem"; Syn_decorated ("%", Syn_operand "reg") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "REG0 (rw=%s), MEM0 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "This bounds the recipe to explicit 32-bit AT&T spelling; XED oc2 v remains \
+                   source-variable";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* Generic two-operand GPRv ALU/MOV forms (the legacy
    register/register and register/immediate x86 pilot): exactly one of
    [encoding.operands] is a GPRv-lookup register or an oc2 "z" immediate
@@ -263,7 +336,6 @@ let is_gprv_reg (o : R.x86_operand) =
   && match o.lookupfn_name with Some fn -> String.starts_with ~prefix:"GPRv" fn | None -> false
 
 let is_immz (o : R.x86_operand) = o.op_type = "imm_const" && o.oc2 = Some "z"
-let role_of_rw = function "r" -> In | "w" -> Out | _ -> In_out
 
 let norm_operand_of (o : R.x86_operand) name =
   if is_immz o then
@@ -410,12 +482,25 @@ let normalize (rec_ : R.t) =
       two_operand_gprv_form ~form_id:"CMP_GPRv_GPRv_39" ~mnemonic:"cmpl" rec_
   | Ok { iform = Some "TEST_GPRv_GPRv"; _ } ->
       two_operand_gprv_form ~form_id:"TEST_GPRv_GPRv" ~mnemonic:"testl" rec_
+  (* The register<-memory ALU direction: ADD/ADC/XOR are the only three
+     to_r_rm opcodes this project's encoder currently lowers with a memory
+     source ({!alu_gprv_memv_form}'s own doc comment); AND/OR/SUB/CMP/SBB/
+     TEST's own GPRv_MEMv iforms stay unhandled since their to_r_rm memory
+     lowering does not exist yet - a real encoder gap, not a capture or
+     normalization one. *)
+  | Ok { iform = Some "ADD_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"ADD_GPRv_MEMv" ~mnemonic:"addl" rec_
+  | Ok { iform = Some "ADC_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"ADC_GPRv_MEMv" ~mnemonic:"adcl" rec_
+  | Ok { iform = Some "XOR_GPRv_MEMv"; _ } ->
+      alu_gprv_memv_form ~form_id:"XOR_GPRv_MEMv" ~mnemonic:"xorl" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
            "Isa_norm_xed only normalizes the frozen pilot iforms, the register/register and \
-            register/immediate legacy ADD/MOV forms, and the explicit-32-bit-width \
-            SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms; %s is not one of them"
+            register/immediate legacy ADD/MOV forms, the explicit-32-bit-width \
+            SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms, and the explicit-32-bit-width \
+            ADD/ADC/XOR register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg
