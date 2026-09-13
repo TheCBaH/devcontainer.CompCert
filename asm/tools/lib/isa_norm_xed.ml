@@ -37,6 +37,7 @@ let requirement_of (rec_ : R.t) =
   match xed_provenance_of rec_ with
   | Ok { extension = Some "BASE"; _ } -> applic ()
   | Ok { extension = Some "X87"; _ } -> req_and (Req_feature "x86:x87") (applic ())
+  | Ok { extension = Some "SSE"; _ } -> req_and (Req_feature "x86:sse") (applic ())
   | Ok { extension = Some "SSE2"; _ } -> req_and (Req_feature "x86:sse2") (applic ())
   | Ok { extension = Some ext; _ } -> Req_unknown (Printf.sprintf "unmapped XED extension: %s" ext)
   | Ok { extension = None; _ } -> Req_unknown "XED record has no provenance.extension"
@@ -1359,6 +1360,66 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"MULSD_XMMsd_MEMsd" ~mnemonic:"mulsd" rec_
   | Ok { iform = Some "DIVSD_XMMsd_MEMsd"; _ } ->
       xmm_binop_rm_form ~form_id:"DIVSD_XMMsd_MEMsd" ~mnemonic:"divsd" rec_
+  (* The rest of the plain xmm-xmm/xmm-memory binop shape {!xmm_binop_rr_form}/
+     {!xmm_binop_rm_form} already cover generically (their REG0/REG1 and
+     REG0/MEM0 match arms read every operand's role off its own [rw] fact,
+     never assuming ADDSD's own read-write destination): MULSS/DIVSS
+     (mandatory-prefix F3, {!requirement_of}'s SSE case - not SSE2, confirmed
+     from provenance.extension) and COMISD/UCOMISD/XORPD/PXOR/
+     MOVAPD_XMMpd_XMMpd_0F28 (mandatory-prefix 66, SSE2) and CVTSD2SS/
+     CVTSS2SD (already admitted for the F2/F3-mandatory-prefix binop rungs
+     above, this is their own xmm-xmm/xmm-memory pair) all reuse
+     x86_family_encode.ml's existing [sse_binop_f3_codec]/[sse_binop_66_codec]
+     tables with zero encoder change. COMISS has no mandatory prefix at all
+     ([sse_binop_none_alt]) but is still [Lowered.Sse_binop_r_rm] under the
+     hood, so the same two normalizers cover it too - confirmed against real
+     GNU as for every register-register and register<-memory spelling below.
+     MOVAPD's own reverse MEMpd<-XMMpd store direction (opcode 0x29, a
+     genuinely different Lowered/alt shape this project's encoder does not
+     build) and its redundant _0F29 register-register iform are deliberately
+     left unhandled here, matching this file's existing to_rm_r "low-numbered
+     iform" precedent (confirmed: real GNU as selects 0x28 for
+     [movapd %xmm1, %xmm0]). *)
+  | Ok { iform = Some "MULSS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"MULSS_XMMss_XMMss" ~mnemonic:"mulss" rec_
+  | Ok { iform = Some "DIVSS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"DIVSS_XMMss_XMMss" ~mnemonic:"divss" rec_
+  | Ok { iform = Some "COMISD_XMMsd_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"COMISD_XMMsd_XMMsd" ~mnemonic:"comisd" rec_
+  | Ok { iform = Some "UCOMISD_XMMsd_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"UCOMISD_XMMsd_XMMsd" ~mnemonic:"ucomisd" rec_
+  | Ok { iform = Some "COMISS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"COMISS_XMMss_XMMss" ~mnemonic:"comiss" rec_
+  | Ok { iform = Some "XORPD_XMMxuq_XMMxuq"; _ } ->
+      xmm_binop_rr_form ~form_id:"XORPD_XMMxuq_XMMxuq" ~mnemonic:"xorpd" rec_
+  | Ok { iform = Some "PXOR_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PXOR_XMMdq_XMMdq" ~mnemonic:"pxor" rec_
+  | Ok { iform = Some "MOVAPD_XMMpd_XMMpd_0F28"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVAPD_XMMpd_XMMpd_0F28" ~mnemonic:"movapd" rec_
+  | Ok { iform = Some "CVTSD2SS_XMMss_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTSD2SS_XMMss_XMMsd" ~mnemonic:"cvtsd2ss" rec_
+  | Ok { iform = Some "CVTSS2SD_XMMsd_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTSS2SD_XMMsd_XMMss" ~mnemonic:"cvtss2sd" rec_
+  | Ok { iform = Some "MULSS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"MULSS_XMMss_MEMss" ~mnemonic:"mulss" rec_
+  | Ok { iform = Some "DIVSS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"DIVSS_XMMss_MEMss" ~mnemonic:"divss" rec_
+  | Ok { iform = Some "COMISD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"COMISD_XMMsd_MEMsd" ~mnemonic:"comisd" rec_
+  | Ok { iform = Some "UCOMISD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"UCOMISD_XMMsd_MEMsd" ~mnemonic:"ucomisd" rec_
+  | Ok { iform = Some "COMISS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"COMISS_XMMss_MEMss" ~mnemonic:"comiss" rec_
+  | Ok { iform = Some "XORPD_XMMxuq_MEMxuq"; _ } ->
+      xmm_binop_rm_form ~form_id:"XORPD_XMMxuq_MEMxuq" ~mnemonic:"xorpd" rec_
+  | Ok { iform = Some "PXOR_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PXOR_XMMdq_MEMdq" ~mnemonic:"pxor" rec_
+  | Ok { iform = Some "MOVAPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MOVAPD_XMMpd_MEMpd" ~mnemonic:"movapd" rec_
+  | Ok { iform = Some "CVTSD2SS_XMMss_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTSD2SS_XMMss_MEMsd" ~mnemonic:"cvtsd2ss" rec_
+  | Ok { iform = Some "CVTSS2SD_XMMsd_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTSS2SD_XMMsd_MEMss" ~mnemonic:"cvtss2sd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1371,8 +1432,10 @@ let normalize (rec_ : R.t) =
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb forms, the explicit-32-bit-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP memory/immb and memory/immz forms, the byte-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb, memory/immb, and accumulator/immb forms, \
-            and the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms; %s \
-            is not one of them"
+            the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms, and the \
+            plain xmm-xmm/xmm-memory binop shape's MULSS/DIVSS/COMISD/UCOMISD/COMISS/XORPD/PXOR/ \
+            MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms; %s is not one \
+            of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

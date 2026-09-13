@@ -524,13 +524,33 @@ let x86_sse_binop_rr_entry ~target ~form_id ~lookup_key =
     configuration = Isa_gen_case_build.configuration_for target;
   }
 
+(* MULSS/DIVSS (SSE) and COMISD/UCOMISD/COMISS/XORPD/PXOR/MOVAPD/CVTSD2SS/
+   CVTSS2SD (SSE2/SSE, {!Isa_norm_xed.normalize}'s own doc comment on the
+   rest of this shape) share ADDSD's exact register-register shape, so this
+   is the same generic entry builder over a longer lookup_key list, not a
+   new function. *)
 let x86_sse_binop_rr_entries =
   List.concat_map
     (fun target ->
       List.map
         (fun lookup_key ->
           x86_sse_binop_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
-        [ "ADDSD_XMMsd_XMMsd"; "SUBSD_XMMsd_XMMsd"; "MULSD_XMMsd_XMMsd"; "DIVSD_XMMsd_XMMsd" ])
+        [
+          "ADDSD_XMMsd_XMMsd";
+          "SUBSD_XMMsd_XMMsd";
+          "MULSD_XMMsd_XMMsd";
+          "DIVSD_XMMsd_XMMsd";
+          "MULSS_XMMss_XMMss";
+          "DIVSS_XMMss_XMMss";
+          "COMISD_XMMsd_XMMsd";
+          "UCOMISD_XMMsd_XMMsd";
+          "COMISS_XMMss_XMMss";
+          "XORPD_XMMxuq_XMMxuq";
+          "PXOR_XMMdq_XMMdq";
+          "MOVAPD_XMMpd_XMMpd_0F28";
+          "CVTSD2SS_XMMss_XMMsd";
+          "CVTSS2SD_XMMsd_XMMss";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* SSE2 scalar-float register<-memory binops (ADDSD/SUBSD/MULSD/
@@ -551,13 +571,29 @@ let x86_sse_binop_rm_entry ~target ~form_id ~lookup_key =
     configuration = Isa_gen_case_build.configuration_for target;
   }
 
+(* Its register<-memory sibling for the same longer mnemonic list. *)
 let x86_sse_binop_rm_entries =
   List.concat_map
     (fun target ->
       List.map
         (fun lookup_key ->
           x86_sse_binop_rm_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
-        [ "ADDSD_XMMsd_MEMsd"; "SUBSD_XMMsd_MEMsd"; "MULSD_XMMsd_MEMsd"; "DIVSD_XMMsd_MEMsd" ])
+        [
+          "ADDSD_XMMsd_MEMsd";
+          "SUBSD_XMMsd_MEMsd";
+          "MULSD_XMMsd_MEMsd";
+          "DIVSD_XMMsd_MEMsd";
+          "MULSS_XMMss_MEMss";
+          "DIVSS_XMMss_MEMss";
+          "COMISD_XMMsd_MEMsd";
+          "UCOMISD_XMMsd_MEMsd";
+          "COMISS_XMMss_MEMss";
+          "XORPD_XMMxuq_MEMxuq";
+          "PXOR_XMMdq_MEMdq";
+          "MOVAPD_XMMpd_MEMpd";
+          "CVTSD2SS_XMMss_MEMsd";
+          "CVTSS2SD_XMMsd_MEMss";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 let fadd_entry target =

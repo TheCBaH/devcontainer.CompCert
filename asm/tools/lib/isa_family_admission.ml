@@ -167,13 +167,25 @@ let promoted_case ~target ~form_id ~lookup_key =
   | (Target.X86_32 | Target.X86_64), "x86:FADD_ST0_X87", "FADD_ST0_X87" -> true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ADDSD_XMMsd_XMMsd" | "x86:SUBSD_XMMsd_XMMsd" | "x86:MULSD_XMMsd_XMMsd"
-      | "x86:DIVSD_XMMsd_XMMsd" ),
-      ("ADDSD_XMMsd_XMMsd" | "SUBSD_XMMsd_XMMsd" | "MULSD_XMMsd_XMMsd" | "DIVSD_XMMsd_XMMsd") ) ->
+      | "x86:DIVSD_XMMsd_XMMsd" | "x86:MULSS_XMMss_XMMss" | "x86:DIVSS_XMMss_XMMss"
+      | "x86:COMISD_XMMsd_XMMsd" | "x86:UCOMISD_XMMsd_XMMsd" | "x86:COMISS_XMMss_XMMss"
+      | "x86:XORPD_XMMxuq_XMMxuq" | "x86:PXOR_XMMdq_XMMdq" | "x86:MOVAPD_XMMpd_XMMpd_0F28"
+      | "x86:CVTSD2SS_XMMss_XMMsd" | "x86:CVTSS2SD_XMMsd_XMMss" ),
+      ( "ADDSD_XMMsd_XMMsd" | "SUBSD_XMMsd_XMMsd" | "MULSD_XMMsd_XMMsd" | "DIVSD_XMMsd_XMMsd"
+      | "MULSS_XMMss_XMMss" | "DIVSS_XMMss_XMMss" | "COMISD_XMMsd_XMMsd" | "UCOMISD_XMMsd_XMMsd"
+      | "COMISS_XMMss_XMMss" | "XORPD_XMMxuq_XMMxuq" | "PXOR_XMMdq_XMMdq"
+      | "MOVAPD_XMMpd_XMMpd_0F28" | "CVTSD2SS_XMMss_XMMsd" | "CVTSS2SD_XMMsd_XMMss" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ADDSD_XMMsd_MEMsd" | "x86:SUBSD_XMMsd_MEMsd" | "x86:MULSD_XMMsd_MEMsd"
-      | "x86:DIVSD_XMMsd_MEMsd" ),
-      ("ADDSD_XMMsd_MEMsd" | "SUBSD_XMMsd_MEMsd" | "MULSD_XMMsd_MEMsd" | "DIVSD_XMMsd_MEMsd") ) ->
+      | "x86:DIVSD_XMMsd_MEMsd" | "x86:MULSS_XMMss_MEMss" | "x86:DIVSS_XMMss_MEMss"
+      | "x86:COMISD_XMMsd_MEMsd" | "x86:UCOMISD_XMMsd_MEMsd" | "x86:COMISS_XMMss_MEMss"
+      | "x86:XORPD_XMMxuq_MEMxuq" | "x86:PXOR_XMMdq_MEMdq" | "x86:MOVAPD_XMMpd_MEMpd"
+      | "x86:CVTSD2SS_XMMss_MEMsd" | "x86:CVTSS2SD_XMMsd_MEMss" ),
+      ( "ADDSD_XMMsd_MEMsd" | "SUBSD_XMMsd_MEMsd" | "MULSD_XMMsd_MEMsd" | "DIVSD_XMMsd_MEMsd"
+      | "MULSS_XMMss_MEMss" | "DIVSS_XMMss_MEMss" | "COMISD_XMMsd_MEMsd" | "UCOMISD_XMMsd_MEMsd"
+      | "COMISS_XMMss_MEMss" | "XORPD_XMMxuq_MEMxuq" | "PXOR_XMMdq_MEMdq" | "MOVAPD_XMMpd_MEMpd"
+      | "CVTSD2SS_XMMss_MEMsd" | "CVTSS2SD_XMMsd_MEMss" ) ) ->
       true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
