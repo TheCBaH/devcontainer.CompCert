@@ -205,6 +205,22 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "CVTSI2SD_XMMsd_GPR64q" | "CVTSI2SS_XMMss_GPR64q" | "CVTSI2SD_XMMsd_MEMq"
       | "CVTSI2SS_XMMss_MEMq" | "CVTTSD2SI_GPR64q_XMMsd" | "CVTTSD2SI_GPR64q_MEMsd" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ANDPS_XMMxud_XMMxud" | "x86:ANDNPS_XMMxud_XMMxud" | "x86:ORPS_XMMxud_XMMxud"
+      | "x86:XORPS_XMMxud_XMMxud" | "x86:ANDPD_XMMxuq_XMMxuq" | "x86:ANDNPD_XMMxuq_XMMxuq"
+      | "x86:ORPD_XMMxuq_XMMxuq" ),
+      ( "ANDPS_XMMxud_XMMxud" | "ANDNPS_XMMxud_XMMxud" | "ORPS_XMMxud_XMMxud"
+      | "XORPS_XMMxud_XMMxud" | "ANDPD_XMMxuq_XMMxuq" | "ANDNPD_XMMxuq_XMMxuq"
+      | "ORPD_XMMxuq_XMMxuq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ANDPS_XMMxud_MEMxud" | "x86:ANDNPS_XMMxud_MEMxud" | "x86:ORPS_XMMxud_MEMxud"
+      | "x86:XORPS_XMMxud_MEMxud" | "x86:ANDPD_XMMxuq_MEMxuq" | "x86:ANDNPD_XMMxuq_MEMxuq"
+      | "x86:ORPD_XMMxuq_MEMxuq" ),
+      ( "ANDPS_XMMxud_MEMxud" | "ANDNPS_XMMxud_MEMxud" | "ORPS_XMMxud_MEMxud"
+      | "XORPS_XMMxud_MEMxud" | "ANDPD_XMMxuq_MEMxuq" | "ANDNPD_XMMxuq_MEMxuq"
+      | "ORPD_XMMxuq_MEMxuq" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

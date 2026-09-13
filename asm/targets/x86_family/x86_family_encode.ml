@@ -306,6 +306,22 @@ module Opcode = struct
     | Cvtsi2sd
     | Cvtsi2ss
     | Cvttsd2si
+    | Andps
+        (** [andps rm, reg] - packed bitwise AND, single precision ([0F 54 /r], no mandatory
+            prefix - {!Comiss}'s own mandatory-prefix-free group at a different opcode byte). *)
+    | Andnps
+        (** [andnps rm, reg] - packed bitwise ANDN ([0F 55 /r]), {!Andps}'s exact sibling at the
+            next opcode byte. *)
+    | Orps  (** [orps rm, reg] - packed bitwise OR ([0F 56 /r]), {!Andps}'s exact sibling. *)
+    | Xorps
+        (** [xorps rm, reg] - packed bitwise XOR ([0F 57 /r]), {!Andps}'s exact sibling and
+            {!Xorpd}'s mandatory-prefix-free counterpart. *)
+    | Andpd
+        (** [andpd rm, reg] - packed bitwise AND, double precision ([66 0F 54 /r]), {!Xorpd}'s
+            own mandatory-prefix group at a different opcode byte. *)
+    | Andnpd
+        (** [andnpd rm, reg] - packed bitwise ANDN ([66 0F 55 /r]), {!Andpd}'s exact sibling. *)
+    | Orpd  (** [orpd rm, reg] - packed bitwise OR ([66 0F 56 /r]), {!Andpd}'s exact sibling. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -414,6 +430,13 @@ module Opcode = struct
     | Cvtsi2sd -> "cvtsi2sd"
     | Cvtsi2ss -> "cvtsi2ss"
     | Cvttsd2si -> "cvttsd2si"
+    | Andps -> "andps"
+    | Andnps -> "andnps"
+    | Orps -> "orps"
+    | Xorps -> "xorps"
+    | Andpd -> "andpd"
+    | Andnpd -> "andnpd"
+    | Orpd -> "orpd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -642,9 +665,10 @@ module Instruction = struct
           | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
           | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
           | Opcode.Movsd | Opcode.Movss | Opcode.Cvtsi2sd | Opcode.Cvtsi2ss | Opcode.Cvttsd2si
-          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
-          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
-          | Opcode.Fnstsw ) as op ->
+          | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
+          | Opcode.Orpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
+          | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
+          | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1775,6 +1799,15 @@ module Make (M : MODE) = struct
     | "cvtss2sd", _ -> Ok (Instruction.mk Opcode.Cvtss2sd 32 s.Surface.ops)
     | "movsd", _ -> Ok (Instruction.mk Opcode.Movsd 32 s.Surface.ops)
     | "movss", _ -> Ok (Instruction.mk Opcode.Movss 32 s.Surface.ops)
+    (* Packed bitwise-logical family (GEN-05): {!Opcode.Xorpd}'s siblings, all matched the same
+       fixed-mnemonic way. *)
+    | "andps", _ -> Ok (Instruction.mk Opcode.Andps 32 s.Surface.ops)
+    | "andnps", _ -> Ok (Instruction.mk Opcode.Andnps 32 s.Surface.ops)
+    | "orps", _ -> Ok (Instruction.mk Opcode.Orps 32 s.Surface.ops)
+    | "xorps", _ -> Ok (Instruction.mk Opcode.Xorps 32 s.Surface.ops)
+    | "andpd", _ -> Ok (Instruction.mk Opcode.Andpd 32 s.Surface.ops)
+    | "andnpd", _ -> Ok (Instruction.mk Opcode.Andnpd 32 s.Surface.ops)
+    | "orpd", _ -> Ok (Instruction.mk Opcode.Orpd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2355,7 +2388,9 @@ module Make (M : MODE) = struct
        is nothing here to check that choice against. *)
     | ( ( Opcode.Addsd | Opcode.Subsd | Opcode.Mulsd | Opcode.Divsd | Opcode.Addss | Opcode.Subss
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
-        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd ),
+        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
+        | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
+        | Opcode.Orpd ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -2363,7 +2398,9 @@ module Make (M : MODE) = struct
         | Error e, _ | _, Error e -> Error e)
     | ( ( Opcode.Addsd | Opcode.Subsd | Opcode.Mulsd | Opcode.Divsd | Opcode.Addss | Opcode.Subss
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
-        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd ),
+        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
+        | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
+        | Opcode.Orpd ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -2930,6 +2967,9 @@ module Make (M : MODE) = struct
           (Opcode.Xorpd, 0x57L);
           (Opcode.Pxor, 0xEFL);
           (Opcode.Movapd, 0x28L);
+          (Opcode.Andpd, 0x54L);
+          (Opcode.Andnpd, 0x55L);
+          (Opcode.Orpd, 0x56L);
         ]
       (C.field ~width:8 "opcode")
 
@@ -2951,28 +2991,40 @@ module Make (M : MODE) = struct
            ** const ~width:8 (Int64.of_int mandatory)
            ** rex_codec ** const ~width:8 0x0FL ** opcode_codec ** rm_codec))
 
-  (* [comiss] alone has no mandatory prefix - the one member of the binop
-     family this corpus evidences with none - so it reuses [prefixes_codec]
-     directly (an [asz]-then-REX composite with nothing spliced between them
-     is exactly what [prefixes_codec] already is) and a single fixed 16-bit
-     [0F 2F], the same shape [imul-r-rm] and [cmov-r-rm] already use for a
-     mandatory-prefix-free two-byte opcode. *)
-  let sse_binop_none_alt ~label ~priority =
+  (* The mandatory-prefix-free members of the binop family - {!Comiss}, and
+     GEN-05's packed-single logical siblings {!Andps}/{!Andnps}/{!Orps}/
+     {!Xorps} - reuse [prefixes_codec] directly (an [asz]-then-REX composite
+     with nothing spliced between them is exactly what [prefixes_codec]
+     already is), the same shape [imul-r-rm]/[cmov-r-rm] already use for a
+     mandatory-prefix-free two-byte opcode, generalized over an opcode table
+     the same way {!sse_binop_alt} is generalized over its mandatory-prefix
+     groups. *)
+  let sse_binop_none_codec =
+    C.iso_table ~name:"sse-binop-none-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Comiss, 0x2FL);
+          (Opcode.Andps, 0x54L);
+          (Opcode.Andnps, 0x55L);
+          (Opcode.Orps, 0x56L);
+          (Opcode.Xorps, 0x57L);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let sse_binop_none_alt ~label ~priority ~opcode_codec =
     C.alt ~label ~priority
       (C.iso_fun ~name:label
          ~encode:(function
-           | Lowered.Sse_binop_r_rm { op = Opcode.Comiss; reg; rm } ->
-               Some (prefixes_of ~width:32 ~reg:reg.num ~rm, ((), { re_reg = reg.num; re_rm = rm }))
+           | Lowered.Sse_binop_r_rm { op; reg; rm } ->
+               Some
+                 ( prefixes_of ~width:32 ~reg:reg.num ~rm,
+                   ((), (op, { re_reg = reg.num; re_rm = rm })) )
            | _ -> None)
-         ~decode:(fun (p, ((), e)) ->
+         ~decode:(fun (p, ((), (op, e))) ->
            Some
              (Lowered.Sse_binop_r_rm
-                {
-                  op = Opcode.Comiss;
-                  reg = reg_field ~p ~width:128 e.re_reg;
-                  rm = rm_of ~p ~width:128 e.re_rm;
-                }))
-         C.(prefixes_codec ** const ~width:16 0x0F2FL ** rm_codec))
+                { op; reg = reg_field ~p ~width:128 e.re_reg; rm = rm_of ~p ~width:128 e.re_rm }))
+         C.(prefixes_codec ** const ~width:8 0x0FL ** opcode_codec ** rm_codec))
 
   (* [movsd]/[movss]'s two directions: same ModR/M shape as {!sse_binop_alt}
      ([reg] is always xmm, one register or memory [rm]), but each direction
@@ -3945,7 +3997,7 @@ module Make (M : MODE) = struct
             ~opcode_codec:sse_binop_f3_codec;
           sse_binop_alt ~label:"sse-binop-66" ~priority:26 ~mandatory:0x66
             ~opcode_codec:sse_binop_66_codec;
-          sse_binop_none_alt ~label:"sse-binop-none" ~priority:27;
+          sse_binop_none_alt ~label:"sse-binop-none" ~priority:27 ~opcode_codec:sse_binop_none_codec;
           sse_mov_r_rm_alt ~label:"sse-movsd-load" ~priority:28 ~mandatory:0xF2 ~op:Opcode.Movsd
             ~opcode16:0x0F10L;
           sse_mov_r_rm_alt ~label:"sse-movss-load" ~priority:29 ~mandatory:0xF3 ~op:Opcode.Movss

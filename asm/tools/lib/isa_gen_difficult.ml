@@ -550,6 +550,13 @@ let x86_sse_binop_rr_entries =
           "MOVAPD_XMMpd_XMMpd_0F28";
           "CVTSD2SS_XMMss_XMMsd";
           "CVTSS2SD_XMMsd_XMMss";
+          "ANDPS_XMMxud_XMMxud";
+          "ANDNPS_XMMxud_XMMxud";
+          "ORPS_XMMxud_XMMxud";
+          "XORPS_XMMxud_XMMxud";
+          "ANDPD_XMMxuq_XMMxuq";
+          "ANDNPD_XMMxuq_XMMxuq";
+          "ORPD_XMMxuq_XMMxuq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -593,6 +600,13 @@ let x86_sse_binop_rm_entries =
           "MOVAPD_XMMpd_MEMpd";
           "CVTSD2SS_XMMss_MEMsd";
           "CVTSS2SD_XMMsd_MEMss";
+          "ANDPS_XMMxud_MEMxud";
+          "ANDNPS_XMMxud_MEMxud";
+          "ORPS_XMMxud_MEMxud";
+          "XORPS_XMMxud_MEMxud";
+          "ANDPD_XMMxuq_MEMxuq";
+          "ANDNPD_XMMxuq_MEMxuq";
+          "ORPD_XMMxuq_MEMxuq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

@@ -1847,6 +1847,42 @@ let normalize (rec_ : R.t) =
       cvtf2i_rm_form ~form_id:"CVTTSD2SI_GPR32d_MEMsd" ~mode64:false rec_
   | Ok { iform = Some "CVTTSD2SI_GPR64q_MEMsd"; _ } ->
       cvtf2i_rm_form ~form_id:"CVTTSD2SI_GPR64q_MEMsd" ~mode64:true rec_
+  (* Packed bitwise-logical family: {!Opcode.Xorpd}'s siblings, the same plain
+     xmm-xmm/xmm-memory binop shape {!xmm_binop_rr_form}/{!xmm_binop_rm_form}
+     already cover generically. ANDPS/ANDNPS/ORPS/XORPS are XED extension SSE
+     (no mandatory prefix, {!requirement_of}'s SSE case); ANDPD/ANDNPD/ORPD
+     are SSE2 (66 mandatory prefix), like XORPD. Confirmed against real GNU
+     as (i686-linux-gnu-as 2.44) for every register-register and
+     register<-memory spelling below: `0F 54/55/56/57` for the ps forms,
+     `66 0F 54/55/56` for the pd forms. *)
+  | Ok { iform = Some "ANDPS_XMMxud_XMMxud"; _ } ->
+      xmm_binop_rr_form ~form_id:"ANDPS_XMMxud_XMMxud" ~mnemonic:"andps" rec_
+  | Ok { iform = Some "ANDNPS_XMMxud_XMMxud"; _ } ->
+      xmm_binop_rr_form ~form_id:"ANDNPS_XMMxud_XMMxud" ~mnemonic:"andnps" rec_
+  | Ok { iform = Some "ORPS_XMMxud_XMMxud"; _ } ->
+      xmm_binop_rr_form ~form_id:"ORPS_XMMxud_XMMxud" ~mnemonic:"orps" rec_
+  | Ok { iform = Some "XORPS_XMMxud_XMMxud"; _ } ->
+      xmm_binop_rr_form ~form_id:"XORPS_XMMxud_XMMxud" ~mnemonic:"xorps" rec_
+  | Ok { iform = Some "ANDPD_XMMxuq_XMMxuq"; _ } ->
+      xmm_binop_rr_form ~form_id:"ANDPD_XMMxuq_XMMxuq" ~mnemonic:"andpd" rec_
+  | Ok { iform = Some "ANDNPD_XMMxuq_XMMxuq"; _ } ->
+      xmm_binop_rr_form ~form_id:"ANDNPD_XMMxuq_XMMxuq" ~mnemonic:"andnpd" rec_
+  | Ok { iform = Some "ORPD_XMMxuq_XMMxuq"; _ } ->
+      xmm_binop_rr_form ~form_id:"ORPD_XMMxuq_XMMxuq" ~mnemonic:"orpd" rec_
+  | Ok { iform = Some "ANDPS_XMMxud_MEMxud"; _ } ->
+      xmm_binop_rm_form ~form_id:"ANDPS_XMMxud_MEMxud" ~mnemonic:"andps" rec_
+  | Ok { iform = Some "ANDNPS_XMMxud_MEMxud"; _ } ->
+      xmm_binop_rm_form ~form_id:"ANDNPS_XMMxud_MEMxud" ~mnemonic:"andnps" rec_
+  | Ok { iform = Some "ORPS_XMMxud_MEMxud"; _ } ->
+      xmm_binop_rm_form ~form_id:"ORPS_XMMxud_MEMxud" ~mnemonic:"orps" rec_
+  | Ok { iform = Some "XORPS_XMMxud_MEMxud"; _ } ->
+      xmm_binop_rm_form ~form_id:"XORPS_XMMxud_MEMxud" ~mnemonic:"xorps" rec_
+  | Ok { iform = Some "ANDPD_XMMxuq_MEMxuq"; _ } ->
+      xmm_binop_rm_form ~form_id:"ANDPD_XMMxuq_MEMxuq" ~mnemonic:"andpd" rec_
+  | Ok { iform = Some "ANDNPD_XMMxuq_MEMxuq"; _ } ->
+      xmm_binop_rm_form ~form_id:"ANDNPD_XMMxuq_MEMxuq" ~mnemonic:"andnpd" rec_
+  | Ok { iform = Some "ORPD_XMMxuq_MEMxuq"; _ } ->
+      xmm_binop_rm_form ~form_id:"ORPD_XMMxuq_MEMxuq" ~mnemonic:"orpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1862,8 +1898,9 @@ let normalize (rec_ : R.t) =
             the SSE2 ADDSD/SUBSD/MULSD/DIVSD register-register and register<-memory forms, the \
             plain xmm-xmm/xmm-memory binop shape's MULSS/DIVSS/COMISD/UCOMISD/COMISS/XORPD/PXOR/ \
             MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms, the MOVSD/MOVSS \
-            load/store forms, and the mixed-GPR/XMM CVTSI2SD/CVTSI2SS/CVTTSD2SI register-register \
-            and register<-memory forms; %s is not one of them"
+            load/store forms, the mixed-GPR/XMM CVTSI2SD/CVTSI2SS/CVTTSD2SI register-register and \
+            register<-memory forms, and the packed bitwise-logical ANDPS/ANDNPS/ORPS/XORPS/ \
+            ANDPD/ANDNPD/ORPD register-register and register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg
