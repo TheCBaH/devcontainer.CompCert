@@ -165,6 +165,11 @@ let promoted_case ~target ~form_id ~lookup_key =
   | (Target.X86_32 | Target.X86_64), "x86:MOV_GPRv_MEMv", "MOV_GPRv_MEMv" -> true
   | (Target.X86_32 | Target.X86_64), "x86:MOV_MEMv_GPRv", "MOV_MEMv_GPRv" -> true
   | (Target.X86_32 | Target.X86_64), "x86:FADD_ST0_X87", "FADD_ST0_X87" -> true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADDSD_XMMsd_XMMsd" | "x86:SUBSD_XMMsd_XMMsd" | "x86:MULSD_XMMsd_XMMsd"
+      | "x86:DIVSD_XMMsd_XMMsd" ),
+      ("ADDSD_XMMsd_XMMsd" | "SUBSD_XMMsd_XMMsd" | "MULSD_XMMsd_XMMsd" | "DIVSD_XMMsd_XMMsd") ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),
