@@ -346,6 +346,14 @@ let two_operand_gprv_form ~form_id ~mnemonic (rec_ : R.t) =
       match (a.rw, b.rw) with
       | "r", ("w" | "rw") -> build ~source_raw:a ~dest_raw:b
       | ("w" | "rw"), "r" -> build ~source_raw:b ~dest_raw:a
+      (* CMP/TEST write neither operand (both compare-only, rw="r"): [a]/[b]
+         still carry the same REG0=GPRv_B-first, REG1=GPRv_R-second
+         positional layout every other member of this opcode family
+         (09/11/19/21/29/31/39/85, the [to_rm_r] direction) already
+         establishes, so this keeps [a] (GPRv_B) as "dest" and [b] (GPRv_R)
+         as "src" by that same positional convention rather than rw, matching
+         real GNU as's own AT&T rendering [cmp %src, %dest]. *)
+      | "r", "r" -> build ~source_raw:b ~dest_raw:a
       | rw_a, rw_b ->
           err (form_id ^ "-unrecognized-rw")
             (Printf.sprintf "expected one 'r' and one 'w'/'rw' operand, got rw=%s/rw=%s" rw_a rw_b))
@@ -374,11 +382,40 @@ let normalize (rec_ : R.t) =
       two_operand_gprv_form ~form_id:"MOV_GPRv_GPRv_8B" ~mnemonic:"mov" rec_
   | Ok { iform = Some "MOV_GPRv_IMMz"; _ } ->
       two_operand_gprv_form ~form_id:"MOV_GPRv_IMMz" ~mnemonic:"mov" rec_
+  (* The plain register-register ALU family sharing ADD_GPRv_GPRv_01's own
+     to_rm_r opcode-selection precedent (real GNU as always picks this
+     "low-numbered" iform for two register operands regardless of AT&T
+     argument order; confirmed for every one of these eight mnemonics, not
+     assumed from ADD alone). Unlike [add], none of these mnemonics assemble
+     bare in this project's own x86 frontend - confirmed against both real
+     GNU as and this project's own encoder - so each fixes its mnemonic to
+     the explicit 32-bit spelling {!mov_gprv_memv_form} already uses for
+     MOV_GPRv_MEMv/MOV_MEMv_GPRv, rather than reusing ADD_GPRv_GPRv_01's own
+     bare "add". The reverse "_0B"/"_13"/"_1B"/"_23"/"_2B"/"_33"/"_3B" iforms
+     stay unhandled, matching ADD_GPRv_GPRv_03's own precedent: GNU as never
+     selects them for two register operands under any argument order. *)
+  | Ok { iform = Some "SUB_GPRv_GPRv_29"; _ } ->
+      two_operand_gprv_form ~form_id:"SUB_GPRv_GPRv_29" ~mnemonic:"subl" rec_
+  | Ok { iform = Some "AND_GPRv_GPRv_21"; _ } ->
+      two_operand_gprv_form ~form_id:"AND_GPRv_GPRv_21" ~mnemonic:"andl" rec_
+  | Ok { iform = Some "OR_GPRv_GPRv_09"; _ } ->
+      two_operand_gprv_form ~form_id:"OR_GPRv_GPRv_09" ~mnemonic:"orl" rec_
+  | Ok { iform = Some "XOR_GPRv_GPRv_31"; _ } ->
+      two_operand_gprv_form ~form_id:"XOR_GPRv_GPRv_31" ~mnemonic:"xorl" rec_
+  | Ok { iform = Some "ADC_GPRv_GPRv_11"; _ } ->
+      two_operand_gprv_form ~form_id:"ADC_GPRv_GPRv_11" ~mnemonic:"adcl" rec_
+  | Ok { iform = Some "SBB_GPRv_GPRv_19"; _ } ->
+      two_operand_gprv_form ~form_id:"SBB_GPRv_GPRv_19" ~mnemonic:"sbbl" rec_
+  | Ok { iform = Some "CMP_GPRv_GPRv_39"; _ } ->
+      two_operand_gprv_form ~form_id:"CMP_GPRv_GPRv_39" ~mnemonic:"cmpl" rec_
+  | Ok { iform = Some "TEST_GPRv_GPRv"; _ } ->
+      two_operand_gprv_form ~form_id:"TEST_GPRv_GPRv" ~mnemonic:"testl" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
-           "Isa_norm_xed only normalizes the frozen pilot iforms plus the register/register and \
-            register/immediate legacy ADD/MOV forms; %s is not one of them"
+           "Isa_norm_xed only normalizes the frozen pilot iforms, the register/register and \
+            register/immediate legacy ADD/MOV forms, and the explicit-32-bit-width \
+            SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

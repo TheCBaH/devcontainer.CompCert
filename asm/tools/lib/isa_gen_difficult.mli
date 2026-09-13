@@ -110,6 +110,15 @@ val x86_mov_entries : entry list
     base+disp8 SIB load and an indexed scale-4 disp32 store.  These are a
     bounded slice of XED's variable-width GPRv/MEMv forms. *)
 
+val x86_alu_rr_entries : entry list
+(** [subl]/[andl]/[orl]/[xorl]/[adcl]/[sbbl]/[cmpl]/[testl] register-register
+    on x86-32 and x86-64, each selecting the same [to_rm_r] opcode
+    [ADD_GPRv_GPRv_01]'s own pilot case selects (real GNU as always picks
+    this "low-numbered" iform for two register operands regardless of AT&T
+    argument order); each mnemonic's normalized form fixes the explicit
+    32-bit spelling since - unlike [add] - none of them assemble bare in
+    this project's own x86 frontend. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2486,7 +2495,7 @@ val lr_d_entries : entry list
 
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
-    x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @
+    x86_alu_rr_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @
     fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries @
     sh1add_entries @ sh2add_entries @ sh3add_entries @

@@ -141,6 +141,46 @@ let x86_mov_entries =
       ])
     [ Target.X86_32; Target.X86_64 ]
 
+(* The plain register-register ALU family (SUB/AND/OR/XOR/ADC/SBB/CMP/TEST),
+   each sharing ADD_GPRv_GPRv_01's own [to_rm_r] opcode and canonical AT&T
+   spelling - confirmed byte-identical against real GNU as on both targets,
+   plain and argument-order-reversed, before writing this entry: real GNU as
+   always selects this "low-numbered" iform for two register operands
+   regardless of AT&T argument order, so [src]/[dest] here (like
+   ADD_GPRv_GPRv_01's own pilot case) exercise the general register field
+   rather than any accumulator-special encoding. Unlike [add %eax, %ecx],
+   every one of these mnemonics needs this project's own explicit 32-bit
+   suffix (Isa_norm_xed's own normalized mnemonic, "subl" etc., matches). *)
+let x86_alu_rr_entry ~target ~form_id ~lookup_key =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "explicit-32-bit-width" ];
+    operands = [ ("src", "eax"); ("dest", "ecx") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_alu_rr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key -> x86_alu_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "SUB_GPRv_GPRv_29";
+          "AND_GPRv_GPRv_21";
+          "OR_GPRv_GPRv_09";
+          "XOR_GPRv_GPRv_31";
+          "ADC_GPRv_GPRv_11";
+          "SBB_GPRv_GPRv_19";
+          "CMP_GPRv_GPRv_39";
+          "TEST_GPRv_GPRv";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
 let fadd_entry target =
   {
     form_id = "x86:FADD_ST0_X87";
@@ -3441,19 +3481,19 @@ let vfwmaccbf16_vf_entry target =
 let vfwmaccbf16_vf_entries = List.map vfwmaccbf16_vf_entry [ Target.Riscv32; Target.Riscv64 ]
 
 let all =
-  sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_fadd_entries @ fadd_s_entries
-  @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries
-  @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries
-  @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries @ sh2adduw_entries
-  @ sh3adduw_entries @ min_entries @ minu_entries @ max_entries @ maxu_entries @ andn_entries
-  @ orn_entries @ xnor_entries @ rol_entries @ ror_entries @ clz_entries @ ctz_entries
-  @ cpop_entries @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries @ ctzw_entries
-  @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries @ packw_entries
-  @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries @ roriw_entries
-  @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries @ bexti_entries
-  @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries @ clmulr_entries
-  @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries @ xperm4_entries
-  @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
+  sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_alu_rr_entries
+  @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries
+  @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries
+  @ fsw_entries @ fsd_entries @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries
+  @ sh2adduw_entries @ sh3adduw_entries @ min_entries @ minu_entries @ max_entries @ maxu_entries
+  @ andn_entries @ orn_entries @ xnor_entries @ rol_entries @ ror_entries @ clz_entries
+  @ ctz_entries @ cpop_entries @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries
+  @ ctzw_entries @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries
+  @ packw_entries @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries
+  @ roriw_entries @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries
+  @ bexti_entries @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries
+  @ clmulr_entries @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries
+  @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
   @ sha256sig1_entries @ sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries
   @ sha512sig1_entries @ sha512sum0r_entries @ sha512sum1r_entries @ sha512sig0l_entries
   @ sha512sig1l_entries @ sha512sig0h_entries @ sha512sig1h_entries @ aes64ds_entries
@@ -3582,6 +3622,25 @@ let pilot_entry_of (entry : entry) =
         "x86_family_encode.ml's Lowered.Mov_r_rm / mov-r-rm codec alternative (opcode 0x8B)"
     | "MOV_MEMv_GPRv" ->
         "x86_family_encode.ml's Lowered.Mov_rm_r / mov-rm-r codec alternative (opcode 0x89)"
+    | ( "SUB_GPRv_GPRv_29" | "AND_GPRv_GPRv_21" | "OR_GPRv_GPRv_09" | "XOR_GPRv_GPRv_31"
+      | "ADC_GPRv_GPRv_11" | "SBB_GPRv_GPRv_19" | "CMP_GPRv_GPRv_39" | "TEST_GPRv_GPRv" ) as
+      lookup_key ->
+        let opcode =
+          match lookup_key with
+          | "SUB_GPRv_GPRv_29" -> "0x29"
+          | "AND_GPRv_GPRv_21" -> "0x21"
+          | "OR_GPRv_GPRv_09" -> "0x09"
+          | "XOR_GPRv_GPRv_31" -> "0x31"
+          | "ADC_GPRv_GPRv_11" -> "0x11"
+          | "SBB_GPRv_GPRv_19" -> "0x19"
+          | "CMP_GPRv_GPRv_39" -> "0x39"
+          | "TEST_GPRv_GPRv" -> "0x85"
+          | _ -> assert false
+        in
+        Printf.sprintf
+          "x86_family_encode.ml's Opcode.to_rm_r table entry (opcode %s) / Lowered.Alu_rm_r codec \
+           alternative"
+          opcode
     | "FADD_ST0_X87" ->
         "x86_family_encode.ml's Lowered.Fadd_st0_x87 / fadd-st0-x87 codec alternative (0xD8 0xC0+i)"
     | ("fadd.s" | "fsub.s" | "fmul.s" | "fdiv.s" | "fadd.d" | "fsub.d" | "fmul.d" | "fdiv.d") as
