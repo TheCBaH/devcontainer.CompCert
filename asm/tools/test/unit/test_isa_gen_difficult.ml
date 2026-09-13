@@ -221,6 +221,26 @@ let test_counts () =
     && List.for_all
          (fun (e : Isa_gen_difficult.entry) -> e.target = Target.Riscv64)
          Isa_gen_difficult.roriw_entries);
+  check "bclr/bext/binv/bset_entries have 2 entries each (both profiles, no Req_any)"
+    (List.length Isa_gen_difficult.bclr_entries = 2
+    && List.length Isa_gen_difficult.bext_entries = 2
+    && List.length Isa_gen_difficult.binv_entries = 2
+    && List.length Isa_gen_difficult.bset_entries = 2);
+  check
+    "bclri/bexti/binvi/bseti_entries have 2 entries each (profile-specific native_name split, no \
+     lookup_key distinct from the rendered mnemonic)"
+    (List.length Isa_gen_difficult.bclri_entries = 2
+    && List.length Isa_gen_difficult.bexti_entries = 2
+    && List.length Isa_gen_difficult.binvi_entries = 2
+    && List.length Isa_gen_difficult.bseti_entries = 2
+    && List.exists
+         (fun (e : Isa_gen_difficult.entry) ->
+           e.target = Target.Riscv32 && String.equal e.lookup_key "bclri.rv32")
+         Isa_gen_difficult.bclri_entries
+    && List.exists
+         (fun (e : Isa_gen_difficult.entry) ->
+           e.target = Target.Riscv64 && String.equal e.lookup_key "bclri")
+         Isa_gen_difficult.bclri_entries);
   check "zext_h_entries has 2 entries (profile-specific native_name split like rev8)"
     (List.length Isa_gen_difficult.zext_h_entries = 2
     && List.exists
@@ -1131,6 +1151,14 @@ let test_counts () =
       + List.length Isa_gen_difficult.rorw_entries
       + List.length Isa_gen_difficult.rori_entries
       + List.length Isa_gen_difficult.roriw_entries
+      + List.length Isa_gen_difficult.bclr_entries
+      + List.length Isa_gen_difficult.bext_entries
+      + List.length Isa_gen_difficult.binv_entries
+      + List.length Isa_gen_difficult.bset_entries
+      + List.length Isa_gen_difficult.bclri_entries
+      + List.length Isa_gen_difficult.bexti_entries
+      + List.length Isa_gen_difficult.binvi_entries
+      + List.length Isa_gen_difficult.bseti_entries
       + List.length Isa_gen_difficult.zext_h_entries
       + List.length Isa_gen_difficult.clmul_entries
       + List.length Isa_gen_difficult.clmulh_entries

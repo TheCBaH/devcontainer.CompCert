@@ -22,6 +22,9 @@ let feature_of_extension = function
   | "rv_zbc" -> Req_feature "riscv:zbc"
   | "rv_zbkc" -> Req_feature "riscv:zbkc"
   | "rv_zbkx" -> Req_feature "riscv:zbkx"
+  | "rv_zbs" -> Req_feature "riscv:zbs"
+  | "rv32_zbs" -> Req_all [ Req_xlen 32; Req_feature "riscv:zbs" ]
+  | "rv64_zbs" -> Req_all [ Req_xlen 64; Req_feature "riscv:zbs" ]
   | "rv_zknh" -> Req_feature "riscv:zknh"
   | "rv_zicsr" -> Req_feature "riscv:zicsr"
   | "rv_f" -> Req_feature "riscv:f"
@@ -1914,6 +1917,10 @@ let r_type_mnemonics =
     "xnor";
     "rol";
     "ror";
+    "bclr";
+    "bext";
+    "binv";
+    "bset";
     "pack";
     "packh";
     "packw";
@@ -4672,6 +4679,25 @@ let normalize (rec_ : R.t) =
   | "rori" -> shamt_gpr_form ~mnemonic:"rori" ~width:6 rec_
   | "rori.rv32" -> shamt_gpr_form ~mnemonic:"rori" ~width:5 ~extension_lookup_key:"rori.rv32" rec_
   | "roriw" -> shamt_gpr_form ~mnemonic:"roriw" ~width:5 rec_
+  (* bclri/bexti/binvi/bseti: Zbs's own shift-amount-immediate shape, the
+     same two-GPR-plus-immediate operand layout as rori/roriw above, but
+     each mnemonic is a single, non-import-duplicated record on both
+     profiles (riscv64.jsonl's own "bclri" etc., 6-bit shamtd; riscv32.jsonl's
+     pseudo-op alias "bclri.rv32" etc., 5-bit shamtw) - so unlike rori.rv32,
+     no [extension_lookup_key] is needed: {!requirement_of_mnemonic} already
+     falls back to {!requirement_of}'s plain per-record extension lookup
+     when the rendered mnemonic has no {!alternative_extensions_by_mnemonic}
+     entry. Both profiles render as the bare mnemonic real GNU as accepts
+     (confirmed: `bclri.rv32` itself is rejected as an unrecognized opcode,
+     the same way `rori.rv32` is). *)
+  | "bclri" -> shamt_gpr_form ~mnemonic:"bclri" ~width:6 rec_
+  | "bclri.rv32" -> shamt_gpr_form ~mnemonic:"bclri" ~width:5 rec_
+  | "bexti" -> shamt_gpr_form ~mnemonic:"bexti" ~width:6 rec_
+  | "bexti.rv32" -> shamt_gpr_form ~mnemonic:"bexti" ~width:5 rec_
+  | "binvi" -> shamt_gpr_form ~mnemonic:"binvi" ~width:6 rec_
+  | "binvi.rv32" -> shamt_gpr_form ~mnemonic:"binvi" ~width:5 rec_
+  | "bseti" -> shamt_gpr_form ~mnemonic:"bseti" ~width:6 rec_
+  | "bseti.rv32" -> shamt_gpr_form ~mnemonic:"bseti" ~width:5 rec_
   (* aes64ks1i: the same two-GPR-plus-narrow-unsigned-immediate shape as
      rori/roriw above, reusing shamt_gpr_form's generalized [operand_name]/
      [field_name] overrides for riscv-opcodes' own "rnum" field (a 4-bit

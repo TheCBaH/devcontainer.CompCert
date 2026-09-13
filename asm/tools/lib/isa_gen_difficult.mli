@@ -2106,6 +2106,42 @@ val roriw_entries : entry list
     unrecognized opcode), {!rori_entries}'s plain RV64-only *w sibling
     (opcode 0x1b, no profile-specific native_name split needed). *)
 
+val bclr_entries : entry list
+(** [bclr a0, a1, a2] on both profiles - Zbs's single-bit-clear form, the
+    same plain three-GPR R-type shape as {!andn_entries}, but a single,
+    non-import-duplicated rv_zbs record on each profile (no {!entry.lookup_key}
+    distinct from the rendered mnemonic needed). *)
+
+val bext_entries : entry list
+(** [bext a0, a1, a2] on both profiles, the same shape as {!bclr_entries}. *)
+
+val binv_entries : entry list
+(** [binv a0, a1, a2] on both profiles, the same shape as {!bclr_entries}. *)
+
+val bset_entries : entry list
+(** [bset a0, a1, a2] on both profiles, the same shape as {!bclr_entries}. *)
+
+val bclri_entries : entry list
+(** [bclri a0, a1, 5] on both profiles - Zbs's shift-amount-immediate
+    sibling of {!bclr_entries}, the same (rd, rs1, shamt) shape
+    {!rori_entries} uses. Uses riscv32.jsonl's own native_name
+    ["bclri.rv32"] as {!entry.lookup_key} on RV32 (5-bit shamtw) and
+    ["bclri"] on RV64 (6-bit shamtd), both rendering as the bare ["bclri"]
+    spelling real GNU as accepts on either profile (confirmed: it rejects
+    "bclri.rv32" itself as an unrecognized opcode, the same way it rejects
+    "rori.rv32"). Unlike {!rori_entries}, neither record is
+    import-duplicated, so normalization needs no separate
+    extension-lookup key from the rendered mnemonic. *)
+
+val bexti_entries : entry list
+(** [bexti a0, a1, 5] on both profiles, the same shape as {!bclri_entries}. *)
+
+val binvi_entries : entry list
+(** [binvi a0, a1, 5] on both profiles, the same shape as {!bclri_entries}. *)
+
+val bseti_entries : entry list
+(** [bseti a0, a1, 5] on both profiles, the same shape as {!bclri_entries}. *)
+
 val zext_h_entries : entry list
 (** [zext.h a0, a1] on both profiles - Zbb's zero-extend-halfword pseudo (rd,
     rs1), the same two-GPR-operand unary shape as {!clz_entries} but needing
@@ -2424,7 +2460,9 @@ val all : entry list
     clzw_entries @ ctzw_entries @ cpopw_entries @ brev8_entries @
     rev8_entries @ pack_entries @ packh_entries @ packw_entries @
     zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @
-    rori_entries @ roriw_entries @ zext_h_entries @ clmul_entries @
+    rori_entries @ roriw_entries @ bclr_entries @ bext_entries @
+    binv_entries @ bset_entries @ bclri_entries @ bexti_entries @
+    binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @
     clmulh_entries @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @
     sha256sum1_entries @ sha256sig0_entries @ sha256sig1_entries @
     sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries @

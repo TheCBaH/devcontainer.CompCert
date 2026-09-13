@@ -180,6 +180,14 @@ module Make (P : PROFILE) = struct
       | Xnor
       | Rol
       | Ror
+      | Bclr
+      | Bext
+      | Binv
+      | Bset
+      | Bclri
+      | Bexti
+      | Binvi
+      | Bseti
       | Sh1adduw
       | Sh2adduw
       | Sh3adduw
@@ -838,6 +846,14 @@ module Make (P : PROFILE) = struct
       | Xnor -> "xnor"
       | Rol -> "rol"
       | Ror -> "ror"
+      | Bclr -> "bclr"
+      | Bext -> "bext"
+      | Binv -> "binv"
+      | Bset -> "bset"
+      | Bclri -> "bclri"
+      | Bexti -> "bexti"
+      | Binvi -> "binvi"
+      | Bseti -> "bseti"
       | Sh1adduw -> "sh1add.uw"
       | Sh2adduw -> "sh2add.uw"
       | Sh3adduw -> "sh3add.uw"
@@ -1497,6 +1513,14 @@ module Make (P : PROFILE) = struct
         Xnor;
         Rol;
         Ror;
+        Bclr;
+        Bext;
+        Binv;
+        Bset;
+        Bclri;
+        Bexti;
+        Binvi;
+        Bseti;
         Sh1adduw;
         Sh2adduw;
         Sh3adduw;
@@ -2537,6 +2561,10 @@ module Make (P : PROFILE) = struct
     | Xnor -> Some (0x33, 4, 0x20)
     | Rol -> Some (0x33, 1, 0x30)
     | Ror -> Some (0x33, 5, 0x30)
+    | Bclr -> Some (0x33, 1, 0x24)
+    | Bext -> Some (0x33, 5, 0x24)
+    | Binv -> Some (0x33, 1, 0x34)
+    | Bset -> Some (0x33, 1, 0x14)
     | Clmul -> Some (0x33, 1, 0x05)
     | Clmulh -> Some (0x33, 3, 0x05)
     | Xperm4 -> Some (0x33, 2, 0x14)
@@ -2881,6 +2909,10 @@ module Make (P : PROFILE) = struct
     | Sraw -> Some Sraiw
     | Ror -> Some Rori
     | Rorw -> Some Roriw
+    | Bclr -> Some Bclri
+    | Bext -> Some Bexti
+    | Binv -> Some Binvi
+    | Bset -> Some Bseti
     | _ -> None
 
   let i_desc = function
@@ -2899,6 +2931,10 @@ module Make (P : PROFILE) = struct
     | Sraiw -> Some (0x1b, 5, 0x20, Some 32)
     | Rori -> Some (0x13, 5, (if xlen = 64 then 0x18 else 0x30), Some xlen)
     | Roriw -> Some (0x1b, 5, 0x30, Some 32)
+    | Bclri -> Some (0x13, 1, (if xlen = 64 then 0x12 else 0x24), Some xlen)
+    | Bexti -> Some (0x13, 5, (if xlen = 64 then 0x12 else 0x24), Some xlen)
+    | Binvi -> Some (0x13, 1, (if xlen = 64 then 0x1a else 0x34), Some xlen)
+    | Bseti -> Some (0x13, 1, (if xlen = 64 then 0x0a else 0x14), Some xlen)
     | _ -> None
 
   let load_desc = function
