@@ -713,6 +713,17 @@ let promoted_case ~target ~form_id ~lookup_key =
   | (Target.Riscv32 | Target.Riscv64), "riscv:vfncvtbf16.f.f.w", "vfncvtbf16.f.f.w" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:vfwmaccbf16.vv", "vfwmaccbf16.vv" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:vfwmaccbf16.vf", "vfwmaccbf16.vf" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vpopc.m", "vpopc.m" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vmandnot.mm", "vmandnot.mm" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vmornot.mm", "vmornot.mm" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vfredsum.vs", "vfredsum.vs" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vfwredsum.vs", "vfwredsum.vs" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vl1r.v", "vl1r.v" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vl2r.v", "vl2r.v" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vl4r.v", "vl4r.v" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vl8r.v", "vl8r.v" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vle1.v", "vle1.v" -> true
+  | (Target.Riscv32 | Target.Riscv64), "riscv:vse1.v", "vse1.v" -> true
   | _ -> false
 
 let pilot_case ~target ~form_id ~lookup_key =

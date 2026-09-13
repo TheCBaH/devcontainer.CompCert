@@ -2304,6 +2304,14 @@ let vmnand_mm_entries = opivv_entries ~mnemonic:"vmnand.mm"
 let vmnor_mm_entries = opivv_entries ~mnemonic:"vmnor.mm"
 let vmxnor_mm_entries = opivv_entries ~mnemonic:"vmxnor.mm"
 
+(* rv_v_aliases: riscv-opcodes' own deprecated spellings for vmandn.mm/
+   vmorn.mm - mask/value identical to the canonical mnemonic, hand-verified
+   against real GNU as (`vmandnot.mm v1, v2, v3` -> `6221a0d7`,
+   `vmornot.mm v1, v2, v3` -> `7221a0d7`, matching vmandn.mm/vmorn.mm
+   exactly). *)
+let vmandnot_mm_entries = opivv_entries ~mnemonic:"vmandnot.mm"
+let vmornot_mm_entries = opivv_entries ~mnemonic:"vmornot.mm"
+
 (* [vredsum]/[vredand]/[vredor]/[vredxor]/[vredminu]/[vredmin]/[vredmaxu]/
    [vredmax.vs] and [vwredsumu]/[vwredsum.vs]: OP-V's vector-reduction
    family - the same all-vector-register [rd, rs2, rs1] shape as
@@ -2502,6 +2510,11 @@ let v_to_x_unary_entries ~mnemonic =
 
 let vcpop_m_entries = v_to_x_unary_entries ~mnemonic:"vcpop.m"
 let vfirst_m_entries = v_to_x_unary_entries ~mnemonic:"vfirst.m"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vcpop.m - mask/
+   value identical to the canonical mnemonic, hand-verified against real
+   GNU as (`vpopc.m a0, v2` -> `42282557`, matching vcpop.m exactly). *)
+let vpopc_m_entries = v_to_x_unary_entries ~mnemonic:"vpopc.m"
 
 (* The add-with-carry/subtract-with-borrow family - [vadc]/[vmadc]/[vsbc]/
    [vmsbc] - has a mandatory, literal [v0] 4th operand on its "m"-suffixed
@@ -2754,6 +2767,12 @@ let vfclass_v_entries = vext_entries ~mnemonic:"vfclass.v"
    sibling exists for any of the four. *)
 let vfredosum_vs_entries = opivv_entries ~mnemonic:"vfredosum.vs"
 let vfredusum_vs_entries = opivv_entries ~mnemonic:"vfredusum.vs"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vfredusum.vs -
+   mask/value identical to the canonical mnemonic, hand-verified against
+   real GNU as (`vfredsum.vs v1, v2, v3` -> `062190d7`, matching
+   vfredusum.vs exactly). *)
+let vfredsum_vs_entries = opivv_entries ~mnemonic:"vfredsum.vs"
 let vfredmin_vs_entries = opivv_entries ~mnemonic:"vfredmin.vs"
 let vfredmax_vs_entries = opivv_entries ~mnemonic:"vfredmax.vs"
 
@@ -2920,6 +2939,12 @@ let vfwmul_vf_entries = opfvf_entries ~mnemonic:"vfwmul.vf"
 let vfwredosum_vs_entries = opivv_entries ~mnemonic:"vfwredosum.vs"
 let vfwredusum_vs_entries = opivv_entries ~mnemonic:"vfwredusum.vs"
 
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vfwredusum.vs -
+   mask/value identical to the canonical mnemonic, hand-verified against
+   real GNU as (`vfwredsum.vs v1, v2, v3` -> `c62190d7`, matching
+   vfwredusum.vs exactly). *)
+let vfwredsum_vs_entries = opivv_entries ~mnemonic:"vfwredsum.vs"
+
 (* [vfwcvt.*]/[vfncvt.*]: the widening/narrowing float<->integer conversion
    families - {!vext_entries}'s exact "vd, vs2" shape reused unchanged, the
    same shape [vfcvt.*.v] already uses. The two `bf16` sibling mnemonics
@@ -3004,6 +3029,13 @@ let vse64_v_entries = v_store_entries ~mnemonic:"vse64.v"
    {!vle8_v_entries} there is no masked variant to note as out of scope. *)
 let vlm_v_entries = v_load_entries ~mnemonic:"vlm.v"
 let vsm_v_entries = v_store_entries ~mnemonic:"vsm.v"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spellings for vlm.v/vsm.v -
+   mask/value identical to the canonical mnemonic, hand-verified against
+   real GNU as (`vle1.v v1, (a0)` -> `02b50087`, `vse1.v v1, (a0)` ->
+   `02b500a7`, matching vlm.v/vsm.v exactly). *)
+let vle1_v_entries = v_load_entries ~mnemonic:"vle1.v"
+let vse1_v_entries = v_store_entries ~mnemonic:"vse1.v"
 
 (* [vle8/16/32/64ff.v]: V's fault-only-first unit-stride loads -
    {!v_load_entries}'s exact "vd, (a0)" shape reused unchanged (the
@@ -3126,18 +3158,38 @@ let vsoxei16_v_entries = v_indexed_store_entries ~mnemonic:"vsoxei16.v"
 let vsoxei32_v_entries = v_indexed_store_entries ~mnemonic:"vsoxei32.v"
 let vsoxei64_v_entries = v_indexed_store_entries ~mnemonic:"vsoxei64.v"
 let vl1re8_v_entries = v_load_entries ~mnemonic:"vl1re8.v"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vl1re8.v - mask/
+   value identical to the canonical mnemonic, hand-verified against real
+   GNU as (`vl1r.v v1, (a0)` -> `02850087`, matching vl1re8.v exactly). *)
+let vl1r_v_entries = v_load_entries ~mnemonic:"vl1r.v"
 let vl1re16_v_entries = v_load_entries ~mnemonic:"vl1re16.v"
 let vl1re32_v_entries = v_load_entries ~mnemonic:"vl1re32.v"
 let vl1re64_v_entries = v_load_entries ~mnemonic:"vl1re64.v"
 let vl2re8_v_entries = v_load_entries ~mnemonic:"vl2re8.v"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vl2re8.v - mask/
+   value identical to the canonical mnemonic, hand-verified against real
+   GNU as (`vl2r.v v2, (a0)` -> `22850107`, matching vl2re8.v exactly). *)
+let vl2r_v_entries = v_load_entries ~mnemonic:"vl2r.v"
 let vl2re16_v_entries = v_load_entries ~mnemonic:"vl2re16.v"
 let vl2re32_v_entries = v_load_entries ~mnemonic:"vl2re32.v"
 let vl2re64_v_entries = v_load_entries ~mnemonic:"vl2re64.v"
 let vl4re8_v_entries = v_load_entries ~mnemonic:"vl4re8.v"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vl4re8.v - mask/
+   value identical to the canonical mnemonic, hand-verified against real
+   GNU as (`vl4r.v v4, (a0)` -> `62850207`, matching vl4re8.v exactly). *)
+let vl4r_v_entries = v_load_entries ~mnemonic:"vl4r.v"
 let vl4re16_v_entries = v_load_entries ~mnemonic:"vl4re16.v"
 let vl4re32_v_entries = v_load_entries ~mnemonic:"vl4re32.v"
 let vl4re64_v_entries = v_load_entries ~mnemonic:"vl4re64.v"
 let vl8re8_v_entries = v_load_entries ~mnemonic:"vl8re8.v"
+
+(* rv_v_aliases: riscv-opcodes' own deprecated spelling for vl8re8.v - mask/
+   value identical to the canonical mnemonic, hand-verified against real
+   GNU as (`vl8r.v v8, (a0)` -> `e2850407`, matching vl8re8.v exactly). *)
+let vl8r_v_entries = v_load_entries ~mnemonic:"vl8r.v"
 let vl8re16_v_entries = v_load_entries ~mnemonic:"vl8re16.v"
 let vl8re32_v_entries = v_load_entries ~mnemonic:"vl8re32.v"
 let vl8re64_v_entries = v_load_entries ~mnemonic:"vl8re64.v"
@@ -3780,7 +3832,9 @@ let all =
   @ vaesdf_vv_entries @ vaesdf_vs_entries @ vaesdm_vv_entries @ vaesdm_vs_entries
   @ vaesef_vv_entries @ vaesef_vs_entries @ vaesem_vv_entries @ vaesem_vs_entries @ vaesz_vs_entries
   @ vaeskf1_vi_entries @ vaeskf2_vi_entries @ vfwcvtbf16_f_f_v_entries @ vfncvtbf16_f_f_w_entries
-  @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries
+  @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries @ vpopc_m_entries @ vmandnot_mm_entries
+  @ vmornot_mm_entries @ vfredsum_vs_entries @ vfwredsum_vs_entries @ vl1r_v_entries
+  @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

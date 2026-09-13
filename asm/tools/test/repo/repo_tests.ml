@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:711;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:763;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:56;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:56
 
@@ -650,11 +650,27 @@ let test_isa_family_admission repo =
      at all - this project's own [lower_instruction] already lowers an
      [Operand.Mem] ALU-immediate destination through the same
      [Lowered.Alu_rm_imm] codec the register destination uses - so this
-     slice moves 24 records on EACH x86 profile (8 + 8 + 8). *)
+     slice moves 24 records on EACH x86 profile (8 + 8 + 8).
+
+     rv_v_aliases' eleven riscv-opcodes-native deprecated pseudo-op
+     spellings for already-admitted rv_v mnemonics - vpopc.m (vcpop.m),
+     vmandnot.mm/vmornot.mm (vmandn.mm/vmorn.mm), vfredsum.vs/vfwredsum.vs
+     (vfredusum.vs/vfwredusum.vs), vl1r.v/vl2r.v/vl4r.v/vl8r.v
+     (vl1re8.v/vl2re8.v/vl4re8.v/vl8re8.v), and vle1.v/vse1.v (vlm.v/
+     vsm.v) - are each a single, non-import-duplicated record whose own
+     mask/value is identical to the canonical mnemonic it specializes
+     (hand-verified against real GNU as for all eleven), so each reuses
+     the canonical mnemonic's own normalization shape function unchanged;
+     the assembler's own frontend needed one small addition -
+     [Opcode.of_mnemonic] resolves each deprecated spelling to the
+     canonical opcode before table lookup, rather than a new opcode
+     variant - confirmed byte-identical against real GNU as via this
+     project's own encoder too. This slice moves 11 records on EACH RISC-V
+     profile. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:691 ~blocked:378;
+    ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:733 ~blocked:391;
+    ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
     ~promoted_support:51 ~blocked:7831;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -712,9 +728,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1586)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1608)"
        !roundtrip_count)
-    (!roundtrip_count = 1586)
+    (!roundtrip_count = 1608)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

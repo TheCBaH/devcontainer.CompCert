@@ -829,6 +829,10 @@ val vmandn_mm_entries : entry list
 (** [vmandn.mm v1, v2, v3] - {!vmand_mm_entries}'s complement-first
     sibling. *)
 
+val vmandnot_mm_entries : entry list
+(** [vmandnot.mm v1, v2, v3] - riscv-opcodes' own deprecated spelling for
+    {!vmandn_mm_entries}, mask/value identical to the canonical mnemonic. *)
+
 val vmor_mm_entries : entry list
 (** [vmor.mm v1, v2, v3] - {!vmand_mm_entries}'s logical-or sibling. *)
 
@@ -838,6 +842,10 @@ val vmxor_mm_entries : entry list
 val vmorn_mm_entries : entry list
 (** [vmorn.mm v1, v2, v3] - {!vmand_mm_entries}'s complement-first
     logical-or sibling. *)
+
+val vmornot_mm_entries : entry list
+(** [vmornot.mm v1, v2, v3] - riscv-opcodes' own deprecated spelling for
+    {!vmorn_mm_entries}, mask/value identical to the canonical mnemonic. *)
 
 val vmnand_mm_entries : entry list
 (** [vmnand.mm v1, v2, v3] - {!vmand_mm_entries}'s negated sibling. *)
@@ -1082,6 +1090,10 @@ val vcpop_m_entries : entry list
 (** [vcpop.m a0, v2] - the same [rd, rs2] shape as {!vmsbf_m_entries} but
     with a GPR destination. *)
 
+val vpopc_m_entries : entry list
+(** [vpopc.m a0, v2] - riscv-opcodes' own deprecated spelling for
+    {!vcpop_m_entries}, mask/value identical to the canonical mnemonic. *)
+
 val vfirst_m_entries : entry list
 (** [vfirst.m a0, v2] - {!vcpop_m_entries}'s first-set-bit-index
     sibling. *)
@@ -1303,6 +1315,11 @@ val vfredusum_vs_entries : entry list
 (** [vfredusum.vs v1, v2, v3] - the same shape as
     {!vfredosum_vs_entries}. *)
 
+val vfredsum_vs_entries : entry list
+(** [vfredsum.vs v1, v2, v3] - riscv-opcodes' own deprecated spelling for
+    {!vfredusum_vs_entries}, mask/value identical to the canonical
+    mnemonic. *)
+
 val vfredmin_vs_entries : entry list
 (** [vfredmin.vs v1, v2, v3] - the same shape as {!vfredosum_vs_entries}. *)
 
@@ -1485,6 +1502,11 @@ val vfwredusum_vs_entries : entry list
 (** [vfwredusum.vs v1, v2, v3] - {!vfwredosum_vs_entries}'s unordered-sum
     sibling. *)
 
+val vfwredsum_vs_entries : entry list
+(** [vfwredsum.vs v1, v2, v3] - riscv-opcodes' own deprecated spelling for
+    {!vfwredusum_vs_entries}, mask/value identical to the canonical
+    mnemonic. *)
+
 val vfwcvt_xu_f_v_entries : entry list
 (** [vfwcvt.xu.f.v v1, v2] - the widening float->unsigned-integer
     conversion, {!vfcvt_xu_f_v_entries}'s exact "vd, vs2" shape reused. *)
@@ -1603,6 +1625,14 @@ val vlm_v_entries : entry list
 val vsm_v_entries : entry list
 (** [vsm.v v1, (a0)] - {!vlm_v_entries}'s store-shape sibling. *)
 
+val vle1_v_entries : entry list
+(** [vle1.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vlm_v_entries}, mask/value identical to the canonical mnemonic. *)
+
+val vse1_v_entries : entry list
+(** [vse1.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vsm_v_entries}, mask/value identical to the canonical mnemonic. *)
+
 val vle8ff_v_entries : entry list
 (** [vle8ff.v v1, (a0)] - V's fault-only-first unit-stride load,
     {!vle8_v_entries}'s exact shape reused (no store counterpart). *)
@@ -1712,6 +1742,10 @@ val vl1re8_v_entries : entry list
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
     variant). *)
 
+val vl1r_v_entries : entry list
+(** [vl1r.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vl1re8_v_entries}, mask/value identical to the canonical mnemonic. *)
+
 val vl1re16_v_entries : entry list
 (** [vl1re16.v v1, (a0)] - V's whole-register load,
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
@@ -1731,6 +1765,10 @@ val vl2re8_v_entries : entry list
 (** [vl2re8.v v1, (a0)] - V's whole-register load,
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
     variant). *)
+
+val vl2r_v_entries : entry list
+(** [vl2r.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vl2re8_v_entries}, mask/value identical to the canonical mnemonic. *)
 
 val vl2re16_v_entries : entry list
 (** [vl2re16.v v1, (a0)] - V's whole-register load,
@@ -1752,6 +1790,10 @@ val vl4re8_v_entries : entry list
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
     variant). *)
 
+val vl4r_v_entries : entry list
+(** [vl4r.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vl4re8_v_entries}, mask/value identical to the canonical mnemonic. *)
+
 val vl4re16_v_entries : entry list
 (** [vl4re16.v v1, (a0)] - V's whole-register load,
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
@@ -1771,6 +1813,10 @@ val vl8re8_v_entries : entry list
 (** [vl8re8.v v1, (a0)] - V's whole-register load,
     {!vle8_v_entries}'s shape reused (fixed lumop/nf, no masked
     variant). *)
+
+val vl8r_v_entries : entry list
+(** [vl8r.v v1, (a0)] - riscv-opcodes' own deprecated spelling for
+    {!vl8re8_v_entries}, mask/value identical to the canonical mnemonic. *)
 
 val vl8re16_v_entries : entry list
 (** [vl8re16.v v1, (a0)] - V's whole-register load,
