@@ -147,6 +147,9 @@ let test_counts () =
          (fun (e : Isa_gen_difficult.entry) -> e.target = Target.Riscv32)
          (Isa_gen_difficult.aes32dsi_entries @ Isa_gen_difficult.aes32dsmi_entries
         @ Isa_gen_difficult.aes32esi_entries @ Isa_gen_difficult.aes32esmi_entries));
+  check "sm4ed/sm4ks entries have 2 entries each (Zksed Req_any, both profiles)"
+    (List.length Isa_gen_difficult.sm4ed_entries = 2
+    && List.length Isa_gen_difficult.sm4ks_entries = 2);
   check
     "csrrw/csrrs/csrrc/csrrwi/csrrsi/csrrci entries have 2 entries each (XLEN-independent x 2 \
      profiles)"
@@ -1202,6 +1205,8 @@ let test_counts () =
       + List.length Isa_gen_difficult.aes32dsmi_entries
       + List.length Isa_gen_difficult.aes32esi_entries
       + List.length Isa_gen_difficult.aes32esmi_entries
+      + List.length Isa_gen_difficult.sm4ed_entries
+      + List.length Isa_gen_difficult.sm4ks_entries
       + List.length Isa_gen_difficult.csrrw_entries
       + List.length Isa_gen_difficult.csrrs_entries
       + List.length Isa_gen_difficult.csrrc_entries
@@ -2837,6 +2842,20 @@ let test_aes32_domain () =
     (Isa_gen_difficult.aes32dsi_entries @ Isa_gen_difficult.aes32dsmi_entries
    @ Isa_gen_difficult.aes32esi_entries @ Isa_gen_difficult.aes32esmi_entries)
 
+(* sm4ed/sm4ks: the same three-GPR-plus-bs-immediate shape {!test_aes32_domain}
+   checks, but unlike AES-32 these cover both profiles, not RV32-only. *)
+let test_sm4_domain () =
+  List.iter
+    (fun (e : Isa_gen_difficult.entry) ->
+      check
+        (Printf.sprintf "%s: uses three ordinary GPR operands plus a bs immediate" e.case_id)
+        (List.map fst e.operands = [ "rd"; "rs1"; "rs2"; "bs" ]
+        && List.map snd e.operands = [ "a0"; "a1"; "a2"; "3" ]);
+      check
+        (Printf.sprintf "%s: enables only the measured Zksed extension" e.case_id)
+        (List.exists (fun arg -> String.contains arg 'z') e.configuration))
+    (Isa_gen_difficult.sm4ed_entries @ Isa_gen_difficult.sm4ks_entries)
+
 (* csrrw/csrrs/csrrc: rd/csr/rs1 operands, GAS's own text order (not
    riscv-opcodes' rd/rs1/csr field order). *)
 let test_csr_reg_domain () =
@@ -3096,6 +3115,7 @@ let () =
   test_shamt_domain ();
   test_aes64ks1i_domain ();
   test_aes32_domain ();
+  test_sm4_domain ();
   test_csr_reg_domain ();
   test_csr_imm_domain ();
   test_csrr_domain ();

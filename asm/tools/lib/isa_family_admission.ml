@@ -205,6 +205,7 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("czero.eqz" | "czero.nez") ) ->
       true
   | (Target.Riscv32 | Target.Riscv64), ("riscv:sm3p0" | "riscv:sm3p1"), ("sm3p0" | "sm3p1") -> true
+  | (Target.Riscv32 | Target.Riscv64), ("riscv:sm4ed" | "riscv:sm4ks"), ("sm4ed" | "sm4ks") -> true
   | (Target.Riscv32 | Target.Riscv64), ("riscv:xperm4" | "riscv:xperm8"), ("xperm4" | "xperm8") ->
       true
   | ( (Target.Riscv32 | Target.Riscv64),

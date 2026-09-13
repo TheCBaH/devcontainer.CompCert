@@ -219,6 +219,8 @@ module Make (P : PROFILE) = struct
       | Czero_nez
       | Sm3p0
       | Sm3p1
+      | Sm4ed
+      | Sm4ks
       | Xperm4
       | Xperm8
       | Sha256sum0
@@ -890,6 +892,8 @@ module Make (P : PROFILE) = struct
       | Czero_nez -> "czero.nez"
       | Sm3p0 -> "sm3p0"
       | Sm3p1 -> "sm3p1"
+      | Sm4ed -> "sm4ed"
+      | Sm4ks -> "sm4ks"
       | Xperm4 -> "xperm4"
       | Xperm8 -> "xperm8"
       | Sha256sum0 -> "sha256sum0"
@@ -1562,6 +1566,8 @@ module Make (P : PROFILE) = struct
         Czero_nez;
         Sm3p0;
         Sm3p1;
+        Sm4ed;
+        Sm4ks;
         Xperm4;
         Xperm8;
         Sha256sum0;
@@ -4606,7 +4612,7 @@ module Make (P : PROFILE) = struct
                   ]
             | _ -> wrong opn)
         | _ -> wrong opn)
-    | (Opcode.Aes32dsi | Aes32dsmi | Aes32esi | Aes32esmi), [ a; b; c; bs ] -> (
+    | (Opcode.Aes32dsi | Aes32dsmi | Aes32esi | Aes32esmi | Sm4ed | Sm4ks), [ a; b; c; bs ] -> (
         (* [aes32dsi/aes32dsmi/aes32esi/aes32esmi rd, rs1, rs2, bs] - AES-32's
            byte-select-parameterized round functions. [bs] is a real,
            syntax-visible 2-bit immediate, but unlike [aes64ks1i]'s [rnum] it
@@ -4629,13 +4635,22 @@ module Make (P : PROFILE) = struct
            2.43.1 for all four mnemonics x all four bs values (16 cases):
            `aes32dsi a0,a1,a2,1` -> `6ac58533`, matching
            `(1 lsl 5) lor 0x15 = 0x35` as the composed funct7. Real GNU as
-           rejects all four mnemonics outright on RV64 (genuinely absent,
-           not merely extension-gated). *)
+           rejects all four AES-32 mnemonics outright on RV64 (genuinely
+           absent, not merely extension-gated).
+
+           [sm4ed]/[sm4ks] (Zksed's own SM4 round/key-schedule functions)
+           share this identical shape and [bs]-composition rule, but - unlike
+           the AES-32 four - real GNU as accepts BOTH on BOTH profiles
+           (confirmed: riscv32-linux-gnu-as 2.43.1 and riscv64-linux-gnu-as
+           2.44 both assemble `sm4ed a0,a1,a2,1` -> `70c58533`, matching
+           `(1 lsl 5) lor 0x18 = 0x38`). *)
         let base = function
           | Opcode.Aes32dsi -> Some 0x15
           | Aes32dsmi -> Some 0x17
           | Aes32esi -> Some 0x11
           | Aes32esmi -> Some 0x13
+          | Sm4ed -> Some 0x18
+          | Sm4ks -> Some 0x1a
           | _ -> None
         in
         match (xreg a, xreg b, xreg c, expr_of bs, base i.op) with

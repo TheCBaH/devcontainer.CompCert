@@ -2327,6 +2327,17 @@ val aes32esmi_entries : entry list
     mixed-columns sibling (same Req_any group, opcode, funct3; only the
     fixed 5-bit selector portion of funct7 differs). *)
 
+val sm4ed_entries : entry list
+(** [sm4ed a0, a1, a2, 3] on both profiles - Zksed's SM4 round function,
+    the same three-GPR-plus-bs-immediate shape as {!aes32dsi_entries} but a
+    two-way Req_any group (rv_zksed primary, imported by rv_zks alone) -
+    unlike AES-32, riscv-opcodes has a record on both profiles. *)
+
+val sm4ks_entries : entry list
+(** [sm4ks a0, a1, a2, 3] on both profiles, {!sm4ed_entries}'s
+    key-schedule sibling (same Req_any group; only the fixed 5-bit selector
+    portion of funct7 differs). *)
+
 val csrrw_entries : entry list
 (** [csrrw a0, 0x300, a1] on both profiles - Zicsr's register-source
     read/write CSR form, [rd, csr, rs1] operands (GAS's own text order,
@@ -2500,6 +2511,7 @@ val all : entry list
     aes64es_entries @ aes64esm_entries @ aes64ks2_entries @
     aes64im_entries @ aes64ks1i_entries @ aes32dsi_entries @
     aes32dsmi_entries @ aes32esi_entries @ aes32esmi_entries @
+    sm4ed_entries @ sm4ks_entries @
     csrrw_entries @ csrrs_entries @ csrrc_entries @ csrrwi_entries @
     csrrsi_entries @ csrrci_entries @ csrr_entries @ csrw_entries @
     csrs_entries @ csrc_entries @ csrwi_entries @ csrsi_entries @

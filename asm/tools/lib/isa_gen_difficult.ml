@@ -1079,6 +1079,29 @@ let aes32esmi_entries =
       ~configuration_for:zkne_configuration_for Target.Riscv32;
   ]
 
+(* sm4ed/sm4ks (Zksed's SM4 round/key-schedule functions): the same
+   three-GPR-plus-bs-immediate shape as AES-32's own four, reusing
+   {!aes32_imm_entry} verbatim - but unlike AES-32, riscv-opcodes has a
+   record on BOTH profiles here (no RV32-only restriction; confirmed
+   against real GNU as both mnemonics assemble on RV64 too). *)
+let zksed_configuration_for = function
+  | Target.Riscv32 -> [ "-march=rv32im_zksed"; "-mabi=ilp32"; "-mno-relax" ]
+  | Target.Riscv64 -> [ "-march=rv64im_zksed"; "-mabi=lp64"; "-mno-relax" ]
+  | (Target.X86_32 | Target.X86_64 | Target.Arm | Target.Aarch64) as t ->
+      Isa_gen_case_build.configuration_for t
+
+let sm4ed_entries =
+  List.map
+    (aes32_imm_entry ~mnemonic:"sm4ed" ~variant_name:"round-function"
+       ~configuration_for:zksed_configuration_for)
+    [ Target.Riscv32; Target.Riscv64 ]
+
+let sm4ks_entries =
+  List.map
+    (aes32_imm_entry ~mnemonic:"sm4ks" ~variant_name:"key-schedule"
+       ~configuration_for:zksed_configuration_for)
+    [ Target.Riscv32; Target.Riscv64 ]
+
 (* csrrw/csrrs/csrrc/csrrwi/csrrsi/csrrci: Zicsr's CSR forms, the first
    family here outside Zb/Zk - XLEN-independent (both profiles accept
    identical syntax), no Req_any (a single rv_zicsr record per mnemonic).
@@ -3436,47 +3459,47 @@ let all =
   @ sha512sig1l_entries @ sha512sig0h_entries @ sha512sig1h_entries @ aes64ds_entries
   @ aes64dsm_entries @ aes64es_entries @ aes64esm_entries @ aes64ks2_entries @ aes64im_entries
   @ aes64ks1i_entries @ aes32dsi_entries @ aes32dsmi_entries @ aes32esi_entries @ aes32esmi_entries
-  @ csrrw_entries @ csrrs_entries @ csrrc_entries @ csrrwi_entries @ csrrsi_entries @ csrrci_entries
-  @ csrr_entries @ csrw_entries @ csrs_entries @ csrc_entries @ csrwi_entries @ csrsi_entries
-  @ csrci_entries @ amoswap_w_entries @ amoadd_w_entries @ amoxor_w_entries @ amoand_w_entries
-  @ amoor_w_entries @ amomin_w_entries @ amomax_w_entries @ amominu_w_entries @ amomaxu_w_entries
-  @ sc_w_entries @ lr_w_entries @ amoswap_d_entries @ amoadd_d_entries @ amoxor_d_entries
-  @ amoand_d_entries @ amoor_d_entries @ amomin_d_entries @ amomax_d_entries @ amominu_d_entries
-  @ amomaxu_d_entries @ sc_d_entries @ lr_d_entries @ fsgnj_s_entries @ fsgnjn_s_entries
-  @ fsgnjx_s_entries @ fsgnj_d_entries @ fsgnjn_d_entries @ fsgnjx_d_entries @ fmin_s_entries
-  @ fmax_s_entries @ fmin_d_entries @ fmax_d_entries @ fsqrt_s_entries @ fsqrt_d_entries
-  @ fclass_s_entries @ fclass_d_entries @ fmadd_s_entries @ fmsub_s_entries @ fnmsub_s_entries
-  @ fnmadd_s_entries @ fmadd_d_entries @ fmsub_d_entries @ fnmsub_d_entries @ fnmadd_d_entries
-  @ feq_s_entries @ fle_s_entries @ flt_s_entries @ feq_d_entries @ fle_d_entries @ flt_d_entries
-  @ fmv_x_w_entries @ fmv_w_x_entries @ fcvt_w_s_entries @ fcvt_wu_s_entries @ fcvt_s_w_entries
-  @ fcvt_s_wu_entries @ fcvt_w_d_entries @ fcvt_wu_d_entries @ fcvt_d_w_entries @ fcvt_d_wu_entries
-  @ fcvt_s_d_entries @ fcvt_d_s_entries @ fcvt_l_d_entries @ fcvt_lu_d_entries @ fcvt_l_s_entries
-  @ fcvt_lu_s_entries @ fcvt_s_l_entries @ fcvt_s_lu_entries @ fcvt_d_l_entries @ fcvt_d_lu_entries
-  @ vsetvl_entries @ vsetvli_entries @ vsetivli_entries @ vadd_vv_entries @ vadd_vx_entries
-  @ vadd_vi_entries @ vsub_vv_entries @ vsub_vx_entries @ vrsub_vx_entries @ vrsub_vi_entries
-  @ vand_vv_entries @ vand_vx_entries @ vand_vi_entries @ vor_vv_entries @ vor_vx_entries
-  @ vor_vi_entries @ vxor_vv_entries @ vxor_vx_entries @ vxor_vi_entries @ vsll_vv_entries
-  @ vsll_vx_entries @ vsll_vi_entries @ vsrl_vv_entries @ vsrl_vx_entries @ vsrl_vi_entries
-  @ vsra_vv_entries @ vsra_vx_entries @ vsra_vi_entries @ vminu_vv_entries @ vminu_vx_entries
-  @ vmin_vv_entries @ vmin_vx_entries @ vmaxu_vv_entries @ vmaxu_vx_entries @ vmax_vv_entries
-  @ vmax_vx_entries @ vmul_vv_entries @ vmul_vx_entries @ vmulh_vv_entries @ vmulh_vx_entries
-  @ vmulhu_vv_entries @ vmulhu_vx_entries @ vmulhsu_vv_entries @ vmulhsu_vx_entries
-  @ vdivu_vv_entries @ vdivu_vx_entries @ vdiv_vv_entries @ vdiv_vx_entries @ vremu_vv_entries
-  @ vremu_vx_entries @ vrem_vv_entries @ vrem_vx_entries @ vsaddu_vv_entries @ vsaddu_vx_entries
-  @ vsaddu_vi_entries @ vsadd_vv_entries @ vsadd_vx_entries @ vsadd_vi_entries @ vssubu_vv_entries
-  @ vssubu_vx_entries @ vssub_vv_entries @ vssub_vx_entries @ vaaddu_vv_entries @ vaaddu_vx_entries
-  @ vaadd_vv_entries @ vaadd_vx_entries @ vasubu_vv_entries @ vasubu_vx_entries @ vasub_vv_entries
-  @ vasub_vx_entries @ vnsrl_wv_entries @ vnsrl_wx_entries @ vnsrl_wi_entries @ vnsra_wv_entries
-  @ vnsra_wx_entries @ vnsra_wi_entries @ vnclipu_wv_entries @ vnclipu_wx_entries
-  @ vnclipu_wi_entries @ vnclip_wv_entries @ vnclip_wx_entries @ vnclip_wi_entries
-  @ vssrl_vv_entries @ vssrl_vx_entries @ vssrl_vi_entries @ vssra_vv_entries @ vssra_vx_entries
-  @ vssra_vi_entries @ vrgather_vv_entries @ vrgather_vx_entries @ vrgather_vi_entries
-  @ vrgatherei16_vv_entries @ vwaddu_vv_entries @ vwaddu_vx_entries @ vwadd_vv_entries
-  @ vwadd_vx_entries @ vwsubu_vv_entries @ vwsubu_vx_entries @ vwsub_vv_entries @ vwsub_vx_entries
-  @ vwaddu_wv_entries @ vwaddu_wx_entries @ vwadd_wv_entries @ vwadd_wx_entries @ vwsubu_wv_entries
-  @ vwsubu_wx_entries @ vwsub_wv_entries @ vwsub_wx_entries @ vwmulu_vv_entries @ vwmulu_vx_entries
-  @ vwmulsu_vv_entries @ vwmulsu_vx_entries @ vwmul_vv_entries @ vwmul_vx_entries
-  @ vsext_vf2_entries @ vsext_vf4_entries @ vsext_vf8_entries @ vzext_vf2_entries
+  @ sm4ed_entries @ sm4ks_entries @ csrrw_entries @ csrrs_entries @ csrrc_entries @ csrrwi_entries
+  @ csrrsi_entries @ csrrci_entries @ csrr_entries @ csrw_entries @ csrs_entries @ csrc_entries
+  @ csrwi_entries @ csrsi_entries @ csrci_entries @ amoswap_w_entries @ amoadd_w_entries
+  @ amoxor_w_entries @ amoand_w_entries @ amoor_w_entries @ amomin_w_entries @ amomax_w_entries
+  @ amominu_w_entries @ amomaxu_w_entries @ sc_w_entries @ lr_w_entries @ amoswap_d_entries
+  @ amoadd_d_entries @ amoxor_d_entries @ amoand_d_entries @ amoor_d_entries @ amomin_d_entries
+  @ amomax_d_entries @ amominu_d_entries @ amomaxu_d_entries @ sc_d_entries @ lr_d_entries
+  @ fsgnj_s_entries @ fsgnjn_s_entries @ fsgnjx_s_entries @ fsgnj_d_entries @ fsgnjn_d_entries
+  @ fsgnjx_d_entries @ fmin_s_entries @ fmax_s_entries @ fmin_d_entries @ fmax_d_entries
+  @ fsqrt_s_entries @ fsqrt_d_entries @ fclass_s_entries @ fclass_d_entries @ fmadd_s_entries
+  @ fmsub_s_entries @ fnmsub_s_entries @ fnmadd_s_entries @ fmadd_d_entries @ fmsub_d_entries
+  @ fnmsub_d_entries @ fnmadd_d_entries @ feq_s_entries @ fle_s_entries @ flt_s_entries
+  @ feq_d_entries @ fle_d_entries @ flt_d_entries @ fmv_x_w_entries @ fmv_w_x_entries
+  @ fcvt_w_s_entries @ fcvt_wu_s_entries @ fcvt_s_w_entries @ fcvt_s_wu_entries @ fcvt_w_d_entries
+  @ fcvt_wu_d_entries @ fcvt_d_w_entries @ fcvt_d_wu_entries @ fcvt_s_d_entries @ fcvt_d_s_entries
+  @ fcvt_l_d_entries @ fcvt_lu_d_entries @ fcvt_l_s_entries @ fcvt_lu_s_entries @ fcvt_s_l_entries
+  @ fcvt_s_lu_entries @ fcvt_d_l_entries @ fcvt_d_lu_entries @ vsetvl_entries @ vsetvli_entries
+  @ vsetivli_entries @ vadd_vv_entries @ vadd_vx_entries @ vadd_vi_entries @ vsub_vv_entries
+  @ vsub_vx_entries @ vrsub_vx_entries @ vrsub_vi_entries @ vand_vv_entries @ vand_vx_entries
+  @ vand_vi_entries @ vor_vv_entries @ vor_vx_entries @ vor_vi_entries @ vxor_vv_entries
+  @ vxor_vx_entries @ vxor_vi_entries @ vsll_vv_entries @ vsll_vx_entries @ vsll_vi_entries
+  @ vsrl_vv_entries @ vsrl_vx_entries @ vsrl_vi_entries @ vsra_vv_entries @ vsra_vx_entries
+  @ vsra_vi_entries @ vminu_vv_entries @ vminu_vx_entries @ vmin_vv_entries @ vmin_vx_entries
+  @ vmaxu_vv_entries @ vmaxu_vx_entries @ vmax_vv_entries @ vmax_vx_entries @ vmul_vv_entries
+  @ vmul_vx_entries @ vmulh_vv_entries @ vmulh_vx_entries @ vmulhu_vv_entries @ vmulhu_vx_entries
+  @ vmulhsu_vv_entries @ vmulhsu_vx_entries @ vdivu_vv_entries @ vdivu_vx_entries @ vdiv_vv_entries
+  @ vdiv_vx_entries @ vremu_vv_entries @ vremu_vx_entries @ vrem_vv_entries @ vrem_vx_entries
+  @ vsaddu_vv_entries @ vsaddu_vx_entries @ vsaddu_vi_entries @ vsadd_vv_entries @ vsadd_vx_entries
+  @ vsadd_vi_entries @ vssubu_vv_entries @ vssubu_vx_entries @ vssub_vv_entries @ vssub_vx_entries
+  @ vaaddu_vv_entries @ vaaddu_vx_entries @ vaadd_vv_entries @ vaadd_vx_entries @ vasubu_vv_entries
+  @ vasubu_vx_entries @ vasub_vv_entries @ vasub_vx_entries @ vnsrl_wv_entries @ vnsrl_wx_entries
+  @ vnsrl_wi_entries @ vnsra_wv_entries @ vnsra_wx_entries @ vnsra_wi_entries @ vnclipu_wv_entries
+  @ vnclipu_wx_entries @ vnclipu_wi_entries @ vnclip_wv_entries @ vnclip_wx_entries
+  @ vnclip_wi_entries @ vssrl_vv_entries @ vssrl_vx_entries @ vssrl_vi_entries @ vssra_vv_entries
+  @ vssra_vx_entries @ vssra_vi_entries @ vrgather_vv_entries @ vrgather_vx_entries
+  @ vrgather_vi_entries @ vrgatherei16_vv_entries @ vwaddu_vv_entries @ vwaddu_vx_entries
+  @ vwadd_vv_entries @ vwadd_vx_entries @ vwsubu_vv_entries @ vwsubu_vx_entries @ vwsub_vv_entries
+  @ vwsub_vx_entries @ vwaddu_wv_entries @ vwaddu_wx_entries @ vwadd_wv_entries @ vwadd_wx_entries
+  @ vwsubu_wv_entries @ vwsubu_wx_entries @ vwsub_wv_entries @ vwsub_wx_entries @ vwmulu_vv_entries
+  @ vwmulu_vx_entries @ vwmulsu_vv_entries @ vwmulsu_vx_entries @ vwmul_vv_entries
+  @ vwmul_vx_entries @ vsext_vf2_entries @ vsext_vf4_entries @ vsext_vf8_entries @ vzext_vf2_entries
   @ vzext_vf4_entries @ vzext_vf8_entries @ vmand_mm_entries @ vmandn_mm_entries @ vmor_mm_entries
   @ vmxor_mm_entries @ vmorn_mm_entries @ vmnand_mm_entries @ vmnor_mm_entries @ vmxnor_mm_entries
   @ vredsum_vs_entries @ vredand_vs_entries @ vredor_vs_entries @ vredxor_vs_entries

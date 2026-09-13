@@ -2452,6 +2452,12 @@ let sm3p0_json =
 let sm3p1_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 30, "name": "bits[31:30]", "width": 2}, {"lsb": 25, "name": "bits[29:25]", "width": 5}, {"lsb": 20, "name": "bits[24:20]", "width": 5}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 0, "name": "bits[6:0]", "width": 7}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}], "kind": "fixed_bits", "mask": "0xfff0707f", "value": "0x10901013", "width_bits": 32}, "kind": "instruction-form", "native_name": "sm3p1", "origin": {"line": 3, "path": "extensions/rv_zksh"}, "provenance": {"extension": "rv_zksh", "operands": ["rd", "rs1"], "raw": {"line": "sm3p1         rd rs1 31..30=0 29..25=0b01000 24..20=0b01001 14..12=1 6..0=0x13", "tokens": ["sm3p1", "rd", "rs1", "31..30=0", "29..25=0b01000", "24..20=0b01001", "14..12=1", "6..0=0x13"]}, "upstream-resolved": {"mask": "0xfff0707f", "match": "0x10901013", "variable_fields": ["rd", "rs1"]}}, "record_id": "riscv-opcodes:rv_zksh:sm3p1@L3", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
+let sm4ed_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[29:25]", "width": 5}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 0, "name": "bits[6:0]", "width": 7}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}, {"lsb": 30, "name": "bs", "width": 2}], "kind": "fixed_bits", "mask": "0x3e00707f", "value": "0x30000033", "width_bits": 32}, "kind": "instruction-form", "native_name": "sm4ed", "origin": {"line": 2, "path": "extensions/rv_zksed"}, "provenance": {"extension": "rv_zksed", "operands": ["rd", "rs1", "rs2", "bs"], "raw": {"line": "sm4ed         rd rs1 rs2 bs 29..25=0b11000 14..12=0 6..0=0x33", "tokens": ["sm4ed", "rd", "rs1", "rs2", "bs", "29..25=0b11000", "14..12=0", "6..0=0x33"]}, "upstream-resolved": {"mask": "0x3e00707f", "match": "0x30000033", "variable_fields": ["rd", "rs1", "rs2", "bs"]}}, "record_id": "riscv-opcodes:rv_zksed:sm4ed@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
+let sm4ks_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[29:25]", "width": 5}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 0, "name": "bits[6:0]", "width": 7}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}, {"lsb": 30, "name": "bs", "width": 2}], "kind": "fixed_bits", "mask": "0x3e00707f", "value": "0x34000033", "width_bits": 32}, "kind": "instruction-form", "native_name": "sm4ks", "origin": {"line": 3, "path": "extensions/rv_zksed"}, "provenance": {"extension": "rv_zksed", "operands": ["rd", "rs1", "rs2", "bs"], "raw": {"line": "sm4ks         rd rs1 rs2 bs 29..25=0b11010 14..12=0 6..0=0x33", "tokens": ["sm4ks", "rd", "rs1", "rs2", "bs", "29..25=0b11010", "14..12=0", "6..0=0x33"]}, "upstream-resolved": {"mask": "0x3e00707f", "match": "0x34000033", "variable_fields": ["rd", "rs1", "rs2", "bs"]}}, "record_id": "riscv-opcodes:rv_zksed:sm4ks@L3", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
 let xperm4_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0x28002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "xperm4", "origin": {"line": 1, "path": "extensions/rv_zbkx"}, "provenance": {"extension": "rv_zbkx", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "xperm4     rd rs1 rs2 31..25=20 14..12=2 6..2=0x0C 1..0=3", "tokens": ["xperm4", "rd", "rs1", "rs2", "31..25=20", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0x28002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbkx:xperm4@L1", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
@@ -2933,6 +2939,43 @@ let test_aes32esi () =
 let test_aes32esmi () =
   test_r_type_imm_gpr_any_rv32 ~import_group:aes32e_import_group ~mnemonic:"aes32esmi"
     ~json:aes32esmi_json
+
+(* sm4ed/sm4ks: Zksed's SM4 round/key-schedule functions, the same
+   three-GPR-plus-bs-immediate shape as AES-32's own four - but unlike
+   AES-32, riscv-opcodes has a record on BOTH profiles, so the Req_any is
+   plain (no Req_xlen wrapping the two-way group). *)
+let test_r_type_imm_gpr_any ~import_group ~mnemonic ~json =
+  let rec_ = decode_or_fail mnemonic json in
+  let form = normalize_or_fail mnemonic rec_ in
+  check
+    (mnemonic ^ ": requirement is Req_any over the import-group features")
+    (form.requirement
+    = Isa_norm_model.Req_any
+        (List.map
+           (fun feature -> Isa_norm_model.Req_feature (Printf.sprintf "riscv:%s" feature))
+           import_group));
+  check
+    (mnemonic ^ ": three GPR operands plus an unsigned 2-bit bs immediate")
+    (match form.operands with
+    | [
+     { op_kind = Register { class_ = Riscv_gpr; excluded = [] }; _ };
+     { op_kind = Register { class_ = Riscv_gpr; excluded = [] }; _ };
+     { op_kind = Register { class_ = Riscv_gpr; excluded = [] }; _ };
+     { op_kind = Immediate { width_bits = 2; signed = false; _ }; _ };
+    ] ->
+        true
+    | _ -> false);
+  check
+    (mnemonic ^ ": renders as rd, rs1, rs2, bs")
+    (Isa_norm_model.render_syntax form.syntax = Printf.sprintf "%s rd, rs1, rs2, bs" mnemonic)
+
+let zksed_import_group = [ "zksed"; "zks" ]
+
+let test_sm4ed () =
+  test_r_type_imm_gpr_any ~import_group:zksed_import_group ~mnemonic:"sm4ed" ~json:sm4ed_json
+
+let test_sm4ks () =
+  test_r_type_imm_gpr_any ~import_group:zksed_import_group ~mnemonic:"sm4ks" ~json:sm4ks_json
 
 (* csrrw/csrrs/csrrc: Zicsr's register-source CSR forms - a plain
    Req_feature (no import duplication, single rv_zicsr record per
@@ -5071,6 +5114,8 @@ let () =
   test_czero_nez ();
   test_sm3p0 ();
   test_sm3p1 ();
+  test_sm4ed ();
+  test_sm4ks ();
   test_xperm4 ();
   test_xperm8 ();
   test_sha256sum0 ();

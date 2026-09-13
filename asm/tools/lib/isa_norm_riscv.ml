@@ -22,6 +22,7 @@ let feature_of_extension = function
   | "rv_zbc" -> Req_feature "riscv:zbc"
   | "rv_zicond" -> Req_feature "riscv:zicond"
   | "rv_zksh" -> Req_feature "riscv:zksh"
+  | "rv_zksed" -> Req_feature "riscv:zksed"
   | "rv_zbkc" -> Req_feature "riscv:zbkc"
   | "rv_zbkx" -> Req_feature "riscv:zbkx"
   | "rv_zbs" -> Req_feature "riscv:zbs"
@@ -216,6 +217,13 @@ let alternative_extensions_by_mnemonic =
      grepping every candidate's own provenance.extension across the whole
      checked-in export before writing any code. *)
   let zksh_import_group = [ "rv_zksh"; "rv_zks" ] in
+  (* sm4ed/sm4ks (Zksed's SM4 round/key-schedule functions) are the same
+     two-way import group as sm3p0/sm3p1 above, rooted in Zksed instead:
+     primary rv_zksed, imported by rv_zks alone (confirmed directly against
+     real GNU as: `-march=...i_zks` alone assembles both mnemonics
+     byte-identical to `-march=...i_zksed`, on both RV32 and RV64 - unlike
+     the AES-32 four, riscv-opcodes has no RV64 record split here at all). *)
+  let zksed_import_group = [ "rv_zksed"; "rv_zks" ] in
   (* vsha2ms.vv/vsha2ch.vv/vsha2cl.vv (Zvknha's SHA-256 vector helpers) are a
      three-way import group, XLEN-independent: riscv-opcodes' primary record
      is rv_zvknha, imported by rv_zvknhb (SHA-256-and-512's superset
@@ -329,6 +337,8 @@ let alternative_extensions_by_mnemonic =
     ("aes32esmi", aes32e_import_group_rv32);
     ("sm3p0", zksh_import_group);
     ("sm3p1", zksh_import_group);
+    ("sm4ed", zksed_import_group);
+    ("sm4ks", zksed_import_group);
     ("vsha2ms.vv", zvknha_import_group);
     ("vsha2ch.vv", zvknha_import_group);
     ("vsha2cl.vv", zvknha_import_group);
@@ -4735,6 +4745,12 @@ let normalize (rec_ : R.t) =
       r_type_imm_gpr_form ~mnemonic:"aes32esi" ~width:2 ~operand_name:"bs" ~field_name:"bs" rec_
   | "aes32esmi" ->
       r_type_imm_gpr_form ~mnemonic:"aes32esmi" ~width:2 ~operand_name:"bs" ~field_name:"bs" rec_
+  (* sm4ed/sm4ks: Zksed's own SM4 round/key-schedule functions - the same
+     r_type_imm_gpr_form shape AES-32's own four use. *)
+  | "sm4ed" ->
+      r_type_imm_gpr_form ~mnemonic:"sm4ed" ~width:2 ~operand_name:"bs" ~field_name:"bs" rec_
+  | "sm4ks" ->
+      r_type_imm_gpr_form ~mnemonic:"sm4ks" ~width:2 ~operand_name:"bs" ~field_name:"bs" rec_
   (* Zicsr's register-source and immediate-source CSR forms. *)
   | "csrrw" -> csr_reg_form ~mnemonic:"csrrw" rec_
   | "csrrs" -> csr_reg_form ~mnemonic:"csrrs" rec_
