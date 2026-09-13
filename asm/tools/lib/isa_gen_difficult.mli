@@ -135,6 +135,26 @@ val x86_alu_immz_entries : entry list
     ADD_GPRv_IMMz form is a deliberate bare-mnemonic frontier-gap design
     test, not reused here). *)
 
+val x86_alu_immb_entries : entry list
+(** [addl]/[orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl] register/immediate
+    on x86-32 and x86-64, {!x86_alu_immz_entries}'s own shape with a
+    byte-fitting immediate (opcode 0x83) rather than the immz rung's own
+    (opcode 0x81) - includes [add] this time, since the immz family's own
+    [add] exclusion is specific to [ADD_GPRv_IMMz]'s bare-mnemonic design
+    test, not a precedent this rung repeats. *)
+
+val x86_alu_memv_immb_entries : entry list
+(** [addl]/[orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl] memory<-immediate
+    (base+disp8 SIB, opcode 0x83) on x86-32 and x86-64, {!x86_alu_memv_entries}'s
+    own addressing combined with {!x86_alu_immb_entries}'s own byte-fitting
+    immediate. *)
+
+val x86_alu_memv_immz_entries : entry list
+(** [addl]/[orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl] memory<-immediate
+    (base+disp8 SIB, opcode 0x81) on x86-32 and x86-64, {!x86_alu_memv_entries}'s
+    own addressing combined with {!x86_alu_immz_entries}'s own too-wide-for-a-byte
+    immediate. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2512,6 +2532,7 @@ val lr_d_entries : entry list
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_immz_entries @
+    x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @
     x86_fadd_entries @ fadd_s_entries @
     fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @

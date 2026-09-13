@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:711;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:763;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:32;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:32
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:56;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:56
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -638,15 +638,27 @@ let test_isa_family_admission repo =
      straight from blocked to promoted-support; SBB needed its own small
      encoder change too (Opcode.to_ext/of_ext gained the one gap at ext
      3, and the Alu_rm_imm-producing lowering arm's opcode list gained
-     Sbb), so this slice moves 7 records on EACH x86 profile. *)
+     Sbb), so this slice moves 7 records on EACH x86 profile.
+
+     x86's ADD/OR/ADC/SBB/AND/SUB/XOR/CMP_GPRv_IMMb (the imm8 rung of the
+     same register/immediate ALU family, opcode 0x83 - includes ADD this
+     time, since the immz rung's own ADD exclusion is specific to
+     ADD_GPRv_IMMz's bare-mnemonic design test) plus the MEMv<-IMMb and
+     MEMv<-IMMz directions of all eight mnemonics (opcodes 0x83/0x81 with
+     a memory r/m) are each a single, non-import-duplicated I86 record,
+     straight from blocked to promoted-support, needing no encoder change
+     at all - this project's own [lower_instruction] already lowers an
+     [Operand.Mem] ALU-immediate destination through the same
+     [Lowered.Alu_rm_imm] codec the register destination uses - so this
+     slice moves 24 records on EACH x86 profile (8 + 8 + 8). *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:691 ~blocked:378;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:733 ~blocked:391;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:27 ~blocked:7855;
+    ~promoted_support:51 ~blocked:7831;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:27 ~blocked:10539
+    ~promoted_support:51 ~blocked:10515
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -700,9 +712,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1538)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1586)"
        !roundtrip_count)
-    (!roundtrip_count = 1538)
+    (!roundtrip_count = 1586)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

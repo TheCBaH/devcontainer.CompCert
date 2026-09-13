@@ -200,6 +200,88 @@ let alu_gprv_immz_form ~form_id ~mnemonic (rec_ : R.t) =
             ];
         }
 
+(* The register/immediate ALU family's imm8 rung (ADD/OR/ADC/SBB/AND/SUB/
+   XOR/CMP_GPRv_IMMb, opcode 0x83): {!alu_gprv_immz_form}'s own shape with
+   IMM0's oc2 "b" in place of "z" - GAS picks this opcode automatically
+   whenever the immediate value fits a signed byte (confirmed against real
+   GNU as: [addl $5, %ecx] -> [83 c1 05] versus [addl $1000000, %ecx] ->
+   [81 ...]), so this iform's own reconstructed immediate value is still
+   sign-extended to the destination's operand-size-dependent width - "b"
+   names the encoded field's width, not the reconstructed value's, the same
+   reason {!alu_gprv_immz_form}'s own "z" case leaves width_bits unstated. *)
+let alu_gprv_immb_form ~form_id ~mnemonic (rec_ : R.t) =
+  match x86_encoding_of rec_ with
+  | Error msg -> err (form_id ^ "-not-x86-encoding") msg
+  | Ok encoding ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = In_out;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 0;
+                signed = true;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ dest; imm ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [ Syn_decorated ("$", Syn_operand "imm"); Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  "REG0 (GPRv_B, rw), IMM0 (imm_const, oc2 b) taken verbatim from encoding.operands";
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source immediate, then destination register) is GAS \
+                   convention, not a XED fact";
+              };
+            ];
+          diagnostics =
+            [
+              {
+                rule = "xed-imm-width-oc2-b";
+                message =
+                  "XED's oc2 'b' names this iform's own encoded-field width (a byte), not its \
+                   reconstructed value's width - GNU as sign-extends it to the destination's own \
+                   operand-size-dependent width, which this normalization does not resolve, so \
+                   imm.width_bits is left 0/unstated rather than guessed, matching the 'z' rung's \
+                   own precedent";
+              };
+            ];
+        }
+
 (* FADD_ST0_X87: REG0 is the implicit, IMPLICIT-visibility ST0 (read-write);
    REG1 is the explicit ST(i) source via the X87 lookup function; REG2 is a
    SUPPRESSED status-word write, never spelled in assembly text. This rule
@@ -400,6 +482,101 @@ let alu_gprv_memv_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* The MEMv<-IMMb/IMMz ALU-immediate direction (ADD/OR/ADC/SBB/AND/SUB/XOR/
+   CMP_MEMv_IMMb and _MEMv_IMMz, opcodes 0x83/0x81 with a memory r/m):
+   {!alu_gprv_immb_form}/{!alu_gprv_immz_form}'s own shape with the register
+   destination swapped for {!alu_gprv_memv_form}'s MEM0 operand - XED reports
+   MEM0 here as an [imm_const] operand exactly the way {!mov_gprv_memv_form}'s
+   own doc comment already explains, so this reuses that same MOD!=3/name
+   evidence rather than a genuine memory-typed source field. This project's
+   own encoder already lowers [Operand.Mem] destinations for every one of
+   these eight mnemonics through the same [Lowered.Alu_rm_imm] codec
+   {!alu_gprv_immb_form}'s register destination uses (x86_family_encode.ml's
+   [lower_instruction], the [Opcode.Add | ... ], [Imm v; Mem m] case) with no
+   further encoder change needed, unlike the register<-memory
+   [Alu_r_rm]/[Opcode.to_r_rm] direction that {!alu_gprv_memv_form}'s own
+   doc comment reports as still encoder-unsupported in the other direction. *)
+let alu_memv_imm_form ~form_id ~mnemonic ~oc2 (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "MEM0" && b.op_name = "IMM0" ->
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 0;
+                signed = true;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; mem ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_decorated ("$", Syn_operand "imm"); Syn_operand "mem" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "MEM0 (imm_const, oc2 %s, rw=%s), IMM0 (imm_const, oc2 %s, rw=%s) taken \
+                     verbatim from encoding.operands"
+                    (Option.value ~default:"?" a.oc2) a.rw (Option.value ~default:"?" b.oc2) b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source immediate, then destination memory) is GAS \
+                   convention, not a XED fact";
+              };
+            ];
+          diagnostics =
+            [
+              {
+                rule = Printf.sprintf "xed-imm-width-oc2-%s" oc2;
+                message =
+                  Printf.sprintf
+                    "XED's oc2 '%s' names this iform's own encoded-field width, not its \
+                     reconstructed value's width, which GNU as sign-extends to the destination's \
+                     own operand-size-dependent width; this normalization does not resolve that, \
+                     so imm.width_bits is left 0/unstated rather than guessed"
+                    oc2;
+              };
+            ];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected MEM0/IMM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* Generic two-operand GPRv ALU/MOV forms (the legacy
    register/register and register/immediate x86 pilot): exactly one of
    [encoding.operands] is a GPRv-lookup register or an oc2 "z" immediate
@@ -596,14 +773,73 @@ let normalize (rec_ : R.t) =
       alu_gprv_immz_form ~form_id:"XOR_GPRv_IMMz" ~mnemonic:"xorl" rec_
   | Ok { iform = Some "CMP_GPRv_IMMz"; _ } ->
       alu_gprv_immz_form ~form_id:"CMP_GPRv_IMMz" ~mnemonic:"cmpl" rec_
+  (* The imm8 rung of the same register/immediate ALU family (opcode 0x83,
+     {!alu_gprv_immb_form}'s own doc comment) - includes ADD this time, unlike
+     the "z" rung's dispatch above: ADD_GPRv_IMMz's bare "add" was a
+     deliberate one-off design test, not a precedent this rung repeats. *)
+  | Ok { iform = Some "ADD_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"ADD_GPRv_IMMb" ~mnemonic:"addl" rec_
+  | Ok { iform = Some "OR_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"OR_GPRv_IMMb" ~mnemonic:"orl" rec_
+  | Ok { iform = Some "ADC_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"ADC_GPRv_IMMb" ~mnemonic:"adcl" rec_
+  | Ok { iform = Some "SBB_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"SBB_GPRv_IMMb" ~mnemonic:"sbbl" rec_
+  | Ok { iform = Some "AND_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"AND_GPRv_IMMb" ~mnemonic:"andl" rec_
+  | Ok { iform = Some "SUB_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"SUB_GPRv_IMMb" ~mnemonic:"subl" rec_
+  | Ok { iform = Some "XOR_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"XOR_GPRv_IMMb" ~mnemonic:"xorl" rec_
+  | Ok { iform = Some "CMP_GPRv_IMMb"; _ } ->
+      alu_gprv_immb_form ~form_id:"CMP_GPRv_IMMb" ~mnemonic:"cmpl" rec_
+  (* The MEMv<-IMMb/IMMz ALU-immediate direction ({!alu_memv_imm_form}'s own
+     doc comment): both opcode rungs (0x83 imm8, 0x81 immz) for all eight
+     mnemonics, since this project's own encoder already lowers both without
+     further change. *)
+  | Ok { iform = Some "ADD_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"ADD_MEMv_IMMb" ~mnemonic:"addl" ~oc2:"b" rec_
+  | Ok { iform = Some "OR_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"OR_MEMv_IMMb" ~mnemonic:"orl" ~oc2:"b" rec_
+  | Ok { iform = Some "ADC_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"ADC_MEMv_IMMb" ~mnemonic:"adcl" ~oc2:"b" rec_
+  | Ok { iform = Some "SBB_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"SBB_MEMv_IMMb" ~mnemonic:"sbbl" ~oc2:"b" rec_
+  | Ok { iform = Some "AND_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"AND_MEMv_IMMb" ~mnemonic:"andl" ~oc2:"b" rec_
+  | Ok { iform = Some "SUB_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"SUB_MEMv_IMMb" ~mnemonic:"subl" ~oc2:"b" rec_
+  | Ok { iform = Some "XOR_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"XOR_MEMv_IMMb" ~mnemonic:"xorl" ~oc2:"b" rec_
+  | Ok { iform = Some "CMP_MEMv_IMMb"; _ } ->
+      alu_memv_imm_form ~form_id:"CMP_MEMv_IMMb" ~mnemonic:"cmpl" ~oc2:"b" rec_
+  | Ok { iform = Some "ADD_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"ADD_MEMv_IMMz" ~mnemonic:"addl" ~oc2:"z" rec_
+  | Ok { iform = Some "OR_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"OR_MEMv_IMMz" ~mnemonic:"orl" ~oc2:"z" rec_
+  | Ok { iform = Some "ADC_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"ADC_MEMv_IMMz" ~mnemonic:"adcl" ~oc2:"z" rec_
+  | Ok { iform = Some "SBB_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"SBB_MEMv_IMMz" ~mnemonic:"sbbl" ~oc2:"z" rec_
+  | Ok { iform = Some "AND_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"AND_MEMv_IMMz" ~mnemonic:"andl" ~oc2:"z" rec_
+  | Ok { iform = Some "SUB_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"SUB_MEMv_IMMz" ~mnemonic:"subl" ~oc2:"z" rec_
+  | Ok { iform = Some "XOR_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"XOR_MEMv_IMMz" ~mnemonic:"xorl" ~oc2:"z" rec_
+  | Ok { iform = Some "CMP_MEMv_IMMz"; _ } ->
+      alu_memv_imm_form ~form_id:"CMP_MEMv_IMMz" ~mnemonic:"cmpl" ~oc2:"z" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
            "Isa_norm_xed only normalizes the frozen pilot iforms, the register/register and \
             register/immediate legacy ADD/MOV forms, the explicit-32-bit-width \
             SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms, the explicit-32-bit-width \
-            ADD/ADC/XOR/SUB/AND/OR/SBB/CMP register<-memory forms, and the explicit-32-bit-width \
-            OR/ADC/SBB/AND/SUB/XOR/CMP register/immediate forms; %s is not one of them"
+            ADD/ADC/XOR/SUB/AND/OR/SBB/CMP register<-memory forms, the explicit-32-bit-width \
+            OR/ADC/SBB/AND/SUB/XOR/CMP register/immz forms, the explicit-32-bit-width \
+            ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb forms, and the explicit-32-bit-width \
+            ADD/OR/ADC/SBB/AND/SUB/XOR/CMP memory/immb and memory/immz forms; %s is not one of \
+            them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg
