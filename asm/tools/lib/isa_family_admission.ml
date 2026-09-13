@@ -130,6 +130,28 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "ADD_MEMv_IMMz" | "OR_MEMv_IMMz" | "ADC_MEMv_IMMz" | "SBB_MEMv_IMMz" | "AND_MEMv_IMMz"
       | "SUB_MEMv_IMMz" | "XOR_MEMv_IMMz" | "CMP_MEMv_IMMz" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADD_GPR8_IMMb_80r0" | "x86:OR_GPR8_IMMb_80r1" | "x86:ADC_GPR8_IMMb_80r2"
+      | "x86:SBB_GPR8_IMMb_80r3" | "x86:AND_GPR8_IMMb_80r4" | "x86:SUB_GPR8_IMMb_80r5"
+      | "x86:XOR_GPR8_IMMb_80r6" | "x86:CMP_GPR8_IMMb_80r7" ),
+      ( "ADD_GPR8_IMMb_80r0" | "OR_GPR8_IMMb_80r1" | "ADC_GPR8_IMMb_80r2" | "SBB_GPR8_IMMb_80r3"
+      | "AND_GPR8_IMMb_80r4" | "SUB_GPR8_IMMb_80r5" | "XOR_GPR8_IMMb_80r6" | "CMP_GPR8_IMMb_80r7" )
+    ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADD_MEMb_IMMb_80r0" | "x86:OR_MEMb_IMMb_80r1" | "x86:ADC_MEMb_IMMb_80r2"
+      | "x86:SBB_MEMb_IMMb_80r3" | "x86:AND_MEMb_IMMb_80r4" | "x86:SUB_MEMb_IMMb_80r5"
+      | "x86:XOR_MEMb_IMMb_80r6" | "x86:CMP_MEMb_IMMb_80r7" ),
+      ( "ADD_MEMb_IMMb_80r0" | "OR_MEMb_IMMb_80r1" | "ADC_MEMb_IMMb_80r2" | "SBB_MEMb_IMMb_80r3"
+      | "AND_MEMb_IMMb_80r4" | "SUB_MEMb_IMMb_80r5" | "XOR_MEMb_IMMb_80r6" | "CMP_MEMb_IMMb_80r7" )
+    ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADD_AL_IMMb" | "x86:OR_AL_IMMb" | "x86:ADC_AL_IMMb" | "x86:SBB_AL_IMMb"
+      | "x86:AND_AL_IMMb" | "x86:SUB_AL_IMMb" | "x86:XOR_AL_IMMb" | "x86:CMP_AL_IMMb" ),
+      ( "ADD_AL_IMMb" | "OR_AL_IMMb" | "ADC_AL_IMMb" | "SBB_AL_IMMb" | "AND_AL_IMMb" | "SUB_AL_IMMb"
+      | "XOR_AL_IMMb" | "CMP_AL_IMMb" ) ) ->
+      true
   | (Target.Riscv32 | Target.Riscv64), "riscv:sw", "sw" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:beq", "beq" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:c.addi", "c.addi" -> true

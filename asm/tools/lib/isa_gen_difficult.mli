@@ -155,6 +155,24 @@ val x86_alu_memv_immz_entries : entry list
     own addressing combined with {!x86_alu_immz_entries}'s own too-wide-for-a-byte
     immediate. *)
 
+val x86_alu_gpr8_immb_entries : entry list
+(** [addb]/[orb]/[adcb]/[sbbb]/[andb]/[subb]/[xorb]/[cmpb] register/immediate
+    on x86-32 and x86-64 ([%cl], opcode 0x80) - GRP1's own byte-operand
+    rung, a genuinely different opcode from {!x86_alu_immb_entries}'s own
+    0x83 rung, not a narrower reading of it. *)
+
+val x86_alu_memb_immb_entries : entry list
+(** [addb]/[orb]/[adcb]/[sbbb]/[andb]/[subb]/[xorb]/[cmpb] memory<-immediate
+    (base+disp8 SIB, opcode 0x80) on x86-32 and x86-64,
+    {!x86_alu_memv_entries}'s own addressing combined with
+    {!x86_alu_gpr8_immb_entries}'s own byte-width immediate. *)
+
+val x86_alu_al_immb_entries : entry list
+(** [addb]/[orb]/[adcb]/[sbbb]/[andb]/[subb]/[xorb]/[cmpb] accumulator-immediate
+    ([%al], opcode [ext<<3 | 4]) on x86-32 and x86-64, using [$200] to also
+    exercise a raw-byte value outside the signed-imm8 range this form's
+    field still accepts unchanged. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
@@ -2579,6 +2597,7 @@ val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_immz_entries @
     x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @
+    x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries @
     x86_fadd_entries @ fadd_s_entries @
     fsub_s_entries @ fmul_s_entries @
     fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @

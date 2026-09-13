@@ -352,6 +352,120 @@ let x86_alu_memv_immz_entries =
         ])
     [ Target.X86_32; Target.X86_64 ]
 
+(* GRP1's byte-operand rung of the register/immediate ALU family (ADD/OR/
+   ADC/SBB/AND/SUB/XOR/CMP_GPR8_IMMb_80r<N>, opcode 0x80):
+   {!x86_alu_immb_entry}'s own shape, but [%cl] rather than [%ecx] - a byte
+   register name valid unchanged on both profiles, the same universal choice
+   {!x86_alu_rr_entry} already makes for its own register operands
+   ({!Isa_norm_xed.alu_gpr8_immb_form}'s own doc comment). *)
+let x86_alu_gpr8_immb_entry ~target ~form_id ~lookup_key =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-immediate:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "byte-width" ];
+    operands = [ ("imm", "5"); ("dest", "cl") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_alu_gpr8_immb_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_alu_gpr8_immb_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "ADD_GPR8_IMMb_80r0";
+          "OR_GPR8_IMMb_80r1";
+          "ADC_GPR8_IMMb_80r2";
+          "SBB_GPR8_IMMb_80r3";
+          "AND_GPR8_IMMb_80r4";
+          "SUB_GPR8_IMMb_80r5";
+          "XOR_GPR8_IMMb_80r6";
+          "CMP_GPR8_IMMb_80r7";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* The [0x80] rung's memory-destination sibling (ADD/OR/ADC/SBB/AND/SUB/XOR/
+   CMP_MEMb_IMMb_80r<N>): {!x86_alu_memv_imm_entry}'s own base+disp8 SIB
+   addressing at the single byte-width rung ({!Isa_norm_xed.alu_memb_immb_form}'s
+   own doc comment - there is no immz-width sibling to distinguish an
+   {!x86_alu_memv_imm_entry}-style [~imm] parameter for). *)
+let x86_alu_memb_immb_entry ~target ~form_id ~lookup_key =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:store-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "store-base-disp8-sib"; "byte-width" ];
+    operands = [ ("imm", "5"); ("mem", Printf.sprintf "16(%%%s)" stack) ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_alu_memb_immb_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_alu_memb_immb_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "ADD_MEMb_IMMb_80r0";
+          "OR_MEMb_IMMb_80r1";
+          "ADC_MEMb_IMMb_80r2";
+          "SBB_MEMb_IMMb_80r3";
+          "AND_MEMb_IMMb_80r4";
+          "SUB_MEMb_IMMb_80r5";
+          "XOR_MEMb_IMMb_80r6";
+          "CMP_MEMb_IMMb_80r7";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* The accumulator-immediate byte rung (ADD/OR/ADC/SBB/AND/SUB/XOR/
+   CMP_AL_IMMb, opcode [ext<<3 | 4]): a bare opcode-plus-immediate shape with
+   no register operand to substitute at all - [%al] is a fixed
+   [Syn_literal], not a [Syn_operand] ({!Isa_norm_xed.alu_al_immb_form}'s own
+   doc comment) - so unlike every entry above, [operands] carries only
+   [imm]. Uses [$200] rather than {!x86_alu_gpr8_immb_entry}'s [$5] so the
+   corpus also exercises a value outside the signed-imm8 range that
+   nonetheless fits this form's own raw-byte field unchanged
+   (x86_family_encode.ml's {!alu_acc_form_byte} doc comment: [addb $200,
+   %al] -> [04 c8]). *)
+let x86_alu_al_immb_entry ~target ~form_id ~lookup_key =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:accumulator-immediate:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "implicit-al-destination" ];
+    operands = [ ("imm", "200") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_alu_al_immb_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key -> x86_alu_al_immb_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "ADD_AL_IMMb";
+          "OR_AL_IMMb";
+          "ADC_AL_IMMb";
+          "SBB_AL_IMMb";
+          "AND_AL_IMMb";
+          "SUB_AL_IMMb";
+          "XOR_AL_IMMb";
+          "CMP_AL_IMMb";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
 let fadd_entry target =
   {
     form_id = "x86:FADD_ST0_X87";
@@ -3706,7 +3820,8 @@ let vfwmaccbf16_vf_entries = List.map vfwmaccbf16_vf_entry [ Target.Riscv32; Tar
 let all =
   sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_alu_rr_entries
   @ x86_alu_memv_entries @ x86_alu_immz_entries @ x86_alu_immb_entries @ x86_alu_memv_immb_entries
-  @ x86_alu_memv_immz_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries
+  @ x86_alu_memv_immz_entries @ x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries
+  @ x86_alu_al_immb_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries
   @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @ fdiv_d_entries @ flw_entries
   @ fld_entries @ fsw_entries @ fsd_entries @ sh1add_entries @ sh2add_entries @ sh3add_entries
   @ sh1adduw_entries @ sh2adduw_entries @ sh3adduw_entries @ min_entries @ minu_entries
@@ -3842,15 +3957,45 @@ let all =
    the imm8/memory rungs below have no bare-mnemonic design test to exclude
    it for. *)
 let alu_ext_of = function
-  | "ADD_GPRv_IMMb" | "ADD_MEMv_IMMb" | "ADD_MEMv_IMMz" -> "0"
-  | "OR_GPRv_IMMb" | "OR_MEMv_IMMb" | "OR_MEMv_IMMz" -> "1"
-  | "ADC_GPRv_IMMb" | "ADC_MEMv_IMMb" | "ADC_MEMv_IMMz" -> "2"
-  | "SBB_GPRv_IMMb" | "SBB_MEMv_IMMb" | "SBB_MEMv_IMMz" -> "3"
-  | "AND_GPRv_IMMb" | "AND_MEMv_IMMb" | "AND_MEMv_IMMz" -> "4"
-  | "SUB_GPRv_IMMb" | "SUB_MEMv_IMMb" | "SUB_MEMv_IMMz" -> "5"
-  | "XOR_GPRv_IMMb" | "XOR_MEMv_IMMb" | "XOR_MEMv_IMMz" -> "6"
-  | "CMP_GPRv_IMMb" | "CMP_MEMv_IMMb" | "CMP_MEMv_IMMz" -> "7"
+  | "ADD_GPRv_IMMb" | "ADD_MEMv_IMMb" | "ADD_MEMv_IMMz" | "ADD_GPR8_IMMb_80r0"
+  | "ADD_MEMb_IMMb_80r0" ->
+      "0"
+  | "OR_GPRv_IMMb" | "OR_MEMv_IMMb" | "OR_MEMv_IMMz" | "OR_GPR8_IMMb_80r1" | "OR_MEMb_IMMb_80r1" ->
+      "1"
+  | "ADC_GPRv_IMMb" | "ADC_MEMv_IMMb" | "ADC_MEMv_IMMz" | "ADC_GPR8_IMMb_80r2"
+  | "ADC_MEMb_IMMb_80r2" ->
+      "2"
+  | "SBB_GPRv_IMMb" | "SBB_MEMv_IMMb" | "SBB_MEMv_IMMz" | "SBB_GPR8_IMMb_80r3"
+  | "SBB_MEMb_IMMb_80r3" ->
+      "3"
+  | "AND_GPRv_IMMb" | "AND_MEMv_IMMb" | "AND_MEMv_IMMz" | "AND_GPR8_IMMb_80r4"
+  | "AND_MEMb_IMMb_80r4" ->
+      "4"
+  | "SUB_GPRv_IMMb" | "SUB_MEMv_IMMb" | "SUB_MEMv_IMMz" | "SUB_GPR8_IMMb_80r5"
+  | "SUB_MEMb_IMMb_80r5" ->
+      "5"
+  | "XOR_GPRv_IMMb" | "XOR_MEMv_IMMb" | "XOR_MEMv_IMMz" | "XOR_GPR8_IMMb_80r6"
+  | "XOR_MEMb_IMMb_80r6" ->
+      "6"
+  | "CMP_GPRv_IMMb" | "CMP_MEMv_IMMb" | "CMP_MEMv_IMMz" | "CMP_GPR8_IMMb_80r7"
+  | "CMP_MEMb_IMMb_80r7" ->
+      "7"
   | other -> invalid_arg ("alu_ext_of: " ^ other)
+
+(* The accumulator-immediate byte rung has no ModR/M reg-extension field at
+   all - the opcode's own bits carry [ext] directly ([ext<<3 | 4],
+   {!Isa_norm_xed.alu_al_immb_form}'s own doc comment) - so this is a
+   separate table from {!alu_ext_of} rather than a shared lookup. *)
+let alu_acc_ext_of = function
+  | "ADD_AL_IMMb" -> "0"
+  | "OR_AL_IMMb" -> "1"
+  | "ADC_AL_IMMb" -> "2"
+  | "SBB_AL_IMMb" -> "3"
+  | "AND_AL_IMMb" -> "4"
+  | "SUB_AL_IMMb" -> "5"
+  | "XOR_AL_IMMb" -> "6"
+  | "CMP_AL_IMMb" -> "7"
+  | other -> invalid_arg ("alu_acc_ext_of: " ^ other)
 
 let pilot_entry_of (entry : entry) =
   let evidence =
@@ -3936,6 +4081,27 @@ let pilot_entry_of (entry : entry) =
           "x86_family_encode.ml's Opcode.to_ext table entry (ModR/M reg extension %s) / \
            Lowered.Alu_rm_imm codec alternative (opcode 0x81, memory r/m)"
           (alu_ext_of lookup_key)
+    | ( "ADD_GPR8_IMMb_80r0" | "OR_GPR8_IMMb_80r1" | "ADC_GPR8_IMMb_80r2" | "SBB_GPR8_IMMb_80r3"
+      | "AND_GPR8_IMMb_80r4" | "SUB_GPR8_IMMb_80r5" | "XOR_GPR8_IMMb_80r6" | "CMP_GPR8_IMMb_80r7" )
+      as lookup_key ->
+        Printf.sprintf
+          "x86_family_encode.ml's Opcode.to_ext table entry (ModR/M reg extension %s) / \
+           Lowered.Alu_rm_imm codec alternative (opcode 0x80, {!alu_form_byte})"
+          (alu_ext_of lookup_key)
+    | ( "ADD_MEMb_IMMb_80r0" | "OR_MEMb_IMMb_80r1" | "ADC_MEMb_IMMb_80r2" | "SBB_MEMb_IMMb_80r3"
+      | "AND_MEMb_IMMb_80r4" | "SUB_MEMb_IMMb_80r5" | "XOR_MEMb_IMMb_80r6" | "CMP_MEMb_IMMb_80r7" )
+      as lookup_key ->
+        Printf.sprintf
+          "x86_family_encode.ml's Opcode.to_ext table entry (ModR/M reg extension %s) / \
+           Lowered.Alu_rm_imm codec alternative (opcode 0x80, memory r/m, {!alu_form_byte})"
+          (alu_ext_of lookup_key)
+    | ( "ADD_AL_IMMb" | "OR_AL_IMMb" | "ADC_AL_IMMb" | "SBB_AL_IMMb" | "AND_AL_IMMb" | "SUB_AL_IMMb"
+      | "XOR_AL_IMMb" | "CMP_AL_IMMb" ) as lookup_key ->
+        Printf.sprintf
+          "x86_family_encode.ml's Opcode.to_ext table entry (ModR/M reg extension %s, read off the \
+           opcode's own bits rather than a ModR/M byte) / Lowered.Alu_rm_imm codec alternative \
+           (opcode ext<<3|4, {!alu_acc_form_byte})"
+          (alu_acc_ext_of lookup_key)
     | "FADD_ST0_X87" ->
         "x86_family_encode.ml's Lowered.Fadd_st0_x87 / fadd-st0-x87 codec alternative (0xD8 0xC0+i)"
     | ("fadd.s" | "fsub.s" | "fmul.s" | "fdiv.s" | "fadd.d" | "fsub.d" | "fmul.d" | "fdiv.d") as

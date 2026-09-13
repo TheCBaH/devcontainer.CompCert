@@ -1712,8 +1712,14 @@ module Make (M : MODE) = struct
        rejection with its own clear diagnostic, rather than silently
        reaching [lower_instruction] and failing there with a generic
        "no form takes these operands" once the encoder gained the general
-       0x66 machinery [mov] needed. Mirrors [~allow8]'s existing per-opcode
-       shape rather than inventing a second mechanism. *)
+       0x66 machinery [mov] needed. [~allow8] started the same way (scoped to
+       [mov] alone) and is now also set for the eight GRP1 ALU mnemonics
+       (ISA-consumption GEN-05's byte-width immediate slice - [add]/[sub]/
+       [and]/[or]/[xor]/[cmp]/[adc]/[sbb]); this only opens the *suffix*, not
+       every operand shape at that width - a shape [lower_instruction]/the
+       codec do not yet build for width 8 (register-register, either memory
+       direction) still fails there with its own generic diagnostic, exactly
+       as an unimplemented shape at any other width already does. *)
     let widthed ?(allow8 = false) ?(allow16 = false) op =
       match suffix with
       | None -> bad (`Missing_size_suffix s.Surface.mnemonic)
@@ -1872,27 +1878,27 @@ module Make (M : MODE) = struct
         match (suffix, s.Surface.ops) with
         | None, [ Operand.Reg a; Operand.Reg _ ] ->
             Ok (Instruction.mk Opcode.Add a.Reg.width s.Surface.ops)
-        | _ -> widthed Opcode.Add)
-    | _, "sub" -> widthed Opcode.Sub
+        | _ -> widthed ~allow8:true Opcode.Add)
+    | _, "sub" -> widthed ~allow8:true Opcode.Sub
     | _, "mov" -> widthed ~allow8:true ~allow16:true Opcode.Mov
     | _, "lea" -> widthed Opcode.Lea
-    | _, "xor" -> widthed Opcode.Xor
-    | _, "and" -> widthed Opcode.And
-    | _, "cmp" -> widthed Opcode.Cmp
+    | _, "xor" -> widthed ~allow8:true Opcode.Xor
+    | _, "and" -> widthed ~allow8:true Opcode.And
+    | _, "cmp" -> widthed ~allow8:true Opcode.Cmp
     | _, "imul" -> widthed Opcode.Imul
     (* M4 (.ai/asm_plan.md §12): the CompCert-runtime-helper fixture's own
        measured instruction set. *)
     | _, "neg" -> widthed Opcode.Neg
     | _, "test" -> widthed Opcode.Test
-    | _, "adc" -> widthed Opcode.Adc
-    | _, "sbb" -> widthed Opcode.Sbb
+    | _, "adc" -> widthed ~allow8:true Opcode.Adc
+    | _, "sbb" -> widthed ~allow8:true Opcode.Sbb
     | _, "mul" -> widthed Opcode.Mul
     | _, "div" -> widthed Opcode.Div
     | _, "rcr" -> widthed Opcode.Rcr
     | _, "shr" -> widthed Opcode.Shr
     (* M5 (asm/docs/corpus.md): the x86_64 [test/c/] corpus's own measured
        instruction set. *)
-    | _, "or" -> widthed Opcode.Or
+    | _, "or" -> widthed ~allow8:true Opcode.Or
     | _, "not" -> widthed Opcode.Not
     | _, "ror" -> widthed Opcode.Ror
     (* GAS accepts both [shl] and [sal] for the same opcode; only [sal] is
@@ -3190,12 +3196,16 @@ module Make (M : MODE) = struct
      the tuple shape both rungs of the ladder must share; the imm32 rung
      reuses {!sym_imm32}, {!Mov_r_imm}'s own fixup field, keeping this
      alt's prior sign-extending decode exactly (unlike [Mov_r_imm]'s
-     unsigned one). *)
+     unsigned one). [width <> 8] (ISA-consumption GEN-05): neither rung's
+     opcode has an 8-bit reading, so without the guard a width-8
+     {!Lowered.Alu_rm_imm} would silently encode through the [0x83] rung as
+     if its register number named a 32/64-bit register instead - see
+     {!alu_form_byte}'s own comment for the real byte-operand opcode. *)
   let alu_form ~label ~priority ~opcode_byte ~imm_width =
     C.alt ~label ~priority
       (C.iso_fun ~name:label
          ~encode:(function
-           | Lowered.Alu_rm_imm { ext; width; rm; imm } ->
+           | Lowered.Alu_rm_imm { ext; width; rm; imm } when width <> 8 ->
                (* [imm] itself, not just the fits-check, must carry the
                   width-reduced value onward: the imm8 rung's [const_disp]
                   ([le ~signedness:Signed ~width:8]) independently
@@ -3288,6 +3298,105 @@ module Make (M : MODE) = struct
                Some (Lowered.Alu_rm_imm { ext; width; rm = Rm.Reg (reg_at ~width 0); imm }))
          C.(prefixes_codec ** opcode_codec ** sym_imm32 ~kind:Abs32 ~signedness:C.Signed))
 
+  (* [0x80 /ext ib] ({!Lowered.Alu_rm_imm} at [width = 8]): GRP1's own
+     byte-operand rung, a genuinely different opcode from {!alu_form}'s
+     [0x83]/[0x81] rungs rather than a narrower reading of either - real x86
+     has no operand-size encoding that turns a ModR/M ALU opcode into an
+     8-bit one, so a byte register number reaching [0x83] would just select
+     the 32/64-bit register of that same number instead (ISA-consumption
+     GEN-05, confirmed against real i686-linux-gnu-as/x86_64-linux-gnu-as
+     before writing this: [addb $5, %cl] -> [80 c1 05], [addb $5,
+     16(%esp)]/[16(%rsp)] -> [80 44 24 10 05], [addb $5, %sil] -> [40 80 c6
+     05] - the same bare-REX byte-register rule {!prefixes_of}'s own comment
+     documents, reused unchanged here). Register or memory destination both
+     go through this one rung: unlike {!alu_form}'s imm8-vs-imm32 ladder,
+     there is only ever one immediate width at this operand size, so no
+     [fits] check or priority race between rungs is needed. XED's [0x82]
+     alias (an undocumented, 64-bit-invalid duplicate of [0x80] -
+     `ADD_GPR8_IMMb_82r0` etc.) is never GAS-selected, matching the
+     reverse-iform precedent elsewhere in this file, so it is not admitted. *)
+  let alu_form_byte ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Alu_rm_imm { ext; width = 8; rm; imm = Disp.Const v } ->
+               (* [to_width_signed]: a literal like [$200] parses as the
+                  plain int64 200, which does not fit the trailing field's
+                  own signed-8 range check even though [0xc8] is exactly the
+                  byte real [as] emits for it - the same reduce-before-
+                  threading discipline {!alu_form}'s own comment explains. *)
+               let v = to_width_signed ~width:8 v in
+               Some (prefixes_of ~width:8 ~reg:ext ~rm, ((), ({ re_reg = ext; re_rm = rm }, v)))
+           | _ -> None)
+         ~decode:(fun (_rex, ((), (e, v))) ->
+           match Opcode.of_ext e.re_reg with
+           | None -> None
+           | Some _ ->
+               Some
+                 (Lowered.Alu_rm_imm
+                    {
+                      ext = e.re_reg;
+                      width = 8;
+                      rm = retype_rm ~width:8 e.re_rm;
+                      imm = Disp.Const v;
+                    }))
+         C.(
+           prefixes_codec ** const ~width:8 0x80L ** rm_codec
+           ** le ~signedness:C.Signed ~width:8 "imm"))
+
+  (* [ext<<3 | 4] ib ({!Lowered.Alu_rm_imm} at [width = 8] with the r/m
+     register being exactly [%al] - {!alu_acc_form}'s own byte-width sibling:
+     [0x04]/[0x0C]/[0x14]/[0x1C]/[0x24]/[0x2C]/[0x34]/[0x3C]). Unlike
+     {!alu_acc_form}, there is no competing shorter ModR/M encoding at this
+     width for GAS to prefer instead - {!alu_form_byte}'s own [0x80] rung is
+     always one byte longer here (a ModR/M byte plus imm8, versus this form's
+     bare opcode plus imm8) - so real [as] always selects this form when the
+     destination is [%al], not only when the immediate fails an imm8 fits
+     check the way {!alu_acc_form} itself does. Byte-checked against real
+     i686-linux-gnu-as/x86_64-linux-gnu-as: [addb $5, %al] -> [04 05], [cmpb
+     $5, %al] -> [3c 05], and [addb $200, %al] still picks this form ([04
+     c8]), not the 3-byte ModR/M one. No REX byte is ever needed: [%al] is
+     register 0, never one of the four legacy/REX-ambiguous byte names
+     {!prefixes_of}'s own comment covers - [prefixes_of ~reg:0 ~rm:(Rm.Reg
+     r)] with [r.num = 0] always returns [None] (REX absent), so threading
+     {!prefixes_codec} through here changes no byte ever emitted. It is
+     threaded anyway, for the same reason {!alu_acc_form} threads it despite
+     x86-32 never setting REX.W: {!Codec.check}'s [pattern] function gives up
+     (returns [None], not "all wildcards") on {!prefixes_codec}'s own
+     variable-length rex-present-or-absent [Alt], and only an indeterminate
+     pattern is safe here - the opcode field alone has no fixed bits [Codec.check]
+     can see (its true fixed low 3 bits, [ext<<3 | 4], live inside the
+     [Iso_fun] the checker treats as opaque), so a bare [opcode_codec ** imm]
+     pattern would come out as 16 wildcard bits and register a false
+     "overlapping fixed bits" conflict against every other exactly-16-bit
+     alternative in this table ([ud2], [push-imm8], [fucomp], [fnstsw],
+     [fadd-st0-x87]). *)
+  let alu_acc_form_byte ~label ~priority =
+    let opcode_codec =
+      C.iso_fun ~name:(label ^ "-opcode")
+        ~encode:(fun ext ->
+          if ext < 0 || ext > 7 then None else Some (Int64.of_int ((ext lsl 3) lor 4)))
+        ~decode:(fun b ->
+          let b = Int64.to_int b in
+          if b land 7 = 4 then Some (b lsr 3) else None)
+        (C.field ~width:8 "opcode")
+    in
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Alu_rm_imm { ext; width = 8; rm = Rm.Reg r; imm = Disp.Const v } when r.num = 0
+             ->
+               Some (prefixes_of ~width:8 ~reg:0 ~rm:(Rm.Reg r), (ext, to_width_signed ~width:8 v))
+           | _ -> None)
+         ~decode:(fun (_rex, (ext, v)) ->
+           match Opcode.of_ext ext with
+           | None -> None
+           | Some _ ->
+               Some
+                 (Lowered.Alu_rm_imm
+                    { ext; width = 8; rm = Rm.Reg (reg_at ~width:8 0); imm = Disp.Const v }))
+         C.(prefixes_codec ** opcode_codec ** le ~signedness:C.Signed ~width:8 "imm"))
+
   (* [0x6a ib] / [0x68 id] ({!Lowered.Push_imm}, [pushl $sym]): the same
      short-immediate-first priority discipline and [Disp.t]/[sym_imm32]
      symbol-carrying as {!alu_form}, minus a ModR/M byte - push's immediate
@@ -3334,9 +3443,19 @@ module Make (M : MODE) = struct
          {!alu_acc_form}'s own comment. [priority] is unique across this
          whole target's opcode table, not just this cluster, so this sits at
          -1 rather than crowding the 0..64 range already in use below. *)
+      (* Tried even before {!alu_acc_form}'s own imm32/imm16 accumulator rung:
+         disjoint by [width] ([alu_acc_form]'s own encode already excludes
+         [width = 8]), so the relative order only matters for uniqueness of
+         [priority] across this whole table, not for any real ambiguity. *)
+      alu_acc_form_byte ~label:"alu-acc-imm8" ~priority:(-2);
       alu_acc_form ~label:"alu-acc-imm" ~priority:(-1);
       alu_form ~label:"alu-rm-imm8" ~priority:0 ~opcode_byte:0x83 ~imm_width:8;
       alu_form ~label:"alu-rm-imm32" ~priority:1 ~opcode_byte:0x81 ~imm_width:32;
+      (* [66], not adjacent to the two rungs above: distinct opcode ([0x80],
+         not a rung of [0x83]/[0x81]'s own ladder), see {!alu_form_byte}'s own
+         comment for why [width = 8] needs a dedicated alternative rather than
+         a third rung there. *)
+      alu_form_byte ~label:"alu-rm-imm8-byte" ~priority:66;
       C.alt ~label:"mov-r-imm" ~priority:2
         (C.iso_fun ~name:"mov-r-imm"
            ~encode:(function
