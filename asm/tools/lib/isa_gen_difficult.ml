@@ -560,6 +560,14 @@ let x86_sse_binop_rr_entries =
           "MOVAPS_XMMps_XMMps_0F28";
           "MOVUPS_XMMps_XMMps_0F10";
           "MOVUPD_XMMpd_XMMpd_0F10";
+          "ADDPS_XMMps_XMMps";
+          "SUBPS_XMMps_XMMps";
+          "MULPS_XMMps_XMMps";
+          "DIVPS_XMMps_XMMps";
+          "ADDPD_XMMpd_XMMpd";
+          "SUBPD_XMMpd_XMMpd";
+          "MULPD_XMMpd_XMMpd";
+          "DIVPD_XMMpd_XMMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -613,6 +621,14 @@ let x86_sse_binop_rm_entries =
           "MOVAPS_XMMps_MEMps";
           "MOVUPS_XMMps_MEMps";
           "MOVUPD_XMMpd_MEMpd";
+          "ADDPS_XMMps_MEMps";
+          "SUBPS_XMMps_MEMps";
+          "MULPS_XMMps_MEMps";
+          "DIVPS_XMMps_MEMps";
+          "ADDPD_XMMpd_MEMpd";
+          "SUBPD_XMMpd_MEMpd";
+          "MULPD_XMMpd_MEMpd";
+          "DIVPD_XMMpd_MEMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

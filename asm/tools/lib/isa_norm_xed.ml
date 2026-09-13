@@ -1901,6 +1901,44 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"MOVUPS_XMMps_MEMps" ~mnemonic:"movups" rec_
   | Ok { iform = Some "MOVUPD_XMMpd_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"MOVUPD_XMMpd_MEMpd" ~mnemonic:"movupd" rec_
+  (* {!Opcode.Addsd}'s packed-arithmetic siblings: the prefix square for opcodes
+     0x58/0x59/0x5C/0x5E, no mandatory prefix (ps, XED extension SSE) and 66 mandatory prefix
+     (pd, SSE2) - the same plain xmm-xmm/xmm-memory binop shape, the same way the ANDPS and
+     MOVAPS families completed the prefix square for their own opcode groups. Confirmed against
+     real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44): `0F 58/59/5C/5E` for the ps forms,
+     `66 0F 58/59/5C/5E` for the pd forms. *)
+  | Ok { iform = Some "ADDPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"ADDPS_XMMps_XMMps" ~mnemonic:"addps" rec_
+  | Ok { iform = Some "SUBPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"SUBPS_XMMps_XMMps" ~mnemonic:"subps" rec_
+  | Ok { iform = Some "MULPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"MULPS_XMMps_XMMps" ~mnemonic:"mulps" rec_
+  | Ok { iform = Some "DIVPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"DIVPS_XMMps_XMMps" ~mnemonic:"divps" rec_
+  | Ok { iform = Some "ADDPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"ADDPD_XMMpd_XMMpd" ~mnemonic:"addpd" rec_
+  | Ok { iform = Some "SUBPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"SUBPD_XMMpd_XMMpd" ~mnemonic:"subpd" rec_
+  | Ok { iform = Some "MULPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"MULPD_XMMpd_XMMpd" ~mnemonic:"mulpd" rec_
+  | Ok { iform = Some "DIVPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"DIVPD_XMMpd_XMMpd" ~mnemonic:"divpd" rec_
+  | Ok { iform = Some "ADDPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"ADDPS_XMMps_MEMps" ~mnemonic:"addps" rec_
+  | Ok { iform = Some "SUBPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"SUBPS_XMMps_MEMps" ~mnemonic:"subps" rec_
+  | Ok { iform = Some "MULPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"MULPS_XMMps_MEMps" ~mnemonic:"mulps" rec_
+  | Ok { iform = Some "DIVPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"DIVPS_XMMps_MEMps" ~mnemonic:"divps" rec_
+  | Ok { iform = Some "ADDPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"ADDPD_XMMpd_MEMpd" ~mnemonic:"addpd" rec_
+  | Ok { iform = Some "SUBPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"SUBPD_XMMpd_MEMpd" ~mnemonic:"subpd" rec_
+  | Ok { iform = Some "MULPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MULPD_XMMpd_MEMpd" ~mnemonic:"mulpd" rec_
+  | Ok { iform = Some "DIVPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"DIVPD_XMMpd_MEMpd" ~mnemonic:"divpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -1918,9 +1956,10 @@ let normalize (rec_ : R.t) =
             MOVAPD/CVTSD2SS/CVTSS2SD register-register and register<-memory forms, the MOVSD/MOVSS \
             load/store forms, the mixed-GPR/XMM CVTSI2SD/CVTSI2SS/CVTTSD2SI register-register and \
             register<-memory forms, the packed bitwise-logical ANDPS/ANDNPS/ORPS/XORPS/ \
-            ANDPD/ANDNPD/ORPD register-register and register<-memory forms, and the MOVAPS/ \
-            MOVUPS/MOVUPD load-direction register-register and register<-memory forms; %s is not \
-            one of them"
+            ANDPD/ANDNPD/ORPD register-register and register<-memory forms, the MOVAPS/ \
+            MOVUPS/MOVUPD load-direction register-register and register<-memory forms, and the \
+            packed-arithmetic ADDPS/SUBPS/MULPS/DIVPS/ADDPD/SUBPD/MULPD/DIVPD register-register \
+            and register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:153;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:153
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:169;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:169
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -784,23 +784,40 @@ let test_isa_family_admission repo =
      `movaps %xmm1,%xmm2` -> `0f 28 d1`, `movaps (%eax),%xmm2` -> `0f 28 10`,
      `movups %xmm1,%xmm2` -> `0f 10 d1`, `movupd %xmm1,%xmm2` ->
      `66 0f 10 d1`. This slice moves 6 more records per x86 profile (3
-     mnemonics x 2 directions), closing the named SSE/SSE2 admission
-     follow-ups; only VEX/EVEX remain unadmitted in x86 vector/SIMD. *)
+     mnemonics x 2 directions).
+
+     `ADDPS`/`SUBPS`/`MULPS`/`DIVPS` (SSE, no mandatory prefix) and
+     `ADDPD`/`SUBPD`/`MULPD`/`DIVPD` (SSE2, 66 mandatory prefix) complete the
+     prefix square for opcodes `0x58`/`0x59`/`0x5C`/`0x5E` - the same four
+     bytes `ADDSD`/`MULSD`/`SUBSD`/`DIVSD` (F2-prefixed) and `ADDSS`/`MULSS`/
+     `SUBSS`/`DIVSS` (F3-prefixed) already use - the way `ANDPS`/etc. and
+     `MOVAPS`/etc. each completed the square for their own opcode groups.
+     Same plain xmm-xmm/xmm-memory binop shape and normalization unchanged;
+     none of the eight existed in the encoder, so this added eight more
+     `Opcode.t` variants and opcode-table entries (`ADDPS`/`SUBPS`/`MULPS`/
+     `DIVPS` into `sse_binop_none_codec`, `ADDPD`/`SUBPD`/`MULPD`/`DIVPD` into
+     `sse_binop_66_codec`). Confirmed against real GNU as (i686-linux-gnu-as/
+     x86_64-linux-gnu-as 2.44): `addps %xmm1,%xmm0` -> `0f 58 c1`, `addpd
+     %xmm1,%xmm0` -> `66 0f 58 c1`, and likewise for `sub`/`mul`/`div` at
+     `0x5C`/`0x59`/`0x5E`. This slice moves 16 more records per x86 profile (8
+     mnemonics x 2 directions), closing every already-encoder-supported
+     scalar/plain-binop-shaped SSE/SSE2 mnemonic; only VEX/EVEX remain
+     unadmitted in x86 vector/SIMD. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:142 ~blocked:7734;
+    ~promoted_support:158 ~blocked:7718;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:148 ~blocked:10418
+    ~promoted_support:164 ~blocked:10402
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+153+153); a drop here without
+   tests' own pinned normalized counts (722+774+169+169); a drop here without
    a matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -847,9 +864,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1802)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1834)"
        !roundtrip_count)
-    (!roundtrip_count = 1802)
+    (!roundtrip_count = 1834)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

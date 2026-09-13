@@ -229,6 +229,20 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("x86:MOVAPS_XMMps_MEMps" | "x86:MOVUPS_XMMps_MEMps" | "x86:MOVUPD_XMMpd_MEMpd"),
       ("MOVAPS_XMMps_MEMps" | "MOVUPS_XMMps_MEMps" | "MOVUPD_XMMpd_MEMpd") ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADDPS_XMMps_XMMps" | "x86:SUBPS_XMMps_XMMps" | "x86:MULPS_XMMps_XMMps"
+      | "x86:DIVPS_XMMps_XMMps" | "x86:ADDPD_XMMpd_XMMpd" | "x86:SUBPD_XMMpd_XMMpd"
+      | "x86:MULPD_XMMpd_XMMpd" | "x86:DIVPD_XMMpd_XMMpd" ),
+      ( "ADDPS_XMMps_XMMps" | "SUBPS_XMMps_XMMps" | "MULPS_XMMps_XMMps" | "DIVPS_XMMps_XMMps"
+      | "ADDPD_XMMpd_XMMpd" | "SUBPD_XMMpd_XMMpd" | "MULPD_XMMpd_XMMpd" | "DIVPD_XMMpd_XMMpd" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADDPS_XMMps_MEMps" | "x86:SUBPS_XMMps_MEMps" | "x86:MULPS_XMMps_MEMps"
+      | "x86:DIVPS_XMMps_MEMps" | "x86:ADDPD_XMMpd_MEMpd" | "x86:SUBPD_XMMpd_MEMpd"
+      | "x86:MULPD_XMMpd_MEMpd" | "x86:DIVPD_XMMpd_MEMpd" ),
+      ( "ADDPS_XMMps_MEMps" | "SUBPS_XMMps_MEMps" | "MULPS_XMMps_MEMps" | "DIVPS_XMMps_MEMps"
+      | "ADDPD_XMMpd_MEMpd" | "SUBPD_XMMpd_MEMpd" | "MULPD_XMMpd_MEMpd" | "DIVPD_XMMpd_MEMpd" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),
