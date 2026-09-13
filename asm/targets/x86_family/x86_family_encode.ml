@@ -2119,6 +2119,27 @@ module Make (M : MODE) = struct
                   { op = i.Instruction.op; width = i.Instruction.width; rm = Rm.Reg b; reg = a };
               ]
         | Error e, _ | _, Error e -> Error e)
+    (* The rm<-reg ALU direction with a genuine memory destination
+       (ISA-consumption GEN-05 - [addl %eax, 0x10(%esp)]): {!Opcode.to_rm_r}'s
+       own opcode table already covers this - a memory r/m and a register
+       r/m share one opcode per operation, distinguished only by ModR/M's
+       mod field, not by a second table - so this reuses the arm above's own
+       [Lowered.Alu_rm_r] constructor with [rm = Rm.Mem m] rather than
+       needing a new one. [Test] joins the seven read-modify-write ops here
+       even though it never writes its destination, matching real GNU as:
+       [testl %eax, 0x10(%esp)] -> [85 44 24 10], the same opcode
+       [TEST_GPRv_GPRv] already uses. *)
+    | ( ( Opcode.Xor | Opcode.Cmp | Opcode.Sub | Opcode.Add | Opcode.Adc | Opcode.Test | Opcode.Sbb
+        | Opcode.Or | Opcode.And ),
+        [ Operand.Reg r; Operand.Mem m ] ) -> (
+        match width_ok r with
+        | Error e -> Error e
+        | Ok () ->
+            Ok
+              [
+                Lowered.Alu_rm_r
+                  { op = i.Instruction.op; width = i.Instruction.width; rm = Rm.Mem m; reg = r };
+              ])
     (* The reg<-rm ALU direction: {!Opcode.to_r_rm}'s mirror image of the form
        above. Only measured with a memory source ([adcl 0x20(%esp),%edx],
        [add 0x1c(%esp),%eax]) - a register-register source would also be

@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:80;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:80
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:89;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:89
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -678,22 +678,34 @@ let test_isa_family_admission repo =
      different opcode from the GPRv rungs above, not a narrower reading of
      one of them (x86_family_encode.ml's {!alu_form_byte}/
      {!alu_acc_form_byte} doc comments explain why). This slice moves 24
-     records per x86 profile (8 mnemonics x 3 shapes). *)
+     records per x86 profile (8 mnemonics x 3 shapes).
+
+     The reverse, MEMv<-GPRv, ALU direction (ADD/OR/ADC/SBB/AND/SUB/XOR/
+     CMP/TEST_MEMv_GPRv - `addl %eax, 0x10(%esp)`) closes the last
+     unbuilt direction of the base legacy ALU/MOV opcode space: unlike
+     every family above, `Opcode.to_rm_r`'s own table already covered
+     this opcode (a memory r/m and a register r/m share one opcode per
+     operation, only ModR/M's mod field differs), so only the new
+     `Lowered.Alu_rm_r`-producing lowering arm and
+     {!Isa_norm_xed.alu_memv_gprv_form} were needed, no encoder table
+     change. TEST is included, unlike its own GPRv_MEMv load-direction
+     exclusion above - XED does export a `TEST_MEMv_GPRv` record. This
+     slice moves 9 records per x86 profile (9 mnemonics x 1 shape). *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:75 ~blocked:7807;
+    ~promoted_support:84 ~blocked:7798;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:75 ~blocked:10491
+    ~promoted_support:84 ~blocked:10482
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+80+80); a drop here without a
+   tests' own pinned normalized counts (722+774+89+89); a drop here without a
    matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -740,9 +752,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1656)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1674)"
        !roundtrip_count)
-    (!roundtrip_count = 1656)
+    (!roundtrip_count = 1674)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

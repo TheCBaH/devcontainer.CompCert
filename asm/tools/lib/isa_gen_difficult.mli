@@ -127,6 +127,14 @@ val x86_alu_memv_entries : entry list
     not included since it has no upstream-named XED iform to admit,
     even though real GNU as accepts it. *)
 
+val x86_alu_memv_gprv_entries : entry list
+(** [addl]/[orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl]/[testl]
+    memory<-register (base+disp8 SIB) on x86-32 and x86-64,
+    {!x86_alu_memv_entries}'s own addressing with the register-source and
+    memory-destination roles swapped to match AT&T's own [reg, mem] order;
+    [testl] is included here, unlike {!x86_alu_memv_entries}'s own
+    exclusion, since XED does export a [TEST_MEMv_GPRv] record. *)
+
 val x86_alu_immz_entries : entry list
 (** [orl]/[adcl]/[sbbl]/[andl]/[subl]/[xorl]/[cmpl] register/immediate on
     x86-32 and x86-64, {!Isa_norm_xed.add_gprv_immz_form}'s own shape and
@@ -2595,7 +2603,7 @@ val lr_d_entries : entry list
 
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
-    x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_immz_entries @
+    x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @
     x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @
     x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries @
     x86_fadd_entries @ fadd_s_entries @

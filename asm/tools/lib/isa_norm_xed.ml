@@ -419,8 +419,8 @@ let mov_gprv_memv_form ~form_id ~load (rec_ : R.t) =
    XED always orders REG0 before MEM0 for this iform family (unlike
    {!two_operand_gprv_form}'s two GPRv operands, there is only ever one
    register<-memory direction present per mnemonic here - the reverse
-   MEMv<-GPRv direction, e.g. ADD_MEMv_GPRv, is a separate, currently
-   encoder-unsupported [Alu_rm_r] memory-destination lowering). Deliberately
+   MEMv<-GPRv direction, e.g. ADD_MEMv_GPRv, is a separate shape,
+   {!alu_memv_gprv_form} below). Deliberately
    admits only the explicit 32-bit AT&T spelling on each target, the same
    bound {!mov_gprv_memv_form} already uses. *)
 let alu_gprv_memv_form ~form_id ~mnemonic (rec_ : R.t) =
@@ -480,6 +480,80 @@ let alu_gprv_memv_form ~form_id ~mnemonic (rec_ : R.t) =
       err
         (form_id ^ "-unrecognized-operands")
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* The reverse, MEMv<-GPRv, ALU direction (ADD_MEMv_GPRv/ADC_MEMv_GPRv/.../
+   TEST_MEMv_GPRv): {!alu_gprv_memv_form}'s own shape with the mem/reg roles
+   swapped - XED orders MEM0 before REG0 here (the opposite of
+   {!alu_gprv_memv_form}'s own REG0-before-MEM0), and AT&T puts the register
+   source first, the memory destination last ([addl %eax, 0x10(%esp)]), the
+   reverse of that function's own [mem, reg] order too. `Opcode.to_rm_r`'s
+   opcode table already covers this direction (x86_family_encode.ml's own
+   comment on the new [Alu_rm_r] lowering arm explains why: a memory r/m and
+   a register r/m share one opcode per operation, distinguished only by
+   ModR/M's mod field), so this needed no new encoder table, only the new
+   lowering arm and this normalization function. [Test] is read-only on
+   both operands (MEM0's own rw is "r", not "rw" the way the other eight
+   ops' MEM0 is) but is otherwise the same shape - real GNU as: [testl
+   %eax, 0x10(%esp)] -> [85 44 24 10], the same opcode [TEST_GPRv_GPRv]
+   already uses. *)
+let alu_memv_gprv_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "MEM0" && b.op_name = "REG0" ->
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let reg =
+        {
+          op_name = "reg";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ reg; mem ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_decorated ("%", Syn_operand "reg"); Syn_operand "mem" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "MEM0 (rw=%s), REG0 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "This bounds the recipe to explicit 32-bit AT&T spelling; XED oc2 v remains \
+                   source-variable";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected MEM0/REG0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
 (* The MEMv<-IMMb/IMMz ALU-immediate direction (ADD/OR/ADC/SBB/AND/SUB/XOR/
@@ -977,6 +1051,28 @@ let normalize (rec_ : R.t) =
       alu_gprv_memv_form ~form_id:"SBB_GPRv_MEMv" ~mnemonic:"sbbl" rec_
   | Ok { iform = Some "CMP_GPRv_MEMv"; _ } ->
       alu_gprv_memv_form ~form_id:"CMP_GPRv_MEMv" ~mnemonic:"cmpl" rec_
+  (* The reverse, MEMv<-GPRv, direction ({!alu_memv_gprv_form}'s own doc
+     comment): every `to_rm_r` opcode, including TEST this time - unlike
+     the GPRv_MEMv load direction above, XED does export a TEST_MEMv_GPRv
+     record. *)
+  | Ok { iform = Some "ADD_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"ADD_MEMv_GPRv" ~mnemonic:"addl" rec_
+  | Ok { iform = Some "OR_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"OR_MEMv_GPRv" ~mnemonic:"orl" rec_
+  | Ok { iform = Some "ADC_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"ADC_MEMv_GPRv" ~mnemonic:"adcl" rec_
+  | Ok { iform = Some "SBB_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"SBB_MEMv_GPRv" ~mnemonic:"sbbl" rec_
+  | Ok { iform = Some "AND_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"AND_MEMv_GPRv" ~mnemonic:"andl" rec_
+  | Ok { iform = Some "SUB_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"SUB_MEMv_GPRv" ~mnemonic:"subl" rec_
+  | Ok { iform = Some "XOR_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"XOR_MEMv_GPRv" ~mnemonic:"xorl" rec_
+  | Ok { iform = Some "CMP_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"CMP_MEMv_GPRv" ~mnemonic:"cmpl" rec_
+  | Ok { iform = Some "TEST_MEMv_GPRv"; _ } ->
+      alu_memv_gprv_form ~form_id:"TEST_MEMv_GPRv" ~mnemonic:"testl" rec_
   | Ok { iform = Some "OR_GPRv_IMMz"; _ } ->
       alu_gprv_immz_form ~form_id:"OR_GPRv_IMMz" ~mnemonic:"orl" rec_
   | Ok { iform = Some "ADC_GPRv_IMMz"; _ } ->
@@ -1110,6 +1206,7 @@ let normalize (rec_ : R.t) =
             register/immediate legacy ADD/MOV forms, the explicit-32-bit-width \
             SUB/AND/OR/XOR/ADC/SBB/CMP/TEST register-register forms, the explicit-32-bit-width \
             ADD/ADC/XOR/SUB/AND/OR/SBB/CMP register<-memory forms, the explicit-32-bit-width \
+            ADD/OR/ADC/SBB/AND/SUB/XOR/CMP/TEST memory<-register forms, the explicit-32-bit-width \
             OR/ADC/SBB/AND/SUB/XOR/CMP register/immz forms, the explicit-32-bit-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP register/immb forms, the explicit-32-bit-width \
             ADD/OR/ADC/SBB/AND/SUB/XOR/CMP memory/immb and memory/immz forms, and the byte-width \

@@ -107,6 +107,13 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "OR_GPRv_MEMv" | "SBB_GPRv_MEMv" | "CMP_GPRv_MEMv" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:ADD_MEMv_GPRv" | "x86:OR_MEMv_GPRv" | "x86:ADC_MEMv_GPRv" | "x86:SBB_MEMv_GPRv"
+      | "x86:AND_MEMv_GPRv" | "x86:SUB_MEMv_GPRv" | "x86:XOR_MEMv_GPRv" | "x86:CMP_MEMv_GPRv"
+      | "x86:TEST_MEMv_GPRv" ),
+      ( "ADD_MEMv_GPRv" | "OR_MEMv_GPRv" | "ADC_MEMv_GPRv" | "SBB_MEMv_GPRv" | "AND_MEMv_GPRv"
+      | "SUB_MEMv_GPRv" | "XOR_MEMv_GPRv" | "CMP_MEMv_GPRv" | "TEST_MEMv_GPRv" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:OR_GPRv_IMMz" | "x86:ADC_GPRv_IMMz" | "x86:SBB_GPRv_IMMz" | "x86:AND_GPRv_IMMz"
       | "x86:SUB_GPRv_IMMz" | "x86:XOR_GPRv_IMMz" | "x86:CMP_GPRv_IMMz" ),
       ( "OR_GPRv_IMMz" | "ADC_GPRv_IMMz" | "SBB_GPRv_IMMz" | "AND_GPRv_IMMz" | "SUB_GPRv_IMMz"
