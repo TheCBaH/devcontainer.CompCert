@@ -2164,6 +2164,13 @@ val clmulh_entries : entry list
 (** [clmulh a0, a1, a2] on both profiles, {!clmul_entries}'s high-half
     sibling (same Req_any group, opcode, funct7; only funct3 differs). *)
 
+val clmulr_entries : entry list
+(** [clmulr a0, a1, a2] on both profiles - Zbc's reversed carry-less
+    multiply, the same three-GPR R-type shape as {!clmul_entries} but
+    Zbc-only: riscv-opcodes has no rv_zbkc/rv_zk/rv_zkn/rv_zks import of it
+    at all (confirmed: real GNU as rejects it under [-march=...zbkc] alone),
+    so no Req_any is needed. *)
+
 val xperm4_entries : entry list
 (** [xperm4 a0, a1, a2] on both profiles - Zbkx's crossbar-permute-nibble,
     the same three-GPR R-type shape {!clmul_entries} uses but a four-way
@@ -2463,7 +2470,7 @@ val all : entry list
     rori_entries @ roriw_entries @ bclr_entries @ bext_entries @
     binv_entries @ bset_entries @ bclri_entries @ bexti_entries @
     binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @
-    clmulh_entries @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @
+    clmulh_entries @ clmulr_entries @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @
     sha256sum1_entries @ sha256sig0_entries @ sha256sig1_entries @
     sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries @
     sha512sig1_entries @ sha512sum0r_entries @ sha512sum1r_entries @

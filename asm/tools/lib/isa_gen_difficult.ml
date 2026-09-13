@@ -709,6 +709,17 @@ let clmulh_entries =
     (zbc_r_type_entry ~mnemonic:"clmulh" ~variant_name:"carryless-multiply-high")
     [ Target.Riscv32; Target.Riscv64 ]
 
+(* clmulr (reversed carry-less multiply): the same plain three-GPR R-type
+   shape as clmul/clmulh, but Zbc-only - riscv-opcodes has no rv_zbkc/rv_zk/
+   rv_zkn/rv_zks import of it at all (confirmed: real GNU as rejects it
+   under `-march=...zbkc` alone, "extension `zbc' required"), so no
+   Req_any is needed and {!requirement_of_mnemonic}'s plain per-record
+   fallback already gives the right answer. *)
+let clmulr_entries =
+  List.map
+    (zbc_r_type_entry ~mnemonic:"clmulr" ~variant_name:"carryless-multiply-reversed")
+    [ Target.Riscv32; Target.Riscv64 ]
+
 (* xperm4/xperm8 (crossbar permute): the same plain three-GPR R-type shape
    and Req_any promotion discipline as clmul/clmulh above, but rooted in
    Zbkx (rv_zbkx primary, imported by rv_zk/rv_zkn/rv_zks - a four-way
@@ -3353,8 +3364,8 @@ let all =
   @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries @ packw_entries
   @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries @ roriw_entries
   @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries @ bexti_entries
-  @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries @ xperm4_entries
-  @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
+  @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries @ clmulr_entries
+  @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
   @ sha256sig1_entries @ sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries
   @ sha512sig1_entries @ sha512sum0r_entries @ sha512sum1r_entries @ sha512sig0l_entries
   @ sha512sig1l_entries @ sha512sig0h_entries @ sha512sig1h_entries @ aes64ds_entries

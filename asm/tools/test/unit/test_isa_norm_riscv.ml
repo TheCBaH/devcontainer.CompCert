@@ -2437,6 +2437,9 @@ let clmul_json =
 let clmulh_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xa003033", "width_bits": 32}, "kind": "instruction-form", "native_name": "clmulh", "origin": {"line": 3, "path": "extensions/rv_zbc"}, "provenance": {"extension": "rv_zbc", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "clmulh     rd rs1 rs2 31..25=5 14..12=3 6..2=0x0C 1..0=3", "tokens": ["clmulh", "rd", "rs1", "rs2", "31..25=5", "14..12=3", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xa003033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbc:clmulh@L3", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
+let clmulr_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xa002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "clmulr", "origin": {"line": 2, "path": "extensions/rv_zbc"}, "provenance": {"extension": "rv_zbc", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "clmulr     rd rs1 rs2 31..25=5 14..12=2 6..2=0x0C 1..0=3", "tokens": ["clmulr", "rd", "rs1", "rs2", "31..25=5", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xa002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbc:clmulr@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
 let xperm4_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0x28002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "xperm4", "origin": {"line": 1, "path": "extensions/rv_zbkx"}, "provenance": {"extension": "rv_zbkx", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "xperm4     rd rs1 rs2 31..25=20 14..12=2 6..2=0x0C 1..0=3", "tokens": ["xperm4", "rd", "rs1", "rs2", "31..25=20", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0x28002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbkx:xperm4@L1", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
@@ -2641,6 +2644,11 @@ let test_clmul () =
 
 let test_clmulh () =
   test_r_type_gpr_any ~import_group:zbc_import_group ~mnemonic:"clmulh" ~json:clmulh_json
+
+(* clmulr: clmul/clmulh's reversed sibling, but Zbc-only - riscv-opcodes has
+   no rv_zbkc/rv_zk/rv_zkn/rv_zks import of it at all, so it uses the plain
+   single-feature {!test_r_type_gpr} rather than {!test_r_type_gpr_any}. *)
+let test_clmulr () = test_r_type_gpr ~feature:"zbc" ~mnemonic:"clmulr" ~json:clmulr_json
 
 (* xperm4/xperm8: the same three-GPR Req_any R-type shape, but a four-way
    zbkx-only group (rv_zbkx/rv_zk/rv_zkn/rv_zks - no separate non-K sibling
@@ -5029,6 +5037,7 @@ let () =
   test_ror ();
   test_clmul ();
   test_clmulh ();
+  test_clmulr ();
   test_xperm4 ();
   test_xperm8 ();
   test_sha256sum0 ();

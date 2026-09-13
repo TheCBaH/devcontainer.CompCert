@@ -1928,6 +1928,7 @@ let r_type_mnemonics =
     "rorw";
     "clmul";
     "clmulh";
+    "clmulr";
     "xperm4";
     "xperm8";
     "sha512sum0r";

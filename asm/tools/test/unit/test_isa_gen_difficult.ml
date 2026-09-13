@@ -82,6 +82,8 @@ let test_counts () =
   check "clmul/clmulh entries have 2 entries each (Zbc Req_any x 2 profiles)"
     (List.length Isa_gen_difficult.clmul_entries = 2
     && List.length Isa_gen_difficult.clmulh_entries = 2);
+  check "clmulr entries have 2 entries (Zbc-only, no Req_any, 2 profiles)"
+    (List.length Isa_gen_difficult.clmulr_entries = 2);
   check "xperm4/xperm8 entries have 2 entries each (Zbkx Req_any x 2 profiles)"
     (List.length Isa_gen_difficult.xperm4_entries = 2
     && List.length Isa_gen_difficult.xperm8_entries = 2);
@@ -1162,6 +1164,7 @@ let test_counts () =
       + List.length Isa_gen_difficult.zext_h_entries
       + List.length Isa_gen_difficult.clmul_entries
       + List.length Isa_gen_difficult.clmulh_entries
+      + List.length Isa_gen_difficult.clmulr_entries
       + List.length Isa_gen_difficult.xperm4_entries
       + List.length Isa_gen_difficult.xperm8_entries
       + List.length Isa_gen_difficult.sha256sum0_entries
@@ -2748,13 +2751,14 @@ let test_minmax_domain () =
    @ Isa_gen_difficult.pack_entries @ Isa_gen_difficult.packh_entries
    @ Isa_gen_difficult.packw_entries @ Isa_gen_difficult.rolw_entries
    @ Isa_gen_difficult.rorw_entries @ Isa_gen_difficult.clmul_entries
-   @ Isa_gen_difficult.clmulh_entries @ Isa_gen_difficult.xperm4_entries
-   @ Isa_gen_difficult.xperm8_entries @ Isa_gen_difficult.sha512sum0r_entries
-   @ Isa_gen_difficult.sha512sum1r_entries @ Isa_gen_difficult.sha512sig0l_entries
-   @ Isa_gen_difficult.sha512sig1l_entries @ Isa_gen_difficult.sha512sig0h_entries
-   @ Isa_gen_difficult.sha512sig1h_entries @ Isa_gen_difficult.aes64ds_entries
-   @ Isa_gen_difficult.aes64dsm_entries @ Isa_gen_difficult.aes64es_entries
-   @ Isa_gen_difficult.aes64esm_entries @ Isa_gen_difficult.aes64ks2_entries)
+   @ Isa_gen_difficult.clmulh_entries @ Isa_gen_difficult.clmulr_entries
+   @ Isa_gen_difficult.xperm4_entries @ Isa_gen_difficult.xperm8_entries
+   @ Isa_gen_difficult.sha512sum0r_entries @ Isa_gen_difficult.sha512sum1r_entries
+   @ Isa_gen_difficult.sha512sig0l_entries @ Isa_gen_difficult.sha512sig1l_entries
+   @ Isa_gen_difficult.sha512sig0h_entries @ Isa_gen_difficult.sha512sig1h_entries
+   @ Isa_gen_difficult.aes64ds_entries @ Isa_gen_difficult.aes64dsm_entries
+   @ Isa_gen_difficult.aes64es_entries @ Isa_gen_difficult.aes64esm_entries
+   @ Isa_gen_difficult.aes64ks2_entries)
 
 let test_unary_gpr_domain () =
   List.iter

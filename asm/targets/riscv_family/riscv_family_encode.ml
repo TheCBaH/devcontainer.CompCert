@@ -214,6 +214,7 @@ module Make (P : PROFILE) = struct
       | Zext_h
       | Clmul
       | Clmulh
+      | Clmulr
       | Xperm4
       | Xperm8
       | Sha256sum0
@@ -880,6 +881,7 @@ module Make (P : PROFILE) = struct
       | Zext_h -> "zext.h"
       | Clmul -> "clmul"
       | Clmulh -> "clmulh"
+      | Clmulr -> "clmulr"
       | Xperm4 -> "xperm4"
       | Xperm8 -> "xperm8"
       | Sha256sum0 -> "sha256sum0"
@@ -1547,6 +1549,7 @@ module Make (P : PROFILE) = struct
         Zext_h;
         Clmul;
         Clmulh;
+        Clmulr;
         Xperm4;
         Xperm8;
         Sha256sum0;
@@ -2567,6 +2570,7 @@ module Make (P : PROFILE) = struct
     | Bset -> Some (0x33, 1, 0x14)
     | Clmul -> Some (0x33, 1, 0x05)
     | Clmulh -> Some (0x33, 3, 0x05)
+    | Clmulr -> Some (0x33, 2, 0x05)
     | Xperm4 -> Some (0x33, 2, 0x14)
     | Xperm8 -> Some (0x33, 4, 0x14)
     (* SHA-512's RV32-only 32-bit-word-pair-split helpers (gated below;
