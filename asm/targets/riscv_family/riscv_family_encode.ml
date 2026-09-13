@@ -215,6 +215,8 @@ module Make (P : PROFILE) = struct
       | Clmul
       | Clmulh
       | Clmulr
+      | Czero_eqz
+      | Czero_nez
       | Xperm4
       | Xperm8
       | Sha256sum0
@@ -882,6 +884,8 @@ module Make (P : PROFILE) = struct
       | Clmul -> "clmul"
       | Clmulh -> "clmulh"
       | Clmulr -> "clmulr"
+      | Czero_eqz -> "czero.eqz"
+      | Czero_nez -> "czero.nez"
       | Xperm4 -> "xperm4"
       | Xperm8 -> "xperm8"
       | Sha256sum0 -> "sha256sum0"
@@ -1550,6 +1554,8 @@ module Make (P : PROFILE) = struct
         Clmul;
         Clmulh;
         Clmulr;
+        Czero_eqz;
+        Czero_nez;
         Xperm4;
         Xperm8;
         Sha256sum0;
@@ -2571,6 +2577,8 @@ module Make (P : PROFILE) = struct
     | Clmul -> Some (0x33, 1, 0x05)
     | Clmulh -> Some (0x33, 3, 0x05)
     | Clmulr -> Some (0x33, 2, 0x05)
+    | Czero_eqz -> Some (0x33, 5, 0x07)
+    | Czero_nez -> Some (0x33, 7, 0x07)
     | Xperm4 -> Some (0x33, 2, 0x14)
     | Xperm8 -> Some (0x33, 4, 0x14)
     (* SHA-512's RV32-only 32-bit-word-pair-split helpers (gated below;

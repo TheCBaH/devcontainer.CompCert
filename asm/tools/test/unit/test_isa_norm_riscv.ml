@@ -2440,6 +2440,12 @@ let clmulh_json =
 let clmulr_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xa002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "clmulr", "origin": {"line": 2, "path": "extensions/rv_zbc"}, "provenance": {"extension": "rv_zbc", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "clmulr     rd rs1 rs2 31..25=5 14..12=2 6..2=0x0C 1..0=3", "tokens": ["clmulr", "rd", "rs1", "rs2", "31..25=5", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xa002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbc:clmulr@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
+let czero_eqz_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xe005033", "width_bits": 32}, "kind": "instruction-form", "native_name": "czero.eqz", "origin": {"line": 1, "path": "extensions/rv_zicond"}, "provenance": {"extension": "rv_zicond", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "czero.eqz   rd rs1 rs2 31..25=7 14..12=5 6..2=0x0C 1..0=3", "tokens": ["czero.eqz", "rd", "rs1", "rs2", "31..25=7", "14..12=5", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xe005033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zicond:czero.eqz@L1", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
+let czero_nez_json =
+  {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0xe007033", "width_bits": 32}, "kind": "instruction-form", "native_name": "czero.nez", "origin": {"line": 2, "path": "extensions/rv_zicond"}, "provenance": {"extension": "rv_zicond", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "czero.nez   rd rs1 rs2 31..25=7 14..12=7 6..2=0x0C 1..0=3", "tokens": ["czero.nez", "rd", "rs1", "rs2", "31..25=7", "14..12=7", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0xe007033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zicond:czero.nez@L2", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
+
 let xperm4_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 25, "name": "bits[31:25]", "width": 7}, {"lsb": 12, "name": "bits[14:12]", "width": 3}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 20, "name": "rs2", "width": 5}], "kind": "fixed_bits", "mask": "0xfe00707f", "value": "0x28002033", "width_bits": 32}, "kind": "instruction-form", "native_name": "xperm4", "origin": {"line": 1, "path": "extensions/rv_zbkx"}, "provenance": {"extension": "rv_zbkx", "operands": ["rd", "rs1", "rs2"], "raw": {"line": "xperm4     rd rs1 rs2 31..25=20 14..12=2 6..2=0x0C 1..0=3", "tokens": ["xperm4", "rd", "rs1", "rs2", "31..25=20", "14..12=2", "6..2=0x0C", "1..0=3"]}, "upstream-resolved": {"mask": "0xfe00707f", "match": "0x28002033", "variable_fields": ["rd", "rs1", "rs2"]}}, "record_id": "riscv-opcodes:rv_zbkx:xperm4@L1", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}
 
@@ -2649,6 +2655,12 @@ let test_clmulh () =
    no rv_zbkc/rv_zk/rv_zkn/rv_zks import of it at all, so it uses the plain
    single-feature {!test_r_type_gpr} rather than {!test_r_type_gpr_any}. *)
 let test_clmulr () = test_r_type_gpr ~feature:"zbc" ~mnemonic:"clmulr" ~json:clmulr_json
+
+(* czero.eqz/czero.nez: Zicond's conditional-zero pair, the same plain
+   three-GPR R-type shape as clmulr - a single, non-import-duplicated
+   rv_zicond record on each profile, no Req_any needed. *)
+let test_czero_eqz () = test_r_type_gpr ~feature:"zicond" ~mnemonic:"czero.eqz" ~json:czero_eqz_json
+let test_czero_nez () = test_r_type_gpr ~feature:"zicond" ~mnemonic:"czero.nez" ~json:czero_nez_json
 
 (* xperm4/xperm8: the same three-GPR Req_any R-type shape, but a four-way
    zbkx-only group (rv_zbkx/rv_zk/rv_zkn/rv_zks - no separate non-K sibling
@@ -5038,6 +5050,8 @@ let () =
   test_clmul ();
   test_clmulh ();
   test_clmulr ();
+  test_czero_eqz ();
+  test_czero_nez ();
   test_xperm4 ();
   test_xperm8 ();
   test_sha256sum0 ();

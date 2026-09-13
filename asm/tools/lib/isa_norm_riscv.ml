@@ -20,6 +20,7 @@ let feature_of_extension = function
   | "rv_zkn" -> Req_feature "riscv:zkn"
   | "rv_zks" -> Req_feature "riscv:zks"
   | "rv_zbc" -> Req_feature "riscv:zbc"
+  | "rv_zicond" -> Req_feature "riscv:zicond"
   | "rv_zbkc" -> Req_feature "riscv:zbkc"
   | "rv_zbkx" -> Req_feature "riscv:zbkx"
   | "rv_zbs" -> Req_feature "riscv:zbs"
@@ -1929,6 +1930,8 @@ let r_type_mnemonics =
     "clmul";
     "clmulh";
     "clmulr";
+    "czero.eqz";
+    "czero.nez";
     "xperm4";
     "xperm8";
     "sha512sum0r";
