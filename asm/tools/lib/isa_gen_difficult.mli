@@ -207,6 +207,13 @@ val x86_vex_binop_rrr_entries : entry list
     against real GNU as before {!Isa_norm_xed.vex_binop_rrr_form} and
     x86_family_encode.ml's own two-byte-VEX encoder were built. *)
 
+val x86_vex_binop_rr_mem_entries : entry list
+(** [vaddsd]/[vsubsd]/[vmulsd]/[vdivsd 16(%esp|%rsp), %xmm1, %xmm0] on x86-32
+    and x86-64 - {!x86_vex_binop_rrr_entries}'s register<-memory sibling,
+    confirmed against real GNU as before
+    {!Isa_norm_xed.vex_binop_rr_mem_form} and x86_family_encode.ml's own
+    memory-operand extension of the two-byte-VEX encoder were built. *)
+
 val x86_cvtsi2f_rr_entries : entry list
 (** [cvtsi2sd]/[cvtsi2ss %eax, %xmm0] on x86-32 and x86-64, plus
     [cvtsi2sdq]/[cvtsi2ssq %rax, %xmm0] on x86-64 only (a GPR64 source

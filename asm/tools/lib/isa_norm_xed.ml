@@ -1215,6 +1215,88 @@ let vex_binop_rrr_form ~form_id ~mnemonic (rec_ : R.t) =
            (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* {!vex_binop_rrr_form}'s register<-memory sibling (VADDSD_XMMdq_XMMdq_MEMq
+   etc.): XED's resolved operands are REG0 (dest, w), REG1 (src1/vvvv, r) and
+   MEM0 (src2/rm-as-memory, r), the same REG0/REG1 pair as
+   {!vex_binop_rrr_form} with its REG2 replaced by a memory operand -
+   x86_family_encode.ml's own [Lowered.Vex_binop_rr_rm] now represents both
+   directly, confirmed against real GNU as to be structurally identical to
+   legacy SSE's own memory encoding once the VEX prefix bytes are in place. *)
+let vex_binop_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" && c.op_name = "MEM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src1 =
+        {
+          op_name = "src1";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let src2 =
+        {
+          op_name = "src2";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw c.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src2; src1; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_operand "src2";
+                  Syn_decorated ("%", Syn_operand "src1");
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src1/vvvv), MEM0 (rw=%s, src2/rm) taken \
+                     verbatim from encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (src2, src1, dest) is GAS's own non-destructive VEX \
+                   convention, not a XED fact - same as {!vex_binop_rrr_form}'s register form";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1/MEM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* [movsd]/[movss] load/store (MOVSD_XMM_XMMdq_MEMsd/MOVSD_XMM_MEMsd_XMMsd
    and their MOVSS siblings): {!mov_gprv_memv_form}'s own load/store shape
    with [X86_xmm] replacing [X86_gpr], and the mnemonic ("movsd"/"movss")
@@ -2030,9 +2112,9 @@ let normalize (rec_ : R.t) =
   | Ok { iform = Some "DIVPD_XMMpd_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"DIVPD_XMMpd_MEMpd" ~mnemonic:"divpd" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
-     comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form only - the
-     register<-memory sibling (VADDSD_XMMdq_XMMdq_MEMq etc.) is deliberately not admitted here,
-     since x86_family_encode.ml's two-byte-VEX encoder does not build a memory operand. *)
+     comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
+     register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
+     VEX and EVEX remain out of scope. *)
   | Ok { iform = Some "VADDSD_XMMdq_XMMdq_XMMq"; _ } ->
       vex_binop_rrr_form ~form_id:"VADDSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vaddsd" rec_
   | Ok { iform = Some "VSUBSD_XMMdq_XMMdq_XMMq"; _ } ->
@@ -2041,6 +2123,14 @@ let normalize (rec_ : R.t) =
       vex_binop_rrr_form ~form_id:"VMULSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vmulsd" rec_
   | Ok { iform = Some "VDIVSD_XMMdq_XMMdq_XMMq"; _ } ->
       vex_binop_rrr_form ~form_id:"VDIVSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vdivsd" rec_
+  | Ok { iform = Some "VADDSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VADDSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vaddsd" rec_
+  | Ok { iform = Some "VSUBSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSUBSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vsubsd" rec_
+  | Ok { iform = Some "VMULSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMULSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vmulsd" rec_
+  | Ok { iform = Some "VDIVSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VDIVSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vdivsd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -2062,7 +2152,7 @@ let normalize (rec_ : R.t) =
             MOVUPS/MOVUPD load-direction register-register and register<-memory forms, and the \
             packed-arithmetic ADDPS/SUBPS/MULPS/DIVPS/ADDPD/SUBPD/MULPD/DIVPD register-register \
             and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD \
-            register-register forms; %s is not one of them"
+            register-register and register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg
