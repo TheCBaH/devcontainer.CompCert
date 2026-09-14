@@ -379,6 +379,19 @@ module Opcode = struct
     | Vsubss  (** [vsubss src2, src1, dst] - {!Vaddss}'s sibling ([VEX.LIG.F3.0F.WIG 5C /r]). *)
     | Vmulss  (** [vmulss src2, src1, dst] - {!Vaddss}'s sibling ([VEX.LIG.F3.0F.WIG 59 /r]). *)
     | Vdivss  (** [vdivss src2, src1, dst] - {!Vaddss}'s sibling ([VEX.LIG.F3.0F.WIG 5E /r]). *)
+    | Vaddps
+        (** [vaddps src2, src1, dst] - {!Vaddsd}'s packed-single sibling ([VEX.128.0F.WIG 58 /r],
+            [pp = 0], no mandatory prefix): completes the [pp] square (F2/F3/none/66) for opcode
+            [0x58] the legacy {!Addps}/{!Addpd} slice already completed for the non-VEX encoding. *)
+    | Vsubps  (** [vsubps src2, src1, dst] - {!Vaddps}'s sibling ([VEX.128.0F.WIG 5C /r]). *)
+    | Vmulps  (** [vmulps src2, src1, dst] - {!Vaddps}'s sibling ([VEX.128.0F.WIG 59 /r]). *)
+    | Vdivps  (** [vdivps src2, src1, dst] - {!Vaddps}'s sibling ([VEX.128.0F.WIG 5E /r]). *)
+    | Vaddpd
+        (** [vaddpd src2, src1, dst] - {!Vaddps}'s packed-double sibling ([VEX.128.66.0F.WIG 58 /r],
+            [pp = 1], mandatory [66]). *)
+    | Vsubpd  (** [vsubpd src2, src1, dst] - {!Vaddpd}'s sibling ([VEX.128.66.0F.WIG 5C /r]). *)
+    | Vmulpd  (** [vmulpd src2, src1, dst] - {!Vaddpd}'s sibling ([VEX.128.66.0F.WIG 59 /r]). *)
+    | Vdivpd  (** [vdivpd src2, src1, dst] - {!Vaddpd}'s sibling ([VEX.128.66.0F.WIG 5E /r]). *)
     | Fldl
     | Fstpl
     | Fstps
@@ -513,6 +526,14 @@ module Opcode = struct
     | Vsubss -> "vsubss"
     | Vmulss -> "vmulss"
     | Vdivss -> "vdivss"
+    | Vaddps -> "vaddps"
+    | Vsubps -> "vsubps"
+    | Vmulps -> "vmulps"
+    | Vdivps -> "vdivps"
+    | Vaddpd -> "vaddpd"
+    | Vsubpd -> "vsubpd"
+    | Vmulpd -> "vmulpd"
+    | Vdivpd -> "vdivpd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -745,9 +766,11 @@ module Instruction = struct
           | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
           | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
           | Opcode.Divpd | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd
-          | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Fldl
-          | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd
-          | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
+          | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps
+          | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd
+          | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds
+          | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
+          | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1935,6 +1958,14 @@ module Make (M : MODE) = struct
     | "vsubss", _ -> Ok (Instruction.mk Opcode.Vsubss 32 s.Surface.ops)
     | "vmulss", _ -> Ok (Instruction.mk Opcode.Vmulss 32 s.Surface.ops)
     | "vdivss", _ -> Ok (Instruction.mk Opcode.Vdivss 32 s.Surface.ops)
+    | "vaddps", _ -> Ok (Instruction.mk Opcode.Vaddps 32 s.Surface.ops)
+    | "vsubps", _ -> Ok (Instruction.mk Opcode.Vsubps 32 s.Surface.ops)
+    | "vmulps", _ -> Ok (Instruction.mk Opcode.Vmulps 32 s.Surface.ops)
+    | "vdivps", _ -> Ok (Instruction.mk Opcode.Vdivps 32 s.Surface.ops)
+    | "vaddpd", _ -> Ok (Instruction.mk Opcode.Vaddpd 32 s.Surface.ops)
+    | "vsubpd", _ -> Ok (Instruction.mk Opcode.Vsubpd 32 s.Surface.ops)
+    | "vmulpd", _ -> Ok (Instruction.mk Opcode.Vmulpd 32 s.Surface.ops)
+    | "vdivpd", _ -> Ok (Instruction.mk Opcode.Vdivpd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2623,7 +2654,9 @@ module Make (M : MODE) = struct
        memory [src2] needs the same check on its base/index (if present)
        instead of on a register number directly - {!vex_mem_ok}. *)
     | ( ( Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss
-        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss ),
+        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps
+        | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
+        | Opcode.Vdivpd ),
         [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src2, xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok (), Ok () ->
@@ -2633,7 +2666,9 @@ module Make (M : MODE) = struct
                 [ Lowered.Vex_binop_rr_rm { op = i.Instruction.op; dst; src1; src2 = Rm.Reg src2 } ]
         | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
     | ( ( Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss
-        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss ),
+        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps
+        | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
+        | Opcode.Vdivpd ),
         [ Operand.Mem m; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () -> (
@@ -2649,7 +2684,9 @@ module Make (M : MODE) = struct
        neither of which ever names a real base/index register, so
        {!vex_mem_ok} is unneeded here (it always accepts [None]/[None]). *)
     | ( ( Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss
-        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss ),
+        | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps
+        | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
+        | Opcode.Vdivpd ),
         [ Operand.Sym e; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -3368,6 +3405,31 @@ module Make (M : MODE) = struct
           (Opcode.Vsubss, 0x5CL);
           (Opcode.Vmulss, 0x59L);
           (Opcode.Vdivss, 0x5EL);
+        ]
+      (C.field ~width:8 "opcode")
+
+  (* [pp = 0] (no mandatory prefix) - {!Vaddps}'s packed-single group, the same
+     four opcode bytes as {!vex_scalar_f2_codec}/{!vex_scalar_f3_codec}. *)
+  let vex_scalar_none_codec =
+    C.iso_table ~name:"vex-scalar-none-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vaddps, 0x58L);
+          (Opcode.Vsubps, 0x5CL);
+          (Opcode.Vmulps, 0x59L);
+          (Opcode.Vdivps, 0x5EL);
+        ]
+      (C.field ~width:8 "opcode")
+
+  (* [pp = 1] (mandatory [66]) - {!Vaddpd}'s packed-double group. *)
+  let vex_scalar_66_codec =
+    C.iso_table ~name:"vex-scalar-66-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vaddpd, 0x58L);
+          (Opcode.Vsubpd, 0x5CL);
+          (Opcode.Vmulpd, 0x59L);
+          (Opcode.Vdivpd, 0x5EL);
         ]
       (C.field ~width:8 "opcode")
 
@@ -4316,6 +4378,10 @@ module Make (M : MODE) = struct
             ~opcode_codec:vex_scalar_f2_codec;
           vex_scalar_rrr_alt ~label:"vex-scalar-f3-rrr" ~priority:68 ~pp:2
             ~opcode_codec:vex_scalar_f3_codec;
+          vex_scalar_rrr_alt ~label:"vex-scalar-none-rrr" ~priority:69 ~pp:0
+            ~opcode_codec:vex_scalar_none_codec;
+          vex_scalar_rrr_alt ~label:"vex-scalar-66-rrr" ~priority:70 ~pp:1
+            ~opcode_codec:vex_scalar_66_codec;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)

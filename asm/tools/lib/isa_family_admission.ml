@@ -261,6 +261,24 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "VDIVSD_XMMdq_XMMdq_MEMq" | "VADDSS_XMMdq_XMMdq_MEMd" | "VSUBSS_XMMdq_XMMdq_MEMd"
       | "VMULSS_XMMdq_XMMdq_MEMd" | "VDIVSS_XMMdq_XMMdq_MEMd" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VADDPS_XMMdq_XMMdq_XMMdq" | "x86:VSUBPS_XMMdq_XMMdq_XMMdq"
+      | "x86:VMULPS_XMMdq_XMMdq_XMMdq" | "x86:VDIVPS_XMMdq_XMMdq_XMMdq"
+      | "x86:VADDPD_XMMdq_XMMdq_XMMdq" | "x86:VSUBPD_XMMdq_XMMdq_XMMdq"
+      | "x86:VMULPD_XMMdq_XMMdq_XMMdq" | "x86:VDIVPD_XMMdq_XMMdq_XMMdq" ),
+      ( "VADDPS_XMMdq_XMMdq_XMMdq" | "VSUBPS_XMMdq_XMMdq_XMMdq" | "VMULPS_XMMdq_XMMdq_XMMdq"
+      | "VDIVPS_XMMdq_XMMdq_XMMdq" | "VADDPD_XMMdq_XMMdq_XMMdq" | "VSUBPD_XMMdq_XMMdq_XMMdq"
+      | "VMULPD_XMMdq_XMMdq_XMMdq" | "VDIVPD_XMMdq_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VADDPS_XMMdq_XMMdq_MEMdq" | "x86:VSUBPS_XMMdq_XMMdq_MEMdq"
+      | "x86:VMULPS_XMMdq_XMMdq_MEMdq" | "x86:VDIVPS_XMMdq_XMMdq_MEMdq"
+      | "x86:VADDPD_XMMdq_XMMdq_MEMdq" | "x86:VSUBPD_XMMdq_XMMdq_MEMdq"
+      | "x86:VMULPD_XMMdq_XMMdq_MEMdq" | "x86:VDIVPD_XMMdq_XMMdq_MEMdq" ),
+      ( "VADDPS_XMMdq_XMMdq_MEMdq" | "VSUBPS_XMMdq_XMMdq_MEMdq" | "VMULPS_XMMdq_XMMdq_MEMdq"
+      | "VDIVPS_XMMdq_XMMdq_MEMdq" | "VADDPD_XMMdq_XMMdq_MEMdq" | "VSUBPD_XMMdq_XMMdq_MEMdq"
+      | "VMULPD_XMMdq_XMMdq_MEMdq" | "VDIVPD_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

@@ -2150,6 +2150,43 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VMULSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vmulss" rec_
   | Ok { iform = Some "VDIVSS_XMMdq_XMMdq_MEMd"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VDIVSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vdivss" rec_
+  (* {!Vaddsd}'s packed-single/-double siblings (GEN-05): same two [vex_binop_*_form]
+     shapes, completing the [pp] square (F2/F3/none/66) for VEX opcodes
+     0x58/0x59/0x5C/0x5E the way the legacy ADDPS/ADDPD slice completed it for the
+     non-VEX encoding. XED uses "dq" (128-bit) throughout since these are packed,
+     not scalar-width, operands. *)
+  | Ok { iform = Some "VADDPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VADDPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vaddps" rec_
+  | Ok { iform = Some "VSUBPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VSUBPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vsubps" rec_
+  | Ok { iform = Some "VMULPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMULPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vmulps" rec_
+  | Ok { iform = Some "VDIVPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VDIVPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vdivps" rec_
+  | Ok { iform = Some "VADDPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VADDPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vaddps" rec_
+  | Ok { iform = Some "VSUBPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSUBPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vsubps" rec_
+  | Ok { iform = Some "VMULPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMULPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmulps" rec_
+  | Ok { iform = Some "VDIVPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VDIVPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vdivps" rec_
+  | Ok { iform = Some "VADDPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VADDPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vaddpd" rec_
+  | Ok { iform = Some "VSUBPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VSUBPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vsubpd" rec_
+  | Ok { iform = Some "VMULPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMULPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vmulpd" rec_
+  | Ok { iform = Some "VDIVPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VDIVPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vdivpd" rec_
+  | Ok { iform = Some "VADDPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VADDPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vaddpd" rec_
+  | Ok { iform = Some "VSUBPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSUBPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vsubpd" rec_
+  | Ok { iform = Some "VMULPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMULPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmulpd" rec_
+  | Ok { iform = Some "VDIVPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VDIVPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vdivpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -2171,8 +2208,8 @@ let normalize (rec_ : R.t) =
             MOVUPS/MOVUPD load-direction register-register and register<-memory forms, and the \
             packed-arithmetic ADDPS/SUBPS/MULPS/DIVPS/ADDPD/SUBPD/MULPD/DIVPD register-register \
             and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD/ \
-            VADDSS/VSUBSS/VMULSS/VDIVSS register-register and register<-memory forms; %s is not \
-            one of them"
+            VADDSS/VSUBSS/VMULSS/VDIVSS/VADDPS/VSUBPS/VMULPS/VDIVPS/VADDPD/VSUBPD/VMULPD/VDIVPD \
+            register-register and register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

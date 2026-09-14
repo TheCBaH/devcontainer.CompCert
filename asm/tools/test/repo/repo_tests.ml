@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:185;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:185
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:201;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:201
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -837,16 +837,34 @@ let test_isa_family_admission repo =
      `vaddss %xmm2,%xmm1,%xmm0` -> `c5 f2 58 c2`, `vsubss
      %xmm7,%xmm3,%xmm5` -> `c5 e2 5c ef`. Both register-register and
      register<-memory forms admitted together (8 records per x86 profile,
-     4 mnemonics x 2 directions). YMM (VEX.L), three-byte VEX, and EVEX
-     remain deferred. *)
+     4 mnemonics x 2 directions).
+
+     `VADDPS`/`VSUBPS`/`VMULPS`/`VDIVPS` (`pp = 0`, no mandatory prefix) and
+     `VADDPD`/`VSUBPD`/`VMULPD`/`VDIVPD` (`pp = 1`, mandatory `66`) complete
+     the VEX `pp` square (F2/F3/none/66) for opcodes `0x58`/`0x59`/`0x5C`/
+     `0x5E`, mirroring how the legacy `ADDPS`/`ADDPD` slice completed the
+     same square for the non-VEX encoding. Two new opcode tables
+     (`vex_scalar_none_codec`/`vex_scalar_66_codec`) plug into the existing
+     `vex_scalar_rrr_alt`/`Vex_binop_rr_rm`/`vex_rm_ok` machinery unchanged -
+     pure mechanical extension, no new representation. Confirmed against
+     real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44), identical on
+     both targets: `vaddps %xmm2,%xmm1,%xmm0` -> `c5 f0 58 c2`, `vsubps
+     %xmm7,%xmm3,%xmm5` -> `c5 e0 5c ef`, `vaddpd %xmm2,%xmm1,%xmm0` ->
+     `c5 f1 58 c2`, and likewise for `mul`/`div` at `0x59`/`0x5E` and for the
+     register<-memory direction (e.g. `vaddps 16(%esp),%xmm1,%xmm0` ->
+     `c5 f0 58 44 24 10`). Both register-register and register<-memory forms
+     admitted together (16 records per x86 profile, 8 mnemonics x 2
+     directions). AVX (the XED family) now stands at promoted-support
+     32/676 (x86-32) and 32/702 (x86-64). YMM (VEX.L), three-byte VEX, and
+     EVEX remain deferred. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:174 ~blocked:7702;
+    ~promoted_support:190 ~blocked:7686;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:180 ~blocked:10386
+    ~promoted_support:196 ~blocked:10370
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -900,9 +918,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1866)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1898)"
        !roundtrip_count)
-    (!roundtrip_count = 1866)
+    (!roundtrip_count = 1898)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

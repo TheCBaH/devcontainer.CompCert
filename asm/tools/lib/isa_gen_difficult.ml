@@ -702,6 +702,14 @@ let x86_vex_binop_rrr_entries =
           "VSUBSS_XMMdq_XMMdq_XMMd";
           "VMULSS_XMMdq_XMMdq_XMMd";
           "VDIVSS_XMMdq_XMMdq_XMMd";
+          "VADDPS_XMMdq_XMMdq_XMMdq";
+          "VSUBPS_XMMdq_XMMdq_XMMdq";
+          "VMULPS_XMMdq_XMMdq_XMMdq";
+          "VDIVPS_XMMdq_XMMdq_XMMdq";
+          "VADDPD_XMMdq_XMMdq_XMMdq";
+          "VSUBPD_XMMdq_XMMdq_XMMdq";
+          "VMULPD_XMMdq_XMMdq_XMMdq";
+          "VDIVPD_XMMdq_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -739,6 +747,14 @@ let x86_vex_binop_rr_mem_entries =
           "VSUBSS_XMMdq_XMMdq_MEMd";
           "VMULSS_XMMdq_XMMdq_MEMd";
           "VDIVSS_XMMdq_XMMdq_MEMd";
+          "VADDPS_XMMdq_XMMdq_MEMdq";
+          "VSUBPS_XMMdq_XMMdq_MEMdq";
+          "VMULPS_XMMdq_XMMdq_MEMdq";
+          "VDIVPS_XMMdq_XMMdq_MEMdq";
+          "VADDPD_XMMdq_XMMdq_MEMdq";
+          "VSUBPD_XMMdq_XMMdq_MEMdq";
+          "VMULPD_XMMdq_XMMdq_MEMdq";
+          "VDIVPD_XMMdq_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
