@@ -270,6 +270,14 @@ let promoted_case ~target ~form_id ~lookup_key =
     ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:CVTPS2PD_XMMpd_XMMq" | "x86:CVTPD2PS_XMMps_XMMpd"),
+      ("CVTPS2PD_XMMpd_XMMq" | "CVTPD2PS_XMMps_XMMpd") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:CVTPS2PD_XMMpd_MEMq" | "x86:CVTPD2PS_XMMps_MEMpd"),
+      ("CVTPS2PD_XMMpd_MEMq" | "CVTPD2PS_XMMps_MEMpd") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"
@@ -381,6 +389,11 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("VCOMISD_XMMq_MEMq" | "VUCOMISD_XMMdq_MEMq" | "VCOMISS_XMMd_MEMd" | "VUCOMISS_XMMdq_MEMd") )
     ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VCVTPS2PD_XMMdq_XMMq" | "x86:VCVTPD2PS_XMMdq_XMMdq"),
+      ("VCVTPS2PD_XMMdq_XMMq" | "VCVTPD2PS_XMMdq_XMMdq") ) ->
+      true
+  | (Target.X86_32 | Target.X86_64), "x86:VCVTPS2PD_XMMdq_MEMq", "VCVTPS2PD_XMMdq_MEMq" -> true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

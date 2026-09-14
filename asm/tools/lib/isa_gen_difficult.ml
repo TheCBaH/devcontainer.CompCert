@@ -581,6 +581,8 @@ let x86_sse_binop_rr_entries =
           "SQRTSD_XMMsd_XMMsd";
           "SQRTPS_XMMps_XMMps";
           "SQRTPD_XMMpd_XMMpd";
+          "CVTPS2PD_XMMpd_XMMq";
+          "CVTPD2PS_XMMps_XMMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -655,6 +657,8 @@ let x86_sse_binop_rm_entries =
           "SQRTSD_XMMsd_MEMsd";
           "SQRTPS_XMMps_MEMps";
           "SQRTPD_XMMpd_MEMpd";
+          "CVTPS2PD_XMMpd_MEMq";
+          "CVTPD2PS_XMMps_MEMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -852,6 +856,8 @@ let x86_vex_unop_rr_entries =
           "VUCOMISD_XMMdq_XMMq";
           "VCOMISS_XMMd_XMMd";
           "VUCOMISS_XMMdq_XMMd";
+          "VCVTPS2PD_XMMdq_XMMq";
+          "VCVTPD2PS_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -889,6 +895,7 @@ let x86_vex_unop_rr_mem_entries =
           "VUCOMISD_XMMdq_MEMq";
           "VCOMISS_XMMd_MEMd";
           "VUCOMISS_XMMdq_MEMd";
+          "VCVTPS2PD_XMMdq_MEMq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

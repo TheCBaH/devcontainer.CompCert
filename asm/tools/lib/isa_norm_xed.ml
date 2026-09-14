@@ -2306,6 +2306,18 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"SQRTPS_XMMps_MEMps" ~mnemonic:"sqrtps" rec_
   | Ok { iform = Some "SQRTPD_XMMpd_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"SQRTPD_XMMpd_MEMpd" ~mnemonic:"sqrtpd" rec_
+  (* {!xmm_binop_rr_form}/{!xmm_binop_rm_form}'s own generic REG0/REG1-or-MEM0 shape covers
+     {!Opcode.Cvtps2pd}/{!Opcode.Cvtpd2ps} too (none/66 mandatory prefix, {!Cvtsd2ss}/
+     {!Cvtss2sd}'s own opcode byte 0x5A) - both directions confirmed unambiguous against real
+     GNU as, unlike the VEX sibling below. *)
+  | Ok { iform = Some "CVTPS2PD_XMMpd_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTPS2PD_XMMpd_XMMq" ~mnemonic:"cvtps2pd" rec_
+  | Ok { iform = Some "CVTPS2PD_XMMpd_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTPS2PD_XMMpd_MEMq" ~mnemonic:"cvtps2pd" rec_
+  | Ok { iform = Some "CVTPD2PS_XMMps_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTPD2PS_XMMps_XMMpd" ~mnemonic:"cvtpd2ps" rec_
+  | Ok { iform = Some "CVTPD2PS_XMMps_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTPD2PS_XMMps_MEMpd" ~mnemonic:"cvtpd2ps" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
@@ -2536,6 +2548,22 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_form ~form_id:"VUCOMISS_XMMdq_XMMd" ~mnemonic:"vucomiss" rec_
   | Ok { iform = Some "VUCOMISS_XMMdq_MEMd"; _ } ->
       vex_unop_rr_mem_form ~form_id:"VUCOMISS_XMMdq_MEMd" ~mnemonic:"vucomiss" rec_
+  (* {!Opcode.Vcvtps2pd}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     CVTPS2PD/CVTPD2PS family (opcode 0x5A), reusing {!vex_unop_rr_form}/{!vex_unop_rr_mem_form}
+     unchanged. {!Vcvtps2pd} admits both directions (confirmed unambiguous against real GNU as:
+     `c5 f8 5a ca` register-register, `c5 f8 5a 08` register<-memory); {!Vcvtpd2ps} admits only
+     the register-register iform (`c5 f9 5a ca`) - its two vex-space memory iforms
+     (VCVTPD2PS_XMMdq_MEMdq's VEX.128 m128 source and VCVTPD2PS_XMMdq_MEMqq's VEX.256 m256
+     source) render as the identical bare GAS spelling [vcvtpd2ps mem, %xmmN], which real GNU as
+     rejects outright ("operand size mismatch") absent the [x]/[y]-suffix disambiguation this
+     project's parser does not implement - left as a named follow-up, matching
+     {!Opcode.Vcvtpd2ps}'s own doc comment. *)
+  | Ok { iform = Some "VCVTPS2PD_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCVTPS2PD_XMMdq_XMMq" ~mnemonic:"vcvtps2pd" rec_
+  | Ok { iform = Some "VCVTPS2PD_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCVTPS2PD_XMMdq_MEMq" ~mnemonic:"vcvtps2pd" rec_
+  | Ok { iform = Some "VCVTPD2PS_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCVTPD2PS_XMMdq_XMMdq" ~mnemonic:"vcvtpd2ps" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
