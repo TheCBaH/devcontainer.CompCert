@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:177;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:177
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:185;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:185
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -821,17 +821,32 @@ let test_isa_family_admission repo =
      -> `c5 33 58 d2` (dst/src1 both xmm8+), and `vaddsd %xmm8,...` correctly
      rejected with a named diagnostic (`Vex_rm_extended_register`) rather
      than silently misencoding. New `vex_binop_rrr_form` normalizer and a
-     new `x86:avx` feature mapping. Deliberately deferred: the register<-
-     memory sibling, YMM (VEX.L), three-byte VEX, and EVEX. This slice moves
-     4 records per x86 profile (4 mnemonics, register-register only). *)
+     new `x86:avx` feature mapping. This slice moved 4 records per x86
+     profile (4 mnemonics, register-register only); the register<-memory
+     sibling was admitted in a later slice and is reflected in the totals
+     below already.
+
+     `VADDSS`/`VSUBSS`/`VMULSS`/`VDIVSS` (AVX, `VEX.LIG.F3.0F.WIG`) are
+     `VADDSD`/etc.'s scalar-single siblings, differing only in the VEX
+     codec's `pp` field (2, not 3) - `vex_scalar_f2_rrr_alt` generalized
+     into `vex_scalar_rrr_alt ~pp ~opcode_codec` (mirroring how
+     `sse_binop_alt` is generalized over `~mandatory`/`~opcode_codec`), plus
+     a new `vex_scalar_f3_codec` opcode table; `Lowered.Vex_binop_rr_rm`,
+     `vex_rm_ok`, and the `vex_binop_rrr_form`/`vex_binop_rr_mem_form`
+     normalizers are reused unchanged. Confirmed against real GNU as:
+     `vaddss %xmm2,%xmm1,%xmm0` -> `c5 f2 58 c2`, `vsubss
+     %xmm7,%xmm3,%xmm5` -> `c5 e2 5c ef`. Both register-register and
+     register<-memory forms admitted together (8 records per x86 profile,
+     4 mnemonics x 2 directions). YMM (VEX.L), three-byte VEX, and EVEX
+     remain deferred. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:166 ~blocked:7710;
+    ~promoted_support:174 ~blocked:7702;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:172 ~blocked:10394
+    ~promoted_support:180 ~blocked:10386
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -885,9 +900,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1850)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 1866)"
        !roundtrip_count)
-    (!roundtrip_count = 1850)
+    (!roundtrip_count = 1866)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

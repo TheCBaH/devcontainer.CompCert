@@ -698,6 +698,10 @@ let x86_vex_binop_rrr_entries =
           "VSUBSD_XMMdq_XMMdq_XMMq";
           "VMULSD_XMMdq_XMMdq_XMMq";
           "VDIVSD_XMMdq_XMMdq_XMMq";
+          "VADDSS_XMMdq_XMMdq_XMMd";
+          "VSUBSS_XMMdq_XMMdq_XMMd";
+          "VMULSS_XMMdq_XMMdq_XMMd";
+          "VDIVSS_XMMdq_XMMdq_XMMd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -731,6 +735,10 @@ let x86_vex_binop_rr_mem_entries =
           "VSUBSD_XMMdq_XMMdq_MEMq";
           "VMULSD_XMMdq_XMMdq_MEMq";
           "VDIVSD_XMMdq_XMMdq_MEMq";
+          "VADDSS_XMMdq_XMMdq_MEMd";
+          "VSUBSS_XMMdq_XMMdq_MEMd";
+          "VMULSS_XMMdq_XMMdq_MEMd";
+          "VDIVSS_XMMdq_XMMdq_MEMd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

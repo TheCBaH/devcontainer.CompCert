@@ -2131,6 +2131,25 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VMULSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vmulsd" rec_
   | Ok { iform = Some "VDIVSD_XMMdq_XMMdq_MEMq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VDIVSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vdivsd" rec_
+  (* {!Vaddsd}'s scalar-single [VEX.LIG.F3.0F.WIG] sibling group (GEN-05): same two
+     [vex_binop_*_form] shapes, XED's own "d" (dword/32-bit) suffix replacing "q"
+     (qword/64-bit) since single precision is 32 bits, not a new shape. *)
+  | Ok { iform = Some "VADDSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VADDSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vaddss" rec_
+  | Ok { iform = Some "VSUBSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VSUBSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vsubss" rec_
+  | Ok { iform = Some "VMULSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMULSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vmulss" rec_
+  | Ok { iform = Some "VDIVSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VDIVSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vdivss" rec_
+  | Ok { iform = Some "VADDSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VADDSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vaddss" rec_
+  | Ok { iform = Some "VSUBSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSUBSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vsubss" rec_
+  | Ok { iform = Some "VMULSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMULSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vmulss" rec_
+  | Ok { iform = Some "VDIVSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VDIVSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vdivss" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -2151,8 +2170,9 @@ let normalize (rec_ : R.t) =
             ANDPD/ANDNPD/ORPD register-register and register<-memory forms, the MOVAPS/ \
             MOVUPS/MOVUPD load-direction register-register and register<-memory forms, and the \
             packed-arithmetic ADDPS/SUBPS/MULPS/DIVPS/ADDPD/SUBPD/MULPD/DIVPD register-register \
-            and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD \
-            register-register and register<-memory forms; %s is not one of them"
+            and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD/ \
+            VADDSS/VSUBSS/VMULSS/VDIVSS register-register and register<-memory forms; %s is not \
+            one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg
