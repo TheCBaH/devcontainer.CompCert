@@ -258,6 +258,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "MAXPS_XMMps_MEMps" | "MINPS_XMMps_MEMps" | "MAXPD_XMMpd_MEMpd" | "MINPD_XMMpd_MEMpd" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:SQRTSS_XMMss_XMMss" | "x86:SQRTSD_XMMsd_XMMsd" | "x86:SQRTPS_XMMps_XMMps"
+      | "x86:SQRTPD_XMMpd_XMMpd" ),
+      ("SQRTSS_XMMss_XMMss" | "SQRTSD_XMMsd_XMMsd" | "SQRTPS_XMMps_XMMps" | "SQRTPD_XMMpd_XMMpd") )
+    ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:SQRTSS_XMMss_MEMss" | "x86:SQRTSD_XMMsd_MEMsd" | "x86:SQRTPS_XMMps_MEMps"
+      | "x86:SQRTPD_XMMpd_MEMpd" ),
+      ("SQRTSS_XMMss_MEMss" | "SQRTSD_XMMsd_MEMsd" | "SQRTPS_XMMps_MEMps" | "SQRTPD_XMMpd_MEMpd") )
+    ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"

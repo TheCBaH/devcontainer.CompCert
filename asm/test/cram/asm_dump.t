@@ -250,10 +250,10 @@
   alu-r-rm-op[8]{opcode:8u}
   no-asz(){()}
   no-rex(){()}
-  sse-binop-f2-op[7]{opcode:8u}
-  sse-binop-f3-op[7]{opcode:8u}
-  sse-binop-66-op[15]{opcode:8u}
-  sse-binop-none-op[13]{opcode:8u}
+  sse-binop-f2-op[8]{opcode:8u}
+  sse-binop-f3-op[8]{opcode:8u}
+  sse-binop-66-op[16]{opcode:8u}
+  sse-binop-none-op[14]{opcode:8u}
   vex-scalar-f2-op[6]{opcode:8u}
   vex-scalar-f3-op[6]{opcode:8u}
   vex-scalar-none-op[10]{opcode:8u}
@@ -517,10 +517,10 @@
   alt rex
     [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
     [1 cost=0] rex-absent       rex-absent(){()}
-  sse-binop-f2-op[7]{opcode:8u}
-  sse-binop-f3-op[7]{opcode:8u}
-  sse-binop-66-op[15]{opcode:8u}
-  sse-binop-none-op[13]{opcode:8u}
+  sse-binop-f2-op[8]{opcode:8u}
+  sse-binop-f3-op[8]{opcode:8u}
+  sse-binop-66-op[16]{opcode:8u}
+  sse-binop-none-op[14]{opcode:8u}
   vex-scalar-f2-op[6]{opcode:8u}
   vex-scalar-f3-op[6]{opcode:8u}
   vex-scalar-none-op[10]{opcode:8u}

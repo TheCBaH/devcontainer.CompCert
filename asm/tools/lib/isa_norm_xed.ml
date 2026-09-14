@@ -2149,6 +2149,29 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"MAXPD_XMMpd_MEMpd" ~mnemonic:"maxpd" rec_
   | Ok { iform = Some "MINPD_XMMpd_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"MINPD_XMMpd_MEMpd" ~mnemonic:"minpd" rec_
+  (* {!Opcode.Sqrtss}'s family (GEN-05): the first genuinely unary member admitted through
+     {!xmm_binop_rr_form}/{!xmm_binop_rm_form} - XED's REG0 is still [rw] for the scalar forms
+     (a scalar op preserves the destination's upper bits) exactly like every binop above, so
+     both normalizers apply unchanged even though the architectural operation itself only reads
+     one operand. Same four-prefix-group shape at opcode 0x51. SQRTSS/SQRTPS are XED extension
+     SSE; SQRTSD/SQRTPD are SSE2. Confirmed against real GNU as (i686-linux-gnu-as/
+     x86_64-linux-gnu-as 2.44): `F3 0F 51` (ss), `F2 0F 51` (sd), `0F 51` (ps), `66 0F 51` (pd). *)
+  | Ok { iform = Some "SQRTSS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"SQRTSS_XMMss_XMMss" ~mnemonic:"sqrtss" rec_
+  | Ok { iform = Some "SQRTSD_XMMsd_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"SQRTSD_XMMsd_XMMsd" ~mnemonic:"sqrtsd" rec_
+  | Ok { iform = Some "SQRTPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"SQRTPS_XMMps_XMMps" ~mnemonic:"sqrtps" rec_
+  | Ok { iform = Some "SQRTPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"SQRTPD_XMMpd_XMMpd" ~mnemonic:"sqrtpd" rec_
+  | Ok { iform = Some "SQRTSS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"SQRTSS_XMMss_MEMss" ~mnemonic:"sqrtss" rec_
+  | Ok { iform = Some "SQRTSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"SQRTSD_XMMsd_MEMsd" ~mnemonic:"sqrtsd" rec_
+  | Ok { iform = Some "SQRTPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"SQRTPS_XMMps_MEMps" ~mnemonic:"sqrtps" rec_
+  | Ok { iform = Some "SQRTPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"SQRTPD_XMMpd_MEMpd" ~mnemonic:"sqrtpd" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte

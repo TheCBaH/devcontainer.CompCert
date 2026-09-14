@@ -576,6 +576,10 @@ let x86_sse_binop_rr_entries =
           "MINPS_XMMps_XMMps";
           "MAXPD_XMMpd_XMMpd";
           "MINPD_XMMpd_XMMpd";
+          "SQRTSS_XMMss_XMMss";
+          "SQRTSD_XMMsd_XMMsd";
+          "SQRTPS_XMMps_XMMps";
+          "SQRTPD_XMMpd_XMMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -645,6 +649,10 @@ let x86_sse_binop_rm_entries =
           "MINPS_XMMps_MEMps";
           "MAXPD_XMMpd_MEMpd";
           "MINPD_XMMpd_MEMpd";
+          "SQRTSS_XMMss_MEMss";
+          "SQRTSD_XMMsd_MEMsd";
+          "SQRTPS_XMMps_MEMps";
+          "SQRTPD_XMMpd_MEMpd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
