@@ -244,6 +244,20 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "ADDPD_XMMpd_MEMpd" | "SUBPD_XMMpd_MEMpd" | "MULPD_XMMpd_MEMpd" | "DIVPD_XMMpd_MEMpd" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:MAXSS_XMMss_XMMss" | "x86:MINSS_XMMss_XMMss" | "x86:MAXSD_XMMsd_XMMsd"
+      | "x86:MINSD_XMMsd_XMMsd" | "x86:MAXPS_XMMps_XMMps" | "x86:MINPS_XMMps_XMMps"
+      | "x86:MAXPD_XMMpd_XMMpd" | "x86:MINPD_XMMpd_XMMpd" ),
+      ( "MAXSS_XMMss_XMMss" | "MINSS_XMMss_XMMss" | "MAXSD_XMMsd_XMMsd" | "MINSD_XMMsd_XMMsd"
+      | "MAXPS_XMMps_XMMps" | "MINPS_XMMps_XMMps" | "MAXPD_XMMpd_XMMpd" | "MINPD_XMMpd_XMMpd" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:MAXSS_XMMss_MEMss" | "x86:MINSS_XMMss_MEMss" | "x86:MAXSD_XMMsd_MEMsd"
+      | "x86:MINSD_XMMsd_MEMsd" | "x86:MAXPS_XMMps_MEMps" | "x86:MINPS_XMMps_MEMps"
+      | "x86:MAXPD_XMMpd_MEMpd" | "x86:MINPD_XMMpd_MEMpd" ),
+      ( "MAXSS_XMMss_MEMss" | "MINSS_XMMss_MEMss" | "MAXSD_XMMsd_MEMsd" | "MINSD_XMMsd_MEMsd"
+      | "MAXPS_XMMps_MEMps" | "MINPS_XMMps_MEMps" | "MAXPD_XMMpd_MEMpd" | "MINPD_XMMpd_MEMpd" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"

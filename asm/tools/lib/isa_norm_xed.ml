@@ -2111,6 +2111,44 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"MULPD_XMMpd_MEMpd" ~mnemonic:"mulpd" rec_
   | Ok { iform = Some "DIVPD_XMMpd_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"DIVPD_XMMpd_MEMpd" ~mnemonic:"divpd" rec_
+  (* {!Opcode.Addsd}/{!Opcode.Addss}/{!Opcode.Addps}/{!Opcode.Addpd}'s min/max siblings,
+     overlooked in the earlier arithmetic-family survey passes: the same four-prefix-group shape
+     at opcodes 0x5D (min)/0x5F (max) rather than 0x58/0x59/0x5C/0x5E, the same plain
+     xmm-xmm/xmm-memory binop shape. MAXSS/MINSS/MAXPS/MINPS are XED extension SSE; MAXSD/MINSD/
+     MAXPD/MINPD are SSE2. Confirmed against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as
+     2.44): `F3 0F 5F/5D` (ss), `F2 0F 5F/5D` (sd), `0F 5F/5D` (ps), `66 0F 5F/5D` (pd). *)
+  | Ok { iform = Some "MAXSS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"MAXSS_XMMss_XMMss" ~mnemonic:"maxss" rec_
+  | Ok { iform = Some "MINSS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"MINSS_XMMss_XMMss" ~mnemonic:"minss" rec_
+  | Ok { iform = Some "MAXSD_XMMsd_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"MAXSD_XMMsd_XMMsd" ~mnemonic:"maxsd" rec_
+  | Ok { iform = Some "MINSD_XMMsd_XMMsd"; _ } ->
+      xmm_binop_rr_form ~form_id:"MINSD_XMMsd_XMMsd" ~mnemonic:"minsd" rec_
+  | Ok { iform = Some "MAXPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"MAXPS_XMMps_XMMps" ~mnemonic:"maxps" rec_
+  | Ok { iform = Some "MINPS_XMMps_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"MINPS_XMMps_XMMps" ~mnemonic:"minps" rec_
+  | Ok { iform = Some "MAXPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"MAXPD_XMMpd_XMMpd" ~mnemonic:"maxpd" rec_
+  | Ok { iform = Some "MINPD_XMMpd_XMMpd"; _ } ->
+      xmm_binop_rr_form ~form_id:"MINPD_XMMpd_XMMpd" ~mnemonic:"minpd" rec_
+  | Ok { iform = Some "MAXSS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"MAXSS_XMMss_MEMss" ~mnemonic:"maxss" rec_
+  | Ok { iform = Some "MINSS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"MINSS_XMMss_MEMss" ~mnemonic:"minss" rec_
+  | Ok { iform = Some "MAXSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MAXSD_XMMsd_MEMsd" ~mnemonic:"maxsd" rec_
+  | Ok { iform = Some "MINSD_XMMsd_MEMsd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MINSD_XMMsd_MEMsd" ~mnemonic:"minsd" rec_
+  | Ok { iform = Some "MAXPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"MAXPS_XMMps_MEMps" ~mnemonic:"maxps" rec_
+  | Ok { iform = Some "MINPS_XMMps_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"MINPS_XMMps_MEMps" ~mnemonic:"minps" rec_
+  | Ok { iform = Some "MAXPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MAXPD_XMMpd_MEMpd" ~mnemonic:"maxpd" rec_
+  | Ok { iform = Some "MINPD_XMMpd_MEMpd"; _ } ->
+      xmm_binop_rm_form ~form_id:"MINPD_XMMpd_MEMpd" ~mnemonic:"minpd" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte

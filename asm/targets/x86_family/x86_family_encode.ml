@@ -357,6 +357,30 @@ module Opcode = struct
         (** [mulpd rm, reg] - packed multiply, double precision ([66 0F 59 /r]), {!Addpd}'s sibling. *)
     | Divpd
         (** [divpd rm, reg] - packed divide, double precision ([66 0F 5E /r]), {!Addpd}'s sibling. *)
+    | Maxss
+        (** [maxss rm, reg] - scalar maximum, single precision ([F3 0F 5F /r]), {!Addss}'s own
+            mandatory-prefix group at a different opcode byte. *)
+    | Minss
+        (** [minss rm, reg] - scalar minimum, single precision ([F3 0F 5D /r]), {!Maxss}'s
+            sibling. *)
+    | Maxsd
+        (** [maxsd rm, reg] - scalar maximum, double precision ([F2 0F 5F /r]), {!Maxss}'s
+            mandatory-[F2] counterpart at the same opcode byte and {!Addsd}'s own mandatory-prefix
+            group at a different opcode byte. *)
+    | Minsd
+        (** [minsd rm, reg] - scalar minimum, double precision ([F2 0F 5D /r]), {!Maxsd}'s sibling. *)
+    | Maxps
+        (** [maxps rm, reg] - packed maximum, single precision ([0F 5F /r], no mandatory prefix),
+            {!Maxss}'s mandatory-prefix-free counterpart at the same opcode byte and {!Addps}'s
+            own mandatory-prefix-free group at a different opcode byte. *)
+    | Minps
+        (** [minps rm, reg] - packed minimum, single precision ([0F 5D /r]), {!Maxps}'s sibling. *)
+    | Maxpd
+        (** [maxpd rm, reg] - packed maximum, double precision ([66 0F 5F /r]), {!Maxps}'s
+            mandatory-66-prefix counterpart at the same opcode byte and {!Addpd}'s own
+            mandatory-66-prefix group at a different opcode byte. *)
+    | Minpd
+        (** [minpd rm, reg] - packed minimum, double precision ([66 0F 5D /r]), {!Maxpd}'s sibling. *)
     | Vaddsd
         (** [vaddsd src2, src1, dst] - VEX-encoded scalar-double add ([VEX.LIG.F2.0F.WIG 58 /r]),
             the first x86 vector-extension (AVX) form this project admits: unlike every opcode
@@ -532,6 +556,14 @@ module Opcode = struct
     | Subpd -> "subpd"
     | Mulpd -> "mulpd"
     | Divpd -> "divpd"
+    | Maxss -> "maxss"
+    | Minss -> "minss"
+    | Maxsd -> "maxsd"
+    | Minsd -> "minsd"
+    | Maxps -> "maxps"
+    | Minps -> "minps"
+    | Maxpd -> "maxpd"
+    | Minpd -> "minpd"
     | Vaddsd -> "vaddsd"
     | Vsubsd -> "vsubsd"
     | Vmulsd -> "vmulsd"
@@ -787,14 +819,15 @@ module Instruction = struct
           | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
           | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
           | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
-          | Opcode.Divpd | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd
-          | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps
-          | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd
-          | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps
-          | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd
-          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
-          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
-          | Opcode.Fnstsw ) as op ->
+          | Opcode.Divpd | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps
+          | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd | Opcode.Vaddsd | Opcode.Vsubsd
+          | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss
+          | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps
+          | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vandps
+          | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd
+          | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds
+          | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
+          | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1971,6 +2004,17 @@ module Make (M : MODE) = struct
     | "subpd", _ -> Ok (Instruction.mk Opcode.Subpd 32 s.Surface.ops)
     | "mulpd", _ -> Ok (Instruction.mk Opcode.Mulpd 32 s.Surface.ops)
     | "divpd", _ -> Ok (Instruction.mk Opcode.Divpd 32 s.Surface.ops)
+    (* {!Opcode.Addsd}/{!Opcode.Addss}/{!Opcode.Addps}/{!Opcode.Addpd}'s min/max siblings
+       (GEN-05): the same four-prefix-group shape at opcodes 0x5D (min)/0x5F (max), overlooked in
+       the earlier arithmetic-family survey passes. *)
+    | "maxss", _ -> Ok (Instruction.mk Opcode.Maxss 32 s.Surface.ops)
+    | "minss", _ -> Ok (Instruction.mk Opcode.Minss 32 s.Surface.ops)
+    | "maxsd", _ -> Ok (Instruction.mk Opcode.Maxsd 32 s.Surface.ops)
+    | "minsd", _ -> Ok (Instruction.mk Opcode.Minsd 32 s.Surface.ops)
+    | "maxps", _ -> Ok (Instruction.mk Opcode.Maxps 32 s.Surface.ops)
+    | "minps", _ -> Ok (Instruction.mk Opcode.Minps 32 s.Surface.ops)
+    | "maxpd", _ -> Ok (Instruction.mk Opcode.Maxpd 32 s.Surface.ops)
+    | "minpd", _ -> Ok (Instruction.mk Opcode.Minpd 32 s.Surface.ops)
     (* {!Opcode.Vaddsd}'s VEX-encoded family (GEN-05, x86 vector extensions): three real
        operands, [src2, src1, dst], not a suffix-bearing GPR mnemonic - matched the same
        fixed-mnemonic way as the rest of this SSE block. *)
@@ -2595,7 +2639,9 @@ module Make (M : MODE) = struct
         | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
         | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
         | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps
-        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd ),
+        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd
+        | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps
+        | Opcode.Maxpd | Opcode.Minpd ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -2606,7 +2652,9 @@ module Make (M : MODE) = struct
         | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
         | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
         | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps
-        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd ),
+        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd
+        | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps
+        | Opcode.Maxpd | Opcode.Minpd ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -3205,6 +3253,8 @@ module Make (M : MODE) = struct
           (Opcode.Mulsd, 0x59L);
           (Opcode.Divsd, 0x5EL);
           (Opcode.Cvtsd2ss, 0x5AL);
+          (Opcode.Maxsd, 0x5FL);
+          (Opcode.Minsd, 0x5DL);
         ]
       (C.field ~width:8 "opcode")
 
@@ -3217,6 +3267,8 @@ module Make (M : MODE) = struct
           (Opcode.Mulss, 0x59L);
           (Opcode.Divss, 0x5EL);
           (Opcode.Cvtss2sd, 0x5AL);
+          (Opcode.Maxss, 0x5FL);
+          (Opcode.Minss, 0x5DL);
         ]
       (C.field ~width:8 "opcode")
 
@@ -3237,6 +3289,8 @@ module Make (M : MODE) = struct
           (Opcode.Subpd, 0x5CL);
           (Opcode.Mulpd, 0x59L);
           (Opcode.Divpd, 0x5EL);
+          (Opcode.Maxpd, 0x5FL);
+          (Opcode.Minpd, 0x5DL);
         ]
       (C.field ~width:8 "opcode")
 
@@ -3281,6 +3335,8 @@ module Make (M : MODE) = struct
           (Opcode.Subps, 0x5CL);
           (Opcode.Mulps, 0x59L);
           (Opcode.Divps, 0x5EL);
+          (Opcode.Maxps, 0x5FL);
+          (Opcode.Minps, 0x5DL);
         ]
       (C.field ~width:8 "opcode")
 
