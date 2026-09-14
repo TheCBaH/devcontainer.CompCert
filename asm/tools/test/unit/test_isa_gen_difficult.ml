@@ -1740,10 +1740,10 @@ let test_counts () =
       + List.length Isa_gen_difficult.vse1_v_entries
       + List.length Isa_gen_difficult.x86_vex_binop_rrr_entries
       + List.length Isa_gen_difficult.x86_vex_binop_rr_mem_entries);
-  check "x86_vex_binop_rrr_entries has 48 entries (24 mnemonics, one per target)"
-    (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 48);
-  check "x86_vex_binop_rr_mem_entries has 48 entries (24 mnemonics, one per target)"
-    (List.length Isa_gen_difficult.x86_vex_binop_rr_mem_entries = 48)
+  check "x86_vex_binop_rrr_entries has 64 entries (32 mnemonics, one per target)"
+    (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 64);
+  check "x86_vex_binop_rr_mem_entries has 64 entries (32 mnemonics, one per target)"
+    (List.length Isa_gen_difficult.x86_vex_binop_rr_mem_entries = 64)
 
 let test_case_ids_distinct () =
   let ids = List.map (fun (e : Isa_gen_difficult.entry) -> e.case_id) Isa_gen_difficult.all in

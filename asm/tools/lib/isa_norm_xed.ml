@@ -2262,6 +2262,43 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VORPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vorpd" rec_
   | Ok { iform = Some "VXORPD_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VXORPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vxorpd" rec_
+  (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
+     MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
+     0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against
+     real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44): `c5 f3 5f/5d` (sd, pp=3),
+     `c5 f2 5f/5d` (ss, pp=2), `c5 f0 5f/5d` (ps, pp=0), `c5 f1 5f/5d` (pd, pp=1). *)
+  | Ok { iform = Some "VMAXSD_XMMdq_XMMdq_XMMq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMAXSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vmaxsd" rec_
+  | Ok { iform = Some "VMINSD_XMMdq_XMMdq_XMMq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMINSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vminsd" rec_
+  | Ok { iform = Some "VMAXSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMAXSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vmaxsd" rec_
+  | Ok { iform = Some "VMINSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMINSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vminsd" rec_
+  | Ok { iform = Some "VMAXSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMAXSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vmaxss" rec_
+  | Ok { iform = Some "VMINSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMINSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vminss" rec_
+  | Ok { iform = Some "VMAXSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMAXSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vmaxss" rec_
+  | Ok { iform = Some "VMINSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMINSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vminss" rec_
+  | Ok { iform = Some "VMAXPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMAXPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vmaxps" rec_
+  | Ok { iform = Some "VMINPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMINPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vminps" rec_
+  | Ok { iform = Some "VMAXPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMAXPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmaxps" rec_
+  | Ok { iform = Some "VMINPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMINPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vminps" rec_
+  | Ok { iform = Some "VMAXPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMAXPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vmaxpd" rec_
+  | Ok { iform = Some "VMINPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VMINPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vminpd" rec_
+  | Ok { iform = Some "VMAXPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMAXPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmaxpd" rec_
+  | Ok { iform = Some "VMINPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VMINPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vminpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
