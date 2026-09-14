@@ -1126,6 +1126,179 @@ let xmm_binop_rm_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* SHUFPS/SHUFPD (GEN-05): {!xmm_binop_rr_form}'s trailing-immediate sibling - the first
+   XMM-immediate-carrying legacy shape. XED's resolved operands are REG0 (dest, rw), REG1
+   (src, r) and IMM0 (r, oc2 "b") in that order; x86_family_encode.ml's own
+   [Lowered.Sse_binop_imm_r_rm] already builds both this and the register<-memory sibling off
+   the same [rm : Rm.t] field, so this is a second normalizer over that one shape, not a second
+   encoder path - {!xmm_binop_rr_form}'s own comment explains the pattern. AT&T operand order
+   is [imm, src, dest], the same [imm, src, dst] order {!shld_imm_form}'s own [Shld] uses,
+   confirmed against real GNU as. *)
+let xmm_binop_imm_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" && c.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_decorated ("%", Syn_operand "src");
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src), IMM0 (rw=%s) taken verbatim from \
+                     encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note = "AT&T operand order (imm, src, dest) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* {!xmm_binop_imm_rr_form}'s register<-memory sibling (SHUFPS_XMMps_MEMps_IMMb etc.): XED's
+   resolved operands are REG0 (dest, rw), MEM0 (src, r) and IMM0 (r) - {!xmm_binop_rm_form}'s
+   own REG0/MEM0 pair with the same trailing IMM0 {!xmm_binop_imm_rr_form} adds. *)
+let xmm_binop_imm_rm_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" && c.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; mem; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_operand "mem";
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), MEM0 (rw=%s, src), IMM0 (rw=%s) taken verbatim from \
+                     encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note = "AT&T operand order (imm, mem, dest) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* VEX-encoded scalar-double register-register binops (VADDSD/VSUBSD/VMULSD/
    VDIVSD_XMMdq_XMMdq_XMMq): the first x86 vector-extension (AVX) admission,
    as opposed to every {!xmm_binop_rr_form} caller above, which is legacy
@@ -1294,6 +1467,202 @@ let vex_binop_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
       err
         (form_id ^ "-unrecognized-operands")
         (Printf.sprintf "expected REG0/REG1/MEM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* VSHUFPS/VSHUFPD (GEN-05): {!vex_binop_rrr_form}'s trailing-immediate sibling - the VEX
+   sibling of {!xmm_binop_imm_rr_form}. Only the plain [vex]-space, 128-bit iforms (real GNU
+   as's [vshufps]/[vshufpd]) are handled here; the [evex]-space AVX-512 masked iforms sharing
+   the same native name (a distinct [REG1]-as-mask operand layout) are out of scope. XED's
+   resolved operands are REG0 (dest, w), REG1 (src1/vvvv, r), REG2 (src2/rm, r) and IMM0 (r) -
+   {!vex_binop_rrr_form}'s own REG0/REG1/REG2 triple with the same trailing IMM0
+   {!xmm_binop_imm_rr_form} adds. AT&T operand order is [imm, src2, src1, dest], confirmed
+   against real GNU as: [vshufps $0x1b,%xmm3,%xmm2,%xmm1] -> [c5 e8 c6 cb 1b]. *)
+let vex_binop_imm_rrr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c; d ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" && c.op_name = "REG2" && d.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src1 =
+        {
+          op_name = "src1";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let src2 =
+        {
+          op_name = "src2";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw c.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; src2; src1; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_decorated ("%", Syn_operand "src2");
+                  Syn_decorated ("%", Syn_operand "src1");
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src1/vvvv), REG2 (rw=%s, src2/rm), IMM0 \
+                     (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw c.rw d.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (imm, src2, src1, dest) is GAS's own non-destructive VEX \
+                   convention, not a XED fact - same as {!vex_binop_rrr_form}'s register form";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1/REG2/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* {!vex_binop_imm_rrr_form}'s register<-memory sibling (VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb etc.):
+   XED's resolved operands are REG0 (dest, w), REG1 (src1/vvvv, r), MEM0 (src2/rm-as-memory, r)
+   and IMM0 (r) - {!vex_binop_rr_mem_form}'s own REG0/REG1/MEM0 triple with the same trailing
+   IMM0 {!vex_binop_imm_rrr_form} adds. *)
+let vex_binop_imm_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c; d ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" && c.op_name = "MEM0" && d.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src1 =
+        {
+          op_name = "src1";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let src2 =
+        {
+          op_name = "src2";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw c.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; src2; src1; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_operand "src2";
+                  Syn_decorated ("%", Syn_operand "src1");
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src1/vvvv), MEM0 (rw=%s, src2/rm), IMM0 \
+                     (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw c.rw d.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (imm, src2, src1, dest) is GAS's own non-destructive VEX \
+                   convention, not a XED fact - same as {!vex_binop_imm_rrr_form}'s register form";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1/MEM0/IMM0 operands in that order, got %d"
            (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
@@ -2352,6 +2721,16 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PUNPCKLQDQ_XMMdq_MEMdq" ~mnemonic:"punpcklqdq" rec_
   | Ok { iform = Some "PUNPCKHQDQ_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PUNPCKHQDQ_XMMdq_MEMdq" ~mnemonic:"punpckhqdq" rec_
+  (* SHUFPS/SHUFPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): the first
+     XMM-immediate-carrying legacy shape. SHUFPS is XED extension SSE; SHUFPD is SSE2. *)
+  | Ok { iform = Some "SHUFPS_XMMps_XMMps_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"SHUFPS_XMMps_XMMps_IMMb" ~mnemonic:"shufps" rec_
+  | Ok { iform = Some "SHUFPS_XMMps_MEMps_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"SHUFPS_XMMps_MEMps_IMMb" ~mnemonic:"shufps" rec_
+  | Ok { iform = Some "SHUFPD_XMMpd_XMMpd_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"SHUFPD_XMMpd_XMMpd_IMMb" ~mnemonic:"shufpd" rec_
+  | Ok { iform = Some "SHUFPD_XMMpd_MEMpd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"SHUFPD_XMMpd_MEMpd_IMMb" ~mnemonic:"shufpd" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
@@ -2629,6 +3008,17 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_mem_form ~form_id:"VCVTPS2PD_XMMdq_MEMq" ~mnemonic:"vcvtps2pd" rec_
   | Ok { iform = Some "VCVTPD2PS_XMMdq_XMMdq"; _ } ->
       vex_unop_rr_form ~form_id:"VCVTPD2PS_XMMdq_XMMdq" ~mnemonic:"vcvtpd2ps" rec_
+  (* VSHUFPS/VSHUFPD (GEN-05, {!vex_binop_imm_rrr_form}'s own doc comment): only the plain
+     [vex]-space 128-bit iforms - the [evex]-space AVX-512 masked iforms sharing the same
+     native name are out of scope. Both are XED extension AVX. *)
+  | Ok { iform = Some "VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vshufps" rec_
+  | Ok { iform = Some "VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vshufps" rec_
+  | Ok { iform = Some "VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vshufpd" rec_
+  | Ok { iform = Some "VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vshufpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -2651,7 +3041,9 @@ let normalize (rec_ : R.t) =
             packed-arithmetic ADDPS/SUBPS/MULPS/DIVPS/ADDPD/SUBPD/MULPD/DIVPD register-register \
             and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD/ \
             VADDSS/VSUBSS/VMULSS/VDIVSS/VADDPS/VSUBPS/VMULPS/VDIVPS/VADDPD/VSUBPD/VMULPD/VDIVPD \
-            register-register and register<-memory forms; %s is not one of them"
+            register-register and register<-memory forms, the XMM-immediate-carrying SHUFPS/SHUFPD \
+            register-register and register<-memory forms, and their non-EVEX VEX-space \
+            VSHUFPS/VSHUFPD register-register and register<-memory forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

@@ -230,6 +230,10 @@
     [70 cost=0] vex-scalar-66-rrr vex-scalar-66-rrr(){11000101 vex-byte2:8u vex-scalar-66-op modrm}
     [71 cost=0] vex-unop-none    vex-unop-none(){11000101 vex-byte2:8u vex-unop-none-op modrm}
     [72 cost=0] vex-unop-66      vex-unop-66(){11000101 vex-byte2:8u vex-unop-66-op modrm}
+    [73 cost=0] sse-shufpd       sse-shufpd(){no-asz 01100110 no-rex 0000111111000110 modrm imm8:8u}
+    [74 cost=0] sse-shufps       sse-shufps(){prefixes 0000111111000110 modrm imm8:8u}
+    [75 cost=0] vex-shufps       vex-shufps(){11000101 vex-byte2:8u 11000110 modrm imm8:8u}
+    [76 cost=0] vex-shufpd       vex-shufpd(){11000101 vex-byte2:8u 11000110 modrm imm8:8u}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -498,6 +502,10 @@
     [70 cost=0] vex-scalar-66-rrr vex-scalar-66-rrr(){11000101 vex-byte2:8u vex-scalar-66-op modrm}
     [71 cost=0] vex-unop-none    vex-unop-none(){11000101 vex-byte2:8u vex-unop-none-op modrm}
     [72 cost=0] vex-unop-66      vex-unop-66(){11000101 vex-byte2:8u vex-unop-66-op modrm}
+    [73 cost=0] sse-shufpd       sse-shufpd(){asz 01100110 rex 0000111111000110 modrm imm8:8u}
+    [74 cost=0] sse-shufps       sse-shufps(){prefixes 0000111111000110 modrm imm8:8u}
+    [75 cost=0] vex-shufps       vex-shufps(){11000101 vex-byte2:8u 11000110 modrm imm8:8u}
+    [76 cost=0] vex-shufpd       vex-shufpd(){11000101 vex-byte2:8u 11000110 modrm imm8:8u}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
