@@ -2084,6 +2084,8 @@ let normalize (rec_ : R.t) =
       xmm_binop_rr_form ~form_id:"UCOMISD_XMMsd_XMMsd" ~mnemonic:"ucomisd" rec_
   | Ok { iform = Some "COMISS_XMMss_XMMss"; _ } ->
       xmm_binop_rr_form ~form_id:"COMISS_XMMss_XMMss" ~mnemonic:"comiss" rec_
+  | Ok { iform = Some "UCOMISS_XMMss_XMMss"; _ } ->
+      xmm_binop_rr_form ~form_id:"UCOMISS_XMMss_XMMss" ~mnemonic:"ucomiss" rec_
   | Ok { iform = Some "XORPD_XMMxuq_XMMxuq"; _ } ->
       xmm_binop_rr_form ~form_id:"XORPD_XMMxuq_XMMxuq" ~mnemonic:"xorpd" rec_
   | Ok { iform = Some "PXOR_XMMdq_XMMdq"; _ } ->
@@ -2104,6 +2106,8 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"UCOMISD_XMMsd_MEMsd" ~mnemonic:"ucomisd" rec_
   | Ok { iform = Some "COMISS_XMMss_MEMss"; _ } ->
       xmm_binop_rm_form ~form_id:"COMISS_XMMss_MEMss" ~mnemonic:"comiss" rec_
+  | Ok { iform = Some "UCOMISS_XMMss_MEMss"; _ } ->
+      xmm_binop_rm_form ~form_id:"UCOMISS_XMMss_MEMss" ~mnemonic:"ucomiss" rec_
   | Ok { iform = Some "XORPD_XMMxuq_MEMxuq"; _ } ->
       xmm_binop_rm_form ~form_id:"XORPD_XMMxuq_MEMxuq" ~mnemonic:"xorpd" rec_
   | Ok { iform = Some "PXOR_XMMdq_MEMdq"; _ } ->
@@ -2506,6 +2510,32 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_form ~form_id:"VMOVUPD_XMMdq_XMMdq_10" ~mnemonic:"vmovupd" rec_
   | Ok { iform = Some "VMOVUPD_XMMdq_MEMdq"; _ } ->
       vex_unop_rr_mem_form ~form_id:"VMOVUPD_XMMdq_MEMdq" ~mnemonic:"vmovupd" rec_
+  (* {!Opcode.Vcomisd}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     COMISD/UCOMISD/COMISS/UCOMISS family (opcodes 0x2F/0x2E), reusing {!vex_unop_rr_form}/
+     {!vex_unop_rr_mem_form} unchanged - both operands are read-only here (XED's REG0 is
+     [rw = "r"], not "w": the real result goes to EFLAGS, not a register), but
+     {!vex_unop_rr_form} reads [role_of_rw] generically off each operand's own [rw] fact rather
+     than assuming the destination is writable, so this is a clean reuse. Confirmed against real
+     GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44): `c5 f9 2f ca`/`c5 f9 2e ca` (vcomisd/
+     vucomisd register-register), `c5 f8 2f ca`/`c5 f8 2e ca` (vcomiss/vucomiss
+     register-register), `c5 f9 2f 08`/`c5 f9 2e 08`/`c5 f8 2f 08`/`c5 f8 2e 08`
+     (register<-memory, same order). *)
+  | Ok { iform = Some "VCOMISD_XMMq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCOMISD_XMMq_XMMq" ~mnemonic:"vcomisd" rec_
+  | Ok { iform = Some "VCOMISD_XMMq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCOMISD_XMMq_MEMq" ~mnemonic:"vcomisd" rec_
+  | Ok { iform = Some "VUCOMISD_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VUCOMISD_XMMdq_XMMq" ~mnemonic:"vucomisd" rec_
+  | Ok { iform = Some "VUCOMISD_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VUCOMISD_XMMdq_MEMq" ~mnemonic:"vucomisd" rec_
+  | Ok { iform = Some "VCOMISS_XMMd_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VCOMISS_XMMd_XMMd" ~mnemonic:"vcomiss" rec_
+  | Ok { iform = Some "VCOMISS_XMMd_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCOMISS_XMMd_MEMd" ~mnemonic:"vcomiss" rec_
+  | Ok { iform = Some "VUCOMISS_XMMdq_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VUCOMISS_XMMdq_XMMd" ~mnemonic:"vucomiss" rec_
+  | Ok { iform = Some "VUCOMISS_XMMdq_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VUCOMISS_XMMdq_MEMd" ~mnemonic:"vucomiss" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf

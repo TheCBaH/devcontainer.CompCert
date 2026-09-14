@@ -291,6 +291,11 @@ module Opcode = struct
             mandatory-prefix group (M5, asm/docs/corpus.md - gas_frontier.t's
             runtime-i64_dtou.S's own float-to-unsigned range test). *)
     | Comiss
+    | Ucomiss
+        (** [ucomiss rm, reg] - unordered scalar single compare ([0F 2E /r], no mandatory
+            prefix), {!Comiss}'s exact sibling in the same [sse_binop_none_codec] table, one
+            more opcode byte at the same mandatory-prefix-free group - overlooked alongside
+            {!Ucomisd}'s own group when the comparison family was first admitted. *)
     | Xorpd
     | Pxor
         (** [pxor rm, reg] - packed bitwise XOR ([66 0F EF /r]), {!Xorpd}'s own mandatory-prefix
@@ -493,6 +498,20 @@ module Opcode = struct
         (** [vmovapd src, dst] - {!Vmovaps}'s packed-double sibling ([VEX.128.66.0F.WIG 28 /r], [pp = 1]). *)
     | Vmovupd
         (** [vmovupd src, dst] - {!Vmovups}'s packed-double sibling ([VEX.128.66.0F.WIG 10 /r], [pp = 1]). *)
+    | Vcomisd
+        (** [vcomisd src, dst] - the VEX sibling of the legacy {!Comisd}/{!Ucomisd}/{!Comiss}/
+            {!Ucomiss} family ([VEX.LIG.66.0F.WIG 2F /r], [pp = 1]), reusing {!Vex_unop_r_rm}
+            the same way {!Vsqrtps}/{!Vmovaps} do: confirmed against real GNU as that both
+            operands are read-only (no destination register is actually written; the real
+            result goes to EFLAGS) with [VEX.vvvv] the same literal [1111] "unused" pattern as
+            every other genuinely-two-operand VEX form - this project's encoder only assembles
+            bytes, so the ModRM/vvvv shape being identical to {!Vsqrtps}'s is what matters, not
+            which operand the CPU treats as writable. *)
+    | Vucomisd  (** [vucomisd src, dst] - {!Vcomisd}'s sibling ([VEX.LIG.66.0F.WIG 2E /r]). *)
+    | Vcomiss
+        (** [vcomiss src, dst] - {!Vcomisd}'s mandatory-prefix-free sibling
+            ([VEX.LIG.0F.WIG 2F /r], [pp = 0]). *)
+    | Vucomiss  (** [vucomiss src, dst] - {!Vcomiss}'s sibling ([VEX.LIG.0F.WIG 2E /r]). *)
     | Fldl
     | Fstpl
     | Fstps
@@ -591,6 +610,7 @@ module Opcode = struct
     | Comisd -> "comisd"
     | Ucomisd -> "ucomisd"
     | Comiss -> "comiss"
+    | Ucomiss -> "ucomiss"
     | Xorpd -> "xorpd"
     | Pxor -> "pxor"
     | Movapd -> "movapd"
@@ -671,6 +691,10 @@ module Opcode = struct
     | Vmovups -> "vmovups"
     | Vmovapd -> "vmovapd"
     | Vmovupd -> "vmovupd"
+    | Vcomisd -> "vcomisd"
+    | Vucomisd -> "vucomisd"
+    | Vcomiss -> "vcomiss"
+    | Vucomiss -> "vucomiss"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -897,22 +921,23 @@ module Instruction = struct
            [suffix_of_width] the way the fallback case below does. *)
         | ( Opcode.Addsd | Opcode.Subsd | Opcode.Mulsd | Opcode.Divsd | Opcode.Addss | Opcode.Subss
           | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
-          | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
-          | Opcode.Movsd | Opcode.Movss | Opcode.Cvtsi2sd | Opcode.Cvtsi2ss | Opcode.Cvttsd2si
-          | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-          | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
-          | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
-          | Opcode.Divpd | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps
-          | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd
-          | Opcode.Sqrtps | Opcode.Sqrtpd | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd
-          | Opcode.Vdivsd | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss
-          | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd
-          | Opcode.Vsubpd | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps
-          | Opcode.Vorps | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd
-          | Opcode.Vxorpd | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
-          | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
-          | Opcode.Vsqrtss | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups
-          | Opcode.Vmovapd | Opcode.Vmovupd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps
+          | Opcode.Ucomiss | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss
+          | Opcode.Cvtss2sd | Opcode.Movsd | Opcode.Movss | Opcode.Cvtsi2sd | Opcode.Cvtsi2ss
+          | Opcode.Cvttsd2si | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps
+          | Opcode.Andpd | Opcode.Andnpd | Opcode.Orpd | Opcode.Movaps | Opcode.Movups
+          | Opcode.Movupd | Opcode.Addps | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd
+          | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd
+          | Opcode.Minsd | Opcode.Maxps | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss
+          | Opcode.Sqrtsd | Opcode.Sqrtps | Opcode.Sqrtpd | Opcode.Vaddsd | Opcode.Vsubsd
+          | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss
+          | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps
+          | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vandps
+          | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd
+          | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss
+          | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd
+          | Opcode.Vsqrtsd | Opcode.Vsqrtss | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps
+          | Opcode.Vmovups | Opcode.Vmovapd | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd
+          | Opcode.Vcomiss | Opcode.Vucomiss | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps
           | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
           | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
@@ -2118,6 +2143,9 @@ module Make (M : MODE) = struct
     | "sqrtsd", _ -> Ok (Instruction.mk Opcode.Sqrtsd 32 s.Surface.ops)
     | "sqrtps", _ -> Ok (Instruction.mk Opcode.Sqrtps 32 s.Surface.ops)
     | "sqrtpd", _ -> Ok (Instruction.mk Opcode.Sqrtpd 32 s.Surface.ops)
+    (* {!Opcode.Comiss}'s own mandatory-prefix-free sibling ({!Opcode.Ucomiss}'s own doc
+       comment), overlooked alongside {!Opcode.Ucomisd} when this family was first admitted. *)
+    | "ucomiss", _ -> Ok (Instruction.mk Opcode.Ucomiss 32 s.Surface.ops)
     (* {!Opcode.Vaddsd}'s VEX-encoded family (GEN-05, x86 vector extensions): three real
        operands, [src2, src1, dst], not a suffix-bearing GPR mnemonic - matched the same
        fixed-mnemonic way as the rest of this SSE block. *)
@@ -2168,6 +2196,12 @@ module Make (M : MODE) = struct
     | "vmovups", _ -> Ok (Instruction.mk Opcode.Vmovups 32 s.Surface.ops)
     | "vmovapd", _ -> Ok (Instruction.mk Opcode.Vmovapd 32 s.Surface.ops)
     | "vmovupd", _ -> Ok (Instruction.mk Opcode.Vmovupd 32 s.Surface.ops)
+    (* {!Opcode.Vcomisd}'s own doc comment (GEN-05): the VEX sibling of the legacy
+       COMISD/UCOMISD/COMISS/UCOMISS family, opcodes 0x2F/0x2E. *)
+    | "vcomisd", _ -> Ok (Instruction.mk Opcode.Vcomisd 32 s.Surface.ops)
+    | "vucomisd", _ -> Ok (Instruction.mk Opcode.Vucomisd 32 s.Surface.ops)
+    | "vcomiss", _ -> Ok (Instruction.mk Opcode.Vcomiss 32 s.Surface.ops)
+    | "vucomiss", _ -> Ok (Instruction.mk Opcode.Vucomiss 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2762,12 +2796,12 @@ module Make (M : MODE) = struct
        is nothing here to check that choice against. *)
     | ( ( Opcode.Addsd | Opcode.Subsd | Opcode.Mulsd | Opcode.Divsd | Opcode.Addss | Opcode.Subss
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
-        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
-        | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-        | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps
-        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd
-        | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps
-        | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps
+        | Opcode.Ucomiss | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss
+        | Opcode.Cvtss2sd | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd
+        | Opcode.Andnpd | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
+        | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
+        | Opcode.Divpd | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps
+        | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps
         | Opcode.Sqrtpd ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
@@ -2776,12 +2810,12 @@ module Make (M : MODE) = struct
         | Error e, _ | _, Error e -> Error e)
     | ( ( Opcode.Addsd | Opcode.Subsd | Opcode.Mulsd | Opcode.Divsd | Opcode.Addss | Opcode.Subss
         | Opcode.Mulss | Opcode.Divss | Opcode.Comisd | Opcode.Ucomisd | Opcode.Comiss
-        | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss | Opcode.Cvtss2sd
-        | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd
-        | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps
-        | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd
-        | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps
-        | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps
+        | Opcode.Ucomiss | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss
+        | Opcode.Cvtss2sd | Opcode.Andps | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd
+        | Opcode.Andnpd | Opcode.Orpd | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps
+        | Opcode.Subps | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd
+        | Opcode.Divpd | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps
+        | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps
         | Opcode.Sqrtpd ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
@@ -2913,10 +2947,11 @@ module Make (M : MODE) = struct
                   { op = i.Instruction.op; dst; src1; src2 = Rm.Mem (mem_of_symbol e) };
               ]
         | Error e2, _ | _, Error e2 -> Error e2)
-    (* [vsqrtps]/[vsqrtpd] ({!Opcode.Vsqrtps}'s own doc comment): genuinely two-operand, no
+    (* [vsqrtps]/[vsqrtpd]/[vmovaps]/[vmovups]/[vmovapd]/[vmovupd]/[vcomisd]/[vucomisd]/
+       [vcomiss]/[vucomiss] ({!Opcode.Vsqrtps}'s own doc comment): genuinely two-operand, no
        [vvvv]-carried [src1] at all - {!Lowered.Vex_unop_r_rm} rather than {!Vex_binop_rr_rm}. *)
     | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
-        | Opcode.Vmovupd ),
+        | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss ),
         [ Operand.Reg src; Operand.Reg dst ] ) -> (
         match (xmm_ok src, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -2924,7 +2959,7 @@ module Make (M : MODE) = struct
             else Ok [ Lowered.Vex_unop_r_rm { op = i.Instruction.op; dst; src = Rm.Reg src } ]
         | Error e, _ | _, Error e -> Error e)
     | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
-        | Opcode.Vmovupd ),
+        | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss ),
         [ Operand.Mem m; Operand.Reg dst ] ) -> (
         match xmm_ok dst with
         | Ok () -> (
@@ -2933,7 +2968,7 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Vex_unop_r_rm { op = i.Instruction.op; dst; src = Rm.Mem m } ])
         | Error e -> Error e)
     | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
-        | Opcode.Vmovupd ),
+        | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss ),
         [ Operand.Sym e; Operand.Reg dst ] ) -> (
         match xmm_ok dst with
         | Ok () ->
@@ -3491,6 +3526,7 @@ module Make (M : MODE) = struct
       ~entries:
         [
           (Opcode.Comiss, 0x2FL);
+          (Opcode.Ucomiss, 0x2EL);
           (Opcode.Andps, 0x54L);
           (Opcode.Andnps, 0x55L);
           (Opcode.Orps, 0x56L);
@@ -3761,13 +3797,27 @@ module Make (M : MODE) = struct
      opcode-byte disjointness. *)
   let vex_unop_none_codec =
     C.iso_table ~name:"vex-unop-none-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Vsqrtps, 0x51L); (Opcode.Vmovaps, 0x28L); (Opcode.Vmovups, 0x10L) ]
+      ~entries:
+        [
+          (Opcode.Vsqrtps, 0x51L);
+          (Opcode.Vmovaps, 0x28L);
+          (Opcode.Vmovups, 0x10L);
+          (Opcode.Vcomiss, 0x2FL);
+          (Opcode.Vucomiss, 0x2EL);
+        ]
       (C.field ~width:8 "opcode")
 
   (* [pp = 1] (mandatory [66]) - {!Vsqrtps}'s packed-double sibling. *)
   let vex_unop_66_codec =
     C.iso_table ~name:"vex-unop-66-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Vsqrtpd, 0x51L); (Opcode.Vmovapd, 0x28L); (Opcode.Vmovupd, 0x10L) ]
+      ~entries:
+        [
+          (Opcode.Vsqrtpd, 0x51L);
+          (Opcode.Vmovapd, 0x28L);
+          (Opcode.Vmovupd, 0x10L);
+          (Opcode.Vcomisd, 0x2FL);
+          (Opcode.Vucomisd, 0x2EL);
+        ]
       (C.field ~width:8 "opcode")
 
   (* {!vex_scalar_rrr_alt}'s two-operand sibling for {!Lowered.Vex_unop_r_rm}: no [vvvv]

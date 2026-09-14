@@ -545,6 +545,7 @@ let x86_sse_binop_rr_entries =
           "COMISD_XMMsd_XMMsd";
           "UCOMISD_XMMsd_XMMsd";
           "COMISS_XMMss_XMMss";
+          "UCOMISS_XMMss_XMMss";
           "XORPD_XMMxuq_XMMxuq";
           "PXOR_XMMdq_XMMdq";
           "MOVAPD_XMMpd_XMMpd_0F28";
@@ -618,6 +619,7 @@ let x86_sse_binop_rm_entries =
           "COMISD_XMMsd_MEMsd";
           "UCOMISD_XMMsd_MEMsd";
           "COMISS_XMMss_MEMss";
+          "UCOMISS_XMMss_MEMss";
           "XORPD_XMMxuq_MEMxuq";
           "PXOR_XMMdq_MEMdq";
           "MOVAPD_XMMpd_MEMpd";
@@ -846,6 +848,10 @@ let x86_vex_unop_rr_entries =
           "VMOVUPS_XMMdq_XMMdq_10";
           "VMOVAPD_XMMdq_XMMdq_28";
           "VMOVUPD_XMMdq_XMMdq_10";
+          "VCOMISD_XMMq_XMMq";
+          "VUCOMISD_XMMdq_XMMq";
+          "VCOMISS_XMMd_XMMd";
+          "VUCOMISS_XMMdq_XMMd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -879,6 +885,10 @@ let x86_vex_unop_rr_mem_entries =
           "VMOVUPS_XMMdq_MEMdq";
           "VMOVAPD_XMMdq_MEMdq";
           "VMOVUPD_XMMdq_MEMdq";
+          "VCOMISD_XMMq_MEMq";
+          "VUCOMISD_XMMdq_MEMq";
+          "VCOMISS_XMMd_MEMd";
+          "VUCOMISS_XMMdq_MEMd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

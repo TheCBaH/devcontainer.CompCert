@@ -169,23 +169,23 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "x86:ADDSD_XMMsd_XMMsd" | "x86:SUBSD_XMMsd_XMMsd" | "x86:MULSD_XMMsd_XMMsd"
       | "x86:DIVSD_XMMsd_XMMsd" | "x86:MULSS_XMMss_XMMss" | "x86:DIVSS_XMMss_XMMss"
       | "x86:COMISD_XMMsd_XMMsd" | "x86:UCOMISD_XMMsd_XMMsd" | "x86:COMISS_XMMss_XMMss"
-      | "x86:XORPD_XMMxuq_XMMxuq" | "x86:PXOR_XMMdq_XMMdq" | "x86:MOVAPD_XMMpd_XMMpd_0F28"
-      | "x86:CVTSD2SS_XMMss_XMMsd" | "x86:CVTSS2SD_XMMsd_XMMss" ),
+      | "x86:UCOMISS_XMMss_XMMss" | "x86:XORPD_XMMxuq_XMMxuq" | "x86:PXOR_XMMdq_XMMdq"
+      | "x86:MOVAPD_XMMpd_XMMpd_0F28" | "x86:CVTSD2SS_XMMss_XMMsd" | "x86:CVTSS2SD_XMMsd_XMMss" ),
       ( "ADDSD_XMMsd_XMMsd" | "SUBSD_XMMsd_XMMsd" | "MULSD_XMMsd_XMMsd" | "DIVSD_XMMsd_XMMsd"
       | "MULSS_XMMss_XMMss" | "DIVSS_XMMss_XMMss" | "COMISD_XMMsd_XMMsd" | "UCOMISD_XMMsd_XMMsd"
-      | "COMISS_XMMss_XMMss" | "XORPD_XMMxuq_XMMxuq" | "PXOR_XMMdq_XMMdq"
+      | "COMISS_XMMss_XMMss" | "UCOMISS_XMMss_XMMss" | "XORPD_XMMxuq_XMMxuq" | "PXOR_XMMdq_XMMdq"
       | "MOVAPD_XMMpd_XMMpd_0F28" | "CVTSD2SS_XMMss_XMMsd" | "CVTSS2SD_XMMsd_XMMss" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ADDSD_XMMsd_MEMsd" | "x86:SUBSD_XMMsd_MEMsd" | "x86:MULSD_XMMsd_MEMsd"
       | "x86:DIVSD_XMMsd_MEMsd" | "x86:MULSS_XMMss_MEMss" | "x86:DIVSS_XMMss_MEMss"
       | "x86:COMISD_XMMsd_MEMsd" | "x86:UCOMISD_XMMsd_MEMsd" | "x86:COMISS_XMMss_MEMss"
-      | "x86:XORPD_XMMxuq_MEMxuq" | "x86:PXOR_XMMdq_MEMdq" | "x86:MOVAPD_XMMpd_MEMpd"
-      | "x86:CVTSD2SS_XMMss_MEMsd" | "x86:CVTSS2SD_XMMsd_MEMss" ),
+      | "x86:UCOMISS_XMMss_MEMss" | "x86:XORPD_XMMxuq_MEMxuq" | "x86:PXOR_XMMdq_MEMdq"
+      | "x86:MOVAPD_XMMpd_MEMpd" | "x86:CVTSD2SS_XMMss_MEMsd" | "x86:CVTSS2SD_XMMsd_MEMss" ),
       ( "ADDSD_XMMsd_MEMsd" | "SUBSD_XMMsd_MEMsd" | "MULSD_XMMsd_MEMsd" | "DIVSD_XMMsd_MEMsd"
       | "MULSS_XMMss_MEMss" | "DIVSS_XMMss_MEMss" | "COMISD_XMMsd_MEMsd" | "UCOMISD_XMMsd_MEMsd"
-      | "COMISS_XMMss_MEMss" | "XORPD_XMMxuq_MEMxuq" | "PXOR_XMMdq_MEMdq" | "MOVAPD_XMMpd_MEMpd"
-      | "CVTSD2SS_XMMss_MEMsd" | "CVTSS2SD_XMMsd_MEMss" ) ) ->
+      | "COMISS_XMMss_MEMss" | "UCOMISS_XMMss_MEMss" | "XORPD_XMMxuq_MEMxuq" | "PXOR_XMMdq_MEMdq"
+      | "MOVAPD_XMMpd_MEMpd" | "CVTSD2SS_XMMss_MEMsd" | "CVTSS2SD_XMMsd_MEMss" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:MOVSD_XMM_XMMdq_MEMsd" | "x86:MOVSD_XMM_MEMsd_XMMsd" | "x86:MOVSS_XMMdq_MEMss"
@@ -368,6 +368,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "x86:VMOVUPD_XMMdq_MEMdq" ),
       ("VMOVAPS_XMMdq_MEMdq" | "VMOVUPS_XMMdq_MEMdq" | "VMOVAPD_XMMdq_MEMdq" | "VMOVUPD_XMMdq_MEMdq")
     ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VCOMISD_XMMq_XMMq" | "x86:VUCOMISD_XMMdq_XMMq" | "x86:VCOMISS_XMMd_XMMd"
+      | "x86:VUCOMISS_XMMdq_XMMd" ),
+      ("VCOMISD_XMMq_XMMq" | "VUCOMISD_XMMdq_XMMq" | "VCOMISS_XMMd_XMMd" | "VUCOMISS_XMMdq_XMMd") )
+    ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VCOMISD_XMMq_MEMq" | "x86:VUCOMISD_XMMdq_MEMq" | "x86:VCOMISS_XMMd_MEMd"
+      | "x86:VUCOMISS_XMMdq_MEMd" ),
+      ("VCOMISD_XMMq_MEMq" | "VUCOMISD_XMMdq_MEMq" | "VCOMISS_XMMd_MEMd" | "VUCOMISS_XMMdq_MEMd") )
+    ->
       true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
