@@ -2340,6 +2340,18 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"UNPCKLPD_XMMpd_MEMdq" ~mnemonic:"unpcklpd" rec_
   | Ok { iform = Some "UNPCKHPD_XMMpd_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"UNPCKHPD_XMMpd_MEMdq" ~mnemonic:"unpckhpd" rec_
+  (* {!Opcode.Unpcklps}'s integer-SIMD sibling (GEN-05), same plain xmm-xmm/xmm-memory shape:
+     PUNPCKLQDQ/PUNPCKHQDQ (opcode 0x6C/0x6D, 66-mandatory-prefix only - no non-66 sibling, XED
+     extension SSE2). Confirmed against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as
+     2.44): `66 0F 6C/6D`. *)
+  | Ok { iform = Some "PUNPCKLQDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKLQDQ_XMMdq_XMMq" ~mnemonic:"punpcklqdq" rec_
+  | Ok { iform = Some "PUNPCKHQDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKHQDQ_XMMdq_XMMq" ~mnemonic:"punpckhqdq" rec_
+  | Ok { iform = Some "PUNPCKLQDQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKLQDQ_XMMdq_MEMdq" ~mnemonic:"punpcklqdq" rec_
+  | Ok { iform = Some "PUNPCKHQDQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKHQDQ_XMMdq_MEMdq" ~mnemonic:"punpckhqdq" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
@@ -2473,6 +2485,17 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VUNPCKLPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vunpcklpd" rec_
   | Ok { iform = Some "VUNPCKHPD_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VUNPCKHPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vunpckhpd" rec_
+  (* {!Opcode.Vpunpcklqdq}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     PUNPCKLQDQ/PUNPCKHQDQ family, opcode 0x6C/0x6D, 66-mandatory-prefix only. XED extension
+     AVX. Confirmed against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "VPUNPCKLQDQ_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKLQDQ_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpcklqdq" rec_
+  | Ok { iform = Some "VPUNPCKHQDQ_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKHQDQ_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpckhqdq" rec_
+  | Ok { iform = Some "VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpcklqdq" rec_
+  | Ok { iform = Some "VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckhqdq" rec_
   (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
      MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
      0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against

@@ -290,6 +290,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "UNPCKHPD_XMMpd_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:PUNPCKLQDQ_XMMdq_XMMq" | "x86:PUNPCKHQDQ_XMMdq_XMMq"),
+      ("PUNPCKLQDQ_XMMdq_XMMq" | "PUNPCKHQDQ_XMMdq_XMMq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:PUNPCKLQDQ_XMMdq_MEMdq" | "x86:PUNPCKHQDQ_XMMdq_MEMdq"),
+      ("PUNPCKLQDQ_XMMdq_MEMdq" | "PUNPCKHQDQ_XMMdq_MEMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"
@@ -417,6 +425,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "x86:VUNPCKLPD_XMMdq_XMMdq_MEMdq" | "x86:VUNPCKHPD_XMMdq_XMMdq_MEMdq" ),
       ( "VUNPCKLPS_XMMdq_XMMdq_MEMdq" | "VUNPCKHPS_XMMdq_XMMdq_MEMdq"
       | "VUNPCKLPD_XMMdq_XMMdq_MEMdq" | "VUNPCKHPD_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VPUNPCKLQDQ_XMMdq_XMMdq_XMMdq" | "x86:VPUNPCKHQDQ_XMMdq_XMMdq_XMMdq"),
+      ("VPUNPCKLQDQ_XMMdq_XMMdq_XMMdq" | "VPUNPCKHQDQ_XMMdq_XMMdq_XMMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" | "x86:VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq"),
+      ("VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" | "VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq") ) ->
       true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"

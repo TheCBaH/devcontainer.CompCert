@@ -336,6 +336,13 @@ module Opcode = struct
     | Unpckhpd
         (** [unpckhpd rm, reg] - packed interleave, high half, double precision ([66 0F 15 /r]),
             {!Unpcklpd}'s sibling. *)
+    | Punpcklqdq
+        (** [punpcklqdq rm, reg] - packed integer interleave, low half, quadword ([66 0F 6C /r]),
+            {!Unpcklps}'s own shape at a different opcode byte, 66-mandatory-prefix only (no
+            non-66 sibling - this is an integer SIMD op, not a float one). *)
+    | Punpckhqdq
+        (** [punpckhqdq rm, reg] - packed integer interleave, high half, quadword
+            ([66 0F 6D /r]), {!Punpcklqdq}'s sibling. *)
     | Andps
         (** [andps rm, reg] - packed bitwise AND, single precision ([0F 54 /r], no mandatory
             prefix - {!Comiss}'s own mandatory-prefix-free group at a different opcode byte). *)
@@ -490,6 +497,14 @@ module Opcode = struct
             ([VEX.128.66.0F.WIG 14 /r], [pp = 1], mandatory [66]). *)
     | Vunpckhpd
         (** [vunpckhpd src2, src1, dst] - {!Vunpcklpd}'s sibling ([VEX.128.66.0F.WIG 15 /r]). *)
+    | Vpunpcklqdq
+        (** [vpunpcklqdq src2, src1, dst] - the VEX sibling of the legacy {!Punpcklqdq}/
+            {!Punpckhqdq} family ([VEX.128.66.0F.WIG 6C /r], [pp = 1], mandatory [66] only - no
+            non-66 sibling, matching the legacy integer-SIMD-only shape). Confirmed against real
+            GNU as (both [i686-linux-gnu-as] and [x86_64-linux-gnu-as] 2.44): a genuine
+            two-source-operand binop like {!Vunpcklps}, reusing {!Vex_binop_rr_rm} unchanged. *)
+    | Vpunpckhqdq
+        (** [vpunpckhqdq src2, src1, dst] - {!Vpunpcklqdq}'s sibling ([VEX.128.66.0F.WIG 6D /r]). *)
     | Vmaxsd
         (** [vmaxsd src2, src1, dst] - the VEX sibling of the legacy {!Maxsd}/{!Minsd}/{!Maxss}/
             {!Minss}/{!Maxps}/{!Minps}/{!Maxpd}/{!Minpd} family ([VEX.LIG.F2.0F.WIG 5F /r],
@@ -683,6 +698,8 @@ module Opcode = struct
     | Unpckhps -> "unpckhps"
     | Unpcklpd -> "unpcklpd"
     | Unpckhpd -> "unpckhpd"
+    | Punpcklqdq -> "punpcklqdq"
+    | Punpckhqdq -> "punpckhqdq"
     | Andps -> "andps"
     | Andnps -> "andnps"
     | Orps -> "orps"
@@ -741,6 +758,8 @@ module Opcode = struct
     | Vunpckhps -> "vunpckhps"
     | Vunpcklpd -> "vunpcklpd"
     | Vunpckhpd -> "vunpckhpd"
+    | Vpunpcklqdq -> "vpunpcklqdq"
+    | Vpunpckhqdq -> "vpunpckhqdq"
     | Vmaxsd -> "vmaxsd"
     | Vminsd -> "vminsd"
     | Vmaxss -> "vmaxss"
@@ -992,25 +1011,26 @@ module Instruction = struct
           | Opcode.Ucomiss | Opcode.Xorpd | Opcode.Pxor | Opcode.Movapd | Opcode.Cvtsd2ss
           | Opcode.Cvtss2sd | Opcode.Cvtps2pd | Opcode.Cvtpd2ps | Opcode.Movsd | Opcode.Movss
           | Opcode.Cvtsi2sd | Opcode.Cvtsi2ss | Opcode.Cvttsd2si | Opcode.Unpcklps | Opcode.Unpckhps
-          | Opcode.Unpcklpd | Opcode.Unpckhpd | Opcode.Andps | Opcode.Andnps | Opcode.Orps
-          | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd | Opcode.Orpd | Opcode.Movaps
-          | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps | Opcode.Mulps
-          | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd | Opcode.Maxss
-          | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps | Opcode.Maxpd
-          | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps | Opcode.Sqrtpd
-          | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss
-          | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps
-          | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
-          | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps
-          | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Vmaxsd
-          | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps
-          | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss | Opcode.Vsqrtps
-          | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd | Opcode.Vmovupd
-          | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss | Opcode.Vcvtps2pd
-          | Opcode.Vcvtpd2ps | Opcode.Vunpcklps | Opcode.Vunpckhps | Opcode.Vunpcklpd
-          | Opcode.Vunpckhpd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds
-          | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
-          | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
+          | Opcode.Unpcklpd | Opcode.Unpckhpd | Opcode.Punpcklqdq | Opcode.Punpckhqdq | Opcode.Andps
+          | Opcode.Andnps | Opcode.Orps | Opcode.Xorps | Opcode.Andpd | Opcode.Andnpd | Opcode.Orpd
+          | Opcode.Movaps | Opcode.Movups | Opcode.Movupd | Opcode.Addps | Opcode.Subps
+          | Opcode.Mulps | Opcode.Divps | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd
+          | Opcode.Maxss | Opcode.Minss | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps
+          | Opcode.Maxpd | Opcode.Minpd | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps
+          | Opcode.Sqrtpd | Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd
+          | Opcode.Vaddss | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps
+          | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd
+          | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps
+          | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd
+          | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps
+          | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss
+          | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
+          | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss
+          | Opcode.Vcvtps2pd | Opcode.Vcvtpd2ps | Opcode.Vunpcklps | Opcode.Vunpckhps
+          | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq | Opcode.Vpunpckhqdq
+          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
+          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
+          | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -2184,6 +2204,10 @@ module Make (M : MODE) = struct
     | "unpckhps", _ -> Ok (Instruction.mk Opcode.Unpckhps 32 s.Surface.ops)
     | "unpcklpd", _ -> Ok (Instruction.mk Opcode.Unpcklpd 32 s.Surface.ops)
     | "unpckhpd", _ -> Ok (Instruction.mk Opcode.Unpckhpd 32 s.Surface.ops)
+    (* {!Opcode.Unpcklps}'s integer-SIMD sibling (GEN-05): 66-mandatory-prefix only, same
+       opcode byte at {!Opcode.Punpcklqdq}'s own doc comment. *)
+    | "punpcklqdq", _ -> Ok (Instruction.mk Opcode.Punpcklqdq 32 s.Surface.ops)
+    | "punpckhqdq", _ -> Ok (Instruction.mk Opcode.Punpckhqdq 32 s.Surface.ops)
     (* Packed bitwise-logical family (GEN-05): {!Opcode.Xorpd}'s siblings, all matched the same
        fixed-mnemonic way. *)
     | "andps", _ -> Ok (Instruction.mk Opcode.Andps 32 s.Surface.ops)
@@ -2260,6 +2284,10 @@ module Make (M : MODE) = struct
     | "vunpckhps", _ -> Ok (Instruction.mk Opcode.Vunpckhps 32 s.Surface.ops)
     | "vunpcklpd", _ -> Ok (Instruction.mk Opcode.Vunpcklpd 32 s.Surface.ops)
     | "vunpckhpd", _ -> Ok (Instruction.mk Opcode.Vunpckhpd 32 s.Surface.ops)
+    (* {!Opcode.Vpunpcklqdq}'s own doc comment (GEN-05): the VEX sibling of the legacy
+       PUNPCKLQDQ/PUNPCKHQDQ family, opcode 0x6C/0x6D, 66-mandatory-prefix only. *)
+    | "vpunpcklqdq", _ -> Ok (Instruction.mk Opcode.Vpunpcklqdq 32 s.Surface.ops)
+    | "vpunpckhqdq", _ -> Ok (Instruction.mk Opcode.Vpunpckhqdq 32 s.Surface.ops)
     (* {!Opcode.Vaddsd}/{!Opcode.Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the
        legacy MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family, opcodes 0x5F (max)/0x5D
        (min) instead of 0x54-0x57. *)
@@ -2894,7 +2922,8 @@ module Make (M : MODE) = struct
         | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd | Opcode.Maxss | Opcode.Minss
         | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd
         | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps | Opcode.Sqrtpd | Opcode.Unpcklps
-        | Opcode.Unpckhps | Opcode.Unpcklpd | Opcode.Unpckhpd ),
+        | Opcode.Unpckhps | Opcode.Unpcklpd | Opcode.Unpckhpd | Opcode.Punpcklqdq
+        | Opcode.Punpckhqdq ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -2909,7 +2938,8 @@ module Make (M : MODE) = struct
         | Opcode.Addpd | Opcode.Subpd | Opcode.Mulpd | Opcode.Divpd | Opcode.Maxss | Opcode.Minss
         | Opcode.Maxsd | Opcode.Minsd | Opcode.Maxps | Opcode.Minps | Opcode.Maxpd | Opcode.Minpd
         | Opcode.Sqrtss | Opcode.Sqrtsd | Opcode.Sqrtps | Opcode.Sqrtpd | Opcode.Unpcklps
-        | Opcode.Unpckhps | Opcode.Unpcklpd | Opcode.Unpckhpd ),
+        | Opcode.Unpckhps | Opcode.Unpcklpd | Opcode.Unpckhpd | Opcode.Punpcklqdq
+        | Opcode.Punpckhqdq ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -2993,9 +3023,10 @@ module Make (M : MODE) = struct
         | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
         | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps
         | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Vunpcklps
-        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq
+        | Opcode.Vpunpckhqdq | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src2, xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok (), Ok () ->
@@ -3009,9 +3040,10 @@ module Make (M : MODE) = struct
         | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
         | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps
         | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Vunpcklps
-        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq
+        | Opcode.Vpunpckhqdq | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Mem m; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () -> (
@@ -3031,9 +3063,10 @@ module Make (M : MODE) = struct
         | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
         | Opcode.Vdivpd | Opcode.Vandps | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps
         | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd | Opcode.Vunpcklps
-        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vunpckhps | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq
+        | Opcode.Vpunpckhqdq | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Sym e; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -3598,6 +3631,8 @@ module Make (M : MODE) = struct
           (Opcode.Cvtpd2ps, 0x5AL);
           (Opcode.Unpcklpd, 0x14L);
           (Opcode.Unpckhpd, 0x15L);
+          (Opcode.Punpcklqdq, 0x6CL);
+          (Opcode.Punpckhqdq, 0x6DL);
         ]
       (C.field ~width:8 "opcode")
 
@@ -3855,6 +3890,8 @@ module Make (M : MODE) = struct
           (Opcode.Vminpd, 0x5DL);
           (Opcode.Vunpcklpd, 0x14L);
           (Opcode.Vunpckhpd, 0x15L);
+          (Opcode.Vpunpcklqdq, 0x6CL);
+          (Opcode.Vpunpckhqdq, 0x6DL);
         ]
       (C.field ~width:8 "opcode")
 

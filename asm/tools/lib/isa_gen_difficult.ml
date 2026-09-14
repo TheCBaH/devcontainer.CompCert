@@ -587,6 +587,8 @@ let x86_sse_binop_rr_entries =
           "UNPCKHPS_XMMps_XMMdq";
           "UNPCKLPD_XMMpd_XMMq";
           "UNPCKHPD_XMMpd_XMMq";
+          "PUNPCKLQDQ_XMMdq_XMMq";
+          "PUNPCKHQDQ_XMMdq_XMMq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -667,6 +669,8 @@ let x86_sse_binop_rm_entries =
           "UNPCKHPS_XMMps_MEMdq";
           "UNPCKLPD_XMMpd_MEMdq";
           "UNPCKHPD_XMMpd_MEMdq";
+          "PUNPCKLQDQ_XMMdq_MEMdq";
+          "PUNPCKHQDQ_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -770,6 +774,8 @@ let x86_vex_binop_rrr_entries =
           "VUNPCKHPS_XMMdq_XMMdq_XMMdq";
           "VUNPCKLPD_XMMdq_XMMdq_XMMdq";
           "VUNPCKHPD_XMMdq_XMMdq_XMMdq";
+          "VPUNPCKLQDQ_XMMdq_XMMdq_XMMdq";
+          "VPUNPCKHQDQ_XMMdq_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -837,6 +843,8 @@ let x86_vex_binop_rr_mem_entries =
           "VUNPCKHPS_XMMdq_XMMdq_MEMdq";
           "VUNPCKLPD_XMMdq_XMMdq_MEMdq";
           "VUNPCKHPD_XMMdq_XMMdq_MEMdq";
+          "VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq";
+          "VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
