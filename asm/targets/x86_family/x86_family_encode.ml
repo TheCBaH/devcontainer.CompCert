@@ -478,6 +478,21 @@ module Opcode = struct
             upper-bits-preservation concept for a fully-packed op - see {!Vex_unop_r_rm}. *)
     | Vsqrtpd
         (** [vsqrtpd src, dst] - {!Vsqrtps}'s packed-double sibling ([VEX.128.66.0F.WIG 51 /r], [pp = 1]). *)
+    | Vmovaps
+        (** [vmovaps src, dst] - the VEX sibling of the legacy {!Movaps}/{!Movups}/{!Movapd}/
+            {!Movupd} family ([VEX.128.0F.WIG 28 /r], [pp = 0]), reusing {!Vex_unop_r_rm} the
+            same way {!Vsqrtps} does: confirmed against real GNU as that register-register and
+            register<-memory both use this opcode, with register-register also reachable through
+            the redundant [0x29] iform GAS never selects (the same "low-numbered iform" precedent
+            {!Movapd}'s own comment already established) - left unadmitted here too, along with
+            the real [MEMdq<-XMMdq] store direction, which is a separately admittable, genuinely
+            distinct opcode ([0x29]) rather than a redundancy. *)
+    | Vmovups
+        (** [vmovups src, dst] - {!Vmovaps}'s unaligned sibling ([VEX.128.0F.WIG 10 /r], [pp = 0]). *)
+    | Vmovapd
+        (** [vmovapd src, dst] - {!Vmovaps}'s packed-double sibling ([VEX.128.66.0F.WIG 28 /r], [pp = 1]). *)
+    | Vmovupd
+        (** [vmovupd src, dst] - {!Vmovups}'s packed-double sibling ([VEX.128.66.0F.WIG 10 /r], [pp = 1]). *)
     | Fldl
     | Fstpl
     | Fstps
@@ -652,6 +667,10 @@ module Opcode = struct
     | Vsqrtss -> "vsqrtss"
     | Vsqrtps -> "vsqrtps"
     | Vsqrtpd -> "vsqrtpd"
+    | Vmovaps -> "vmovaps"
+    | Vmovups -> "vmovups"
+    | Vmovapd -> "vmovapd"
+    | Vmovupd -> "vmovupd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -892,9 +911,10 @@ module Instruction = struct
           | Opcode.Vorps | Opcode.Vxorps | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd
           | Opcode.Vxorpd | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
           | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
-          | Opcode.Vsqrtss | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Fldl | Opcode.Fstpl
-          | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw
-          | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
+          | Opcode.Vsqrtss | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups
+          | Opcode.Vmovapd | Opcode.Vmovupd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps
+          | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
+          | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -2142,6 +2162,12 @@ module Make (M : MODE) = struct
     | "vsqrtss", _ -> Ok (Instruction.mk Opcode.Vsqrtss 32 s.Surface.ops)
     | "vsqrtps", _ -> Ok (Instruction.mk Opcode.Vsqrtps 32 s.Surface.ops)
     | "vsqrtpd", _ -> Ok (Instruction.mk Opcode.Vsqrtpd 32 s.Surface.ops)
+    (* {!Opcode.Vmovaps}'s own doc comment (GEN-05): the VEX sibling of the legacy
+       MOVAPS/MOVUPS/MOVAPD/MOVUPD family, opcodes 0x28/0x10. *)
+    | "vmovaps", _ -> Ok (Instruction.mk Opcode.Vmovaps 32 s.Surface.ops)
+    | "vmovups", _ -> Ok (Instruction.mk Opcode.Vmovups 32 s.Surface.ops)
+    | "vmovapd", _ -> Ok (Instruction.mk Opcode.Vmovapd 32 s.Surface.ops)
+    | "vmovupd", _ -> Ok (Instruction.mk Opcode.Vmovupd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -2889,20 +2915,26 @@ module Make (M : MODE) = struct
         | Error e2, _ | _, Error e2 -> Error e2)
     (* [vsqrtps]/[vsqrtpd] ({!Opcode.Vsqrtps}'s own doc comment): genuinely two-operand, no
        [vvvv]-carried [src1] at all - {!Lowered.Vex_unop_r_rm} rather than {!Vex_binop_rr_rm}. *)
-    | (Opcode.Vsqrtps | Opcode.Vsqrtpd), [ Operand.Reg src; Operand.Reg dst ] -> (
+    | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
+        | Opcode.Vmovupd ),
+        [ Operand.Reg src; Operand.Reg dst ] ) -> (
         match (xmm_ok src, xmm_ok dst) with
         | Ok (), Ok () ->
             if src.num >= 8 then bad (`Vex_rm_extended_register src.name)
             else Ok [ Lowered.Vex_unop_r_rm { op = i.Instruction.op; dst; src = Rm.Reg src } ]
         | Error e, _ | _, Error e -> Error e)
-    | (Opcode.Vsqrtps | Opcode.Vsqrtpd), [ Operand.Mem m; Operand.Reg dst ] -> (
+    | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
+        | Opcode.Vmovupd ),
+        [ Operand.Mem m; Operand.Reg dst ] ) -> (
         match xmm_ok dst with
         | Ok () -> (
             match vex_mem_ok m with
             | Error e -> Error e
             | Ok () -> Ok [ Lowered.Vex_unop_r_rm { op = i.Instruction.op; dst; src = Rm.Mem m } ])
         | Error e -> Error e)
-    | (Opcode.Vsqrtps | Opcode.Vsqrtpd), [ Operand.Sym e; Operand.Reg dst ] -> (
+    | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
+        | Opcode.Vmovupd ),
+        [ Operand.Sym e; Operand.Reg dst ] ) -> (
         match xmm_ok dst with
         | Ok () ->
             Ok
@@ -3729,13 +3761,13 @@ module Make (M : MODE) = struct
      opcode-byte disjointness. *)
   let vex_unop_none_codec =
     C.iso_table ~name:"vex-unop-none-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Vsqrtps, 0x51L) ]
+      ~entries:[ (Opcode.Vsqrtps, 0x51L); (Opcode.Vmovaps, 0x28L); (Opcode.Vmovups, 0x10L) ]
       (C.field ~width:8 "opcode")
 
   (* [pp = 1] (mandatory [66]) - {!Vsqrtps}'s packed-double sibling. *)
   let vex_unop_66_codec =
     C.iso_table ~name:"vex-unop-66-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Vsqrtpd, 0x51L) ]
+      ~entries:[ (Opcode.Vsqrtpd, 0x51L); (Opcode.Vmovapd, 0x28L); (Opcode.Vmovupd, 0x10L) ]
       (C.field ~width:8 "opcode")
 
   (* {!vex_scalar_rrr_alt}'s two-operand sibling for {!Lowered.Vex_unop_r_rm}: no [vvvv]

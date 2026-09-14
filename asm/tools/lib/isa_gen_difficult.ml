@@ -839,7 +839,14 @@ let x86_vex_unop_rr_entries =
     (fun target ->
       List.map
         (fun lookup_key -> x86_vex_unop_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
-        [ "VSQRTPS_XMMdq_XMMdq"; "VSQRTPD_XMMdq_XMMdq" ])
+        [
+          "VSQRTPS_XMMdq_XMMdq";
+          "VSQRTPD_XMMdq_XMMdq";
+          "VMOVAPS_XMMdq_XMMdq_28";
+          "VMOVUPS_XMMdq_XMMdq_10";
+          "VMOVAPD_XMMdq_XMMdq_28";
+          "VMOVUPD_XMMdq_XMMdq_10";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* {!x86_vex_unop_rr_entry}'s register<-memory sibling
@@ -865,7 +872,14 @@ let x86_vex_unop_rr_mem_entries =
       List.map
         (fun lookup_key ->
           x86_vex_unop_rr_mem_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
-        [ "VSQRTPS_XMMdq_MEMdq"; "VSQRTPD_XMMdq_MEMdq" ])
+        [
+          "VSQRTPS_XMMdq_MEMdq";
+          "VSQRTPD_XMMdq_MEMdq";
+          "VMOVAPS_XMMdq_MEMdq";
+          "VMOVUPS_XMMdq_MEMdq";
+          "VMOVAPD_XMMdq_MEMdq";
+          "VMOVUPD_XMMdq_MEMdq";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* [cvtsi2sd]/[cvtsi2ss] register-source ({!Isa_norm_xed.cvtsi2f_rr_form}'s

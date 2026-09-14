@@ -357,6 +357,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("x86:VSQRTPS_XMMdq_MEMdq" | "x86:VSQRTPD_XMMdq_MEMdq"),
       ("VSQRTPS_XMMdq_MEMdq" | "VSQRTPD_XMMdq_MEMdq") ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VMOVAPS_XMMdq_XMMdq_28" | "x86:VMOVUPS_XMMdq_XMMdq_10" | "x86:VMOVAPD_XMMdq_XMMdq_28"
+      | "x86:VMOVUPD_XMMdq_XMMdq_10" ),
+      ( "VMOVAPS_XMMdq_XMMdq_28" | "VMOVUPS_XMMdq_XMMdq_10" | "VMOVAPD_XMMdq_XMMdq_28"
+      | "VMOVUPD_XMMdq_XMMdq_10" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VMOVAPS_XMMdq_MEMdq" | "x86:VMOVUPS_XMMdq_MEMdq" | "x86:VMOVAPD_XMMdq_MEMdq"
+      | "x86:VMOVUPD_XMMdq_MEMdq" ),
+      ("VMOVAPS_XMMdq_MEMdq" | "VMOVUPS_XMMdq_MEMdq" | "VMOVAPD_XMMdq_MEMdq" | "VMOVUPD_XMMdq_MEMdq")
+    ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

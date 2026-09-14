@@ -2479,6 +2479,33 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_form ~form_id:"VSQRTPD_XMMdq_XMMdq" ~mnemonic:"vsqrtpd" rec_
   | Ok { iform = Some "VSQRTPD_XMMdq_MEMdq"; _ } ->
       vex_unop_rr_mem_form ~form_id:"VSQRTPD_XMMdq_MEMdq" ~mnemonic:"vsqrtpd" rec_
+  (* {!Vmovaps}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     MOVAPS/MOVUPS/MOVAPD/MOVUPD family (opcodes 0x28/0x10), reusing {!vex_unop_rr_form}/
+     {!vex_unop_rr_mem_form} unchanged - the same genuinely-two-operand shape {!Vsqrtps} already
+     established. Only the low-numbered register-register iform (XED's own [_28]/[_10] suffix)
+     and the register<-memory load direction are admitted here, matching the legacy
+     {!Movapd}/{!Movaps} precedent exactly: the [_29]/[_11]-suffixed register-register iform is
+     the same redundant alternate encoding real GNU as never selects, and the real
+     [MEMdq<-XMMdq] store direction (a genuinely distinct, separately admittable opcode, not a
+     redundancy) is left as a named follow-up. Confirmed against real GNU as
+     (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44): `c5 f8 28 ca` (vmovaps register-register),
+     `c5 f8 28 08`/`c5 f8 10 08`/`c5 f9 28 08`/`c5 f9 10 08` (register<-memory). *)
+  | Ok { iform = Some "VMOVAPS_XMMdq_XMMdq_28"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVAPS_XMMdq_XMMdq_28" ~mnemonic:"vmovaps" rec_
+  | Ok { iform = Some "VMOVAPS_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVAPS_XMMdq_MEMdq" ~mnemonic:"vmovaps" rec_
+  | Ok { iform = Some "VMOVUPS_XMMdq_XMMdq_10"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVUPS_XMMdq_XMMdq_10" ~mnemonic:"vmovups" rec_
+  | Ok { iform = Some "VMOVUPS_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVUPS_XMMdq_MEMdq" ~mnemonic:"vmovups" rec_
+  | Ok { iform = Some "VMOVAPD_XMMdq_XMMdq_28"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVAPD_XMMdq_XMMdq_28" ~mnemonic:"vmovapd" rec_
+  | Ok { iform = Some "VMOVAPD_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVAPD_XMMdq_MEMdq" ~mnemonic:"vmovapd" rec_
+  | Ok { iform = Some "VMOVUPD_XMMdq_XMMdq_10"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVUPD_XMMdq_XMMdq_10" ~mnemonic:"vmovupd" rec_
+  | Ok { iform = Some "VMOVUPD_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVUPD_XMMdq_MEMdq" ~mnemonic:"vmovupd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
