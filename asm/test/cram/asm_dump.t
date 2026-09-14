@@ -256,8 +256,8 @@
   sse-binop-none-op[11]{opcode:8u}
   vex-scalar-f2-op[4]{opcode:8u}
   vex-scalar-f3-op[4]{opcode:8u}
-  vex-scalar-none-op[4]{opcode:8u}
-  vex-scalar-66-op[4]{opcode:8u}
+  vex-scalar-none-op[8]{opcode:8u}
+  vex-scalar-66-op[8]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -523,8 +523,8 @@
   sse-binop-none-op[11]{opcode:8u}
   vex-scalar-f2-op[4]{opcode:8u}
   vex-scalar-f3-op[4]{opcode:8u}
-  vex-scalar-none-op[4]{opcode:8u}
-  vex-scalar-66-op[4]{opcode:8u}
+  vex-scalar-none-op[8]{opcode:8u}
+  vex-scalar-66-op[8]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}

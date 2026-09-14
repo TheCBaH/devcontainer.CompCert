@@ -2187,6 +2187,43 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VMULPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmulpd" rec_
   | Ok { iform = Some "VDIVPD_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VDIVPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vdivpd" rec_
+  (* {!Vaddps}/{!Vaddpd}'s VEX bitwise-logical siblings (GEN-05): same two
+     [vex_binop_*_form] shapes, the VEX counterpart of the legacy
+     {!Andps}/{!Andnps}/{!Orps}/{!Xorps}/{!Andpd}/{!Andnpd}/{!Orpd}/{!Xorpd}
+     family - opcodes 0x54-0x57 instead of 0x58/0x59/0x5C/0x5E, no [Vxorps]
+     scalar sibling since AND/OR/XOR are inherently packed-only bitwise ops. *)
+  | Ok { iform = Some "VANDPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VANDPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vandps" rec_
+  | Ok { iform = Some "VANDNPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VANDNPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vandnps" rec_
+  | Ok { iform = Some "VORPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VORPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vorps" rec_
+  | Ok { iform = Some "VXORPS_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VXORPS_XMMdq_XMMdq_XMMdq" ~mnemonic:"vxorps" rec_
+  | Ok { iform = Some "VANDPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VANDPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vandps" rec_
+  | Ok { iform = Some "VANDNPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VANDNPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vandnps" rec_
+  | Ok { iform = Some "VORPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VORPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vorps" rec_
+  | Ok { iform = Some "VXORPS_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VXORPS_XMMdq_XMMdq_MEMdq" ~mnemonic:"vxorps" rec_
+  | Ok { iform = Some "VANDPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VANDPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vandpd" rec_
+  | Ok { iform = Some "VANDNPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VANDNPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vandnpd" rec_
+  | Ok { iform = Some "VORPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VORPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vorpd" rec_
+  | Ok { iform = Some "VXORPD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VXORPD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vxorpd" rec_
+  | Ok { iform = Some "VANDPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VANDPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vandpd" rec_
+  | Ok { iform = Some "VANDNPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VANDNPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vandnpd" rec_
+  | Ok { iform = Some "VORPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VORPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vorpd" rec_
+  | Ok { iform = Some "VXORPD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VXORPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vxorpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
