@@ -278,6 +278,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("CVTPS2PD_XMMpd_MEMq" | "CVTPD2PS_XMMps_MEMpd") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:UNPCKLPS_XMMps_XMMq" | "x86:UNPCKHPS_XMMps_XMMdq" | "x86:UNPCKLPD_XMMpd_XMMq"
+      | "x86:UNPCKHPD_XMMpd_XMMq" ),
+      ( "UNPCKLPS_XMMps_XMMq" | "UNPCKHPS_XMMps_XMMdq" | "UNPCKLPD_XMMpd_XMMq"
+      | "UNPCKHPD_XMMpd_XMMq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:UNPCKLPS_XMMps_MEMdq" | "x86:UNPCKHPS_XMMps_MEMdq" | "x86:UNPCKLPD_XMMpd_MEMdq"
+      | "x86:UNPCKHPD_XMMpd_MEMdq" ),
+      ( "UNPCKLPS_XMMps_MEMdq" | "UNPCKHPS_XMMps_MEMdq" | "UNPCKLPD_XMMpd_MEMdq"
+      | "UNPCKHPD_XMMpd_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"
@@ -394,6 +406,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("VCVTPS2PD_XMMdq_XMMq" | "VCVTPD2PS_XMMdq_XMMdq") ) ->
       true
   | (Target.X86_32 | Target.X86_64), "x86:VCVTPS2PD_XMMdq_MEMq", "VCVTPS2PD_XMMdq_MEMq" -> true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VUNPCKLPS_XMMdq_XMMdq_XMMdq" | "x86:VUNPCKHPS_XMMdq_XMMdq_XMMdq"
+      | "x86:VUNPCKLPD_XMMdq_XMMdq_XMMdq" | "x86:VUNPCKHPD_XMMdq_XMMdq_XMMdq" ),
+      ( "VUNPCKLPS_XMMdq_XMMdq_XMMdq" | "VUNPCKHPS_XMMdq_XMMdq_XMMdq"
+      | "VUNPCKLPD_XMMdq_XMMdq_XMMdq" | "VUNPCKHPD_XMMdq_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VUNPCKLPS_XMMdq_XMMdq_MEMdq" | "x86:VUNPCKHPS_XMMdq_XMMdq_MEMdq"
+      | "x86:VUNPCKLPD_XMMdq_XMMdq_MEMdq" | "x86:VUNPCKHPD_XMMdq_XMMdq_MEMdq" ),
+      ( "VUNPCKLPS_XMMdq_XMMdq_MEMdq" | "VUNPCKHPS_XMMdq_XMMdq_MEMdq"
+      | "VUNPCKLPD_XMMdq_XMMdq_MEMdq" | "VUNPCKHPD_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),
