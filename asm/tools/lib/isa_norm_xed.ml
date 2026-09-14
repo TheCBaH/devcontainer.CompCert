@@ -2731,6 +2731,30 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rr_form ~form_id:"SHUFPD_XMMpd_XMMpd_IMMb" ~mnemonic:"shufpd" rec_
   | Ok { iform = Some "SHUFPD_XMMpd_MEMpd_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"SHUFPD_XMMpd_MEMpd_IMMb" ~mnemonic:"shufpd" rec_
+  (* CMPSS/CMPSD/CMPPS/CMPPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): {!Addsd}'s
+     own four-mandatory-prefix-group shape at opcode 0xC2, with {!Shufps}'s trailing imm8.
+     CMPSS/CMPPS are XED extension SSE; CMPSD/CMPPD are SSE2. Only the canonical
+     [cmp{ss,sd,ps,pd} $imm, ...] spelling is admitted, not the [cmpeq]/[cmplt]/etc.
+     mnemonic-suffix pseudo-aliases GNU as also accepts - a separately scoped follow-up. Note
+     CMPSD's own iform (["CMPSD_XMM_XMMsd_XMMsd_IMMb"]) is disjoint from the unrelated string
+     instruction bare iform ["CMPSD"] (REP-prefixed string compare) - no ambiguity here since
+     dispatch is by exact iform string, but the two must not be confused when reading exports. *)
+  | Ok { iform = Some "CMPSS_XMMss_XMMss_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"CMPSS_XMMss_XMMss_IMMb" ~mnemonic:"cmpss" rec_
+  | Ok { iform = Some "CMPSS_XMMss_MEMss_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"CMPSS_XMMss_MEMss_IMMb" ~mnemonic:"cmpss" rec_
+  | Ok { iform = Some "CMPSD_XMM_XMMsd_XMMsd_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"CMPSD_XMM_XMMsd_XMMsd_IMMb" ~mnemonic:"cmpsd" rec_
+  | Ok { iform = Some "CMPSD_XMM_XMMsd_MEMsd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"CMPSD_XMM_XMMsd_MEMsd_IMMb" ~mnemonic:"cmpsd" rec_
+  | Ok { iform = Some "CMPPS_XMMps_XMMps_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"CMPPS_XMMps_XMMps_IMMb" ~mnemonic:"cmpps" rec_
+  | Ok { iform = Some "CMPPS_XMMps_MEMps_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"CMPPS_XMMps_MEMps_IMMb" ~mnemonic:"cmpps" rec_
+  | Ok { iform = Some "CMPPD_XMMpd_XMMpd_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"CMPPD_XMMpd_XMMpd_IMMb" ~mnemonic:"cmppd" rec_
+  | Ok { iform = Some "CMPPD_XMMpd_MEMpd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"CMPPD_XMMpd_MEMpd_IMMb" ~mnemonic:"cmppd" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
@@ -3019,6 +3043,29 @@ let normalize (rec_ : R.t) =
       vex_binop_imm_rrr_form ~form_id:"VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vshufpd" rec_
   | Ok { iform = Some "VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
       vex_binop_imm_rr_mem_form ~form_id:"VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vshufpd" rec_
+  (* VCMPSS/VCMPSD/VCMPPS/VCMPPD (GEN-05, {!vex_binop_imm_rrr_form}'s own doc comment): the VEX
+     sibling of the legacy CMPSS/CMPSD/CMPPS/CMPPD family, opcode 0xC2. Only the plain
+     [vex]-space 128-bit iforms - the [evex]-space AVX-512 masked iforms sharing the same
+     native name are out of scope. All four are XED extension AVX. Note VCMPSS/VCMPSD's own
+     third-operand [oc2] is scalar ([XMMd]/[MEMd], [XMMq]/[MEMq]) rather than VSHUFPS's packed
+     [XMMdq]/[MEMdq] - {!vex_binop_imm_rrr_form}/{!vex_binop_imm_rr_mem_form} only read the
+     operand's [op_name]/[rw] facts, not its [oc2] width, so this needs no normalizer change. *)
+  | Ok { iform = Some "VCMPSS_XMMdq_XMMdq_XMMd_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VCMPSS_XMMdq_XMMdq_XMMd_IMMb" ~mnemonic:"vcmpss" rec_
+  | Ok { iform = Some "VCMPSS_XMMdq_XMMdq_MEMd_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VCMPSS_XMMdq_XMMdq_MEMd_IMMb" ~mnemonic:"vcmpss" rec_
+  | Ok { iform = Some "VCMPSD_XMMdq_XMMdq_XMMq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VCMPSD_XMMdq_XMMdq_XMMq_IMMb" ~mnemonic:"vcmpsd" rec_
+  | Ok { iform = Some "VCMPSD_XMMdq_XMMdq_MEMq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VCMPSD_XMMdq_XMMdq_MEMq_IMMb" ~mnemonic:"vcmpsd" rec_
+  | Ok { iform = Some "VCMPPS_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VCMPPS_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vcmpps" rec_
+  | Ok { iform = Some "VCMPPS_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VCMPPS_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vcmpps" rec_
+  | Ok { iform = Some "VCMPPD_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VCMPPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vcmppd" rec_
+  | Ok { iform = Some "VCMPPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VCMPPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vcmppd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
@@ -3042,8 +3089,11 @@ let normalize (rec_ : R.t) =
             and register<-memory forms, and the VEX-encoded VADDSD/VSUBSD/VMULSD/VDIVSD/ \
             VADDSS/VSUBSS/VMULSS/VDIVSS/VADDPS/VSUBPS/VMULPS/VDIVPS/VADDPD/VSUBPD/VMULPD/VDIVPD \
             register-register and register<-memory forms, the XMM-immediate-carrying SHUFPS/SHUFPD \
-            register-register and register<-memory forms, and their non-EVEX VEX-space \
-            VSHUFPS/VSHUFPD register-register and register<-memory forms; %s is not one of them"
+            register-register and register<-memory forms, their non-EVEX VEX-space VSHUFPS/VSHUFPD \
+            register-register and register<-memory forms, the XMM-immediate-carrying \
+            CMPSS/CMPSD/CMPPS/CMPPD register-register and register<-memory forms, and their \
+            non-EVEX VEX-space VCMPSS/VCMPSD/VCMPPS/VCMPPD register-register and register<-memory \
+            forms; %s is not one of them"
            other)
   | Ok { iform = None; _ } -> err "missing-iform" "XED record has no provenance.iform"
   | Error msg -> err "not-a-xed-record" msg

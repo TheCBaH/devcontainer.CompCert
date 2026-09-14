@@ -306,6 +306,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("SHUFPS_XMMps_MEMps_IMMb" | "SHUFPD_XMMpd_MEMpd_IMMb") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:CMPSS_XMMss_XMMss_IMMb" | "x86:CMPSD_XMM_XMMsd_XMMsd_IMMb"
+      | "x86:CMPPS_XMMps_XMMps_IMMb" | "x86:CMPPD_XMMpd_XMMpd_IMMb" ),
+      ( "CMPSS_XMMss_XMMss_IMMb" | "CMPSD_XMM_XMMsd_XMMsd_IMMb" | "CMPPS_XMMps_XMMps_IMMb"
+      | "CMPPD_XMMpd_XMMpd_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:CMPSS_XMMss_MEMss_IMMb" | "x86:CMPSD_XMM_XMMsd_MEMsd_IMMb"
+      | "x86:CMPPS_XMMps_MEMps_IMMb" | "x86:CMPPD_XMMpd_MEMpd_IMMb" ),
+      ( "CMPSS_XMMss_MEMss_IMMb" | "CMPSD_XMM_XMMsd_MEMsd_IMMb" | "CMPPS_XMMps_MEMps_IMMb"
+      | "CMPPD_XMMpd_MEMpd_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VADDSD_XMMdq_XMMdq_XMMq" | "x86:VSUBSD_XMMdq_XMMdq_XMMq"
       | "x86:VMULSD_XMMdq_XMMdq_XMMq" | "x86:VDIVSD_XMMdq_XMMdq_XMMq"
       | "x86:VADDSS_XMMdq_XMMdq_XMMd" | "x86:VSUBSS_XMMdq_XMMdq_XMMd"
@@ -449,6 +461,18 @@ let promoted_case ~target ~form_id ~lookup_key =
   | ( (Target.X86_32 | Target.X86_64),
       ("x86:VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb"),
       ("VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb" | "VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VCMPSS_XMMdq_XMMdq_XMMd_IMMb" | "x86:VCMPSD_XMMdq_XMMdq_XMMq_IMMb"
+      | "x86:VCMPPS_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VCMPPD_XMMdq_XMMdq_XMMdq_IMMb" ),
+      ( "VCMPSS_XMMdq_XMMdq_XMMd_IMMb" | "VCMPSD_XMMdq_XMMdq_XMMq_IMMb"
+      | "VCMPPS_XMMdq_XMMdq_XMMdq_IMMb" | "VCMPPD_XMMdq_XMMdq_XMMdq_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VCMPSS_XMMdq_XMMdq_MEMd_IMMb" | "x86:VCMPSD_XMMdq_XMMdq_MEMq_IMMb"
+      | "x86:VCMPPS_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VCMPPD_XMMdq_XMMdq_MEMdq_IMMb" ),
+      ( "VCMPSS_XMMdq_XMMdq_MEMd_IMMb" | "VCMPSD_XMMdq_XMMdq_MEMq_IMMb"
+      | "VCMPPS_XMMdq_XMMdq_MEMdq_IMMb" | "VCMPPD_XMMdq_XMMdq_MEMdq_IMMb" ) ) ->
       true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"

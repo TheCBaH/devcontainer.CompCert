@@ -677,7 +677,9 @@ let x86_sse_binop_rm_entries =
 (* SHUFPS/SHUFPD (GEN-05, {!Isa_norm_xed.xmm_binop_imm_rr_form}'s own doc comment): the first
    XMM-immediate-carrying legacy shape, {!x86_sse_binop_rr_entry}'s own [src]/[dest] pair plus a
    concrete imm8 selector. Confirmed against real GNU as: [shufps $0x1b,%xmm2,%xmm1] ->
-   [0f c6 ca 1b], [shufpd $0x1,%xmm2,%xmm1] -> [66 0f c6 ca 01]. *)
+   [0f c6 ca 1b], [shufpd $0x1,%xmm2,%xmm1] -> [66 0f c6 ca 01]. Also covers CMPSS/CMPSD/CMPPS/
+   CMPPD (GEN-05), the same shape at opcode 0xC2 - confirmed [cmpss $0x0,%xmm2,%xmm1] ->
+   [f3 0f c2 ca 00]. *)
 let x86_sse_binop_imm_rr_entry ~target ~form_id ~lookup_key ~imm =
   {
     form_id;
@@ -697,7 +699,14 @@ let x86_sse_binop_imm_rr_entries =
       List.map
         (fun (lookup_key, imm) ->
           x86_sse_binop_imm_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
-        [ ("SHUFPS_XMMps_XMMps_IMMb", "27"); ("SHUFPD_XMMpd_XMMpd_IMMb", "1") ])
+        [
+          ("SHUFPS_XMMps_XMMps_IMMb", "27");
+          ("SHUFPD_XMMpd_XMMpd_IMMb", "1");
+          ("CMPSS_XMMss_XMMss_IMMb", "0");
+          ("CMPSD_XMM_XMMsd_XMMsd_IMMb", "0");
+          ("CMPPS_XMMps_XMMps_IMMb", "0");
+          ("CMPPD_XMMpd_XMMpd_IMMb", "0");
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* Its register<-memory sibling ({!x86_sse_binop_rm_entry}'s own doc comment) plus the same
@@ -722,7 +731,14 @@ let x86_sse_binop_imm_rm_entries =
       List.map
         (fun (lookup_key, imm) ->
           x86_sse_binop_imm_rm_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
-        [ ("SHUFPS_XMMps_MEMps_IMMb", "27"); ("SHUFPD_XMMpd_MEMpd_IMMb", "1") ])
+        [
+          ("SHUFPS_XMMps_MEMps_IMMb", "27");
+          ("SHUFPD_XMMpd_MEMpd_IMMb", "1");
+          ("CMPSS_XMMss_MEMss_IMMb", "0");
+          ("CMPSD_XMM_XMMsd_MEMsd_IMMb", "0");
+          ("CMPPS_XMMps_MEMps_IMMb", "0");
+          ("CMPPD_XMMpd_MEMpd_IMMb", "0");
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* [movsd]/[movss] load/store: {!x86_sse_binop_rm_entry}'s own stack-based
@@ -901,7 +917,9 @@ let x86_vex_binop_rr_mem_entries =
 
 (* VSHUFPS/VSHUFPD (GEN-05, {!Isa_norm_xed.vex_binop_imm_rrr_form}'s own doc comment):
    {!x86_vex_binop_rrr_entry}'s own three-register shape plus a concrete imm8 selector.
-   Confirmed against real GNU as: [vshufps $0x1b,%xmm2,%xmm1,%xmm0] -> [c5 f0 c6 c2 1b]. *)
+   Confirmed against real GNU as: [vshufps $0x1b,%xmm2,%xmm1,%xmm0] -> [c5 f0 c6 c2 1b]. Also
+   covers VCMPSS/VCMPSD/VCMPPS/VCMPPD (GEN-05), the same shape at opcode 0xC2 - confirmed
+   [vcmpss $0x0,%xmm2,%xmm1,%xmm0] -> [c5 f2 c2 c2 00]. *)
 let x86_vex_binop_imm_rrr_entry ~target ~form_id ~lookup_key ~imm =
   {
     form_id;
@@ -921,7 +939,14 @@ let x86_vex_binop_imm_rrr_entries =
       List.map
         (fun (lookup_key, imm) ->
           x86_vex_binop_imm_rrr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
-        [ ("VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb", "27"); ("VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb", "1") ])
+        [
+          ("VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb", "27");
+          ("VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb", "1");
+          ("VCMPSS_XMMdq_XMMdq_XMMd_IMMb", "0");
+          ("VCMPSD_XMMdq_XMMdq_XMMq_IMMb", "0");
+          ("VCMPPS_XMMdq_XMMdq_XMMdq_IMMb", "0");
+          ("VCMPPD_XMMdq_XMMdq_XMMdq_IMMb", "0");
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* {!x86_vex_binop_imm_rrr_entry}'s register<-memory sibling
@@ -949,7 +974,14 @@ let x86_vex_binop_imm_rr_mem_entries =
       List.map
         (fun (lookup_key, imm) ->
           x86_vex_binop_imm_rr_mem_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
-        [ ("VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb", "27"); ("VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb", "1") ])
+        [
+          ("VSHUFPS_XMMdq_XMMdq_MEMdq_IMMb", "27");
+          ("VSHUFPD_XMMdq_XMMdq_MEMdq_IMMb", "1");
+          ("VCMPSS_XMMdq_XMMdq_MEMd_IMMb", "0");
+          ("VCMPSD_XMMdq_XMMdq_MEMq_IMMb", "0");
+          ("VCMPPS_XMMdq_XMMdq_MEMdq_IMMb", "0");
+          ("VCMPPD_XMMdq_XMMdq_MEMdq_IMMb", "0");
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* {!x86_vex_binop_rrr_entry}'s two-operand unary sibling ({!Isa_norm_xed.vex_unop_rr_form}'s
