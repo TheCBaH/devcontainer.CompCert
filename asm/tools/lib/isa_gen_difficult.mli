@@ -218,6 +218,17 @@ val x86_vex_binop_rr_mem_entries : entry list
     x86_family_encode.ml's own memory-operand extension of the two-byte-VEX
     encoder were built. *)
 
+val x86_vex_unop_rr_entries : entry list
+(** [vsqrtps]/[vsqrtpd %xmm1, %xmm0] on x86-32 and x86-64 -
+    {!x86_vex_binop_rrr_entries}'s two-operand sibling for a VEX mnemonic
+    with no real [vvvv] operand, confirmed against real GNU as (which
+    rejects a third operand outright) before {!Isa_norm_xed.vex_unop_rr_form}
+    and x86_family_encode.ml's own [Lowered.Vex_unop_r_rm] shape were built. *)
+
+val x86_vex_unop_rr_mem_entries : entry list
+(** [vsqrtps]/[vsqrtpd 16(%esp|%rsp), %xmm0] on x86-32 and x86-64 -
+    {!x86_vex_unop_rr_entries}'s register<-memory sibling. *)
+
 val x86_cvtsi2f_rr_entries : entry list
 (** [cvtsi2sd]/[cvtsi2ss %eax, %xmm0] on x86-32 and x86-64, plus
     [cvtsi2sdq]/[cvtsi2ssq %rax, %xmm0] on x86-64 only (a GPR64 source

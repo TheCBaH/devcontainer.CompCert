@@ -341,6 +341,22 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "VMINSS_XMMdq_XMMdq_MEMd" | "VMAXPS_XMMdq_XMMdq_MEMdq" | "VMINPS_XMMdq_XMMdq_MEMdq"
       | "VMAXPD_XMMdq_XMMdq_MEMdq" | "VMINPD_XMMdq_XMMdq_MEMdq" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VSQRTSD_XMMdq_XMMdq_XMMq" | "x86:VSQRTSS_XMMdq_XMMdq_XMMd"),
+      ("VSQRTSD_XMMdq_XMMdq_XMMq" | "VSQRTSS_XMMdq_XMMdq_XMMd") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VSQRTSD_XMMdq_XMMdq_MEMq" | "x86:VSQRTSS_XMMdq_XMMdq_MEMd"),
+      ("VSQRTSD_XMMdq_XMMdq_MEMq" | "VSQRTSS_XMMdq_XMMdq_MEMd") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VSQRTPS_XMMdq_XMMdq" | "x86:VSQRTPD_XMMdq_XMMdq"),
+      ("VSQRTPS_XMMdq_XMMdq" | "VSQRTPD_XMMdq_XMMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VSQRTPS_XMMdq_MEMdq" | "x86:VSQRTPD_XMMdq_MEMdq"),
+      ("VSQRTPS_XMMdq_MEMdq" | "VSQRTPD_XMMdq_MEMdq") ) ->
+      true
   | ( (Target.Riscv32 | Target.Riscv64),
       ( "riscv:fadd.s" | "riscv:fsub.s" | "riscv:fmul.s" | "riscv:fdiv.s" | "riscv:fadd.d"
       | "riscv:fsub.d" | "riscv:fmul.d" | "riscv:fdiv.d" ),

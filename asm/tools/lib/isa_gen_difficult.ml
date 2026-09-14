@@ -750,6 +750,8 @@ let x86_vex_binop_rrr_entries =
           "VMINPS_XMMdq_XMMdq_XMMdq";
           "VMAXPD_XMMdq_XMMdq_XMMdq";
           "VMINPD_XMMdq_XMMdq_XMMdq";
+          "VSQRTSD_XMMdq_XMMdq_XMMq";
+          "VSQRTSS_XMMdq_XMMdq_XMMd";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -811,7 +813,59 @@ let x86_vex_binop_rr_mem_entries =
           "VMINPS_XMMdq_XMMdq_MEMdq";
           "VMAXPD_XMMdq_XMMdq_MEMdq";
           "VMINPD_XMMdq_XMMdq_MEMdq";
+          "VSQRTSD_XMMdq_XMMdq_MEMq";
+          "VSQRTSS_XMMdq_XMMdq_MEMd";
         ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* {!x86_vex_binop_rrr_entry}'s two-operand unary sibling ({!Isa_norm_xed.vex_unop_rr_form}'s
+   own doc comment): [%xmm1] (src)/[%xmm0] (dest), no [vvvv]-carried third operand - real GNU
+   as rejects a third operand for these mnemonics outright. *)
+let x86_vex_unop_rr_entry ~target ~form_id ~lookup_key =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "vex-two-register-operands" ];
+    operands = [ ("src", "xmm1"); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vex_unop_rr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key -> x86_vex_unop_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [ "VSQRTPS_XMMdq_XMMdq"; "VSQRTPD_XMMdq_XMMdq" ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* {!x86_vex_unop_rr_entry}'s register<-memory sibling
+   ({!Isa_norm_xed.vex_unop_rr_mem_form}'s own doc comment): {!x86_sse_binop_rm_entry}'s
+   base+disp8 SIB addressing standing in for [src]. *)
+let x86_vex_unop_rr_mem_entry ~target ~form_id ~lookup_key =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "vex-one-register-one-memory-operands" ];
+    operands = [ ("src", Printf.sprintf "16(%%%s)" stack); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vex_unop_rr_mem_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_unop_rr_mem_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [ "VSQRTPS_XMMdq_MEMdq"; "VSQRTPD_XMMdq_MEMdq" ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* [cvtsi2sd]/[cvtsi2ss] register-source ({!Isa_norm_xed.cvtsi2f_rr_form}'s
@@ -4435,7 +4489,8 @@ let all =
   @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries @ vpopc_m_entries @ vmandnot_mm_entries
   @ vmornot_mm_entries @ vfredsum_vs_entries @ vfwredsum_vs_entries @ vl1r_v_entries
   @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
-  @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries
+  @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries
+  @ x86_vex_unop_rr_mem_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

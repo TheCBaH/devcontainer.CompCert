@@ -1297,6 +1297,136 @@ let vex_binop_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
            (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* {!vex_binop_rrr_form}'s two-operand unary sibling (VSQRTPS_XMMdq_XMMdq etc.): XED's resolved
+   operands are just REG0 (dest, w) and REG1 (src, r) - no third [vvvv]-carrying operand, since
+   VEX's [vvvv] field is architecturally unused (must be [1111]) for these packed unary forms -
+   confirmed against real GNU as, which rejects a third operand outright ("number of operands
+   mismatch") for [vsqrtps]/[vsqrtpd], unlike {!vex_binop_rrr_form}'s scalar siblings where the
+   [vvvv] operand is real (it merges the destination's upper bits, even though it isn't a second
+   arithmetic input). *)
+let vex_unop_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [ Syn_decorated ("%", Syn_operand "src"); Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "VEX.vvvv is architecturally unused (must be 1111) for this packed unary form - \
+                   confirmed against real GNU as rejecting a third operand";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* {!vex_unop_rr_form}'s register<-memory sibling (VSQRTPS_XMMdq_MEMdq etc.): REG0 (dest, w) and
+   MEM0 (src, r), the same REG0/MEM0 pair {!vex_binop_rr_mem_form} uses with its REG1 dropped. *)
+let vex_unop_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_operand "src"; Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), MEM0 (rw=%s, src) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "VEX.vvvv is architecturally unused (must be 1111) for this packed unary form - \
+                   same as {!vex_unop_rr_form}'s register form";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* [movsd]/[movss] load/store (MOVSD_XMM_XMMdq_MEMsd/MOVSD_XMM_MEMsd_XMMsd
    and their MOVSS siblings): {!mov_gprv_memv_form}'s own load/store shape
    with [X86_xmm] replacing [X86_gpr], and the mnemonic ("movsd"/"movss")
@@ -2322,6 +2452,33 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VMAXPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vmaxpd" rec_
   | Ok { iform = Some "VMINPD_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VMINPD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vminpd" rec_
+  (* {!Vaddsd}/{!Vmaxsd}'s sqrt sibling (GEN-05): the VEX counterpart of the legacy
+     SQRTSD/SQRTSS/SQRTPS/SQRTPD family (opcode 0x51). The scalar forms (SD/SS) keep the same
+     REG0/REG1/REG2-or-MEM0 shape every other [vex_binop_*_form] family uses - confirmed against
+     real GNU as that [src1] ([vvvv]) is a real, required operand there even though the CPU only
+     uses it to merge the destination's upper bits, not as a second arithmetic input, so the
+     byte-level operand-to-field mapping is identical to {!Vmaxsd}'s. The packed forms (PS/PD)
+     are genuinely two-operand instead - real GNU as rejects a third operand outright - so those
+     use the new {!vex_unop_rr_form}/{!vex_unop_rr_mem_form} pair. Confirmed against real GNU as
+     (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44): `c5 eb 51 cb`/`c5 ea 51 cb` (sd/ss
+     register-register), `c5 f8 51 ca`/`c5 f9 51 ca` (ps/pd register-register), `c5 eb 51 08`
+     (sd register<-memory), `c5 f8 51 08` (ps register<-memory). *)
+  | Ok { iform = Some "VSQRTSD_XMMdq_XMMdq_XMMq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VSQRTSD_XMMdq_XMMdq_XMMq" ~mnemonic:"vsqrtsd" rec_
+  | Ok { iform = Some "VSQRTSD_XMMdq_XMMdq_MEMq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSQRTSD_XMMdq_XMMdq_MEMq" ~mnemonic:"vsqrtsd" rec_
+  | Ok { iform = Some "VSQRTSS_XMMdq_XMMdq_XMMd"; _ } ->
+      vex_binop_rrr_form ~form_id:"VSQRTSS_XMMdq_XMMdq_XMMd" ~mnemonic:"vsqrtss" rec_
+  | Ok { iform = Some "VSQRTSS_XMMdq_XMMdq_MEMd"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VSQRTSS_XMMdq_XMMdq_MEMd" ~mnemonic:"vsqrtss" rec_
+  | Ok { iform = Some "VSQRTPS_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VSQRTPS_XMMdq_XMMdq" ~mnemonic:"vsqrtps" rec_
+  | Ok { iform = Some "VSQRTPS_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VSQRTPS_XMMdq_MEMdq" ~mnemonic:"vsqrtps" rec_
+  | Ok { iform = Some "VSQRTPD_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VSQRTPD_XMMdq_XMMdq" ~mnemonic:"vsqrtpd" rec_
+  | Ok { iform = Some "VSQRTPD_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VSQRTPD_XMMdq_MEMdq" ~mnemonic:"vsqrtpd" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
