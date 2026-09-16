@@ -706,6 +706,9 @@ let x86_sse_binop_imm_rr_entries =
           ("CMPSD_XMM_XMMsd_XMMsd_IMMb", "0");
           ("CMPPS_XMMps_XMMps_IMMb", "0");
           ("CMPPD_XMMpd_XMMpd_IMMb", "0");
+          ("PSHUFD_XMMdq_XMMdq_IMMb", "27");
+          ("PSHUFLW_XMMdq_XMMdq_IMMb", "27");
+          ("PSHUFHW_XMMdq_XMMdq_IMMb", "27");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -738,6 +741,9 @@ let x86_sse_binop_imm_rm_entries =
           ("CMPSD_XMM_XMMsd_MEMsd_IMMb", "0");
           ("CMPPS_XMMps_MEMps_IMMb", "0");
           ("CMPPD_XMMpd_MEMpd_IMMb", "0");
+          ("PSHUFD_XMMdq_MEMdq_IMMb", "27");
+          ("PSHUFLW_XMMdq_MEMdq_IMMb", "27");
+          ("PSHUFHW_XMMdq_MEMdq_IMMb", "27");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1056,6 +1062,65 @@ let x86_vex_unop_rr_mem_entries =
           "VCOMISS_XMMd_MEMd";
           "VUCOMISS_XMMdq_MEMd";
           "VCVTPS2PD_XMMdq_MEMq";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* VPSHUFD/VPSHUFLW/VPSHUFHW (GEN-05, {!Isa_norm_xed.vex_unop_imm_rr_form}'s own doc comment):
+   {!x86_vex_unop_rr_entry}'s own two-register shape plus a concrete imm8 selector - genuinely
+   two-operand-plus-immediate, unlike {!x86_vex_binop_imm_rrr_entry}'s three-register shape.
+   Confirmed against real GNU as: [vpshufd $0x1b,%xmm2,%xmm1] -> [c5 f9 70 ca 1b]. *)
+let x86_vex_unop_imm_rr_entry ~target ~form_id ~lookup_key ~imm =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "vex-two-register-operands" ];
+    operands = [ ("imm", imm); ("src", "xmm1"); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vex_unop_imm_rr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun (lookup_key, imm) ->
+          x86_vex_unop_imm_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
+        [
+          ("VPSHUFD_XMMdq_XMMdq_IMMb", "27");
+          ("VPSHUFLW_XMMdq_XMMdq_IMMb", "27");
+          ("VPSHUFHW_XMMdq_XMMdq_IMMb", "27");
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+(* {!x86_vex_unop_imm_rr_entry}'s register<-memory sibling
+   ({!Isa_norm_xed.vex_unop_imm_rm_form}'s own doc comment). *)
+let x86_vex_unop_imm_rm_entry ~target ~form_id ~lookup_key ~imm =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "vex-one-register-one-memory-operands" ];
+    operands = [ ("imm", imm); ("mem", Printf.sprintf "16(%%%s)" stack); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vex_unop_imm_rm_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun (lookup_key, imm) ->
+          x86_vex_unop_imm_rm_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~imm)
+        [
+          ("VPSHUFD_XMMdq_MEMdq_IMMb", "27");
+          ("VPSHUFLW_XMMdq_MEMdq_IMMb", "27");
+          ("VPSHUFHW_XMMdq_MEMdq_IMMb", "27");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -4682,6 +4747,7 @@ let all =
   @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
   @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries
   @ x86_vex_unop_rr_mem_entries @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries
+  @ x86_vex_unop_imm_rr_entries @ x86_vex_unop_imm_rm_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

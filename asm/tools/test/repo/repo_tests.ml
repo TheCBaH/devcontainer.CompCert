@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:338;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:338
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:350;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:350
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -856,22 +856,40 @@ let test_isa_family_admission repo =
      admitted together (16 records per x86 profile, 8 mnemonics x 2
      directions). AVX (the XED family) now stands at promoted-support
      32/676 (x86-32) and 32/702 (x86-64). YMM (VEX.L), three-byte VEX, and
-     EVEX remain deferred. *)
+     EVEX remain deferred.
+
+     PSHUFD/PSHUFLW/PSHUFHW (opcode 0x70, 66/F2/F3 mandatory-prefix groups,
+     GEN-05) reuse `Sse_binop_imm_r_rm`/`xmm_binop_imm_rr_form`/
+     `xmm_binop_imm_rm_form` unchanged - genuinely unary (XED marks `dest`
+     `w`, not `rw`, unlike `SHUFPS`'s destructive read-write `reg`), but the
+     byte-level ModR/M-reg/ModR/M-rm/trailing-imm8 shape is identical.
+     Their VEX siblings VPSHUFD/VPSHUFLW/VPSHUFHW are genuinely
+     two-operand-plus-immediate (no real `vvvv` operand, confirmed against
+     real GNU as rejecting a third register operand), needing a new
+     `Lowered.Vex_unop_imm_r_rm`/`vex_unop_imm_alt` shape mirroring
+     `Vex_unop_r_rm`'s own no-`vvvv` convention plus `Vex_binop_imm_rr_rm`'s
+     trailing imm8. Confirmed against real GNU as (i686-linux-gnu-as/
+     x86_64-linux-gnu-as 2.44), identical on both targets:
+     `pshufd $0x1b,%xmm2,%xmm1` -> `66 0f 70 ca 1b`, `pshuflw`/`pshufhw` at
+     the same opcode with `F2`/`F3`, `vpshufd $0x1b,%xmm2,%xmm1` ->
+     `c5 f9 70 ca 1b`, and the register<-memory direction for all six. 12
+     new records per x86 profile (6 legacy + 6 VEX). SSE2 and AVX both move
+     up by 12 promoted-support records on each profile with this slice. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:327 ~blocked:7549;
+    ~promoted_support:339 ~blocked:7537;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:333 ~blocked:10233
+    ~promoted_support:345 ~blocked:10221
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+169+169); a drop here without
+   tests' own pinned normalized counts (722+774+350+350); a drop here without
    a matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -918,9 +936,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2172)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2196)"
        !roundtrip_count)
-    (!roundtrip_count = 2172)
+    (!roundtrip_count = 2196)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

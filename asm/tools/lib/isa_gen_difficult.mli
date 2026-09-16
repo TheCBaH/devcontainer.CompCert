@@ -199,7 +199,9 @@ val x86_sse_binop_imm_rr_entries : entry list
     concrete imm8 selector, the first XMM-immediate-carrying legacy shape,
     confirmed against real GNU as before {!Isa_norm_xed.xmm_binop_imm_rr_form}
     and x86_family_encode.ml's own [Lowered.Sse_binop_imm_r_rm] shape were
-    built. *)
+    built. Also covers [cmpss]/[cmpsd]/[cmpps]/[cmppd] (same shape, opcode
+    0xC2) and [pshufd]/[pshuflw]/[pshufhw] (same byte-level shape, opcode
+    0x70, genuinely unary rather than a second read-write operand). *)
 
 val x86_sse_binop_imm_rm_entries : entry list
 (** [shufps $27, 16(%esp|%rsp), %xmm0]/[shufpd $1, 16(%esp|%rsp), %xmm0]
@@ -251,7 +253,21 @@ val x86_vex_binop_imm_rrr_entries : entry list
 
 val x86_vex_binop_imm_rr_mem_entries : entry list
 (** [vshufps]/[vshufpd $27, 16(%esp|%rsp), %xmm1, %xmm0] on x86-32 and
-    x86-64 - {!x86_vex_binop_imm_rrr_entries}'s register<-memory sibling. *)
+    x86-64 - {!x86_vex_binop_imm_rrr_entries}'s register<-memory sibling.
+    Also covers [vcmpss]/[vcmpsd]/[vcmpps]/[vcmppd] (same shape, opcode
+    0xC2). *)
+
+val x86_vex_unop_imm_rr_entries : entry list
+(** [vpshufd]/[vpshuflw]/[vpshufhw $27, %xmm1, %xmm0] on x86-32 and x86-64 -
+    {!x86_vex_unop_rr_entries}'s own [src]/[dest] pair plus a concrete imm8
+    selector, genuinely two-operand-plus-immediate (no real [vvvv] operand)
+    unlike {!x86_vex_binop_imm_rrr_entries}'s three-register shape, confirmed
+    against real GNU as before {!Isa_norm_xed.vex_unop_imm_rr_form} and
+    x86_family_encode.ml's own [Lowered.Vex_unop_imm_r_rm] shape were built. *)
+
+val x86_vex_unop_imm_rm_entries : entry list
+(** [vpshufd]/[vpshuflw]/[vpshufhw $27, 16(%esp|%rsp), %xmm0] on x86-32 and
+    x86-64 - {!x86_vex_unop_imm_rr_entries}'s register<-memory sibling. *)
 
 val x86_cvtsi2f_rr_entries : entry list
 (** [cvtsi2sd]/[cvtsi2ss %eax, %xmm0] on x86-32 and x86-64, plus

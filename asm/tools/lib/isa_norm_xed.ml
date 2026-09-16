@@ -1796,6 +1796,184 @@ let vex_unop_rr_mem_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* PSHUFD/PSHUFLW/PSHUFHW's VEX sibling (VPSHUFD_XMMdq_XMMdq_IMMb etc., GEN-05): XED's resolved
+   operands are REG0 (dest, w), REG1 (src, r) and IMM0 (r) - {!vex_unop_rr_form}'s own REG0/REG1
+   pair with the same trailing IMM0 {!xmm_binop_imm_rr_form}'s legacy shape already established
+   the pattern for. Genuinely two-operand-plus-immediate, unlike {!vex_binop_imm_rrr_form}'s
+   scalar/packed-arithmetic siblings: confirmed against real GNU as, which rejects a third
+   register operand outright for [vpshufd]/[vpshuflw]/[vpshufhw] the same way it does for
+   {!vex_unop_rr_form}'s own non-immediate mnemonics. *)
+let vex_unop_imm_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" && c.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_decorated ("%", Syn_operand "src");
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src), IMM0 (rw=%s) taken verbatim from \
+                     encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "VEX.vvvv is architecturally unused (must be 1111) for this genuinely \
+                   two-operand-plus-immediate form - confirmed against real GNU as rejecting a \
+                   third register operand, same as {!vex_unop_rr_form}'s own non-immediate forms";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* {!vex_unop_imm_rr_form}'s register<-memory sibling (VPSHUFD_XMMdq_MEMdq_IMMb etc.): REG0
+   (dest, w), MEM0 (src, r) and IMM0 (r) - {!vex_unop_rr_mem_form}'s own REG0/MEM0 pair with the
+   same trailing IMM0. *)
+let vex_unop_imm_rm_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" && c.op_name = "IMM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "mem";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; mem; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_operand "mem";
+                  Syn_decorated ("%", Syn_operand "dest");
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), MEM0 (rw=%s, mem), IMM0 (rw=%s) taken verbatim from \
+                     encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "VEX.vvvv is architecturally unused (must be 1111) for this genuinely \
+                   two-operand-plus-immediate form, same as {!vex_unop_imm_rr_form}'s register \
+                   form";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* [movsd]/[movss] load/store (MOVSD_XMM_XMMdq_MEMsd/MOVSD_XMM_MEMsd_XMMsd
    and their MOVSS siblings): {!mov_gprv_memv_form}'s own load/store shape
    with [X86_xmm] replacing [X86_gpr], and the mnemonic ("movsd"/"movss")
@@ -2755,6 +2933,26 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rr_form ~form_id:"CMPPD_XMMpd_XMMpd_IMMb" ~mnemonic:"cmppd" rec_
   | Ok { iform = Some "CMPPD_XMMpd_MEMpd_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"CMPPD_XMMpd_MEMpd_IMMb" ~mnemonic:"cmppd" rec_
+  (* PSHUFD/PSHUFLW/PSHUFHW (GEN-05, {!Opcode.Pshufd}'s own doc comment): {!Shufps}'s own
+     imm8-carrying shape, but genuinely unary - [dest] is XED [w], [src] is [r], not a second
+     read-write operand - {!xmm_binop_imm_rr_form}/{!xmm_binop_imm_rm_form} already derive
+     operand roles from XED's own [rw] fact, so both reuse unchanged. All three are XED
+     extension SSE2. Confirmed against real GNU as: [pshufd $0x1b,%xmm2,%xmm1] ->
+     [66 0f 70 ca 1b], [pshuflw $0x1b,%xmm2,%xmm1] -> [f2 0f 70 ca 1b], [pshufhw $0x1b,%xmm2,
+     %xmm1] -> [f3 0f 70 ca 1b]. No mandatory-prefix-free sibling is admitted: that opcode slot
+     belongs to the unrelated MMX instruction PSHUFW, a different register class out of scope. *)
+  | Ok { iform = Some "PSHUFD_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"PSHUFD_XMMdq_XMMdq_IMMb" ~mnemonic:"pshufd" rec_
+  | Ok { iform = Some "PSHUFD_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"PSHUFD_XMMdq_MEMdq_IMMb" ~mnemonic:"pshufd" rec_
+  | Ok { iform = Some "PSHUFLW_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"PSHUFLW_XMMdq_XMMdq_IMMb" ~mnemonic:"pshuflw" rec_
+  | Ok { iform = Some "PSHUFLW_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"PSHUFLW_XMMdq_MEMdq_IMMb" ~mnemonic:"pshuflw" rec_
+  | Ok { iform = Some "PSHUFHW_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"PSHUFHW_XMMdq_XMMdq_IMMb" ~mnemonic:"pshufhw" rec_
+  | Ok { iform = Some "PSHUFHW_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"PSHUFHW_XMMdq_MEMdq_IMMb" ~mnemonic:"pshufhw" rec_
   (* The first x86 vector-extension (AVX/VEX) admission ({!vex_binop_rrr_form}'s own doc
      comment): VADDSD/VSUBSD/VMULSD/VDIVSD's register-register form, and now also the
      register<-memory sibling ({!vex_binop_rr_mem_form}'s own doc comment) - YMM, three-byte
@@ -3066,6 +3264,22 @@ let normalize (rec_ : R.t) =
       vex_binop_imm_rrr_form ~form_id:"VCMPPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vcmppd" rec_
   | Ok { iform = Some "VCMPPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
       vex_binop_imm_rr_mem_form ~form_id:"VCMPPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vcmppd" rec_
+  (* VPSHUFD/VPSHUFLW/VPSHUFHW (GEN-05, {!Opcode.Vpshufd}'s own doc comment): the VEX sibling of
+     the legacy PSHUFD/PSHUFLW/PSHUFHW family, opcode 0x70, genuinely two-operand-plus-immediate
+     (no real [vvvv] operand) - {!vex_unop_imm_rr_form}/{!vex_unop_imm_rm_form} rather than
+     {!vex_binop_imm_rrr_form}/{!vex_binop_imm_rr_mem_form}. All three are XED extension AVX. *)
+  | Ok { iform = Some "VPSHUFD_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_unop_imm_rr_form ~form_id:"VPSHUFD_XMMdq_XMMdq_IMMb" ~mnemonic:"vpshufd" rec_
+  | Ok { iform = Some "VPSHUFD_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_unop_imm_rm_form ~form_id:"VPSHUFD_XMMdq_MEMdq_IMMb" ~mnemonic:"vpshufd" rec_
+  | Ok { iform = Some "VPSHUFLW_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_unop_imm_rr_form ~form_id:"VPSHUFLW_XMMdq_XMMdq_IMMb" ~mnemonic:"vpshuflw" rec_
+  | Ok { iform = Some "VPSHUFLW_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_unop_imm_rm_form ~form_id:"VPSHUFLW_XMMdq_MEMdq_IMMb" ~mnemonic:"vpshuflw" rec_
+  | Ok { iform = Some "VPSHUFHW_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_unop_imm_rr_form ~form_id:"VPSHUFHW_XMMdq_XMMdq_IMMb" ~mnemonic:"vpshufhw" rec_
+  | Ok { iform = Some "VPSHUFHW_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_unop_imm_rm_form ~form_id:"VPSHUFHW_XMMdq_MEMdq_IMMb" ~mnemonic:"vpshufhw" rec_
   | Ok { iform = Some other; _ } ->
       err "unhandled-iform"
         (Printf.sprintf
