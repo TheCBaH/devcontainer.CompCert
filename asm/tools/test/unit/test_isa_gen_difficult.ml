@@ -1756,10 +1756,10 @@ let test_counts () =
       + List.length Isa_gen_difficult.x86_vex_binop_imm_rr_mem_entries
       + List.length Isa_gen_difficult.x86_vex_unop_imm_rr_entries
       + List.length Isa_gen_difficult.x86_vex_unop_imm_rm_entries);
-  check "x86_vex_binop_rrr_entries has 80 entries (40 mnemonics, one per target)"
-    (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 80);
-  check "x86_vex_binop_rr_mem_entries has 80 entries (40 mnemonics, one per target)"
-    (List.length Isa_gen_difficult.x86_vex_binop_rr_mem_entries = 80);
+  check "x86_vex_binop_rrr_entries has 96 entries (48 mnemonics, one per target)"
+    (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 96);
+  check "x86_vex_binop_rr_mem_entries has 96 entries (48 mnemonics, one per target)"
+    (List.length Isa_gen_difficult.x86_vex_binop_rr_mem_entries = 96);
   check "x86_vex_unop_rr_entries has 24 entries (12 mnemonics, one per target)"
     (List.length Isa_gen_difficult.x86_vex_unop_rr_entries = 24);
   check "x86_vex_unop_rr_mem_entries has 22 entries (11 mnemonics, one per target)"

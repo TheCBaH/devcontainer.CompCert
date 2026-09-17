@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:358;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:360
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:390;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:392
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -874,15 +874,27 @@ let test_isa_family_admission repo =
      the same opcode with `F2`/`F3`, `vpshufd $0x1b,%xmm2,%xmm1` ->
      `c5 f9 70 ca 1b`, and the register<-memory direction for all six. 12
      new records per x86 profile (6 legacy + 6 VEX). SSE2 and AVX both move
-     up by 12 promoted-support records on each profile with this slice. *)
+     up by 12 promoted-support records on each profile with this slice.
+
+     PADDB/PADDW/PADDD/PADDQ/PSUBB/PSUBW/PSUBD/PSUBQ (opcodes
+     0xFC/0xFD/0xFE/0xD4 add, 0xF8/0xF9/0xFA/0xFB subtract, GEN-05) reuse
+     `Sse_binop_r_rm`/`xmm_binop_rr_form`/`xmm_binop_rm_form` (legacy) and
+     `Vex_binop_rr_rm`/`vex_binop_rrr_form`/`vex_binop_rr_mem_form` (VEX)
+     completely unchanged - 66-mandatory-prefix-only integer SIMD, no
+     non-66 sibling, the same shape as `PUNPCKLQDQ`/`VPUNPCKLQDQ`. Confirmed
+     against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44):
+     `paddb %xmm2,%xmm1` -> `66 0f fc ca`, `vpaddb %xmm3,%xmm2,%xmm1` ->
+     `c5 e9 fc cb`. 32 new records per x86 profile (16 legacy + 16 VEX, 8
+     mnemonics x 2 directions each). SSE2 and AVX both move up by 16
+     promoted-support records on each profile with this slice. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:347 ~blocked:7529;
+    ~promoted_support:379 ~blocked:7497;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:355 ~blocked:10211
+    ~promoted_support:387 ~blocked:10179
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -936,9 +948,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2214)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2278)"
        !roundtrip_count)
-    (!roundtrip_count = 2214)
+    (!roundtrip_count = 2278)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's
