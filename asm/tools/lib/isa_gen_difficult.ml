@@ -615,6 +615,12 @@ let x86_sse_binop_rr_entries =
           "PMAXSW_XMMdq_XMMdq";
           "MOVDQA_XMMdq_XMMdq_0F6F";
           "MOVDQU_XMMdq_XMMdq_0F6F";
+          "PMULLW_XMMdq_XMMdq";
+          "PMULHW_XMMdq_XMMdq";
+          "PMULHUW_XMMdq_XMMdq";
+          "PAVGB_XMMdq_XMMdq";
+          "PAVGW_XMMdq_XMMdq";
+          "PSADBW_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -721,6 +727,12 @@ let x86_sse_binop_rm_entries =
           "PMAXUB_XMMdq_MEMdq";
           "PMINSW_XMMdq_MEMdq";
           "PMAXSW_XMMdq_MEMdq";
+          "PMULLW_XMMdq_MEMdq";
+          "PMULHW_XMMdq_MEMdq";
+          "PMULHUW_XMMdq_MEMdq";
+          "PAVGB_XMMdq_MEMdq";
+          "PAVGW_XMMdq_MEMdq";
+          "PSADBW_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -931,6 +943,12 @@ let x86_vex_binop_rrr_entries =
           "VPMAXUB_XMMdq_XMMdq_XMMdq";
           "VPMINSW_XMMdq_XMMdq_XMMdq";
           "VPMAXSW_XMMdq_XMMdq_XMMdq";
+          "VPMULLW_XMMdq_XMMdq_XMMdq";
+          "VPMULHW_XMMdq_XMMdq_XMMdq";
+          "VPMULHUW_XMMdq_XMMdq_XMMdq";
+          "VPAVGB_XMMdq_XMMdq_XMMdq";
+          "VPAVGW_XMMdq_XMMdq_XMMdq";
+          "VPSADBW_XMMdq_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1024,6 +1042,12 @@ let x86_vex_binop_rr_mem_entries =
           "VPMAXUB_XMMdq_XMMdq_MEMdq";
           "VPMINSW_XMMdq_XMMdq_MEMdq";
           "VPMAXSW_XMMdq_XMMdq_MEMdq";
+          "VPMULLW_XMMdq_XMMdq_MEMdq";
+          "VPMULHW_XMMdq_XMMdq_MEMdq";
+          "VPMULHUW_XMMdq_XMMdq_MEMdq";
+          "VPAVGB_XMMdq_XMMdq_MEMdq";
+          "VPAVGW_XMMdq_XMMdq_MEMdq";
+          "VPSADBW_XMMdq_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
