@@ -250,6 +250,10 @@
     [90 cost=0] movdqa-store     movdqa-store(){no-asz 01100110 no-rex 0000111101111111 modrm}
     [91 cost=0] movdqu-store     movdqu-store(){no-asz 11110011 no-rex 0000111101111111 modrm}
     [92 cost=0] vex-unop-f3      vex-unop-f3(){11000101 vex-byte2:8u vex-unop-f3-op modrm}
+    [93 cost=0] sse-pinsrw       sse-pinsrw(){no-asz 01100110 no-rex 0000111111000100 modrm imm8:8u}
+    [94 cost=0] sse-pextrw       sse-pextrw(){no-asz 01100110 no-rex 0000111111000101 modrm imm8:8u}
+    [95 cost=0] vex-pinsrw       vex-pinsrw(){11000101 vex-byte2:8u 11000100 modrm imm8:8u}
+    [96 cost=0] vex-pextrw       vex-pextrw(){11000101 vex-byte2:8u 11000101 modrm imm8:8u}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -550,6 +554,10 @@
     [90 cost=0] movdqa-store     movdqa-store(){asz 01100110 rex 0000111101111111 modrm}
     [91 cost=0] movdqu-store     movdqu-store(){asz 11110011 rex 0000111101111111 modrm}
     [92 cost=0] vex-unop-f3      vex-unop-f3(){11000101 vex-byte2:8u vex-unop-f3-op modrm}
+    [93 cost=0] sse-pinsrw       sse-pinsrw(){asz 01100110 rex 0000111111000100 modrm imm8:8u}
+    [94 cost=0] sse-pextrw       sse-pextrw(){asz 01100110 rex 0000111111000101 modrm imm8:8u}
+    [95 cost=0] vex-pinsrw       vex-pinsrw(){11000101 vex-byte2:8u 11000100 modrm imm8:8u}
+    [96 cost=0] vex-pextrw       vex-pextrw(){11000101 vex-byte2:8u 11000101 modrm imm8:8u}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}

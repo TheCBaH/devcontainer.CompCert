@@ -1482,6 +1482,135 @@ let x86_vmovd_store_mr_entries =
       x86_movd_store_mr_entry ~target ~form_id:"x86:VMOVD_MEMd_XMMd" ~lookup_key:"VMOVD_MEMd_XMMd")
     [ Target.X86_32; Target.X86_64 ]
 
+(* [pinsrw]'s own cross-register-class member ({!Isa_norm_xed.pinsrw_rr_form}'s own doc comment):
+   {!x86_sse_binop_imm_rr_entry}'s own [imm]/[dest] shape with a GPR [src] rather than xmm,
+   {!x86_cvtsi2f_rr_entry}'s own GPR-source convention. No 64-bit GPR variant exists (always
+   [%eax]), so one entry per target, no separate GPR64 group. *)
+let x86_pinsrw_rr_entry ~target ~form_id ~lookup_key ~imm =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("imm", imm); ("src", "eax"); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_pinsrw_rr_entries =
+  List.map
+    (fun target ->
+      x86_pinsrw_rr_entry ~target ~form_id:"x86:PINSRW_XMMdq_GPR32_IMMb"
+        ~lookup_key:"PINSRW_XMMdq_GPR32_IMMb" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* {!x86_pinsrw_rr_entry}'s register<-memory sibling ({!x86_sse_binop_imm_rm_entry}'s own
+   stack-based addressing). *)
+let x86_pinsrw_rm_entry ~target ~form_id ~lookup_key ~imm =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("imm", imm); ("src", Printf.sprintf "16(%%%s)" stack); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_pinsrw_rm_entries =
+  List.map
+    (fun target ->
+      x86_pinsrw_rm_entry ~target ~form_id:"x86:PINSRW_XMMdq_MEMw_IMMb"
+        ~lookup_key:"PINSRW_XMMdq_MEMw_IMMb" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* [pextrw]'s own cross-register-class member: {!x86_cvtf2i_rr_entry}'s own GPR-dest convention
+   plus the trailing imm8. Also generates {!Vpextrw}'s own entry below (same shape, a different
+   lookup_key/form_id - {!Isa_norm_xed.pextrw_rr_form}'s own reuse across both mnemonics). *)
+let x86_pextrw_rr_entry ~target ~form_id ~lookup_key ~imm =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("imm", imm); ("src", "xmm0"); ("dest", "eax") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_pextrw_rr_entries =
+  List.map
+    (fun target ->
+      x86_pextrw_rr_entry ~target ~form_id:"x86:PEXTRW_GPR32_XMMdq_IMMb"
+        ~lookup_key:"PEXTRW_GPR32_XMMdq_IMMb" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* [vpinsrw]'s own cross-register-class member ({!Isa_norm_xed.vpinsrw_rrr_form}'s own doc
+   comment): {!x86_vex_binop_imm_rrr_entry}'s own [imm]/[src1]/[dest] shape with a GPR [src2]
+   rather than xmm. *)
+let x86_vpinsrw_rrr_entry ~target ~form_id ~lookup_key ~imm =
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "vex-three-register-operands" ];
+    operands = [ ("imm", imm); ("src2", "eax"); ("src1", "xmm1"); ("dest", "xmm0") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vpinsrw_rrr_entries =
+  List.map
+    (fun target ->
+      x86_vpinsrw_rrr_entry ~target ~form_id:"x86:VPINSRW_XMMdq_XMMdq_GPR32d_IMMb"
+        ~lookup_key:"VPINSRW_XMMdq_XMMdq_GPR32d_IMMb" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* {!x86_vpinsrw_rrr_entry}'s register<-memory sibling
+   ({!Isa_norm_xed.vpinsrw_rr_mem_form}'s own doc comment). *)
+let x86_vpinsrw_rr_mem_entry ~target ~form_id ~lookup_key ~imm =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "load-base-disp8-sib"; "vex-three-register-operands" ];
+    operands =
+      [
+        ("imm", imm); ("src2", Printf.sprintf "16(%%%s)" stack); ("src1", "xmm1"); ("dest", "xmm0");
+      ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_vpinsrw_rr_mem_entries =
+  List.map
+    (fun target ->
+      x86_vpinsrw_rr_mem_entry ~target ~form_id:"x86:VPINSRW_XMMdq_XMMdq_MEMw_IMMb"
+        ~lookup_key:"VPINSRW_XMMdq_XMMdq_MEMw_IMMb" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* [vpextrw]'s own entry: {!x86_pextrw_rr_entry} reused verbatim, since
+   {!Isa_norm_xed.pextrw_rr_form} is dispatched for both the legacy and VEX iforms sharing this
+   exact operand shape. *)
+let x86_vpextrw_rr_entries =
+  List.map
+    (fun target ->
+      x86_pextrw_rr_entry ~target ~form_id:"x86:VPEXTRW_GPR32d_XMMdq_IMMb_C5"
+        ~lookup_key:"VPEXTRW_GPR32d_XMMdq_IMMb_C5" ~imm:"1")
+    [ Target.X86_32; Target.X86_64 ]
+
 let fadd_entry target =
   {
     form_id = "x86:FADD_ST0_X87";
@@ -4843,18 +4972,20 @@ let all =
   @ x86_cvtf2i_rm_entries @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries
   @ x86_movd_store_rr_entries @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries
   @ x86_vmovd_load_rm_entries @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries
-  @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries
-  @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries
-  @ fsw_entries @ fsd_entries @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries
-  @ sh2adduw_entries @ sh3adduw_entries @ min_entries @ minu_entries @ max_entries @ maxu_entries
-  @ andn_entries @ orn_entries @ xnor_entries @ rol_entries @ ror_entries @ clz_entries
-  @ ctz_entries @ cpop_entries @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries
-  @ ctzw_entries @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries
-  @ packw_entries @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries
-  @ roriw_entries @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries
-  @ bexti_entries @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries
-  @ clmulr_entries @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries
-  @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
+  @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries
+  @ x86_vpinsrw_rr_mem_entries @ x86_vpextrw_rr_entries @ x86_fadd_entries @ fadd_s_entries
+  @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries
+  @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries
+  @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries @ sh2adduw_entries
+  @ sh3adduw_entries @ min_entries @ minu_entries @ max_entries @ maxu_entries @ andn_entries
+  @ orn_entries @ xnor_entries @ rol_entries @ ror_entries @ clz_entries @ ctz_entries
+  @ cpop_entries @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries @ ctzw_entries
+  @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries @ packw_entries
+  @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries @ roriw_entries
+  @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries @ bexti_entries
+  @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries @ clmulr_entries
+  @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries @ xperm4_entries
+  @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
   @ sha256sig1_entries @ sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries
   @ sha512sig1_entries @ sha512sum0r_entries @ sha512sum1r_entries @ sha512sig0l_entries
   @ sha512sig1l_entries @ sha512sig0h_entries @ sha512sig1h_entries @ aes64ds_entries

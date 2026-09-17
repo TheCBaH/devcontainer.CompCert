@@ -895,6 +895,44 @@ module Opcode = struct
             needing a mandatory-[F3] VEX codec table (every prior {!Vex_unop_r_rm} member used
             [pp = 0] or [pp = 1] only). Load direction only, matching {!Vmovdqa}. Confirmed against
             real GNU as: [vmovdqu %xmm2,%xmm1] -> [c5 fa 6f ca]. *)
+    | Pinsrw
+        (** [pinsrw $imm8, gpr32/m16, xmm] - packed insert word ([66 0F C4 /r ib], GEN-05):
+            {!Lowered.Sse_binop_imm_r_rm}'s first cross-register-class member - [reg] is the xmm
+            destination, [rm] is a GPR32 or 16-bit-memory source rather than xmm, the same class
+            split {!Cvtsi2sd}'s own [rm] uses. No REX.W-equivalent variant exists (always a 32-bit
+            GPR source): confirmed against real GNU as, [pinsrw $1,%rax,%xmm0] assembles
+            identically to the [%eax] spelling ([66 0f c4 c0 01], no REX.W emitted either way), so
+            this project's own [width_ok] naturally rejects the 64-bit-named spelling as an
+            unimplemented-but-real substitution, the same deliberate boundary {!Vmovd}'s own doc
+            comment describes for [vmovq]. Confirmed against real GNU as: [pinsrw $1,%eax,%xmm0]
+            -> [66 0f c4 c0 01], [pinsrw $1,(%eax),%xmm0] -> [66 0f c4 00 01]. *)
+    | Pextrw
+        (** [pextrw $imm8, xmm, gpr32] - packed extract word ([66 0F C5 /r ib]), {!Pinsrw}'s
+            store-direction mirror: [reg] is the GPR32 destination, [rm] is an xmm source
+            restricted to a register - no memory form exists for this two-byte opcode. Confirmed
+            against real GNU as: [pextrw $1,%xmm0,(%eax)] silently reassembles as the unrelated,
+            three-byte-opcode SSE4.1 [PEXTRW r32,xmm,imm8] instruction instead
+            ([66 0f 3a 15 00 01]) - a genuine, deliberate scope boundary this project does not
+            build (no [0F38]/[0F3A] opcode-map infrastructure exists, confirmed absent when
+            {!Packsswb} was admitted), not a divergence from GNU as's accepted forms. Confirmed
+            against real GNU as: [pextrw $1,%xmm0,%eax] -> [66 0f c5 c0 01]. *)
+    | Vpinsrw
+        (** [vpinsrw $imm8, gpr32/m16, src1, dst] - the VEX sibling of the legacy {!Pinsrw}
+            ([VEX.128.66.0F.WIG C4 /r ib]): {!Lowered.Vex_binop_imm_rr_rm}'s own cross-register-
+            class member, [src2] a GPR32 (or memory) source rather than xmm - the VEX-and-
+            immediate-carrying sibling of {!Vmovd}'s own GPR-crossing shape. A single mandatory-66
+            ([pp = 1]), fixed-opcode entry: {!Vpinsrw} has no other mandatory-prefix sibling at
+            this opcode byte the way {!Vshufps} does, mirroring {!Vmovd}'s own unparametrized
+            singleton shape. Confirmed against real GNU as: [vpinsrw $1,%eax,%xmm2,%xmm1] ->
+            [c5 e9 c4 c8 01], [vpinsrw $1,(%eax),%xmm2,%xmm1] -> [c5 e9 c4 08 01]. *)
+    | Vpextrw
+        (** [vpextrw $imm8, xmm, gpr32] - the VEX sibling of the legacy {!Pextrw}
+            ([VEX.128.66.0F.WIG C5 /r ib]): {!Lowered.Vex_unop_imm_r_rm}'s own cross-register-
+            class member, [dst] a GPR32 rather than xmm. Register-only [src] (no memory form
+            exists at this opcode - confirmed against real GNU as, [vpextrw $1,%xmm1,(%eax)]
+            silently reassembles as the unrelated three-byte-opcode [c4 e3 79 15 08 01] instead,
+            out of scope, matching {!Pextrw}'s own legacy precedent exactly). Confirmed against
+            real GNU as: [vpextrw $1,%xmm1,%eax] -> [c5 f9 c5 c1 01]. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -1044,6 +1082,8 @@ module Opcode = struct
     | Psadbw -> "psadbw"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
+    | Pinsrw -> "pinsrw"
+    | Pextrw -> "pextrw"
     | Andps -> "andps"
     | Andnps -> "andnps"
     | Orps -> "orps"
@@ -1178,6 +1218,8 @@ module Opcode = struct
     | Vpsadbw -> "vpsadbw"
     | Vmovdqa -> "vmovdqa"
     | Vmovdqu -> "vmovdqu"
+    | Vpinsrw -> "vpinsrw"
+    | Vpextrw -> "vpextrw"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -2721,6 +2763,8 @@ module Make (M : MODE) = struct
     | "psadbw", _ -> Ok (Instruction.mk Opcode.Psadbw 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
+    | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
+    | "pextrw", _ -> Ok (Instruction.mk Opcode.Pextrw 32 s.Surface.ops)
     (* Packed bitwise-logical family (GEN-05): {!Opcode.Xorpd}'s siblings, all matched the same
        fixed-mnemonic way. *)
     | "andps", _ -> Ok (Instruction.mk Opcode.Andps 32 s.Surface.ops)
@@ -2913,6 +2957,8 @@ module Make (M : MODE) = struct
     | "vpsadbw", _ -> Ok (Instruction.mk Opcode.Vpsadbw 32 s.Surface.ops)
     | "vmovdqa", _ -> Ok (Instruction.mk Opcode.Vmovdqa 32 s.Surface.ops)
     | "vmovdqu", _ -> Ok (Instruction.mk Opcode.Vmovdqu 32 s.Surface.ops)
+    | "vpinsrw", _ -> Ok (Instruction.mk Opcode.Vpinsrw 32 s.Surface.ops)
+    | "vpextrw", _ -> Ok (Instruction.mk Opcode.Vpextrw 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -3719,6 +3765,44 @@ module Make (M : MODE) = struct
                 Lowered.Movd_rm_r
                   { op = i.Instruction.op; width = i.Instruction.width; reg; rm = Rm.Mem m };
               ])
+    (* [pinsrw $imm8, gpr32/m16, xmm] ({!Opcode.Pinsrw}'s own doc comment): {!Lowered.Sse_binop_imm_r_rm}'s
+       cross-class member - [rm] is a GPR ([width_ok], not [xmm_ok] - {!Cvtsi2sd}'s own class split
+       above) or memory, [reg] is xmm. *)
+    | Opcode.Pinsrw, [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (width_ok src, xmm_ok reg) with
+            | Ok (), Ok () ->
+                Ok
+                  [
+                    Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src; imm };
+                  ]
+            | Error e, _ | _, Error e -> Error e))
+    | Opcode.Pinsrw, [ Operand.Imm v; Operand.Mem m; Operand.Reg reg ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match xmm_ok reg with
+            | Error e -> Error e
+            | Ok () ->
+                Ok [ Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Mem m; imm } ]
+            ))
+    (* [pextrw $imm8, xmm, gpr32] ({!Opcode.Pextrw}'s own doc comment): {!Pinsrw}'s store-direction
+       mirror - [rm] (source) is xmm, [reg] (dest) is a GPR; no memory-destination arm exists,
+       matching real GNU as's own routing of that spelling to an unimplemented three-byte-opcode
+       instruction instead ({!Opcode.Pextrw}'s own doc comment). *)
+    | Opcode.Pextrw, [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (xmm_ok src, width_ok reg) with
+            | Ok (), Ok () ->
+                Ok
+                  [
+                    Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src; imm };
+                  ]
+            | Error e, _ | _, Error e -> Error e))
     (* {3 x86 VEX (GEN-05, x86 vector extensions)}
 
        [vaddsd src2, src1, dst]: real GNU as's own AT&T operand order for the
@@ -3951,6 +4035,55 @@ module Make (M : MODE) = struct
             match vex_mem_ok m with
             | Error e -> Error e
             | Ok () -> Ok [ Lowered.Vex_movd_rm_r { op = i.Instruction.op; reg; rm = Rm.Mem m } ]))
+    (* [vpinsrw $imm8, gpr32/m16, src1, dst] ({!Opcode.Vpinsrw}'s own doc comment):
+       {!Vex_binop_imm_rr_rm}'s own [src2, src1, dst] operand order, [src2] a GPR ([width_ok], not
+       [xmm_ok] - {!Vmovd}'s own GPR-crossing precedent) or memory rather than xmm. *)
+    | Opcode.Vpinsrw, [ Operand.Imm v; Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (width_ok src2, xmm_ok src1, xmm_ok dst) with
+            | Ok (), Ok (), Ok () ->
+                if src2.num >= 8 then bad (`Vex_rm_extended_register src2.name)
+                else
+                  Ok
+                    [
+                      Lowered.Vex_binop_imm_rr_rm
+                        { op = i.Instruction.op; dst; src1; src2 = Rm.Reg src2; imm };
+                    ]
+            | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e))
+    | Opcode.Vpinsrw, [ Operand.Imm v; Operand.Mem m; Operand.Reg src1; Operand.Reg dst ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (xmm_ok src1, xmm_ok dst) with
+            | Ok (), Ok () -> (
+                match vex_mem_ok m with
+                | Error e -> Error e
+                | Ok () ->
+                    Ok
+                      [
+                        Lowered.Vex_binop_imm_rr_rm
+                          { op = i.Instruction.op; dst; src1; src2 = Rm.Mem m; imm };
+                      ])
+            | Error e, _ | _, Error e -> Error e))
+    (* [vpextrw $imm8, xmm, gpr32] ({!Opcode.Vpextrw}'s own doc comment): {!Vex_unop_imm_r_rm}'s
+       own [src, dst] operand order, [dst] a GPR ([width_ok]) rather than xmm; no memory-source arm
+       exists at this opcode, mirroring legacy [pextrw]'s own scope boundary. *)
+    | Opcode.Vpextrw, [ Operand.Imm v; Operand.Reg src; Operand.Reg dst ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (xmm_ok src, width_ok dst) with
+            | Ok (), Ok () ->
+                if src.num >= 8 then bad (`Vex_rm_extended_register src.name)
+                else
+                  Ok
+                    [
+                      Lowered.Vex_unop_imm_r_rm
+                        { op = i.Instruction.op; dst; src = Rm.Reg src; imm };
+                    ]
+            | Error e, _ | _, Error e -> Error e))
     (* [fldl]/[fstpl]/[fstps]/[flds] (M5, asm/docs/corpus.md): ccomp's own x87
        double/single-precision spill-and-reload sequence around a `%st(0)`
        return value - always to/from a stack memory operand in this corpus,
@@ -4689,6 +4822,60 @@ module Make (M : MODE) = struct
       ~entries:[ (Opcode.Shufps, 0xC6L); (Opcode.Cmpps, 0xC2L) ]
       (C.field ~width:8 "opcode")
 
+  (* [pinsrw $imm8, gpr32/m16, xmm] ([66 0F C4 /r ib], {!Opcode.Pinsrw}'s own doc comment):
+     {!Lowered.Sse_binop_imm_r_rm}'s first cross-register-class user - [reg] is the xmm
+     destination (decoded at width 128, as with every other member of this shape), but [rm] is a
+     GPR32 or 16-bit memory operand rather than xmm (decoded at width 32), the same way
+     {!Lowered.Cvtsi2f_r_rm}'s own [rm] crosses classes. A single mandatory-66, fixed-opcode entry
+     (no table): {!Pinsrw} has no other mandatory-prefix or opcode-byte sibling at this shape. *)
+  let sse_pinsrw_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_imm_r_rm { op = Opcode.Pinsrw; reg; rm; imm } ->
+               let p = prefixes_of ~width:32 ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), ({ re_reg = reg.num; re_rm = rm }, imm)))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), (e, imm))))) ->
+           let p = { asz; opsz = false; rex } in
+           Some
+             (Lowered.Sse_binop_imm_r_rm
+                {
+                  op = Opcode.Pinsrw;
+                  reg = reg_field ~p ~width:128 e.re_reg;
+                  rm = rm_of ~p ~width:32 e.re_rm;
+                  imm;
+                }))
+         C.(
+           asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:16 0x0FC4L ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
+
+  (* [pextrw $imm8, xmm, gpr32] ([66 0F C5 /r ib], {!Opcode.Pextrw}'s own doc comment):
+     {!Sse_pinsrw_alt}'s store-direction mirror - [reg] is the GPR32 destination (width 32), [rm]
+     is an xmm source (width 128) restricted to a register by construction (no lowering arm ever
+     builds a [Rm.Mem] here, matching real GNU as's own routing of that spelling elsewhere). *)
+  let sse_pextrw_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_imm_r_rm { op = Opcode.Pextrw; reg; rm; imm } ->
+               let p = prefixes_of ~width:32 ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), ({ re_reg = reg.num; re_rm = rm }, imm)))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), (e, imm))))) ->
+           let p = { asz; opsz = false; rex } in
+           Some
+             (Lowered.Sse_binop_imm_r_rm
+                {
+                  op = Opcode.Pextrw;
+                  reg = reg_field ~p ~width:32 e.re_reg;
+                  rm = rm_of ~p ~width:128 e.re_rm;
+                  imm;
+                }))
+         C.(
+           asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:16 0x0FC5L ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
+
   (* [cvtsi2sd]/[cvtsi2ss] ([0F 2A]), and - via [~opcode16] - {!Movd}'s own load direction
      ([0F 6E], GEN-05): the one place [~width] threaded into {!prefixes_of} is a real GPR width
      rather than the [32] REX.W-clear sentinel the rest of this section uses - [rm] is the
@@ -5177,6 +5364,80 @@ module Make (M : MODE) = struct
     C.iso_table ~name:"vex-unop-imm-f3-op" ~equal:( = ) ~show:Opcode.name
       ~entries:[ (Opcode.Vpshufhw, 0x70L) ]
       (C.field ~width:8 "opcode")
+
+  (* [vpinsrw $imm8, gpr32/m16, src1, dst] ([VEX.128.66.0F.WIG C4 /r ib], {!Opcode.Vpinsrw}'s own
+     doc comment): {!Lowered.Vex_binop_imm_rr_rm}'s own cross-register-class member - [src2] is a
+     GPR32 (or memory) source rather than xmm (decoded at width 32), the VEX-and-immediate-carrying
+     sibling of {!Vex_movd_r_rm}'s own GPR-crossing shape. A single mandatory-66 ([pp = 1]),
+     fixed-opcode entry, mirroring {!Vex_movd_r_alt}'s own unparametrized singleton shape. *)
+  let vex_pinsrw_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_binop_imm_rr_rm { op = Opcode.Vpinsrw; dst; src1; src2; imm }
+             when vex_rm_ok src2 ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let vvvv = lnot src1.num land 0xF in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (vvvv lsl 3) lor 1) in
+               Some ((), (byte2, ((), ({ re_reg = dst.num; re_rm = src2 }, imm))))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, ((), (e, imm)))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let vvvv = (b lsr 3) land 0xF in
+           let l = (b lsr 2) land 1 in
+           let observed_pp = b land 3 in
+           if l <> 0 || observed_pp <> 1 then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src1_num = lnot vvvv land 0xF in
+             let src2 =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:32 r) | Rm.Mem _ as m -> m
+             in
+             Some
+               (Lowered.Vex_binop_imm_rr_rm
+                  {
+                    op = Opcode.Vpinsrw;
+                    dst = reg_at ~width:128 dst_num;
+                    src1 = reg_at ~width:128 src1_num;
+                    src2;
+                    imm;
+                  }))
+         C.(
+           const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** const ~width:8 0xC4L ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
+
+  (* [vpextrw $imm8, xmm, gpr32] ([VEX.128.66.0F.WIG C5 /r ib], {!Opcode.Vpextrw}'s own doc
+     comment): {!Lowered.Vex_unop_imm_r_rm}'s own cross-register-class member - [dst] is a GPR32
+     rather than xmm (decoded at width 32), the VEX-and-immediate-carrying sibling of
+     {!Vex_movd_rm_r}'s own GPR-crossing shape. Register-only [src] by construction (no lowering
+     arm ever builds a [Rm.Mem] here). *)
+  let vex_pextrw_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_unop_imm_r_rm { op = Opcode.Vpextrw; dst; src; imm } when vex_rm_ok src ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor 1) in
+               Some ((), (byte2, ((), ({ re_reg = dst.num; re_rm = src }, imm))))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, ((), (e, imm)))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let l = (b lsr 2) land 1 in
+           let observed_pp = b land 3 in
+           if l <> 0 || observed_pp <> 1 then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+             in
+             Some
+               (Lowered.Vex_unop_imm_r_rm
+                  { op = Opcode.Vpextrw; dst = reg_at ~width:32 dst_num; src; imm }))
+         C.(
+           const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** const ~width:8 0xC5L ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
 
   (* Zero-/sign-extending move (M5, asm/docs/corpus.md): [0F B6/B7/BE/BF /r].
      No mandatory prefix, so this reuses [prefixes_codec] directly rather than
@@ -6137,6 +6398,10 @@ module Make (M : MODE) = struct
           (* [vmovdqu] (GEN-05): {!Opcode.Vmovdqu}'s own doc comment - the first mandatory-[F3]
              {!vex_unop_alt} group. *)
           vex_unop_alt ~label:"vex-unop-f3" ~priority:92 ~pp:2 ~opcode_codec:vex_unop_f3_codec;
+          sse_pinsrw_alt ~label:"sse-pinsrw" ~priority:93;
+          sse_pextrw_alt ~label:"sse-pextrw" ~priority:94;
+          vex_pinsrw_alt ~label:"vex-pinsrw" ~priority:95;
+          vex_pextrw_alt ~label:"vex-pextrw" ~priority:96;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)

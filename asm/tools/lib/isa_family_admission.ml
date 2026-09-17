@@ -219,6 +219,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("VMOVD_XMMdq_GPR32d" | "VMOVD_GPR32d_XMMd" | "VMOVD_XMMdq_MEMd" | "VMOVD_MEMd_XMMd") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PINSRW_XMMdq_GPR32_IMMb" | "x86:PINSRW_XMMdq_MEMw_IMMb" | "x86:PEXTRW_GPR32_XMMdq_IMMb"
+      | "x86:VPINSRW_XMMdq_XMMdq_GPR32d_IMMb" | "x86:VPINSRW_XMMdq_XMMdq_MEMw_IMMb"
+      | "x86:VPEXTRW_GPR32d_XMMdq_IMMb_C5" ),
+      ( "PINSRW_XMMdq_GPR32_IMMb" | "PINSRW_XMMdq_MEMw_IMMb" | "PEXTRW_GPR32_XMMdq_IMMb"
+      | "VPINSRW_XMMdq_XMMdq_GPR32d_IMMb" | "VPINSRW_XMMdq_XMMdq_MEMw_IMMb"
+      | "VPEXTRW_GPR32d_XMMdq_IMMb_C5" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ANDPS_XMMxud_XMMxud" | "x86:ANDNPS_XMMxud_XMMxud" | "x86:ORPS_XMMxud_XMMxud"
       | "x86:XORPS_XMMxud_XMMxud" | "x86:ANDPD_XMMxuq_XMMxuq" | "x86:ANDNPD_XMMxuq_XMMxuq"
       | "x86:ORPD_XMMxuq_XMMxuq" ),

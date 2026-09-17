@@ -328,6 +328,30 @@ val x86_vmovd_store_mr_entries : entry list
 (** [vmovd %xmm0, 16(%esp|%rsp)] on x86-32 and x86-64 - {!x86_vmovd_store_rr_entries}'s
     memory-destination sibling. *)
 
+val x86_pinsrw_rr_entries : entry list
+(** [pinsrw $1, %eax, %xmm0] on x86-32 and x86-64 - {!Isa_norm_xed.pinsrw_rr_form}'s own
+    cross-register-class member, a GPR source rather than xmm. *)
+
+val x86_pinsrw_rm_entries : entry list
+(** [pinsrw $1, 16(%esp|%rsp), %xmm0] on x86-32 and x86-64 - {!x86_pinsrw_rr_entries}'s
+    memory-source sibling. *)
+
+val x86_pextrw_rr_entries : entry list
+(** [pextrw $1, %xmm0, %eax] on x86-32 and x86-64 - {!Isa_norm_xed.pextrw_rr_form}'s own
+    cross-register-class member, a GPR destination rather than xmm. *)
+
+val x86_vpinsrw_rrr_entries : entry list
+(** [vpinsrw $1, %eax, %xmm1, %xmm0] on x86-32 and x86-64 - the VEX sibling of
+    {!x86_pinsrw_rr_entries}, a non-destructive three-register-plus-immediate shape. *)
+
+val x86_vpinsrw_rr_mem_entries : entry list
+(** [vpinsrw $1, 16(%esp|%rsp), %xmm1, %xmm0] on x86-32 and x86-64 -
+    {!x86_vpinsrw_rrr_entries}'s memory-source sibling. *)
+
+val x86_vpextrw_rr_entries : entry list
+(** [vpextrw $1, %xmm0, %eax] on x86-32 and x86-64 - {!x86_pextrw_rr_entries} reused verbatim
+    under the VEX iform's own lookup key. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)
