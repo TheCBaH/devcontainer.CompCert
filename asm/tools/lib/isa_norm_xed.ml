@@ -3306,6 +3306,36 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PMINSW_XMMdq_MEMdq" ~mnemonic:"pminsw" rec_
   | Ok { iform = Some "PMAXSW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PMAXSW_XMMdq_MEMdq" ~mnemonic:"pmaxsw" rec_
+  (* {!Opcode.Pmullw}'s own doc comment (GEN-05), same plain xmm-xmm/xmm-memory shape as
+     {!Paddb}: packed integer multiply/average/sum-of-absolute-differences (opcodes
+     0xD5/0xE5/0xE4/0xE0/0xE3/0xF6, 66-mandatory-prefix only, XED extension SSE2). Only the
+     XMM iforms; the MMX ([MMXq]) iforms of these same mnemonics are a different, unrelated
+     legacy register class this project doesn't admit anywhere. Confirmed against real GNU as
+     (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "PMULLW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULLW_XMMdq_XMMdq" ~mnemonic:"pmullw" rec_
+  | Ok { iform = Some "PMULHW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULHW_XMMdq_XMMdq" ~mnemonic:"pmulhw" rec_
+  | Ok { iform = Some "PMULHUW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULHUW_XMMdq_XMMdq" ~mnemonic:"pmulhuw" rec_
+  | Ok { iform = Some "PAVGB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PAVGB_XMMdq_XMMdq" ~mnemonic:"pavgb" rec_
+  | Ok { iform = Some "PAVGW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PAVGW_XMMdq_XMMdq" ~mnemonic:"pavgw" rec_
+  | Ok { iform = Some "PSADBW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PSADBW_XMMdq_XMMdq" ~mnemonic:"psadbw" rec_
+  | Ok { iform = Some "PMULLW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULLW_XMMdq_MEMdq" ~mnemonic:"pmullw" rec_
+  | Ok { iform = Some "PMULHW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULHW_XMMdq_MEMdq" ~mnemonic:"pmulhw" rec_
+  | Ok { iform = Some "PMULHUW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULHUW_XMMdq_MEMdq" ~mnemonic:"pmulhuw" rec_
+  | Ok { iform = Some "PAVGB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PAVGB_XMMdq_MEMdq" ~mnemonic:"pavgb" rec_
+  | Ok { iform = Some "PAVGW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PAVGW_XMMdq_MEMdq" ~mnemonic:"pavgw" rec_
+  | Ok { iform = Some "PSADBW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PSADBW_XMMdq_MEMdq" ~mnemonic:"psadbw" rec_
   (* SHUFPS/SHUFPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): the first
      XMM-immediate-carrying legacy shape. SHUFPS is XED extension SSE; SHUFPD is SSE2. *)
   | Ok { iform = Some "SHUFPS_XMMps_XMMps_IMMb"; _ } ->
@@ -3618,6 +3648,34 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VPMINSW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpminsw" rec_
   | Ok { iform = Some "VPMAXSW_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VPMAXSW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpmaxsw" rec_
+  (* {!Opcode.Vpmullw}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     PMULLW/PMULHW/PMULHUW/PAVGB/PAVGW/PSADBW family. XED extension AVX. Only the plain XMM
+     iforms; YMM/AVX512 variants of these mnemonics are out of scope. Confirmed against real
+     GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "VPMULLW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPMULLW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpmullw" rec_
+  | Ok { iform = Some "VPMULHW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPMULHW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpmulhw" rec_
+  | Ok { iform = Some "VPMULHUW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPMULHUW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpmulhuw" rec_
+  | Ok { iform = Some "VPAVGB_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPAVGB_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpavgb" rec_
+  | Ok { iform = Some "VPAVGW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPAVGW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpavgw" rec_
+  | Ok { iform = Some "VPSADBW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPSADBW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpsadbw" rec_
+  | Ok { iform = Some "VPMULLW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPMULLW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpmullw" rec_
+  | Ok { iform = Some "VPMULHW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPMULHW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpmulhw" rec_
+  | Ok { iform = Some "VPMULHUW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPMULHUW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpmulhuw" rec_
+  | Ok { iform = Some "VPAVGB_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPAVGB_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpavgb" rec_
+  | Ok { iform = Some "VPAVGW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPAVGW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpavgw" rec_
+  | Ok { iform = Some "VPSADBW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPSADBW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpsadbw" rec_
   (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
      MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
      0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against
