@@ -603,6 +603,9 @@ let x86_sse_binop_rr_entries =
           "PCMPGTB_XMMdq_XMMdq";
           "PCMPGTW_XMMdq_XMMdq";
           "PCMPGTD_XMMdq_XMMdq";
+          "PACKSSWB_XMMdq_XMMdq";
+          "PACKSSDW_XMMdq_XMMdq";
+          "PACKUSWB_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -699,6 +702,9 @@ let x86_sse_binop_rm_entries =
           "PCMPGTB_XMMdq_MEMdq";
           "PCMPGTW_XMMdq_MEMdq";
           "PCMPGTD_XMMdq_MEMdq";
+          "PACKSSWB_XMMdq_MEMdq";
+          "PACKSSDW_XMMdq_MEMdq";
+          "PACKUSWB_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -891,6 +897,9 @@ let x86_vex_binop_rrr_entries =
           "VPCMPGTB_XMMdq_XMMdq_XMMdq";
           "VPCMPGTW_XMMdq_XMMdq_XMMdq";
           "VPCMPGTD_XMMdq_XMMdq_XMMdq";
+          "VPACKSSWB_XMMdq_XMMdq_XMMdq";
+          "VPACKSSDW_XMMdq_XMMdq_XMMdq";
+          "VPACKUSWB_XMMdq_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -974,6 +983,9 @@ let x86_vex_binop_rr_mem_entries =
           "VPCMPGTB_XMMdq_XMMdq_MEMdq";
           "VPCMPGTW_XMMdq_XMMdq_MEMdq";
           "VPCMPGTD_XMMdq_XMMdq_MEMdq";
+          "VPACKSSWB_XMMdq_XMMdq_MEMdq";
+          "VPACKSSDW_XMMdq_XMMdq_MEMdq";
+          "VPACKUSWB_XMMdq_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

@@ -3251,6 +3251,23 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PCMPGTW_XMMdq_MEMdq" ~mnemonic:"pcmpgtw" rec_
   | Ok { iform = Some "PCMPGTD_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PCMPGTD_XMMdq_MEMdq" ~mnemonic:"pcmpgtd" rec_
+  (* {!Opcode.Packsswb}'s own doc comment (GEN-05), same plain xmm-xmm/xmm-memory shape as
+     {!Paddb}: pack-with-saturation (opcodes 0x63/0x6B/0x67, 66-mandatory-prefix only, XED
+     extension SSE2). Only the XMM iforms; the MMX ([MMXq]) iforms of this same mnemonic are a
+     different, unrelated legacy register class this project doesn't admit anywhere. Confirmed
+     against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "PACKSSWB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PACKSSWB_XMMdq_XMMdq" ~mnemonic:"packsswb" rec_
+  | Ok { iform = Some "PACKSSDW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PACKSSDW_XMMdq_XMMdq" ~mnemonic:"packssdw" rec_
+  | Ok { iform = Some "PACKUSWB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PACKUSWB_XMMdq_XMMdq" ~mnemonic:"packuswb" rec_
+  | Ok { iform = Some "PACKSSWB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PACKSSWB_XMMdq_MEMdq" ~mnemonic:"packsswb" rec_
+  | Ok { iform = Some "PACKSSDW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PACKSSDW_XMMdq_MEMdq" ~mnemonic:"packssdw" rec_
+  | Ok { iform = Some "PACKUSWB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PACKUSWB_XMMdq_MEMdq" ~mnemonic:"packuswb" rec_
   (* SHUFPS/SHUFPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): the first
      XMM-immediate-carrying legacy shape. SHUFPS is XED extension SSE; SHUFPD is SSE2. *)
   | Ok { iform = Some "SHUFPS_XMMps_XMMps_IMMb"; _ } ->
@@ -3511,6 +3528,22 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VPCMPGTW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpgtw" rec_
   | Ok { iform = Some "VPCMPGTD_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VPCMPGTD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpgtd" rec_
+  (* {!Opcode.Vpacksswb}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     PACKSSWB/PACKSSDW/PACKUSWB family. XED extension AVX. Only the plain XMM iforms; YMM/AVX512
+     variants of these mnemonics are out of scope. Confirmed against real GNU as
+     (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "VPACKSSWB_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPACKSSWB_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpacksswb" rec_
+  | Ok { iform = Some "VPACKSSDW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPACKSSDW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpackssdw" rec_
+  | Ok { iform = Some "VPACKUSWB_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPACKUSWB_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpackuswb" rec_
+  | Ok { iform = Some "VPACKSSWB_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPACKSSWB_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpacksswb" rec_
+  | Ok { iform = Some "VPACKSSDW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPACKSSDW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpackssdw" rec_
+  | Ok { iform = Some "VPACKUSWB_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPACKUSWB_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpackuswb" rec_
   (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
      MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
      0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against
