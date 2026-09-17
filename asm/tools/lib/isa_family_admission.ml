@@ -319,6 +319,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("PUNPCKLQDQ_XMMdq_MEMdq" | "PUNPCKHQDQ_XMMdq_MEMdq") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PUNPCKLBW_XMMdq_XMMq" | "x86:PUNPCKHBW_XMMdq_XMMq" | "x86:PUNPCKLWD_XMMdq_XMMq"
+      | "x86:PUNPCKHWD_XMMdq_XMMq" | "x86:PUNPCKLDQ_XMMdq_XMMq" | "x86:PUNPCKHDQ_XMMdq_XMMq" ),
+      ( "PUNPCKLBW_XMMdq_XMMq" | "PUNPCKHBW_XMMdq_XMMq" | "PUNPCKLWD_XMMdq_XMMq"
+      | "PUNPCKHWD_XMMdq_XMMq" | "PUNPCKLDQ_XMMdq_XMMq" | "PUNPCKHDQ_XMMdq_XMMq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PUNPCKLBW_XMMdq_MEMdq" | "x86:PUNPCKHBW_XMMdq_MEMdq" | "x86:PUNPCKLWD_XMMdq_MEMdq"
+      | "x86:PUNPCKHWD_XMMdq_MEMdq" | "x86:PUNPCKLDQ_XMMdq_MEMdq" | "x86:PUNPCKHDQ_XMMdq_MEMdq" ),
+      ( "PUNPCKLBW_XMMdq_MEMdq" | "PUNPCKHBW_XMMdq_MEMdq" | "PUNPCKLWD_XMMdq_MEMdq"
+      | "PUNPCKHWD_XMMdq_MEMdq" | "PUNPCKLDQ_XMMdq_MEMdq" | "PUNPCKHDQ_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PADDB_XMMdq_XMMdq" | "x86:PADDW_XMMdq_XMMdq" | "x86:PADDD_XMMdq_XMMdq"
       | "x86:PADDQ_XMMdq_XMMdq" | "x86:PSUBB_XMMdq_XMMdq" | "x86:PSUBW_XMMdq_XMMdq"
       | "x86:PSUBD_XMMdq_XMMdq" | "x86:PSUBQ_XMMdq_XMMdq" ),
@@ -556,6 +568,22 @@ let promoted_case ~target ~form_id ~lookup_key =
   | ( (Target.X86_32 | Target.X86_64),
       ("x86:VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" | "x86:VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq"),
       ("VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" | "VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPUNPCKLBW_XMMdq_XMMdq_XMMdq" | "x86:VPUNPCKHBW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPUNPCKLWD_XMMdq_XMMdq_XMMdq" | "x86:VPUNPCKHWD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPUNPCKLDQ_XMMdq_XMMdq_XMMdq" | "x86:VPUNPCKHDQ_XMMdq_XMMdq_XMMdq" ),
+      ( "VPUNPCKLBW_XMMdq_XMMdq_XMMdq" | "VPUNPCKHBW_XMMdq_XMMdq_XMMdq"
+      | "VPUNPCKLWD_XMMdq_XMMdq_XMMdq" | "VPUNPCKHWD_XMMdq_XMMdq_XMMdq"
+      | "VPUNPCKLDQ_XMMdq_XMMdq_XMMdq" | "VPUNPCKHDQ_XMMdq_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPUNPCKLBW_XMMdq_XMMdq_MEMdq" | "x86:VPUNPCKHBW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPUNPCKLWD_XMMdq_XMMdq_MEMdq" | "x86:VPUNPCKHWD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPUNPCKLDQ_XMMdq_XMMdq_MEMdq" | "x86:VPUNPCKHDQ_XMMdq_XMMdq_MEMdq" ),
+      ( "VPUNPCKLBW_XMMdq_XMMdq_MEMdq" | "VPUNPCKHBW_XMMdq_XMMdq_MEMdq"
+      | "VPUNPCKLWD_XMMdq_XMMdq_MEMdq" | "VPUNPCKHWD_XMMdq_XMMdq_MEMdq"
+      | "VPUNPCKLDQ_XMMdq_XMMdq_MEMdq" | "VPUNPCKHDQ_XMMdq_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VPADDB_XMMdq_XMMdq_XMMdq" | "x86:VPADDW_XMMdq_XMMdq_XMMdq"

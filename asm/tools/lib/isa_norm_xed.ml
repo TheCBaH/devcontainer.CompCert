@@ -3656,6 +3656,33 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PUNPCKLQDQ_XMMdq_MEMdq" ~mnemonic:"punpcklqdq" rec_
   | Ok { iform = Some "PUNPCKHQDQ_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PUNPCKHQDQ_XMMdq_MEMdq" ~mnemonic:"punpckhqdq" rec_
+  (* {!Opcode.Punpcklbw}'s own doc comment (GEN-05): {!Punpcklqdq}'s own group at narrower lane
+     widths (opcodes 0x60/0x68/0x61/0x69/0x62/0x6A, 66-mandatory-prefix only, XED extension
+     SSE2). Confirmed against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "PUNPCKLBW_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKLBW_XMMdq_XMMq" ~mnemonic:"punpcklbw" rec_
+  | Ok { iform = Some "PUNPCKHBW_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKHBW_XMMdq_XMMq" ~mnemonic:"punpckhbw" rec_
+  | Ok { iform = Some "PUNPCKLWD_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKLWD_XMMdq_XMMq" ~mnemonic:"punpcklwd" rec_
+  | Ok { iform = Some "PUNPCKHWD_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKHWD_XMMdq_XMMq" ~mnemonic:"punpckhwd" rec_
+  | Ok { iform = Some "PUNPCKLDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKLDQ_XMMdq_XMMq" ~mnemonic:"punpckldq" rec_
+  | Ok { iform = Some "PUNPCKHDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PUNPCKHDQ_XMMdq_XMMq" ~mnemonic:"punpckhdq" rec_
+  | Ok { iform = Some "PUNPCKLBW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKLBW_XMMdq_MEMdq" ~mnemonic:"punpcklbw" rec_
+  | Ok { iform = Some "PUNPCKHBW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKHBW_XMMdq_MEMdq" ~mnemonic:"punpckhbw" rec_
+  | Ok { iform = Some "PUNPCKLWD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKLWD_XMMdq_MEMdq" ~mnemonic:"punpcklwd" rec_
+  | Ok { iform = Some "PUNPCKHWD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKHWD_XMMdq_MEMdq" ~mnemonic:"punpckhwd" rec_
+  | Ok { iform = Some "PUNPCKLDQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKLDQ_XMMdq_MEMdq" ~mnemonic:"punpckldq" rec_
+  | Ok { iform = Some "PUNPCKHDQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PUNPCKHDQ_XMMdq_MEMdq" ~mnemonic:"punpckhdq" rec_
   (* {!Opcode.Paddb}'s own doc comment (GEN-05), same plain xmm-xmm/xmm-memory shape: packed
      integer add/subtract (opcodes 0xFC/0xFD/0xFE/0xD4 add, 0xF8/0xF9/0xFA/0xFB subtract,
      66-mandatory-prefix only - no non-66 sibling, XED extension SSE2). Confirmed against real
@@ -4023,6 +4050,33 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VPUNPCKLQDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpcklqdq" rec_
   | Ok { iform = Some "VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VPUNPCKHQDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckhqdq" rec_
+  (* {!Opcode.Vpunpcklbw}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     PUNPCKLBW/PUNPCKHBW/PUNPCKLWD/PUNPCKHWD/PUNPCKLDQ/PUNPCKHDQ family. XED extension AVX.
+     Confirmed against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "VPUNPCKLBW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKLBW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpcklbw" rec_
+  | Ok { iform = Some "VPUNPCKHBW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKHBW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpckhbw" rec_
+  | Ok { iform = Some "VPUNPCKLWD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKLWD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpcklwd" rec_
+  | Ok { iform = Some "VPUNPCKHWD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKHWD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpckhwd" rec_
+  | Ok { iform = Some "VPUNPCKLDQ_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKLDQ_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpckldq" rec_
+  | Ok { iform = Some "VPUNPCKHDQ_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPUNPCKHDQ_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpunpckhdq" rec_
+  | Ok { iform = Some "VPUNPCKLBW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKLBW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpcklbw" rec_
+  | Ok { iform = Some "VPUNPCKHBW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKHBW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckhbw" rec_
+  | Ok { iform = Some "VPUNPCKLWD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKLWD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpcklwd" rec_
+  | Ok { iform = Some "VPUNPCKHWD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKHWD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckhwd" rec_
+  | Ok { iform = Some "VPUNPCKLDQ_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKLDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckldq" rec_
+  | Ok { iform = Some "VPUNPCKHDQ_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPUNPCKHDQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpunpckhdq" rec_
   (* {!Opcode.Vpaddb}'s own doc comment (GEN-05): the VEX sibling of the legacy
      PADDB/PADDW/PADDD/PADDQ/PSUBB/PSUBW/PSUBD/PSUBQ family. XED extension AVX. Confirmed
      against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
