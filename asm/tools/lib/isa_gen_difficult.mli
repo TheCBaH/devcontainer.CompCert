@@ -312,6 +312,22 @@ val x86_movd_store_mr_entries : entry list
     memory-destination sibling, MOVQ excluded for the same reason as
     {!x86_movd_load_rm_entries}. *)
 
+val x86_vmovd_load_rr_entries : entry list
+(** [vmovd %eax, %xmm0] on x86-32 and x86-64 - the VEX sibling of
+    {!x86_movd_load_rr_entries}, GPR32<->xmm only (no [vmovq] 64-bit-GPR sibling exists). *)
+
+val x86_vmovd_load_rm_entries : entry list
+(** [vmovd 16(%esp|%rsp), %xmm0] on x86-32 and x86-64 - {!x86_vmovd_load_rr_entries}'s
+    memory-source sibling. *)
+
+val x86_vmovd_store_rr_entries : entry list
+(** [vmovd %xmm0, %eax] on x86-32 and x86-64 - the VEX sibling of
+    {!x86_movd_store_rr_entries}. *)
+
+val x86_vmovd_store_mr_entries : entry list
+(** [vmovd %xmm0, 16(%esp|%rsp)] on x86-32 and x86-64 - {!x86_vmovd_store_rr_entries}'s
+    memory-destination sibling. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)

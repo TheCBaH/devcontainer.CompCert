@@ -695,6 +695,26 @@ module Opcode = struct
     | Vpshufhw
         (** [vpshufhw $imm8, src, dst] - {!Vpshufd}'s mandatory-[F3] ([pp = 2]) sibling at the
             same opcode byte ([VEX.128.F3.0F.WIG 70 /r ib]). *)
+    | Vmovd
+        (** [vmovd rm, dst] / [vmovd reg, rm] - the VEX sibling of the legacy {!Movd}, GPR32<->xmm
+            data move only ([VEX.128.66.0F.W0 6E|7E /r]): unlike {!Movd}, which also spells the
+            GPR64<->xmm form as [movq] via REX.W, no [vmovq] sibling exists here, because the
+            two-byte VEX prefix ([0xC5]) has no W bit at all - a GPR64<->xmm VEX move needs the
+            three-byte VEX prefix ([0xC4]), which this project has not built (out of scope).
+            Reusing {!Lowered.Cvtsi2f_r_rm}/{!Movd_rm_r}'s [width = i.Instruction.width] dispatch
+            fixes this naturally: {!Vmovd} is always constructed with [width = 32], so a 64-bit
+            GPR operand is rejected by the ordinary [width_ok] register-width mismatch check, not
+            by anything VEX-specific. Confirmed against real GNU as: [vmovd %eax,%xmm0] ->
+            [c5 f9 6e c0], [vmovd %xmm0,%eax] -> [c5 f9 7e c0], both register-register and
+            register<->memory. Unlike the legacy [movd]/[movq] pair, real GNU as does NOT reject
+            [vmovd %rax,%xmm0] - it silently reassembles it as [vmovq] instead ([c4 e1 f9 6e c0],
+            three-byte VEX, [VEX.W1]), the same width-driven mnemonic substitution {!Movd}'s own
+            [movd]/[movq] dispatch already does at the text-parsing level. This project does not
+            do that substitution (no [vmovq]/three-byte-VEX support exists), so a 64-bit GPR
+            operand here is a genuine, deliberate rejection - not a divergence from GNU as's
+            accepted-forms set, since the intended [vmovq] spelling is simply not implemented
+            yet, the same "explicit rejection of an unimplemented but real form" every other
+            three-byte-VEX gap in this project already has. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -913,6 +933,7 @@ module Opcode = struct
     | Vpshufd -> "vpshufd"
     | Vpshuflw -> "vpshuflw"
     | Vpshufhw -> "vpshufhw"
+    | Vmovd -> "vmovd"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -1159,9 +1180,9 @@ module Instruction = struct
           | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss
           | Opcode.Vcvtps2pd | Opcode.Vcvtpd2ps | Opcode.Vunpcklps | Opcode.Vunpckhps
           | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq | Opcode.Vpunpckhqdq
-          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
-          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
-          | Opcode.Fnstsw | Opcode.Movd ) as op ->
+          | Opcode.Vmovd | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
+          | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
+          | Opcode.Fsubs | Opcode.Fnstsw | Opcode.Movd ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1338,6 +1359,23 @@ module Lowered = struct
             restriction, plus a genuine imm8 selector {!Vex_unop_r_rm} has no field for - unlike
             {!Vex_binop_imm_rr_rm} there is no [src1]/[vvvv] operand at all, architecturally
             unused (the literal [1111] pattern) the same way {!Vex_unop_r_rm}'s own [vvvv] is. *)
+    | Vex_movd_r_rm of { op : Opcode.t; dst : Reg.t; rm : Rm.t }
+        (** [VEX.128.66.0F.W0 6E /r] - {!Opcode.Vmovd}'s load direction, (gpr-or-mem)->xmm: the
+            VEX, GPR-crossing sibling of {!Vex_unop_r_rm}, built because {!Vex_unop_r_rm}'s own
+            [dst] is always constructed at width 128 (xmm), which does not fit [movd]'s GPR
+            destination-or-source pairing - mirrors {!Cvtsi2f_r_rm}'s load-direction role instead,
+            minus its [width] field, since {!Opcode.Vmovd}'s own comment explains why no REX.W-
+            equivalent variant exists in the two-byte VEX prefix at all (always GPR32). [dst] is
+            the ModR/M reg field (VEX.R-extended, reaching xmm0-15); [rm] is the ModR/M r/m field,
+            register or memory, subject to the same xmm0-7-or-low-8-GPR/low-8-base-index
+            two-byte-VEX restriction as {!Vex_unop_r_rm}'s own [src]. *)
+    | Vex_movd_rm_r of { op : Opcode.t; rm : Rm.t; reg : Reg.t }
+        (** [VEX.128.66.0F.W0 7E /r] - {!Vex_movd_r_rm}'s store-direction sibling: (gpr-or-mem)<-
+            xmm. Byte-for-byte the same field layout, only the opcode byte differs - [reg] (xmm)
+            is the source here rather than the destination, so this is printed reg-first
+            ({!Movd_rm_r}'s own AT&T order) rather than {!Vex_movd_r_rm}'s rm-first order, the
+            reason this is a distinct constructor rather than a reuse, exactly as {!Movd_rm_r}
+            is distinct from {!Cvtsi2f_r_rm}. *)
     | Setcc_rm of { cc : Cc.t; rm : Rm.t }
         (** [0F 90+cc /0] (M5 corpus evidence - [sete %al], [setl %r8b]). Always 8-bit; the ModR/M
             reg field is a fixed 0, not an operand or an extension table lookup - the condition is
@@ -1461,6 +1499,8 @@ module Lowered = struct
         Fmt.pf ppf "%s $%Ld, %a, %a, %a" (Opcode.name op) imm Rm.pp src2 Reg.pp src1 Reg.pp dst
     | Vex_unop_imm_r_rm { op; dst; src; imm } ->
         Fmt.pf ppf "%s $%Ld, %a, %a" (Opcode.name op) imm Rm.pp src Reg.pp dst
+    | Vex_movd_r_rm { op; dst; rm } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Rm.pp rm Reg.pp dst
+    | Vex_movd_rm_r { op; rm; reg } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Reg.pp reg Rm.pp rm
     | Fpu_mem { op; mem } -> Fmt.pf ppf "%s %a" (Opcode.name op) Mem.pp mem
     | Fadd_st0_x87 { src } -> Fmt.pf ppf "fadd %a, %%st" Reg.pp src
     | Fucomp -> Fmt.string ppf "fucomp %st(1)"
@@ -1533,6 +1573,8 @@ module Lowered = struct
         && x.imm = y.imm
     | Vex_unop_imm_r_rm x, Vex_unop_imm_r_rm y ->
         x.op = y.op && Reg.equal x.dst y.dst && Rm.equal x.src y.src && x.imm = y.imm
+    | Vex_movd_r_rm x, Vex_movd_r_rm y -> x.op = y.op && Reg.equal x.dst y.dst && Rm.equal x.rm y.rm
+    | Vex_movd_rm_r x, Vex_movd_rm_r y -> x.op = y.op && Rm.equal x.rm y.rm && Reg.equal x.reg y.reg
     | Fpu_mem x, Fpu_mem y -> x.op = y.op && Mem.equal x.mem y.mem
     | Fadd_st0_x87 x, Fadd_st0_x87 y -> Reg.equal x.src y.src
     | Fucomp, Fucomp -> true
@@ -2523,6 +2565,10 @@ module Make (M : MODE) = struct
     | "vpshufd", _ -> Ok (Instruction.mk Opcode.Vpshufd 32 s.Surface.ops)
     | "vpshuflw", _ -> Ok (Instruction.mk Opcode.Vpshuflw 32 s.Surface.ops)
     | "vpshufhw", _ -> Ok (Instruction.mk Opcode.Vpshufhw 32 s.Surface.ops)
+    (* {!Opcode.Vmovd}'s own doc comment (GEN-05): the VEX sibling of the legacy [movd] GPR32<->xmm
+       move only - no [vmovq] ambiguity to resolve here (unlike [movq]/[mov]), since the two-byte
+       VEX prefix has no REX.W-equivalent bit, so [vmovd] dispatches unconditionally. *)
+    | "vmovd", _ -> Ok (Instruction.mk Opcode.Vmovd 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -3477,6 +3523,45 @@ module Make (M : MODE) = struct
                         Lowered.Vex_unop_imm_r_rm
                           { op = i.Instruction.op; dst; src = Rm.Mem m; imm };
                       ])))
+    (* [vmovd] register-register ({!Opcode.Vmovd}'s own doc comment): the same mnemonic and
+       operand shape serves both directions, disambiguated by which operand is actually xmm -
+       {!Lowered.Vex_movd_r_rm}'s load direction (rm=gpr, dst=xmm) or {!Lowered.Vex_movd_rm_r}'s
+       store direction (reg=xmm, rm=gpr), exactly mirroring the legacy [movd] dispatch just above
+       but with the two-byte-VEX extended-register check on the GPR side (which always occupies
+       the ModR/M r/m field here, in both directions). *)
+    | Opcode.Vmovd, [ Operand.Reg a; Operand.Reg b ] -> (
+        match (xmm_ok a, xmm_ok b) with
+        | Error _, Ok () -> (
+            match width_ok a with
+            | Ok () ->
+                if a.num >= 8 then bad (`Vex_rm_extended_register a.name)
+                else Ok [ Lowered.Vex_movd_r_rm { op = i.Instruction.op; dst = b; rm = Rm.Reg a } ]
+            | Error e -> Error e)
+        | Ok (), Error _ -> (
+            match width_ok b with
+            | Ok () ->
+                if b.num >= 8 then bad (`Vex_rm_extended_register b.name)
+                else Ok [ Lowered.Vex_movd_rm_r { op = i.Instruction.op; reg = a; rm = Rm.Reg b } ]
+            | Error e -> Error e)
+        | Ok (), Ok () | Error _, Error _ -> bad (`No_form (Opcode.name i.Instruction.op)))
+    (* [vmovd rm, %xmmN] (load from memory): {!Vex_movd_r_rm}'s memory-source sibling of the
+       register-register case above. *)
+    | Opcode.Vmovd, [ Operand.Mem m; Operand.Reg reg ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () -> (
+            match vex_mem_ok m with
+            | Error e -> Error e
+            | Ok () ->
+                Ok [ Lowered.Vex_movd_r_rm { op = i.Instruction.op; dst = reg; rm = Rm.Mem m } ]))
+    (* [vmovd %xmmN, rm] (store to memory): {!Vex_movd_rm_r}'s memory-destination sibling. *)
+    | Opcode.Vmovd, [ Operand.Reg reg; Operand.Mem m ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () -> (
+            match vex_mem_ok m with
+            | Error e -> Error e
+            | Ok () -> Ok [ Lowered.Vex_movd_rm_r { op = i.Instruction.op; reg; rm = Rm.Mem m } ]))
     (* [fldl]/[fstpl]/[fstps]/[flds] (M5, asm/docs/corpus.md): ccomp's own x87
        double/single-precision spill-and-reload sequence around a `%st(0)`
        return value - always to/from a stack memory operand in this corpus,
@@ -4471,6 +4556,62 @@ module Make (M : MODE) = struct
              in
              Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width:128 dst_num; src }))
          C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** opcode_codec ** rm_codec))
+
+  (* [vmovd] load direction ([VEX.128.66.0F.W0 6E /r], GEN-05): {!vex_unop_alt}'s own two-byte-VEX
+     field layout and restriction, generalized to {!Lowered.Vex_movd_r_rm} instead of
+     {!Vex_unop_r_rm} - [rm] is a GPR (or memory) at width 32, not xmm ({!Opcode.Vmovd}'s own
+     comment explains why no wider variant exists in this project). A single mandatory-66
+     ([pp = 1]), fixed-opcode entry, mirroring {!sse_movd_store_alt}'s own unparametrized
+     singleton shape, since [vmovd] has no other mandatory-prefix or opcode-byte sibling at this
+     shape the way [vsqrtps]/etc. do. *)
+  let vex_movd_r_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_movd_r_rm { op = _; dst; rm } when vex_rm_ok rm ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor 1) in
+               Some ((), (byte2, ((), { re_reg = dst.num; re_rm = rm })))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, ((), e))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let l = (b lsr 2) land 1 in
+           let observed_pp = b land 3 in
+           if l <> 0 || observed_pp <> 1 then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let rm =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:32 r) | Rm.Mem _ as m -> m
+             in
+             Some (Lowered.Vex_movd_r_rm { op = Opcode.Vmovd; dst = reg_at ~width:128 dst_num; rm }))
+         C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** const ~width:8 0x6EL ** rm_codec))
+
+  (* {!vex_movd_r_alt}'s store-direction sibling for {!Lowered.Vex_movd_rm_r}: identical field
+     layout and restriction, only the opcode byte ([0x7E]) and reg/rm role assignment differ,
+     mirroring {!Movd_rm_r}/{!sse_movd_store_alt}'s own load/store split. *)
+  let vex_movd_rm_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_movd_rm_r { op = _; rm; reg } when vex_rm_ok rm ->
+               let r_bit = if reg.num >= 8 then 0 else 1 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor 1) in
+               Some ((), (byte2, ((), { re_reg = reg.num; re_rm = rm })))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, ((), e))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let l = (b lsr 2) land 1 in
+           let observed_pp = b land 3 in
+           if l <> 0 || observed_pp <> 1 then None
+           else
+             let reg_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let rm =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:32 r) | Rm.Mem _ as m -> m
+             in
+             Some (Lowered.Vex_movd_rm_r { op = Opcode.Vmovd; rm; reg = reg_at ~width:128 reg_num }))
+         C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** const ~width:8 0x7EL ** rm_codec))
 
   (* [vshufps]/[vshufpd]/[vcmpss]/[vcmpsd]/[vcmpps]/[vcmppd] ([VEX.128.pp.0F.WIG C6|C2 /r ib],
      GEN-05): {!vex_scalar_rrr_alt}'s trailing-immediate sibling for
@@ -5523,6 +5664,8 @@ module Make (M : MODE) = struct
             ~opcode_codec:vex_unop_imm_f3_codec;
           vex_unop_imm_alt ~label:"vex-unop-imm-66" ~priority:83 ~pp:1
             ~opcode_codec:vex_unop_imm_66_codec;
+          vex_movd_r_alt ~label:"vex-movd-load-r-rm" ~priority:86;
+          vex_movd_rm_alt ~label:"vex-movd-store-r-rm" ~priority:87;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)
@@ -6185,6 +6328,20 @@ module Make (M : MODE) = struct
                Operand.Imm (Bigint.of_int64 imm);
                (match src with Rm.Reg r -> Operand.Reg r | Rm.Mem m -> Operand.Mem m);
                Operand.Reg dst;
+             ])
+    | Lowered.Vex_movd_r_rm { op; dst; rm } ->
+        Some
+          (Instruction.mk op 32
+             [
+               (match rm with Rm.Reg r -> Operand.Reg r | Rm.Mem m -> Operand.Mem m);
+               Operand.Reg dst;
+             ])
+    | Lowered.Vex_movd_rm_r { op; rm; reg } ->
+        Some
+          (Instruction.mk op 32
+             [
+               Operand.Reg reg;
+               (match rm with Rm.Reg r -> Operand.Reg r | Rm.Mem m -> Operand.Mem m);
              ])
     | Lowered.Fpu_mem { op; mem } -> Some (Instruction.mk op 32 [ Operand.Mem mem ])
     | Lowered.Fadd_st0_x87 { src } ->

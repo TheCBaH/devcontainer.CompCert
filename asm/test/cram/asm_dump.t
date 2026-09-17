@@ -243,6 +243,8 @@
     [83 cost=0] vex-unop-imm-66  vex-unop-imm-66(){11000101 vex-byte2:8u vex-unop-imm-66-op modrm imm8:8u}
     [84 cost=0] movd-load-r-rm   movd-load-r-rm(){no-asz 01100110 no-rex 0000111101101110 modrm}
     [85 cost=0] movd-store-r-rm  movd-store-r-rm(){no-asz 01100110 no-rex 0000111101111110 modrm}
+    [86 cost=0] vex-movd-load-r-rm vex-movd-load-r-rm(){11000101 vex-byte2:8u 01101110 modrm}
+    [87 cost=0] vex-movd-store-r-rm vex-movd-store-r-rm(){11000101 vex-byte2:8u 01111110 modrm}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -535,6 +537,8 @@
     [83 cost=0] vex-unop-imm-66  vex-unop-imm-66(){11000101 vex-byte2:8u vex-unop-imm-66-op modrm imm8:8u}
     [84 cost=0] movd-load-r-rm   movd-load-r-rm(){asz 01100110 rex 0000111101101110 modrm}
     [85 cost=0] movd-store-r-rm  movd-store-r-rm(){asz 01100110 rex 0000111101111110 modrm}
+    [86 cost=0] vex-movd-load-r-rm vex-movd-load-r-rm(){11000101 vex-byte2:8u 01101110 modrm}
+    [87 cost=0] vex-movd-store-r-rm vex-movd-store-r-rm(){11000101 vex-byte2:8u 01111110 modrm}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}

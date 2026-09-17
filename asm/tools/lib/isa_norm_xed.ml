@@ -2970,6 +2970,24 @@ let normalize (rec_ : R.t) =
       movd_load_rr_form ~form_id:"MOVQ_XMMdq_GPR64" ~mnemonic:"movq" rec_
   | Ok { iform = Some "MOVQ_GPR64_XMMq"; _ } ->
       movd_store_rr_form ~form_id:"MOVQ_GPR64_XMMq" ~mnemonic:"movq" rec_
+  (* [vmovd] (GEN-05, {!Opcode.Vmovd}'s own doc comment): the VEX sibling of the legacy
+     [movd]/[movq] family above, GPR32<->xmm only - reusing {!movd_load_rr_form}/
+     {!movd_load_rm_form}/{!movd_store_rr_form}/{!movd_store_mr_form} verbatim, since XED's own
+     VMOVD_XMMdq_GPR32d/VMOVD_XMMdq_MEMd/VMOVD_GPR32d_XMMd/VMOVD_MEMd_XMMd records have the exact
+     same REG0/REG1/MEM0 operand-name shape as their legacy counterparts (confirmed by inspecting
+     the checked-in export directly) and {!requirement_of} already derives [x86:avx] from these
+     records' own [extension: "AVX"] fact with no extra code. No [vmovq]/64-bit-GPR sibling is
+     dispatched here at all (no such XED record exists among these four iforms in the first
+     place - GNU as's own [vmovd %rax,%xmm0] silently reassembles to [vmovq]/three-byte VEX
+     instead, {!Opcode.Vmovd}'s own doc comment). *)
+  | Ok { iform = Some "VMOVD_XMMdq_GPR32d"; _ } ->
+      movd_load_rr_form ~form_id:"VMOVD_XMMdq_GPR32d" ~mnemonic:"vmovd" rec_
+  | Ok { iform = Some "VMOVD_GPR32d_XMMd"; _ } ->
+      movd_store_rr_form ~form_id:"VMOVD_GPR32d_XMMd" ~mnemonic:"vmovd" rec_
+  | Ok { iform = Some "VMOVD_XMMdq_MEMd"; _ } ->
+      movd_load_rm_form ~form_id:"VMOVD_XMMdq_MEMd" ~mnemonic:"vmovd" rec_
+  | Ok { iform = Some "VMOVD_MEMd_XMMd"; _ } ->
+      movd_store_mr_form ~form_id:"VMOVD_MEMd_XMMd" ~mnemonic:"vmovd" rec_
   (* Packed bitwise-logical family: {!Opcode.Xorpd}'s siblings, the same plain
      xmm-xmm/xmm-memory binop shape {!xmm_binop_rr_form}/{!xmm_binop_rm_form}
      already cover generically. ANDPS/ANDNPS/ORPS/XORPS are XED extension SSE

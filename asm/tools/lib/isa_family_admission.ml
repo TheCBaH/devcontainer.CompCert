@@ -214,6 +214,11 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("MOVQ_XMMdq_GPR64" | "MOVQ_GPR64_XMMq") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VMOVD_XMMdq_GPR32d" | "x86:VMOVD_GPR32d_XMMd" | "x86:VMOVD_XMMdq_MEMd"
+      | "x86:VMOVD_MEMd_XMMd" ),
+      ("VMOVD_XMMdq_GPR32d" | "VMOVD_GPR32d_XMMd" | "VMOVD_XMMdq_MEMd" | "VMOVD_MEMd_XMMd") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ANDPS_XMMxud_XMMxud" | "x86:ANDNPS_XMMxud_XMMxud" | "x86:ORPS_XMMxud_XMMxud"
       | "x86:XORPS_XMMxud_XMMxud" | "x86:ANDPD_XMMxuq_XMMxuq" | "x86:ANDNPD_XMMxuq_XMMxuq"
       | "x86:ORPD_XMMxuq_XMMxuq" ),
