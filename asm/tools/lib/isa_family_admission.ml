@@ -325,6 +325,18 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PSUBB_XMMdq_MEMdq" | "PSUBW_XMMdq_MEMdq" | "PSUBD_XMMdq_MEMdq" | "PSUBQ_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PCMPEQB_XMMdq_XMMdq" | "x86:PCMPEQW_XMMdq_XMMdq" | "x86:PCMPEQD_XMMdq_XMMdq"
+      | "x86:PCMPGTB_XMMdq_XMMdq" | "x86:PCMPGTW_XMMdq_XMMdq" | "x86:PCMPGTD_XMMdq_XMMdq" ),
+      ( "PCMPEQB_XMMdq_XMMdq" | "PCMPEQW_XMMdq_XMMdq" | "PCMPEQD_XMMdq_XMMdq"
+      | "PCMPGTB_XMMdq_XMMdq" | "PCMPGTW_XMMdq_XMMdq" | "PCMPGTD_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PCMPEQB_XMMdq_MEMdq" | "x86:PCMPEQW_XMMdq_MEMdq" | "x86:PCMPEQD_XMMdq_MEMdq"
+      | "x86:PCMPGTB_XMMdq_MEMdq" | "x86:PCMPGTW_XMMdq_MEMdq" | "x86:PCMPGTD_XMMdq_MEMdq" ),
+      ( "PCMPEQB_XMMdq_MEMdq" | "PCMPEQW_XMMdq_MEMdq" | "PCMPEQD_XMMdq_MEMdq"
+      | "PCMPGTB_XMMdq_MEMdq" | "PCMPGTW_XMMdq_MEMdq" | "PCMPGTD_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ("x86:SHUFPS_XMMps_XMMps_IMMb" | "x86:SHUFPD_XMMpd_XMMpd_IMMb"),
       ("SHUFPS_XMMps_XMMps_IMMb" | "SHUFPD_XMMpd_XMMpd_IMMb") ) ->
       true
@@ -508,6 +520,22 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "VPADDB_XMMdq_XMMdq_MEMdq" | "VPADDW_XMMdq_XMMdq_MEMdq" | "VPADDD_XMMdq_XMMdq_MEMdq"
       | "VPADDQ_XMMdq_XMMdq_MEMdq" | "VPSUBB_XMMdq_XMMdq_MEMdq" | "VPSUBW_XMMdq_XMMdq_MEMdq"
       | "VPSUBD_XMMdq_XMMdq_MEMdq" | "VPSUBQ_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPCMPEQB_XMMdq_XMMdq_XMMdq" | "x86:VPCMPEQW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPCMPEQD_XMMdq_XMMdq_XMMdq" | "x86:VPCMPGTB_XMMdq_XMMdq_XMMdq"
+      | "x86:VPCMPGTW_XMMdq_XMMdq_XMMdq" | "x86:VPCMPGTD_XMMdq_XMMdq_XMMdq" ),
+      ( "VPCMPEQB_XMMdq_XMMdq_XMMdq" | "VPCMPEQW_XMMdq_XMMdq_XMMdq" | "VPCMPEQD_XMMdq_XMMdq_XMMdq"
+      | "VPCMPGTB_XMMdq_XMMdq_XMMdq" | "VPCMPGTW_XMMdq_XMMdq_XMMdq" | "VPCMPGTD_XMMdq_XMMdq_XMMdq"
+        ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPCMPEQB_XMMdq_XMMdq_MEMdq" | "x86:VPCMPEQW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPCMPEQD_XMMdq_XMMdq_MEMdq" | "x86:VPCMPGTB_XMMdq_XMMdq_MEMdq"
+      | "x86:VPCMPGTW_XMMdq_XMMdq_MEMdq" | "x86:VPCMPGTD_XMMdq_XMMdq_MEMdq" ),
+      ( "VPCMPEQB_XMMdq_XMMdq_MEMdq" | "VPCMPEQW_XMMdq_XMMdq_MEMdq" | "VPCMPEQD_XMMdq_XMMdq_MEMdq"
+      | "VPCMPGTB_XMMdq_XMMdq_MEMdq" | "VPCMPGTW_XMMdq_XMMdq_MEMdq" | "VPCMPGTD_XMMdq_XMMdq_MEMdq"
+        ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ("x86:VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb"),

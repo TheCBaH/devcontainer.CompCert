@@ -3223,6 +3223,34 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PSUBD_XMMdq_MEMdq" ~mnemonic:"psubd" rec_
   | Ok { iform = Some "PSUBQ_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PSUBQ_XMMdq_MEMdq" ~mnemonic:"psubq" rec_
+  (* {!Opcode.Pcmpeqb}'s own doc comment (GEN-05), same plain xmm-xmm/xmm-memory shape as
+     {!Paddb}: packed compare-equal/greater-than (opcodes 0x74/0x75/0x76 equal,
+     0x64/0x65/0x66 greater-than, 66-mandatory-prefix only, XED extension SSE2). Confirmed
+     against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "PCMPEQB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPEQB_XMMdq_XMMdq" ~mnemonic:"pcmpeqb" rec_
+  | Ok { iform = Some "PCMPEQW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPEQW_XMMdq_XMMdq" ~mnemonic:"pcmpeqw" rec_
+  | Ok { iform = Some "PCMPEQD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPEQD_XMMdq_XMMdq" ~mnemonic:"pcmpeqd" rec_
+  | Ok { iform = Some "PCMPGTB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPGTB_XMMdq_XMMdq" ~mnemonic:"pcmpgtb" rec_
+  | Ok { iform = Some "PCMPGTW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPGTW_XMMdq_XMMdq" ~mnemonic:"pcmpgtw" rec_
+  | Ok { iform = Some "PCMPGTD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPGTD_XMMdq_XMMdq" ~mnemonic:"pcmpgtd" rec_
+  | Ok { iform = Some "PCMPEQB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPEQB_XMMdq_MEMdq" ~mnemonic:"pcmpeqb" rec_
+  | Ok { iform = Some "PCMPEQW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPEQW_XMMdq_MEMdq" ~mnemonic:"pcmpeqw" rec_
+  | Ok { iform = Some "PCMPEQD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPEQD_XMMdq_MEMdq" ~mnemonic:"pcmpeqd" rec_
+  | Ok { iform = Some "PCMPGTB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPGTB_XMMdq_MEMdq" ~mnemonic:"pcmpgtb" rec_
+  | Ok { iform = Some "PCMPGTW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPGTW_XMMdq_MEMdq" ~mnemonic:"pcmpgtw" rec_
+  | Ok { iform = Some "PCMPGTD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPGTD_XMMdq_MEMdq" ~mnemonic:"pcmpgtd" rec_
   (* SHUFPS/SHUFPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): the first
      XMM-immediate-carrying legacy shape. SHUFPS is XED extension SSE; SHUFPD is SSE2. *)
   | Ok { iform = Some "SHUFPS_XMMps_XMMps_IMMb"; _ } ->
@@ -3456,6 +3484,33 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VPSUBD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpsubd" rec_
   | Ok { iform = Some "VPSUBQ_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VPSUBQ_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpsubq" rec_
+  (* {!Opcode.Vpcmpeqb}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     PCMPEQB/PCMPEQW/PCMPEQD/PCMPGTB/PCMPGTW/PCMPGTD family. XED extension AVX. Confirmed
+     against real GNU as (i686-linux-gnu-as/x86_64-linux-gnu-as 2.44). *)
+  | Ok { iform = Some "VPCMPEQB_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPEQB_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpeqb" rec_
+  | Ok { iform = Some "VPCMPEQW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPEQW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpeqw" rec_
+  | Ok { iform = Some "VPCMPEQD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPEQD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpeqd" rec_
+  | Ok { iform = Some "VPCMPGTB_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPGTB_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpgtb" rec_
+  | Ok { iform = Some "VPCMPGTW_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPGTW_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpgtw" rec_
+  | Ok { iform = Some "VPCMPGTD_XMMdq_XMMdq_XMMdq"; _ } ->
+      vex_binop_rrr_form ~form_id:"VPCMPGTD_XMMdq_XMMdq_XMMdq" ~mnemonic:"vpcmpgtd" rec_
+  | Ok { iform = Some "VPCMPEQB_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPEQB_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpeqb" rec_
+  | Ok { iform = Some "VPCMPEQW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPEQW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpeqw" rec_
+  | Ok { iform = Some "VPCMPEQD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPEQD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpeqd" rec_
+  | Ok { iform = Some "VPCMPGTB_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPGTB_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpgtb" rec_
+  | Ok { iform = Some "VPCMPGTW_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPGTW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpgtw" rec_
+  | Ok { iform = Some "VPCMPGTD_XMMdq_XMMdq_MEMdq"; _ } ->
+      vex_binop_rr_mem_form ~form_id:"VPCMPGTD_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpcmpgtd" rec_
   (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
      MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
      0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against
