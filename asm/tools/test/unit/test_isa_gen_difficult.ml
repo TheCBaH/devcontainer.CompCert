@@ -1133,6 +1133,10 @@ let test_counts () =
       + List.length Isa_gen_difficult.x86_cvtsi2f_rm_entries
       + List.length Isa_gen_difficult.x86_cvtf2i_rr_entries
       + List.length Isa_gen_difficult.x86_cvtf2i_rm_entries
+      + List.length Isa_gen_difficult.x86_movd_load_rr_entries
+      + List.length Isa_gen_difficult.x86_movd_load_rm_entries
+      + List.length Isa_gen_difficult.x86_movd_store_rr_entries
+      + List.length Isa_gen_difficult.x86_movd_store_mr_entries
       + List.length Isa_gen_difficult.x86_fadd_entries
       + List.length Isa_gen_difficult.fadd_s_entries
       + List.length Isa_gen_difficult.fsub_s_entries

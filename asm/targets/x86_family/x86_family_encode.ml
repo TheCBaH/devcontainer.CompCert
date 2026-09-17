@@ -481,6 +481,31 @@ module Opcode = struct
         (** [pshufhw $imm8, rm, reg] - {!Pshufd}'s mandatory-[F3] sibling at the same opcode byte
             ([F3 0F 70 /r ib]), shuffling only the high 4 words and leaving the low 64 bits
             unchanged. *)
+    | Movd
+        (** [movd]/[movq] ([66 0F 6E /r] load, [66 0F 7E /r] store, GEN-05): moves between a GPR
+            (or GPR-sized memory) and the low 32/64 bits of an xmm register, zero-extending on
+            load. One shared opcode across both mnemonics and both directions, exactly like
+            {!Cvtsi2sd}/[cvtsi2sdq]: [width] (32 for [movd], 64 for [movq]) selects REX.W, and the
+            frontend spells the two widths as distinct mnemonics rather than inferring from an
+            operand. Confirmed against real GNU as (both directions, both widths, register and
+            memory, both x86-32/x86-64): [movd %eax,%xmm0] -> [66 0f 6e c0]; [movd %xmm0,%eax] ->
+            [66 0f 7e c0]; [movd (%eax),%xmm0]/[movd %xmm0,(%eax)] -> [66 0f 6e 00]/[66 0f 7e 00]
+            (byte-identical on both profiles); [movq %rax,%xmm0]/[movq %xmm0,%rax] (x86-64 only,
+            REX.W) -> [66 48 0f 6e c0]/[66 48 0f 7e c0]; [movq %eax,%xmm0] is rejected outright in
+            32-bit mode ("operand type mismatch"), matching XED's own per-profile record split
+            (unlike {!Cvtsi2sd}/[cvtsi2sdq], whose mode64 requirement had to be derived, MOVQ's
+            64-bit-only applicability is already a native XED fact - no derived requirement
+            needed here). MOVQ's memory-operand forms are deliberately NOT admitted: [movq
+            (%rax),%xmm0] assembles to [f3 0f 7e 00] and [movq %xmm0,(%rax)] to [66 0f d6 00] -
+            real GNU as always prefers the unrelated scalar-XMM [MOVQ xmm1, xmm2/m64] instruction
+            (a different, genuinely distinct opcode sharing the "movq" mnemonic) whenever the
+            other operand is memory rather than a specific-width GPR register, so the GPR64<->mem
+            form of *this* instruction is unreachable via that spelling - a real GAS ambiguity,
+            not an oversight, mirroring {!Vcvtpd2ps}'s own memory-operand-ambiguity precedent.
+            The XMM<->XMM/mem64 [movq] forms XED's own resolved export separately names
+            (MOVQ_XMMdq_XMMq_0F7E/0FD6, MOVQ_MEMq_XMMq_0FD6) are a completely different
+            instruction this project does not admit at all yet - a named follow-up, not scoped
+            here. *)
     | Vaddsd
         (** [vaddsd src2, src1, dst] - VEX-encoded scalar-double add ([VEX.LIG.F2.0F.WIG 58 /r]),
             the first x86 vector-extension (AVX) form this project admits: unlike every opcode
@@ -826,6 +851,7 @@ module Opcode = struct
     | Pshufd -> "pshufd"
     | Pshuflw -> "pshuflw"
     | Pshufhw -> "pshufhw"
+    | Movd -> "movd"
     | Vaddsd -> "vaddsd"
     | Vsubsd -> "vsubsd"
     | Vmulsd -> "vmulsd"
@@ -1135,7 +1161,7 @@ module Instruction = struct
           | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq | Opcode.Vpunpckhqdq
           | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
           | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
-          | Opcode.Fnstsw ) as op ->
+          | Opcode.Fnstsw | Opcode.Movd ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -1273,6 +1299,15 @@ module Lowered = struct
     | Cvtf2i_r_rm of { width : int; reg : Reg.t; rm : Rm.t }
         (** [F2 0F 2C /r], (r32 or r64)<-(xmm or m64) - [cvttsd2si] only ([cvttss2si] is unevidenced
             by this corpus). [reg] is a GPR at [width]; [rm] is xmm (or memory). *)
+    | Movd_rm_r of { op : Opcode.t; width : int; rm : Rm.t; reg : Reg.t }
+        (** [66 0F 7E /r] - {!Cvtsi2f_r_rm}'s store-direction sibling for [movd]/[movq]:
+            (gpr-or-mem)<-xmm. Byte-for-byte the same ModR/M-reg=xmm/ModR/M-rm=gpr-or-mem field
+            layout and REX.W-selecting [width] as {!Cvtsi2f_r_rm} (confirmed against real GNU as:
+            [movd %xmm0,%eax] -> [66 0f 7e c0], identical ModR/M byte to [movd %eax,%xmm0]'s own
+            [66 0f 6e c0], only the opcode byte differs) - but [reg] (xmm) is the source here
+            rather than the destination, so this is printed reg-first ([Sse_mov_rm_r]'s own AT&T
+            order) rather than {!Cvtsi2f_r_rm}'s rm-first order, the reason this is a distinct
+            constructor rather than a reuse. *)
     | Vex_binop_rr_rm of { op : Opcode.t; dst : Reg.t; src1 : Reg.t; src2 : Rm.t }
         (** [VEX.LIG.F2.0F.WIG opcode /r] - {!Opcode.Vaddsd}'s non-destructive three-operand
             shape: [dst := src1 op src2]. [src2] is the ModR/M r/m field, register or memory;
@@ -1418,6 +1453,7 @@ module Lowered = struct
         Fmt.pf ppf "%s $%Ld, %a, %a" (Opcode.name op) imm Rm.pp rm Reg.pp reg
     | Cvtsi2f_r_rm { op; reg; rm; _ } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Rm.pp rm Reg.pp reg
     | Cvtf2i_r_rm { reg; rm; _ } -> Fmt.pf ppf "cvttsd2si %a, %a" Rm.pp rm Reg.pp reg
+    | Movd_rm_r { op; reg; rm; _ } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Reg.pp reg Rm.pp rm
     | Vex_binop_rr_rm { op; dst; src1; src2 } ->
         Fmt.pf ppf "%s %a, %a, %a" (Opcode.name op) Rm.pp src2 Reg.pp src1 Reg.pp dst
     | Vex_unop_r_rm { op; dst; src } -> Fmt.pf ppf "%s %a, %a" (Opcode.name op) Rm.pp src Reg.pp dst
@@ -1486,6 +1522,8 @@ module Lowered = struct
         x.op = y.op && x.width = y.width && Reg.equal x.reg y.reg && Rm.equal x.rm y.rm
     | Cvtf2i_r_rm x, Cvtf2i_r_rm y ->
         x.width = y.width && Reg.equal x.reg y.reg && Rm.equal x.rm y.rm
+    | Movd_rm_r x, Movd_rm_r y ->
+        x.op = y.op && x.width = y.width && Rm.equal x.rm y.rm && Reg.equal x.reg y.reg
     | Vex_binop_rr_rm x, Vex_binop_rr_rm y ->
         x.op = y.op && Reg.equal x.dst y.dst && Reg.equal x.src1 y.src1 && Rm.equal x.src2 y.src2
     | Vex_unop_r_rm x, Vex_unop_r_rm y ->
@@ -2576,6 +2614,21 @@ module Make (M : MODE) = struct
        this corpus, so byte-identical to the bare mnemonic reading its width off that register
        (M5, asm/docs/corpus.md - gas_frontier.t's runtime-i64_dtou.S). *)
     | "cvttsd2siq", _ -> Ok (Instruction.mk Opcode.Cvttsd2si 64 s.Surface.ops)
+    (* [movd]/[movq] (GEN-05): [movd] never collides with the generic width-suffix [mov] case
+       below - 'd' is not a stripped suffix character - so it dispatches unconditionally, the
+       same way [cvtsi2sd] does just above. [movq], though, IS the standard 64-bit [mov] suffix
+       spelling, genuinely ambiguous between a plain 64-bit GPR move and this GPR64<->xmm move;
+       real GNU as resolves it purely from the operand register classes (both accept identical
+       syntax), so this project does the same - dispatch here only when an xmm operand ([width =
+       128]) is actually present, and let every other [movq] fall through unchanged to [_, "mov"]
+       below. {!Movd}'s own doc comment has the confirmed bytes and the deliberately-excluded
+       memory-operand ambiguity. *)
+    | "movd", _ -> Ok (Instruction.mk Opcode.Movd 32 s.Surface.ops)
+    | "movq", _
+      when match s.Surface.ops with
+           | [ Operand.Reg a; Operand.Reg b ] -> a.Reg.width = 128 || b.Reg.width = 128
+           | _ -> false ->
+        Ok (Instruction.mk Opcode.Movd 64 s.Surface.ops)
     (* M4 (.ai/asm_plan.md §12): the real i64_udivmod.S source spells its
        one register-register [add] with no suffix at all ([add %ecx,
        %edx]) - valid GNU as, since the register operand disambiguates the
@@ -3200,6 +3253,55 @@ module Make (M : MODE) = struct
         match width_ok reg with
         | Error e -> Error e
         | Ok () -> Ok [ Lowered.Cvtf2i_r_rm { width = i.Instruction.width; reg; rm = Rm.Mem m } ])
+    (* [movd]/[movq] register-register: the same mnemonic and operand shape serves both
+       directions ({!Movsd}/{!Movss}'s own precedent), disambiguated here by which operand is
+       actually xmm rather than by opcode - {!Cvtsi2f_r_rm} (load: xmm dest, gpr src) reused
+       verbatim for one direction, {!Movd_rm_r} (store: gpr dest, xmm src) built for the other. *)
+    | Opcode.Movd, [ Operand.Reg a; Operand.Reg b ] -> (
+        match (xmm_ok a, xmm_ok b) with
+        | Error _, Ok () -> (
+            match width_ok a with
+            | Ok () ->
+                Ok
+                  [
+                    Lowered.Cvtsi2f_r_rm
+                      { op = i.Instruction.op; width = i.Instruction.width; reg = b; rm = Rm.Reg a };
+                  ]
+            | Error e -> Error e)
+        | Ok (), Error _ -> (
+            match width_ok b with
+            | Ok () ->
+                Ok
+                  [
+                    Lowered.Movd_rm_r
+                      { op = i.Instruction.op; width = i.Instruction.width; reg = a; rm = Rm.Reg b };
+                  ]
+            | Error e -> Error e)
+        | Ok (), Ok () | Error _, Error _ -> bad (`No_form (Opcode.name i.Instruction.op)))
+    (* [movd rm, %xmmN] (load from memory): {!Movd}'s own doc comment - only [movd]'s memory
+       forms are admitted, never [movq]'s (real GNU as routes those to the unrelated scalar-xmm
+       [movq] instruction instead), and the frontend only ever constructs [Opcode.Movd] with
+       [width = 64] for a register-register pair, so [width] is always 32 here regardless. *)
+    | Opcode.Movd, [ Operand.Mem m; Operand.Reg reg ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () ->
+            Ok
+              [
+                Lowered.Cvtsi2f_r_rm
+                  { op = i.Instruction.op; width = i.Instruction.width; reg; rm = Rm.Mem m };
+              ])
+    (* [movd %xmmN, rm] (store to memory): {!Movd_rm_r}'s own store direction, memory-destination
+       sibling of the register-register case above. *)
+    | Opcode.Movd, [ Operand.Reg reg; Operand.Mem m ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () ->
+            Ok
+              [
+                Lowered.Movd_rm_r
+                  { op = i.Instruction.op; width = i.Instruction.width; reg; rm = Rm.Mem m };
+              ])
     (* {3 x86 VEX (GEN-05, x86 vector extensions)}
 
        [vaddsd src2, src1, dst]: real GNU as's own AT&T operand order for the
@@ -4083,12 +4185,16 @@ module Make (M : MODE) = struct
       ~entries:[ (Opcode.Shufps, 0xC6L); (Opcode.Cmpps, 0xC2L) ]
       (C.field ~width:8 "opcode")
 
-  (* [cvtsi2sd]/[cvtsi2ss] ([0F 2A]): the one place [~width] threaded into
-     {!prefixes_of} is a real GPR width rather than the [32] REX.W-clear
-     sentinel the rest of this section uses - [rm] is the GPR/memory operand
-     here, and its width is exactly what CompCert's [q] suffix already
-     pinned down in {!simplify_instruction}. *)
-  let sse_cvtsi2f_alt ~label ~priority ~mandatory ~op =
+  (* [cvtsi2sd]/[cvtsi2ss] ([0F 2A]), and - via [~opcode16] - {!Movd}'s own load direction
+     ([0F 6E], GEN-05): the one place [~width] threaded into {!prefixes_of} is a real GPR width
+     rather than the [32] REX.W-clear sentinel the rest of this section uses - [rm] is the
+     GPR/memory operand here, and its width is exactly what CompCert's [q] suffix already
+     pinned down in {!simplify_instruction} (or, for [movd]/[movq], what the frontend's own
+     mnemonic dispatch already fixed - {!Movd}'s own doc comment). Generalized over [~opcode16]
+     the same way {!sse_binop_alt} is generalized over [~opcode_codec]: [cvtsi2sd]/[cvtsi2ss]
+     share one fixed opcode across both mandatory-prefix groups, so a per-mnemonic table would be
+     one entry each - not worth building until a second [0F 2A]-family opcode exists. *)
+  let sse_cvtsi2f_alt ~label ~priority ~mandatory ~op ~opcode16 =
     C.alt ~label ~priority
       (C.iso_fun ~name:label
          ~encode:(function
@@ -4105,7 +4211,7 @@ module Make (M : MODE) = struct
          C.(
            asz_codec
            ** const ~width:8 (Int64.of_int mandatory)
-           ** rex_codec ** const ~width:16 0x0F2AL ** rm_codec))
+           ** rex_codec ** const ~width:16 opcode16 ** rm_codec))
 
   (* [cvttsd2si] ([0F 2C], [F2] only - [cvttss2si]/[F3] is unevidenced by
      this corpus and not built). Mirrors {!sse_cvtsi2f_alt} with [reg]/[rm]'s
@@ -4126,6 +4232,36 @@ module Make (M : MODE) = struct
              (Lowered.Cvtf2i_r_rm
                 { width; reg = reg_field ~p ~width e.re_reg; rm = rm_of ~p ~width:128 e.re_rm }))
          C.(asz_codec ** const ~width:8 0xF2L ** rex_codec ** const ~width:16 0x0F2CL ** rm_codec))
+
+  (* [movd]/[movq] store direction ([66 0F 7E /r], GEN-05): {!sse_cvtsi2f_alt}'s own field layout
+     (ModR/M-reg=xmm at [width:128], ModR/M-rm=gpr-or-mem at the real GPR [width] that drives
+     REX.W) with [reg]/[rm]'s construction order swapped to match {!Lowered.Movd_rm_r} instead of
+     {!Lowered.Cvtsi2f_r_rm} - the encode/decode byte layout is otherwise identical, confirmed
+     against real GNU as ({!Movd}'s own doc comment has the exact bytes). A single mandatory-66,
+     fixed-opcode entry, mirroring {!sse_cvtf2i_alt}'s own unparametrized singleton shape rather
+     than {!sse_cvtsi2f_alt}'s [~mandatory]/[~op]/[~opcode16] generality, since [movd]/[movq] have
+     no other mandatory-prefix or opcode-byte sibling at this shape the way [cvtsi2sd]/[cvtsi2ss]
+     do. *)
+  let sse_movd_store_alt ~label ~priority =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Movd_rm_r { op = _; width; rm; reg } ->
+               let p = prefixes_of ~width ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), { re_reg = reg.num; re_rm = rm }))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), e)))) ->
+           let p = { asz; opsz = false; rex } in
+           let width = width_of_prefixes p in
+           Some
+             (Lowered.Movd_rm_r
+                {
+                  op = Opcode.Movd;
+                  width;
+                  reg = reg_field ~p ~width:128 e.re_reg;
+                  rm = rm_of ~p ~width e.re_rm;
+                }))
+         C.(asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:16 0x0F7EL ** rm_codec))
 
   (* {3 x86 VEX (GEN-05, x86 vector extensions)}
 
@@ -5337,9 +5473,14 @@ module Make (M : MODE) = struct
             ~opcode16:0x0F11L;
           sse_mov_rm_r_alt ~label:"sse-movss-store" ~priority:31 ~mandatory:0xF3 ~op:Opcode.Movss
             ~opcode16:0x0F11L;
-          sse_cvtsi2f_alt ~label:"cvtsi2sd-r-rm" ~priority:32 ~mandatory:0xF2 ~op:Opcode.Cvtsi2sd;
-          sse_cvtsi2f_alt ~label:"cvtsi2ss-r-rm" ~priority:33 ~mandatory:0xF3 ~op:Opcode.Cvtsi2ss;
+          sse_cvtsi2f_alt ~label:"cvtsi2sd-r-rm" ~priority:32 ~mandatory:0xF2 ~op:Opcode.Cvtsi2sd
+            ~opcode16:0x0F2AL;
+          sse_cvtsi2f_alt ~label:"cvtsi2ss-r-rm" ~priority:33 ~mandatory:0xF3 ~op:Opcode.Cvtsi2ss
+            ~opcode16:0x0F2AL;
           sse_cvtf2i_alt ~label:"cvttsd2si-r-rm" ~priority:34;
+          sse_cvtsi2f_alt ~label:"movd-load-r-rm" ~priority:84 ~mandatory:0x66 ~op:Opcode.Movd
+            ~opcode16:0x0F6EL;
+          sse_movd_store_alt ~label:"movd-store-r-rm" ~priority:85;
           vex_scalar_rrr_alt ~label:"vex-scalar-f2-rrr" ~priority:67 ~pp:3
             ~opcode_codec:vex_scalar_f2_codec;
           vex_scalar_rrr_alt ~label:"vex-scalar-f3-rrr" ~priority:68 ~pp:2
@@ -5998,6 +6139,18 @@ module Make (M : MODE) = struct
               [
                 (match rm with Rm.Reg r -> Operand.Reg r | Rm.Mem m -> Operand.Mem m);
                 Operand.Reg reg;
+              ];
+            form = None;
+          }
+    | Lowered.Movd_rm_r { op; width; rm; reg } ->
+        Some
+          {
+            Instruction.op;
+            width;
+            ops =
+              [
+                Operand.Reg reg;
+                (match rm with Rm.Reg r -> Operand.Reg r | Rm.Mem m -> Operand.Mem m);
               ];
             form = None;
           }

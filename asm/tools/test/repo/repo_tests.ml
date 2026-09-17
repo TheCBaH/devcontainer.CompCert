@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:350;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:350
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:354;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:356
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -880,16 +880,16 @@ let test_isa_family_admission repo =
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:339 ~blocked:7537;
+    ~promoted_support:343 ~blocked:7533;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:345 ~blocked:10221
+    ~promoted_support:351 ~blocked:10215
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
    - not just synthetic values, which Test_isa_norm_jsonl already covers for
    every constructor - must survive Isa_norm_jsonl.encode_line followed by
    decode_line unchanged. The pinned total is the sum of the accounting
-   tests' own pinned normalized counts (722+774+350+350); a drop here without
+   tests' own pinned normalized counts (722+774+354+356); a drop here without
    a matching drop there would mean the codec silently lost a form the
    accounting still credits as normalized. *)
 let normalize_one source (rec_ : Isa_source_record.t) =
@@ -936,9 +936,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2196)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2206)"
        !roundtrip_count)
-    (!roundtrip_count = 2196)
+    (!roundtrip_count = 2206)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

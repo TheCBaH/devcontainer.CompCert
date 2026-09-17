@@ -291,6 +291,27 @@ val x86_cvtf2i_rm_entries : entry list
     16(%rsp), %rax] on x86-64 only, {!x86_cvtf2i_rr_entries}'s own
     memory-source sibling. *)
 
+val x86_movd_load_rr_entries : entry list
+(** [movd %eax, %xmm0] on x86-32 and x86-64, plus [movq %rax, %xmm0] on
+    x86-64 only - {!x86_cvtsi2f_rr_entries}'s exact shape reused for the
+    GPR<->xmm data move family. *)
+
+val x86_movd_load_rm_entries : entry list
+(** [movd 16(%esp|%rsp), %xmm0] on x86-32 and x86-64 - {!x86_movd_load_rr_entries}'s
+    memory-source sibling. MOVQ's own memory-source form is deliberately not
+    generated: real GNU as routes that spelling to the unrelated scalar-xmm
+    [movq] instruction instead. *)
+
+val x86_movd_store_rr_entries : entry list
+(** [movd %xmm0, %eax] on x86-32 and x86-64, plus [movq %xmm0, %rax] on
+    x86-64 only - {!x86_cvtf2i_rr_entries}'s exact shape reused for the
+    store direction. *)
+
+val x86_movd_store_mr_entries : entry list
+(** [movd %xmm0, 16(%esp|%rsp)] on x86-32 and x86-64 - {!x86_movd_store_rr_entries}'s
+    memory-destination sibling, MOVQ excluded for the same reason as
+    {!x86_movd_load_rm_entries}. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)

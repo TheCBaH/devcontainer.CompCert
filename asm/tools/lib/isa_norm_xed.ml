@@ -2366,6 +2366,259 @@ let cvtf2i_rm_form ~form_id ~mode64 (rec_ : R.t) =
         (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* [movd]/[movq] load direction (MOVD_XMMdq_GPR32/MOVQ_XMMdq_GPR64): {!cvtsi2f_rr_form}'s own
+   REG0(xmm,w)/REG1(gpr,r) shape, but with no manual [mode64] requirement to derive - unlike
+   [cvtsi2sd]/[cvtsi2sdq], MOVQ's own [provenance.mode_restriction]/[applicability] is already a
+   native XED fact ([equals: "mode64"], confirmed by inspecting the checked-in export directly),
+   so {!requirement_of} alone is correct. *)
+let movd_load_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [ Syn_decorated ("%", Syn_operand "src"); Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "REG0 (rw=%s), REG1 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source, then destination) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* [movd]'s memory-source sibling (MOVD_XMMdq_MEMd only - MOVQ's own memory-source form is
+   deliberately not admitted: confirmed against real GNU as, [movq (%rax),%xmm0] assembles to
+   [f3 0f 7e 00], the unrelated scalar-xmm [MOVQ xmm1, xmm2/m64] instruction, not this one -
+   {!movd_load_rm_form} is only ever dispatched for the MOVD iform). {!movd_load_rr_form}'s own
+   shape with MEM0 standing in for REG1. *)
+let movd_load_rm_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "MEM0" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let mem =
+        {
+          op_name = "src";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ mem; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_operand "src"; Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "REG0 (rw=%s), MEM0 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source, then destination) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/MEM0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* [movd]/[movq] store direction (MOVD_GPR32_XMMd/MOVQ_GPR64_XMMq): {!movd_load_rr_form}'s own
+   shape with the register classes reversed - REG0 is the [X86_gpr] destination here, REG1 the
+   [X86_xmm] source, exactly the way {!cvtf2i_rr_form} reverses {!cvtsi2f_rr_form}. *)
+let movd_store_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [ Syn_decorated ("%", Syn_operand "src"); Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "REG0 (rw=%s), REG1 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source, then destination) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
+(* [movd]'s memory-destination sibling (MOVD_MEMd_XMMd only, {!movd_load_rm_form}'s own
+   MOVQ-exclusion reasoning applies identically: [movq %xmm0,(%rax)] assembles to [66 0f d6 00],
+   the unrelated scalar-xmm store, not this one). Operand order in [encoding.operands] is
+   [MEM0; REG0] here - MEM0 (the write-operand/destination) first, REG0 (xmm, the read-operand/
+   source) second - the reverse of {!movd_load_rm_form}'s [REG0; MEM0], but the same
+   write-operand-first convention XED uses throughout. *)
+let movd_store_mr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "MEM0" && b.op_name = "REG0" ->
+      let mem =
+        {
+          op_name = "dest";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; mem ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_decorated ("%", Syn_operand "src"); Syn_operand "dest" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf "MEM0 (rw=%s), REG0 (rw=%s) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note =
+                  "AT&T operand order (source, then destination) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected MEM0/REG0 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 let normalize (rec_ : R.t) =
   match xed_provenance_of rec_ with
   | Ok { iform = Some "ADD_GPRv_IMMz"; _ } -> add_gprv_immz_form rec_
@@ -2700,6 +2953,23 @@ let normalize (rec_ : R.t) =
       cvtf2i_rm_form ~form_id:"CVTTSD2SI_GPR32d_MEMsd" ~mode64:false rec_
   | Ok { iform = Some "CVTTSD2SI_GPR64q_MEMsd"; _ } ->
       cvtf2i_rm_form ~form_id:"CVTTSD2SI_GPR64q_MEMsd" ~mode64:true rec_
+  (* [movd]/[movq] (GEN-05): GPR<->xmm data move, {!movd_load_rr_form}'s own doc comment - no
+     [~mode64] parameter needed, unlike [cvtsi2sd]/[cvtsi2sdq], since MOVQ's applicability is
+     already a native per-record XED fact. MOVQ's memory forms are deliberately not dispatched
+     here at all (real GNU as routes that spelling to the unrelated scalar-xmm [movq] instead -
+     {!movd_load_rm_form}'s own doc comment). *)
+  | Ok { iform = Some "MOVD_XMMdq_GPR32"; _ } ->
+      movd_load_rr_form ~form_id:"MOVD_XMMdq_GPR32" ~mnemonic:"movd" rec_
+  | Ok { iform = Some "MOVD_GPR32_XMMd"; _ } ->
+      movd_store_rr_form ~form_id:"MOVD_GPR32_XMMd" ~mnemonic:"movd" rec_
+  | Ok { iform = Some "MOVD_XMMdq_MEMd"; _ } ->
+      movd_load_rm_form ~form_id:"MOVD_XMMdq_MEMd" ~mnemonic:"movd" rec_
+  | Ok { iform = Some "MOVD_MEMd_XMMd"; _ } ->
+      movd_store_mr_form ~form_id:"MOVD_MEMd_XMMd" ~mnemonic:"movd" rec_
+  | Ok { iform = Some "MOVQ_XMMdq_GPR64"; _ } ->
+      movd_load_rr_form ~form_id:"MOVQ_XMMdq_GPR64" ~mnemonic:"movq" rec_
+  | Ok { iform = Some "MOVQ_GPR64_XMMq"; _ } ->
+      movd_store_rr_form ~form_id:"MOVQ_GPR64_XMMq" ~mnemonic:"movq" rec_
   (* Packed bitwise-logical family: {!Opcode.Xorpd}'s siblings, the same plain
      xmm-xmm/xmm-memory binop shape {!xmm_binop_rr_form}/{!xmm_binop_rm_form}
      already cover generically. ANDPS/ANDNPS/ORPS/XORPS are XED extension SSE
