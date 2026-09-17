@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:426;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:428
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:454;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:456
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -896,15 +896,26 @@ let test_isa_family_admission repo =
      %xmm3,%xmm2,%xmm1` -> `c5 e9 74 cb`. 24 new records per x86 profile (12
      legacy + 12 VEX, 6 mnemonics x 2 directions each). SSE2 and AVX both
      move up by 12 promoted-support records on each profile with this
-     slice. *)
+     slice.
+
+     PAND/PANDN/POR (opcodes 0xDB/0xDF/0xEB, GEN-05) reuse the same shapes as
+     `PADDB`/`VPADDB` unchanged - `PXOR`'s own 66-mandatory-prefix-only
+     integer-SIMD group at different opcode bytes, and PMINUB/PMAXUB/PMINSW/
+     PMAXSW (opcodes 0xDA/0xDE/0xEA/0xEE) - `PADDB`'s own group at yet more
+     opcode bytes. Confirmed against real GNU as: `pand %xmm2,%xmm1` ->
+     `66 0f db ca`, `vpand %xmm3,%xmm2,%xmm1` -> `c5 e9 db cb`, `pminub
+     %xmm2,%xmm1` -> `66 0f da ca`, `vpminub %xmm3,%xmm2,%xmm1` ->
+     `c5 e9 da cb`. 28 new records per x86 profile (14 legacy + 14 VEX, 7
+     mnemonics x 2 directions each). SSE2 and AVX both move up by 14
+     promoted-support records on each profile with this slice. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
     ~promoted_support:702 ~blocked:367;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:415 ~blocked:7461;
+    ~promoted_support:443 ~blocked:7433;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:423 ~blocked:10143
+    ~promoted_support:451 ~blocked:10115
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -958,9 +969,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2350)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 2406)"
        !roundtrip_count)
-    (!roundtrip_count = 2350)
+    (!roundtrip_count = 2406)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's
