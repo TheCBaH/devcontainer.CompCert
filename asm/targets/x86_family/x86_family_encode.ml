@@ -436,6 +436,23 @@ module Opcode = struct
     | Psadbw
         (** [psadbw rm, reg] - packed sum of absolute differences, byte lanes into a qword
             accumulator ([66 0F F6 /r]), {!Pavgb}'s own group at a different opcode byte. *)
+    | Movdqa
+        (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
+            ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
+            sibling: unlike {!Movaps} (which only ever admits the load direction, since its own
+            single opcode byte makes register-register and register<-memory share one shape),
+            [movdqa]'s load and store directions are genuinely distinct opcode bytes, so this
+            reuses {!Lowered.Sse_mov_r_rm}/{!Sse_mov_rm_r} - {!Movsd}/{!Movss}'s own two-direction
+            shape - instead, extended here to also admit register-register (mapped to the
+            load-direction opcode, the "low-numbered iform" convention this project already
+            applies elsewhere: real GNU as's own [MOVDQA_XMMdq_XMMdq_0F7F] redundant
+            register-register encoding via the store opcode is deliberately left unadmitted).
+            Confirmed against real GNU as: [movdqa %xmm2,%xmm1] -> [66 0f 6f ca],
+            [movdqa (%eax),%xmm1] -> [66 0f 6f 08], [movdqa %xmm1,(%eax)] -> [66 0f 7f 08]. *)
+    | Movdqu
+        (** [movdqu rm, reg] / [movdqu reg, rm] - {!Movdqa}'s mandatory-[F3] (unaligned)
+            counterpart at the same opcode bytes ([F3 0F 6F /r] load, [F3 0F 7F /r] store).
+            Confirmed against real GNU as: [movdqu %xmm2,%xmm1] -> [f3 0f 6f ca]. *)
     | Andps
         (** [andps rm, reg] - packed bitwise AND, single precision ([0F 54 /r], no mandatory
             prefix - {!Comiss}'s own mandatory-prefix-free group at a different opcode byte). *)
@@ -865,6 +882,19 @@ module Opcode = struct
     | Vpavgb  (** [vpavgb src2, src1, dst] - {!Vpmullw}'s own group ([VEX.128.66.0F.WIG E0 /r]). *)
     | Vpavgw  (** [vpavgw src2, src1, dst] - {!Vpavgb}'s sibling ([VEX.128.66.0F.WIG E3 /r]). *)
     | Vpsadbw  (** [vpsadbw src2, src1, dst] - {!Vpavgb}'s own group ([VEX.128.66.0F.WIG F6 /r]). *)
+    | Vmovdqa
+        (** [vmovdqa rm, dst] - the VEX sibling of the legacy {!Movdqa}/{!Movdqu} family
+            ([VEX.128.66.0F.WIG 6F /r], [pp = 1]), reusing {!Lowered.Vex_unop_r_rm} the same way
+            {!Vmovaps} does - load direction only (register-register and register<-memory); the
+            store direction ([VEX.128.66.0F.WIG 7F /r]) is a distinct, real form this project
+            does not yet build, matching {!Vmovaps}'s own precedent. Confirmed against real GNU
+            as: [vmovdqa %xmm2,%xmm1] -> [c5 f9 6f ca]. *)
+    | Vmovdqu
+        (** [vmovdqu rm, dst] - {!Vmovdqa}'s mandatory-[F3] ([pp = 2]) counterpart at the same
+            opcode byte ([VEX.128.F3.0F.WIG 6F /r]), the first {!Lowered.Vex_unop_r_rm} mnemonic
+            needing a mandatory-[F3] VEX codec table (every prior {!Vex_unop_r_rm} member used
+            [pp = 0] or [pp = 1] only). Load direction only, matching {!Vmovdqa}. Confirmed against
+            real GNU as: [vmovdqu %xmm2,%xmm1] -> [c5 fa 6f ca]. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -1012,6 +1042,8 @@ module Opcode = struct
     | Pavgb -> "pavgb"
     | Pavgw -> "pavgw"
     | Psadbw -> "psadbw"
+    | Movdqa -> "movdqa"
+    | Movdqu -> "movdqu"
     | Andps -> "andps"
     | Andnps -> "andnps"
     | Orps -> "orps"
@@ -1144,6 +1176,8 @@ module Opcode = struct
     | Vpavgb -> "vpavgb"
     | Vpavgw -> "vpavgw"
     | Vpsadbw -> "vpsadbw"
+    | Vmovdqa -> "vmovdqa"
+    | Vmovdqu -> "vmovdqu"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -1401,9 +1435,10 @@ module Instruction = struct
           | Opcode.Vpcmpgtd | Opcode.Vpacksswb | Opcode.Vpackssdw | Opcode.Vpackuswb | Opcode.Vpand
           | Opcode.Vpandn | Opcode.Vpor | Opcode.Vpminub | Opcode.Vpmaxub | Opcode.Vpminsw
           | Opcode.Vpmaxsw | Opcode.Vmovd | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw
-          | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Fldl | Opcode.Fstpl
-          | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw
-          | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw | Opcode.Movd ) as op ->
+          | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Movdqa | Opcode.Movdqu
+          | Opcode.Vmovdqa | Opcode.Vmovdqu | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps
+          | Opcode.Flds | Opcode.Fildll | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw
+          | Opcode.Fistpll | Opcode.Fsubs | Opcode.Fnstsw | Opcode.Movd ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -2684,6 +2719,8 @@ module Make (M : MODE) = struct
     | "pavgb", _ -> Ok (Instruction.mk Opcode.Pavgb 32 s.Surface.ops)
     | "pavgw", _ -> Ok (Instruction.mk Opcode.Pavgw 32 s.Surface.ops)
     | "psadbw", _ -> Ok (Instruction.mk Opcode.Psadbw 32 s.Surface.ops)
+    | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
+    | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     (* Packed bitwise-logical family (GEN-05): {!Opcode.Xorpd}'s siblings, all matched the same
        fixed-mnemonic way. *)
     | "andps", _ -> Ok (Instruction.mk Opcode.Andps 32 s.Surface.ops)
@@ -2874,6 +2911,8 @@ module Make (M : MODE) = struct
     | "vpavgb", _ -> Ok (Instruction.mk Opcode.Vpavgb 32 s.Surface.ops)
     | "vpavgw", _ -> Ok (Instruction.mk Opcode.Vpavgw 32 s.Surface.ops)
     | "vpsadbw", _ -> Ok (Instruction.mk Opcode.Vpsadbw 32 s.Surface.ops)
+    | "vmovdqa", _ -> Ok (Instruction.mk Opcode.Vmovdqa 32 s.Surface.ops)
+    | "vmovdqu", _ -> Ok (Instruction.mk Opcode.Vmovdqu 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -3568,6 +3607,23 @@ module Make (M : MODE) = struct
             Ok
               [ Lowered.Sse_mov_r_rm { op = i.Instruction.op; reg; rm = Rm.Mem (mem_of_symbol e) } ]
         )
+    (* [movdqa]/[movdqu] (GEN-05): {!Opcode.Movdqa}'s own doc comment - unlike [movsd]/[movss],
+       register-register is real and unambiguous here (confirmed against real GNU as: the
+       low-numbered [0x6F] load opcode is what GAS emits for [movdqa %xmmN, %xmmM]), so this adds
+       the [Reg; Reg] arm {!Sse_mov_r_rm} otherwise never receives. *)
+    | (Opcode.Movdqa | Opcode.Movdqu), [ Operand.Reg src; Operand.Reg reg ] -> (
+        match (xmm_ok src, xmm_ok reg) with
+        | Ok (), Ok () ->
+            Ok [ Lowered.Sse_mov_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src } ]
+        | Error e, _ | _, Error e -> Error e)
+    | (Opcode.Movdqa | Opcode.Movdqu), [ Operand.Mem m; Operand.Reg reg ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () -> Ok [ Lowered.Sse_mov_r_rm { op = i.Instruction.op; reg; rm = Rm.Mem m } ])
+    | (Opcode.Movdqa | Opcode.Movdqu), [ Operand.Reg reg; Operand.Mem m ] -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () -> Ok [ Lowered.Sse_mov_rm_r { op = i.Instruction.op; rm = Rm.Mem m; reg } ])
     (* [xorpd __negd_mask, %xmmN] (M5, asm/docs/corpus.md): ccomp's own
        sign-flip idiom for float negation/`fabs`, reading a sign-mask
        constant from a bare symbol - the identical bare-symbol-source
@@ -3754,7 +3810,7 @@ module Make (M : MODE) = struct
        [vvvv]-carried [src1] at all - {!Lowered.Vex_unop_r_rm} rather than {!Vex_binop_rr_rm}. *)
     | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
         | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss
-        | Opcode.Vcvtps2pd | Opcode.Vcvtpd2ps ),
+        | Opcode.Vcvtps2pd | Opcode.Vcvtpd2ps | Opcode.Vmovdqa | Opcode.Vmovdqu ),
         [ Operand.Reg src; Operand.Reg dst ] ) -> (
         match (xmm_ok src, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -3767,7 +3823,7 @@ module Make (M : MODE) = struct
        below - {!Opcode.Vcvtps2pd} has no such ambiguity and is included in both. *)
     | ( ( Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
         | Opcode.Vmovupd | Opcode.Vcomisd | Opcode.Vucomisd | Opcode.Vcomiss | Opcode.Vucomiss
-        | Opcode.Vcvtps2pd ),
+        | Opcode.Vcvtps2pd | Opcode.Vmovdqa | Opcode.Vmovdqu ),
         [ Operand.Mem m; Operand.Reg dst ] ) -> (
         match xmm_ok dst with
         | Ok () -> (
@@ -4921,7 +4977,15 @@ module Make (M : MODE) = struct
           (Opcode.Vcomisd, 0x2FL);
           (Opcode.Vucomisd, 0x2EL);
           (Opcode.Vcvtpd2ps, 0x5AL);
+          (Opcode.Vmovdqa, 0x6FL);
         ]
+      (C.field ~width:8 "opcode")
+
+  (* [pp = 2] (mandatory [F3]) - {!Vmovdqu}'s own group, the first {!Lowered.Vex_unop_r_rm}
+     mnemonic needing a mandatory-[F3] table. *)
+  let vex_unop_f3_codec =
+    C.iso_table ~name:"vex-unop-f3-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Vmovdqu, 0x6FL) ]
       (C.field ~width:8 "opcode")
 
   (* {!vex_scalar_rrr_alt}'s two-operand sibling for {!Lowered.Vex_unop_r_rm}: no [vvvv]
@@ -6059,6 +6123,20 @@ module Make (M : MODE) = struct
             ~opcode_codec:vex_unop_imm_66_codec;
           vex_movd_r_alt ~label:"vex-movd-load-r-rm" ~priority:86;
           vex_movd_rm_alt ~label:"vex-movd-store-r-rm" ~priority:87;
+          (* [movdqa]/[movdqu] (GEN-05): {!Opcode.Movdqa}'s own doc comment - reusing
+             {!sse_mov_r_rm_alt}/{!sse_mov_rm_r_alt} unchanged, just a new mandatory-prefix/
+             opcode16 pair each, the same way [movsd]/[movss] load/store above do. *)
+          sse_mov_r_rm_alt ~label:"movdqa-load" ~priority:88 ~mandatory:0x66 ~op:Opcode.Movdqa
+            ~opcode16:0x0F6FL;
+          sse_mov_r_rm_alt ~label:"movdqu-load" ~priority:89 ~mandatory:0xF3 ~op:Opcode.Movdqu
+            ~opcode16:0x0F6FL;
+          sse_mov_rm_r_alt ~label:"movdqa-store" ~priority:90 ~mandatory:0x66 ~op:Opcode.Movdqa
+            ~opcode16:0x0F7FL;
+          sse_mov_rm_r_alt ~label:"movdqu-store" ~priority:91 ~mandatory:0xF3 ~op:Opcode.Movdqu
+            ~opcode16:0x0F7FL;
+          (* [vmovdqu] (GEN-05): {!Opcode.Vmovdqu}'s own doc comment - the first mandatory-[F3]
+             {!vex_unop_alt} group. *)
+          vex_unop_alt ~label:"vex-unop-f3" ~priority:92 ~pp:2 ~opcode_codec:vex_unop_f3_codec;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)

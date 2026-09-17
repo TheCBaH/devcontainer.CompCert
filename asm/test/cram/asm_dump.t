@@ -245,6 +245,11 @@
     [85 cost=0] movd-store-r-rm  movd-store-r-rm(){no-asz 01100110 no-rex 0000111101111110 modrm}
     [86 cost=0] vex-movd-load-r-rm vex-movd-load-r-rm(){11000101 vex-byte2:8u 01101110 modrm}
     [87 cost=0] vex-movd-store-r-rm vex-movd-store-r-rm(){11000101 vex-byte2:8u 01111110 modrm}
+    [88 cost=0] movdqa-load      movdqa-load(){no-asz 01100110 no-rex 0000111101101111 modrm}
+    [89 cost=0] movdqu-load      movdqu-load(){no-asz 11110011 no-rex 0000111101101111 modrm}
+    [90 cost=0] movdqa-store     movdqa-store(){no-asz 01100110 no-rex 0000111101111111 modrm}
+    [91 cost=0] movdqu-store     movdqu-store(){no-asz 11110011 no-rex 0000111101111111 modrm}
+    [92 cost=0] vex-unop-f3      vex-unop-f3(){11000101 vex-byte2:8u vex-unop-f3-op modrm}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -276,7 +281,7 @@
   vex-scalar-none-op[12]{opcode:8u}
   vex-scalar-66-op[44]{opcode:8u}
   vex-unop-none-op[6]{opcode:8u}
-  vex-unop-66-op[6]{opcode:8u}
+  vex-unop-66-op[7]{opcode:8u}
   sse-binop-imm-f2-op[2]{opcode:8u}
   sse-binop-imm-f3-op[2]{opcode:8u}
   sse-binop-imm-66-op[3]{opcode:8u}
@@ -288,6 +293,7 @@
   vex-unop-imm-f2-op[1]{opcode:8u}
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
+  vex-unop-f3-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -539,6 +545,11 @@
     [85 cost=0] movd-store-r-rm  movd-store-r-rm(){asz 01100110 rex 0000111101111110 modrm}
     [86 cost=0] vex-movd-load-r-rm vex-movd-load-r-rm(){11000101 vex-byte2:8u 01101110 modrm}
     [87 cost=0] vex-movd-store-r-rm vex-movd-store-r-rm(){11000101 vex-byte2:8u 01111110 modrm}
+    [88 cost=0] movdqa-load      movdqa-load(){asz 01100110 rex 0000111101101111 modrm}
+    [89 cost=0] movdqu-load      movdqu-load(){asz 11110011 rex 0000111101101111 modrm}
+    [90 cost=0] movdqa-store     movdqa-store(){asz 01100110 rex 0000111101111111 modrm}
+    [91 cost=0] movdqu-store     movdqu-store(){asz 11110011 rex 0000111101111111 modrm}
+    [92 cost=0] vex-unop-f3      vex-unop-f3(){11000101 vex-byte2:8u vex-unop-f3-op modrm}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -573,7 +584,7 @@
   vex-scalar-none-op[12]{opcode:8u}
   vex-scalar-66-op[44]{opcode:8u}
   vex-unop-none-op[6]{opcode:8u}
-  vex-unop-66-op[6]{opcode:8u}
+  vex-unop-66-op[7]{opcode:8u}
   sse-binop-imm-f2-op[2]{opcode:8u}
   sse-binop-imm-f3-op[2]{opcode:8u}
   sse-binop-imm-66-op[3]{opcode:8u}
@@ -585,6 +596,7 @@
   vex-unop-imm-f2-op[1]{opcode:8u}
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
+  vex-unop-f3-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}

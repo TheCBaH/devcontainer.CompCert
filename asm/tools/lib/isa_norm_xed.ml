@@ -3336,6 +3336,26 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PAVGW_XMMdq_MEMdq" ~mnemonic:"pavgw" rec_
   | Ok { iform = Some "PSADBW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PSADBW_XMMdq_MEMdq" ~mnemonic:"psadbw" rec_
+  (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
+     ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
+     the register-register form (a plain move's REG0 rw="w" is handled generically by
+     {!xmm_binop_rr_form}'s own [role_of_rw], the same way it already handles a real binop's
+     rw="rw"). The redundant register-register iform via the store opcode
+     (MOVDQA_XMMdq_XMMdq_0F7F) is deliberately not admitted, matching the "low-numbered iform"
+     convention this project applies elsewhere. MOVDQA is XED extension SSE2; MOVDQU is SSE2 too
+     (mandatory-F3 rather than mandatory-66). *)
+  | Ok { iform = Some "MOVDQA_XMMdq_XMMdq_0F6F"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVDQA_XMMdq_XMMdq_0F6F" ~mnemonic:"movdqa" rec_
+  | Ok { iform = Some "MOVDQA_XMMdq_MEMdq"; _ } ->
+      xmm_mov_form ~form_id:"MOVDQA_XMMdq_MEMdq" ~mnemonic:"movdqa" ~load:true rec_
+  | Ok { iform = Some "MOVDQA_MEMdq_XMMdq"; _ } ->
+      xmm_mov_form ~form_id:"MOVDQA_MEMdq_XMMdq" ~mnemonic:"movdqa" ~load:false rec_
+  | Ok { iform = Some "MOVDQU_XMMdq_XMMdq_0F6F"; _ } ->
+      xmm_binop_rr_form ~form_id:"MOVDQU_XMMdq_XMMdq_0F6F" ~mnemonic:"movdqu" rec_
+  | Ok { iform = Some "MOVDQU_XMMdq_MEMdq"; _ } ->
+      xmm_mov_form ~form_id:"MOVDQU_XMMdq_MEMdq" ~mnemonic:"movdqu" ~load:true rec_
+  | Ok { iform = Some "MOVDQU_MEMdq_XMMdq"; _ } ->
+      xmm_mov_form ~form_id:"MOVDQU_MEMdq_XMMdq" ~mnemonic:"movdqu" ~load:false rec_
   (* SHUFPS/SHUFPD (GEN-05, {!xmm_binop_imm_rr_form}'s own doc comment): the first
      XMM-immediate-carrying legacy shape. SHUFPS is XED extension SSE; SHUFPD is SSE2. *)
   | Ok { iform = Some "SHUFPS_XMMps_XMMps_IMMb"; _ } ->
@@ -3676,6 +3696,20 @@ let normalize (rec_ : R.t) =
       vex_binop_rr_mem_form ~form_id:"VPAVGW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpavgw" rec_
   | Ok { iform = Some "VPSADBW_XMMdq_XMMdq_MEMdq"; _ } ->
       vex_binop_rr_mem_form ~form_id:"VPSADBW_XMMdq_XMMdq_MEMdq" ~mnemonic:"vpsadbw" rec_
+  (* {!Opcode.Vmovdqa}'s own doc comment (GEN-05): the VEX sibling of the legacy
+     MOVDQA/MOVDQU family, reusing {!vex_unop_rr_form}/{!vex_unop_rr_mem_form} unchanged - load
+     direction only (register-register and register<-memory), matching {!Vmovaps}'s own scope.
+     Only the [VL=0] (128-bit/XMM) iforms; the [VL=1] (256-bit/YMM) siblings and the redundant
+     register-register iform via the store opcode (_7F) are out of scope, matching every prior
+     VEX slice's own 128-bit-only precedent. *)
+  | Ok { iform = Some "VMOVDQA_XMMdq_XMMdq_6F"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVDQA_XMMdq_XMMdq_6F" ~mnemonic:"vmovdqa" rec_
+  | Ok { iform = Some "VMOVDQA_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVDQA_XMMdq_MEMdq" ~mnemonic:"vmovdqa" rec_
+  | Ok { iform = Some "VMOVDQU_XMMdq_XMMdq_6F"; _ } ->
+      vex_unop_rr_form ~form_id:"VMOVDQU_XMMdq_XMMdq_6F" ~mnemonic:"vmovdqu" rec_
+  | Ok { iform = Some "VMOVDQU_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVDQU_XMMdq_MEMdq" ~mnemonic:"vmovdqu" rec_
   (* {!Vaddsd}/{!Vandps}'s min/max siblings (GEN-05): the VEX counterpart of the legacy
      MAXSD/MINSD/MAXSS/MINSS/MAXPS/MINPS/MAXPD/MINPD family (opcodes 0x5F/0x5D instead of
      0x54-0x57/0x58/0x59/0x5C/0x5E), same two [vex_binop_*_form] shapes. Confirmed against

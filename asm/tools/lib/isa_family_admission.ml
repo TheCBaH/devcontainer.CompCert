@@ -377,6 +377,12 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PAVGW_XMMdq_MEMdq" | "PSADBW_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:MOVDQA_XMMdq_XMMdq_0F6F" | "x86:MOVDQU_XMMdq_XMMdq_0F6F" | "x86:MOVDQA_XMMdq_MEMdq"
+      | "x86:MOVDQU_XMMdq_MEMdq" | "x86:MOVDQA_MEMdq_XMMdq" | "x86:MOVDQU_MEMdq_XMMdq" ),
+      ( "MOVDQA_XMMdq_XMMdq_0F6F" | "MOVDQU_XMMdq_XMMdq_0F6F" | "MOVDQA_XMMdq_MEMdq"
+      | "MOVDQU_XMMdq_MEMdq" | "MOVDQA_MEMdq_XMMdq" | "MOVDQU_MEMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ("x86:SHUFPS_XMMps_XMMps_IMMb" | "x86:SHUFPD_XMMpd_XMMpd_IMMb"),
       ("SHUFPS_XMMps_XMMps_IMMb" | "SHUFPD_XMMpd_XMMpd_IMMb") ) ->
       true
@@ -622,6 +628,12 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "x86:VPAVGW_XMMdq_XMMdq_MEMdq" | "x86:VPSADBW_XMMdq_XMMdq_MEMdq" ),
       ( "VPMULLW_XMMdq_XMMdq_MEMdq" | "VPMULHW_XMMdq_XMMdq_MEMdq" | "VPMULHUW_XMMdq_XMMdq_MEMdq"
       | "VPAVGB_XMMdq_XMMdq_MEMdq" | "VPAVGW_XMMdq_XMMdq_MEMdq" | "VPSADBW_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VMOVDQA_XMMdq_XMMdq_6F" | "x86:VMOVDQU_XMMdq_XMMdq_6F" | "x86:VMOVDQA_XMMdq_MEMdq"
+      | "x86:VMOVDQU_XMMdq_MEMdq" ),
+      ( "VMOVDQA_XMMdq_XMMdq_6F" | "VMOVDQU_XMMdq_XMMdq_6F" | "VMOVDQA_XMMdq_MEMdq"
+      | "VMOVDQU_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ("x86:VSHUFPS_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VSHUFPD_XMMdq_XMMdq_XMMdq_IMMb"),

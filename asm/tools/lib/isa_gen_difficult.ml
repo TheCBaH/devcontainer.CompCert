@@ -613,6 +613,8 @@ let x86_sse_binop_rr_entries =
           "PMAXUB_XMMdq_XMMdq";
           "PMINSW_XMMdq_XMMdq";
           "PMAXSW_XMMdq_XMMdq";
+          "MOVDQA_XMMdq_XMMdq_0F6F";
+          "MOVDQU_XMMdq_XMMdq_0F6F";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -828,6 +830,14 @@ let x86_sse_mov_entries =
         x86_sse_mov_entry ~target ~form_id:"x86:MOVSS_XMMdq_MEMss" ~lookup_key:"MOVSS_XMMdq_MEMss"
           ~load:true;
         x86_sse_mov_entry ~target ~form_id:"x86:MOVSS_MEMss_XMMss" ~lookup_key:"MOVSS_MEMss_XMMss"
+          ~load:false;
+        x86_sse_mov_entry ~target ~form_id:"x86:MOVDQA_XMMdq_MEMdq" ~lookup_key:"MOVDQA_XMMdq_MEMdq"
+          ~load:true;
+        x86_sse_mov_entry ~target ~form_id:"x86:MOVDQA_MEMdq_XMMdq" ~lookup_key:"MOVDQA_MEMdq_XMMdq"
+          ~load:false;
+        x86_sse_mov_entry ~target ~form_id:"x86:MOVDQU_XMMdq_MEMdq" ~lookup_key:"MOVDQU_XMMdq_MEMdq"
+          ~load:true;
+        x86_sse_mov_entry ~target ~form_id:"x86:MOVDQU_MEMdq_XMMdq" ~lookup_key:"MOVDQU_MEMdq_XMMdq"
           ~load:false;
       ])
     [ Target.X86_32; Target.X86_64 ]
@@ -1120,6 +1130,8 @@ let x86_vex_unop_rr_entries =
           "VUCOMISS_XMMdq_XMMd";
           "VCVTPS2PD_XMMdq_XMMq";
           "VCVTPD2PS_XMMdq_XMMdq";
+          "VMOVDQA_XMMdq_XMMdq_6F";
+          "VMOVDQU_XMMdq_XMMdq_6F";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1158,6 +1170,8 @@ let x86_vex_unop_rr_mem_entries =
           "VCOMISS_XMMd_MEMd";
           "VUCOMISS_XMMdq_MEMd";
           "VCVTPS2PD_XMMdq_MEMq";
+          "VMOVDQA_XMMdq_MEMdq";
+          "VMOVDQU_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
