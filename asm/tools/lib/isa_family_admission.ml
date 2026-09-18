@@ -437,6 +437,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("PSLLDQ_XMMdq_IMMb" | "PSRLDQ_XMMdq_IMMb") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:PSHUFB_XMMdq_XMMdq" | "x86:PSHUFB_XMMdq_MEMdq"),
+      ("PSHUFB_XMMdq_XMMdq" | "PSHUFB_XMMdq_MEMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:MOVDQA_XMMdq_XMMdq_0F6F" | "x86:MOVDQU_XMMdq_XMMdq_0F6F" | "x86:MOVDQA_XMMdq_MEMdq"
       | "x86:MOVDQU_XMMdq_MEMdq" | "x86:MOVDQA_MEMdq_XMMdq" | "x86:MOVDQU_MEMdq_XMMdq" ),
       ( "MOVDQA_XMMdq_XMMdq_0F6F" | "MOVDQU_XMMdq_XMMdq_0F6F" | "MOVDQA_XMMdq_MEMdq"

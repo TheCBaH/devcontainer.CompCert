@@ -638,6 +638,7 @@ let x86_sse_binop_rr_entries =
           "PSRLQ_XMMdq_XMMdq";
           "PSRAW_XMMdq_XMMdq";
           "PSRAD_XMMdq_XMMdq";
+          "PSHUFB_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -767,6 +768,7 @@ let x86_sse_binop_rm_entries =
           "PSRLQ_XMMdq_MEMdq";
           "PSRAW_XMMdq_MEMdq";
           "PSRAD_XMMdq_MEMdq";
+          "PSHUFB_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

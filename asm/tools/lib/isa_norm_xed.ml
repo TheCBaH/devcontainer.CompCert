@@ -4155,6 +4155,13 @@ let normalize (rec_ : R.t) =
       xmm_shift_imm_form ~form_id:"PSLLDQ_XMMdq_IMMb" ~mnemonic:"pslldq" rec_
   | Ok { iform = Some "PSRLDQ_XMMdq_IMMb"; _ } ->
       xmm_shift_imm_form ~form_id:"PSRLDQ_XMMdq_IMMb" ~mnemonic:"psrldq" rec_
+  (* {!Opcode.Pshufb}'s own doc comment (GEN-05): opcode map 2, but the same plain mandatory-66
+     [reg, rm] binop shape as every {!xmm_binop_rr_form}/{!xmm_binop_rm_form} member above - the
+     map distinction lives entirely in the encoder's own codec, not in this normalized shape. *)
+  | Ok { iform = Some "PSHUFB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PSHUFB_XMMdq_XMMdq" ~mnemonic:"pshufb" rec_
+  | Ok { iform = Some "PSHUFB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PSHUFB_XMMdq_MEMdq" ~mnemonic:"pshufb" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
