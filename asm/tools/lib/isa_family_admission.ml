@@ -503,6 +503,20 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PMULDQ_XMMdq_MEMdq" | "PMULLD_XMMdq_MEMdq" | "PHMINPOSUW_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:BLENDPS_XMMdq_XMMdq_IMMb" | "x86:BLENDPD_XMMdq_XMMdq_IMMb"
+      | "x86:DPPS_XMMdq_XMMdq_IMMb" | "x86:DPPD_XMMdq_XMMdq_IMMb" | "x86:MPSADBW_XMMdq_XMMdq_IMMb"
+      | "x86:PBLENDW_XMMdq_XMMdq_IMMb" ),
+      ( "BLENDPS_XMMdq_XMMdq_IMMb" | "BLENDPD_XMMdq_XMMdq_IMMb" | "DPPS_XMMdq_XMMdq_IMMb"
+      | "DPPD_XMMdq_XMMdq_IMMb" | "MPSADBW_XMMdq_XMMdq_IMMb" | "PBLENDW_XMMdq_XMMdq_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:BLENDPS_XMMdq_MEMdq_IMMb" | "x86:BLENDPD_XMMdq_MEMdq_IMMb"
+      | "x86:DPPS_XMMdq_MEMdq_IMMb" | "x86:DPPD_XMMdq_MEMdq_IMMb" | "x86:MPSADBW_XMMdq_MEMdq_IMMb"
+      | "x86:PBLENDW_XMMdq_MEMdq_IMMb" ),
+      ( "BLENDPS_XMMdq_MEMdq_IMMb" | "BLENDPD_XMMdq_MEMdq_IMMb" | "DPPS_XMMdq_MEMdq_IMMb"
+      | "DPPD_XMMdq_MEMdq_IMMb" | "MPSADBW_XMMdq_MEMdq_IMMb" | "PBLENDW_XMMdq_MEMdq_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PHADDW_XMMdq_MEMdq" | "x86:PHADDD_XMMdq_MEMdq" | "x86:PHSUBW_XMMdq_MEMdq"
       | "x86:PHSUBD_XMMdq_MEMdq" | "x86:PSIGNB_XMMdq_MEMdq" | "x86:PSIGNW_XMMdq_MEMdq"
       | "x86:PSIGND_XMMdq_MEMdq" | "x86:PMADDUBSW_XMMdq_MEMdq" | "x86:PMULHRSW_XMMdq_MEMdq" ),

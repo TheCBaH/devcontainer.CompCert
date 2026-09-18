@@ -649,6 +649,29 @@ module Opcode = struct
             the same fact {!Pabsb}'s own doc comment already established. Confirmed against real
             GNU as: [phminposuw %xmm2,%xmm1] -> [66 0f 38 41 ca],
             [phminposuw 0x10(%esp),%xmm1] -> [66 0f 38 41 4c 24 10]. *)
+    | Blendps
+        (** [blendps $imm8, rm, reg] - packed blend, single precision, per-dword mask selected by
+            [imm8] ([66 0F 3A 0C /r ib], SSE4.1, GEN-05): {!Palignr}'s own map-3 group at a
+            different opcode byte, same {!Lowered.Sse_binop_imm_r_rm}/{!sse_binop_imm_0f3a_alt}
+            shape unchanged. Confirmed against real GNU as: [blendps $5,%xmm2,%xmm1] ->
+            [66 0f 3a 0c ca 05], [blendps $5,0x10(%esp),%xmm1] -> [66 0f 3a 0c 4c 24 10 05]. *)
+    | Blendpd
+        (** [blendpd $imm8, rm, reg] - packed blend, double precision ([66 0F 3A 0D /r ib]),
+            {!Blendps}'s sibling. *)
+    | Dpps
+        (** [dpps $imm8, rm, reg] - packed dot product, single precision, with a broadcast/write
+            mask selected by [imm8] ([66 0F 3A 40 /r ib]), {!Blendps}'s own group at a different
+            opcode byte. *)
+    | Dppd
+        (** [dppd $imm8, rm, reg] - packed dot product, double precision ([66 0F 3A 41 /r ib]),
+            {!Dpps}'s sibling. *)
+    | Mpsadbw
+        (** [mpsadbw $imm8, rm, reg] - multiple packed sums of absolute differences, byte lanes,
+            with [imm8] selecting the comparison offsets ([66 0F 3A 42 /r ib]), {!Blendps}'s own
+            group at a different opcode byte. *)
+    | Pblendw
+        (** [pblendw $imm8, rm, reg] - packed blend, word lanes ([66 0F 3A 0E /r ib]),
+            {!Blendps}'s sibling. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1435,6 +1458,12 @@ module Opcode = struct
     | Pmuldq -> "pmuldq"
     | Pmulld -> "pmulld"
     | Phminposuw -> "phminposuw"
+    | Blendps -> "blendps"
+    | Blendpd -> "blendpd"
+    | Dpps -> "dpps"
+    | Dppd -> "dppd"
+    | Mpsadbw -> "mpsadbw"
+    | Pblendw -> "pblendw"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3272,6 +3301,12 @@ module Make (M : MODE) = struct
     | "pmuldq", _ -> Ok (Instruction.mk Opcode.Pmuldq 32 s.Surface.ops)
     | "pmulld", _ -> Ok (Instruction.mk Opcode.Pmulld 32 s.Surface.ops)
     | "phminposuw", _ -> Ok (Instruction.mk Opcode.Phminposuw 32 s.Surface.ops)
+    | "blendps", _ -> Ok (Instruction.mk Opcode.Blendps 32 s.Surface.ops)
+    | "blendpd", _ -> Ok (Instruction.mk Opcode.Blendpd 32 s.Surface.ops)
+    | "dpps", _ -> Ok (Instruction.mk Opcode.Dpps 32 s.Surface.ops)
+    | "dppd", _ -> Ok (Instruction.mk Opcode.Dppd 32 s.Surface.ops)
+    | "mpsadbw", _ -> Ok (Instruction.mk Opcode.Mpsadbw 32 s.Surface.ops)
+    | "pblendw", _ -> Ok (Instruction.mk Opcode.Pblendw 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -4005,7 +4040,8 @@ module Make (M : MODE) = struct
        whose immediate comes first. *)
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
         | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr | Opcode.Roundps
-        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd ),
+        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd | Opcode.Blendps | Opcode.Blendpd
+        | Opcode.Dpps | Opcode.Dppd | Opcode.Mpsadbw | Opcode.Pblendw ),
         [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -4019,7 +4055,8 @@ module Make (M : MODE) = struct
             | Error e, _ | _, Error e -> Error e))
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
         | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr | Opcode.Roundps
-        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd ),
+        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd | Opcode.Blendps | Opcode.Blendpd
+        | Opcode.Dpps | Opcode.Dppd | Opcode.Mpsadbw | Opcode.Pblendw ),
         [ Operand.Imm v; Operand.Mem m; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -5562,6 +5599,12 @@ module Make (M : MODE) = struct
           (Opcode.Roundpd, 0x09L);
           (Opcode.Roundss, 0x0AL);
           (Opcode.Roundsd, 0x0BL);
+          (Opcode.Blendps, 0x0CL);
+          (Opcode.Blendpd, 0x0DL);
+          (Opcode.Pblendw, 0x0EL);
+          (Opcode.Dpps, 0x40L);
+          (Opcode.Dppd, 0x41L);
+          (Opcode.Mpsadbw, 0x42L);
         ]
       (C.field ~width:8 "opcode")
 

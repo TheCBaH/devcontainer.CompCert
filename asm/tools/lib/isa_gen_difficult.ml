@@ -868,6 +868,12 @@ let x86_sse_binop_imm_rr_entries =
           ("ROUNDPD_XMMpd_XMMpd_IMMb", "5");
           ("ROUNDSS_XMMd_XMMd_IMMb", "5");
           ("ROUNDSD_XMMq_XMMq_IMMb", "5");
+          ("BLENDPS_XMMdq_XMMdq_IMMb", "5");
+          ("BLENDPD_XMMdq_XMMdq_IMMb", "5");
+          ("DPPS_XMMdq_XMMdq_IMMb", "5");
+          ("DPPD_XMMdq_XMMdq_IMMb", "5");
+          ("MPSADBW_XMMdq_XMMdq_IMMb", "5");
+          ("PBLENDW_XMMdq_XMMdq_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -908,6 +914,12 @@ let x86_sse_binop_imm_rm_entries =
           ("ROUNDPD_XMMpd_MEMpd_IMMb", "5");
           ("ROUNDSS_XMMd_MEMd_IMMb", "5");
           ("ROUNDSD_XMMq_MEMq_IMMb", "5");
+          ("BLENDPS_XMMdq_MEMdq_IMMb", "5");
+          ("BLENDPD_XMMdq_MEMdq_IMMb", "5");
+          ("DPPS_XMMdq_MEMdq_IMMb", "5");
+          ("DPPD_XMMdq_MEMdq_IMMb", "5");
+          ("MPSADBW_XMMdq_MEMdq_IMMb", "5");
+          ("PBLENDW_XMMdq_MEMdq_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 

@@ -4302,6 +4302,31 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PMULLD_XMMdq_MEMdq" ~mnemonic:"pmulld" rec_
   | Ok { iform = Some "PHMINPOSUW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PHMINPOSUW_XMMdq_MEMdq" ~mnemonic:"phminposuw" rec_
+  (* {!Opcode.Blendps}'s own doc comment (GEN-05): {!Palignr}'s own map-3 group, same shape. *)
+  | Ok { iform = Some "BLENDPS_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"BLENDPS_XMMdq_XMMdq_IMMb" ~mnemonic:"blendps" rec_
+  | Ok { iform = Some "BLENDPD_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"BLENDPD_XMMdq_XMMdq_IMMb" ~mnemonic:"blendpd" rec_
+  | Ok { iform = Some "DPPS_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"DPPS_XMMdq_XMMdq_IMMb" ~mnemonic:"dpps" rec_
+  | Ok { iform = Some "DPPD_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"DPPD_XMMdq_XMMdq_IMMb" ~mnemonic:"dppd" rec_
+  | Ok { iform = Some "MPSADBW_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"MPSADBW_XMMdq_XMMdq_IMMb" ~mnemonic:"mpsadbw" rec_
+  | Ok { iform = Some "PBLENDW_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"PBLENDW_XMMdq_XMMdq_IMMb" ~mnemonic:"pblendw" rec_
+  | Ok { iform = Some "BLENDPS_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"BLENDPS_XMMdq_MEMdq_IMMb" ~mnemonic:"blendps" rec_
+  | Ok { iform = Some "BLENDPD_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"BLENDPD_XMMdq_MEMdq_IMMb" ~mnemonic:"blendpd" rec_
+  | Ok { iform = Some "DPPS_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"DPPS_XMMdq_MEMdq_IMMb" ~mnemonic:"dpps" rec_
+  | Ok { iform = Some "DPPD_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"DPPD_XMMdq_MEMdq_IMMb" ~mnemonic:"dppd" rec_
+  | Ok { iform = Some "MPSADBW_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"MPSADBW_XMMdq_MEMdq_IMMb" ~mnemonic:"mpsadbw" rec_
+  | Ok { iform = Some "PBLENDW_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"PBLENDW_XMMdq_MEMdq_IMMb" ~mnemonic:"pblendw" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
