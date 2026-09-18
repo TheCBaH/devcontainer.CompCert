@@ -4228,6 +4228,23 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rr_form ~form_id:"PALIGNR_XMMdq_XMMdq_IMMb" ~mnemonic:"palignr" rec_
   | Ok { iform = Some "PALIGNR_XMMdq_MEMdq_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"PALIGNR_XMMdq_MEMdq_IMMb" ~mnemonic:"palignr" rec_
+  (* {!Opcode.Roundps}'s own doc comment (GEN-05): {!Palignr}'s own map-3 group, same shape. *)
+  | Ok { iform = Some "ROUNDPS_XMMps_XMMps_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"ROUNDPS_XMMps_XMMps_IMMb" ~mnemonic:"roundps" rec_
+  | Ok { iform = Some "ROUNDPD_XMMpd_XMMpd_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"ROUNDPD_XMMpd_XMMpd_IMMb" ~mnemonic:"roundpd" rec_
+  | Ok { iform = Some "ROUNDSS_XMMd_XMMd_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"ROUNDSS_XMMd_XMMd_IMMb" ~mnemonic:"roundss" rec_
+  | Ok { iform = Some "ROUNDSD_XMMq_XMMq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"ROUNDSD_XMMq_XMMq_IMMb" ~mnemonic:"roundsd" rec_
+  | Ok { iform = Some "ROUNDPS_XMMps_MEMps_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"ROUNDPS_XMMps_MEMps_IMMb" ~mnemonic:"roundps" rec_
+  | Ok { iform = Some "ROUNDPD_XMMpd_MEMpd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"ROUNDPD_XMMpd_MEMpd_IMMb" ~mnemonic:"roundpd" rec_
+  | Ok { iform = Some "ROUNDSS_XMMd_MEMd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"ROUNDSS_XMMd_MEMd_IMMb" ~mnemonic:"roundss" rec_
+  | Ok { iform = Some "ROUNDSD_XMMq_MEMq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"ROUNDSD_XMMq_MEMq_IMMb" ~mnemonic:"roundsd" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by

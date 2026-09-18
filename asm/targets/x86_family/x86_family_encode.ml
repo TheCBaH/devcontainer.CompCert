@@ -581,6 +581,25 @@ module Opcode = struct
             counterpart of {!Pshufb}'s own map-2 {!sse_binop_0f38_alt}. Confirmed against real GNU
             as: [palignr $5,%xmm2,%xmm1] -> [66 0f 3a 0f ca 05],
             [palignr $5,0x10(%esp),%xmm1] -> [66 0f 3a 0f 4c 24 10 05]. *)
+    | Roundps
+        (** [roundps $imm8, rm, reg] - packed round to integer, single precision, with an
+            explicit rounding-mode/exception-suppression control ([66 0F 3A 08 /r ib], SSE4.1,
+            GEN-05): {!Palignr}'s own map-3 group at a different opcode byte, same
+            {!Lowered.Sse_binop_imm_r_rm} shape unchanged. Confirmed against real GNU as:
+            [roundps $5,%xmm2,%xmm1] -> [66 0f 3a 08 ca 05],
+            [roundps $5,0x10(%esp),%xmm1] -> [66 0f 3a 08 4c 24 10 05]. *)
+    | Roundpd
+        (** [roundpd $imm8, rm, reg] - packed round to integer, double precision
+            ([66 0F 3A 09 /r ib]), {!Roundps}'s sibling. *)
+    | Roundss
+        (** [roundss $imm8, rm, reg] - scalar round to integer, single precision
+            ([66 0F 3A 0A /r ib]); REG0's XED [rw="rw"] (unlike {!Roundps}'s [rw="w"], since the
+            scalar form leaves the destination's upper lanes untouched) still fits the same
+            unchanged shape - dataflow direction is a normalization-layer fact, not an
+            encoder-layer one, the same fact {!Pabsb}'s own doc comment already established. *)
+    | Roundsd
+        (** [roundsd $imm8, rm, reg] - scalar round to integer, double precision
+            ([66 0F 3A 0B /r ib]), {!Roundss}'s sibling. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1349,6 +1368,10 @@ module Opcode = struct
     | Pabsw -> "pabsw"
     | Pabsd -> "pabsd"
     | Palignr -> "palignr"
+    | Roundps -> "roundps"
+    | Roundpd -> "roundpd"
+    | Roundss -> "roundss"
+    | Roundsd -> "roundsd"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3168,6 +3191,10 @@ module Make (M : MODE) = struct
     | "pabsw", _ -> Ok (Instruction.mk Opcode.Pabsw 32 s.Surface.ops)
     | "pabsd", _ -> Ok (Instruction.mk Opcode.Pabsd 32 s.Surface.ops)
     | "palignr", _ -> Ok (Instruction.mk Opcode.Palignr 32 s.Surface.ops)
+    | "roundps", _ -> Ok (Instruction.mk Opcode.Roundps 32 s.Surface.ops)
+    | "roundpd", _ -> Ok (Instruction.mk Opcode.Roundpd 32 s.Surface.ops)
+    | "roundss", _ -> Ok (Instruction.mk Opcode.Roundss 32 s.Surface.ops)
+    | "roundsd", _ -> Ok (Instruction.mk Opcode.Roundsd 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -3900,7 +3927,8 @@ module Make (M : MODE) = struct
        [imm, rm, reg] - GAS's [parse_one_operand] builds the same order for any instruction
        whose immediate comes first. *)
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
-        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr ),
+        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr | Opcode.Roundps
+        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd ),
         [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -3913,7 +3941,8 @@ module Make (M : MODE) = struct
                   ]
             | Error e, _ | _, Error e -> Error e))
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
-        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr ),
+        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr | Opcode.Roundps
+        | Opcode.Roundpd | Opcode.Roundss | Opcode.Roundsd ),
         [ Operand.Imm v; Operand.Mem m; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -5429,7 +5458,14 @@ module Make (M : MODE) = struct
      table since {!Palignr} is this map's only admitted mnemonic. *)
   let sse_binop_imm_0f3a_codec =
     C.iso_table ~name:"sse-binop-imm-0f3a-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Palignr, 0x0FL) ]
+      ~entries:
+        [
+          (Opcode.Palignr, 0x0FL);
+          (Opcode.Roundps, 0x08L);
+          (Opcode.Roundpd, 0x09L);
+          (Opcode.Roundss, 0x0AL);
+          (Opcode.Roundsd, 0x0BL);
+        ]
       (C.field ~width:8 "opcode")
 
   let sse_binop_imm_0f3a_alt ~label ~priority ~mandatory ~opcode_codec =
