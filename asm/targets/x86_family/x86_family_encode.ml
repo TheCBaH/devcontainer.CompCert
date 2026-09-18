@@ -466,6 +466,36 @@ module Opcode = struct
     | Psadbw
         (** [psadbw rm, reg] - packed sum of absolute differences, byte lanes into a qword
             accumulator ([66 0F F6 /r]), {!Pavgb}'s own group at a different opcode byte. *)
+    | Psllw
+        (** [psllw rm, reg] - packed shift left logical, word lanes, register/memory shift count
+            ([66 0F F1 /r], GEN-05), {!Paddb}'s own 66-mandatory-prefix-only integer-SIMD group at
+            a different opcode byte. The separate immediate-count form ([66 0F 71 /6 ib], a
+            ModR/M.reg-as-opcode-extension "group" shape unlike every immediate-carrying form
+            admitted so far) is a distinct, not-yet-admitted shape - nothing here claims it.
+            Confirmed against real GNU as: [psllw %xmm2,%xmm1] -> [66 0f f1 ca]. *)
+    | Pslld
+        (** [pslld rm, reg] - packed shift left logical, doubleword lanes ([66 0F F2 /r]),
+            {!Psllw}'s sibling. *)
+    | Psllq
+        (** [psllq rm, reg] - packed shift left logical, quadword lanes ([66 0F F3 /r]),
+            {!Psllw}'s sibling. *)
+    | Psrlw
+        (** [psrlw rm, reg] - packed shift right logical, word lanes ([66 0F D1 /r]), {!Psllw}'s
+            own group at a different opcode byte. *)
+    | Psrld
+        (** [psrld rm, reg] - packed shift right logical, doubleword lanes ([66 0F D2 /r]),
+            {!Psrlw}'s sibling. *)
+    | Psrlq
+        (** [psrlq rm, reg] - packed shift right logical, quadword lanes ([66 0F D3 /r]),
+            {!Psrlw}'s sibling. *)
+    | Psraw
+        (** [psraw rm, reg] - packed shift right arithmetic, word lanes ([66 0F E1 /r]), {!Psllw}'s
+            own group at a different opcode byte. *)
+    | Psrad
+        (** [psrad rm, reg] - packed shift right arithmetic, doubleword lanes ([66 0F E2 /r]),
+            {!Psraw}'s sibling. There is no quadword [psraq] in legacy SSE2 - confirmed against
+            real GNU as ([no such instruction]); the quadword arithmetic shift only exists under
+            AVX-512 (EVEX-encoded), out of scope for this project. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -939,6 +969,28 @@ module Opcode = struct
     | Vpavgb  (** [vpavgb src2, src1, dst] - {!Vpmullw}'s own group ([VEX.128.66.0F.WIG E0 /r]). *)
     | Vpavgw  (** [vpavgw src2, src1, dst] - {!Vpavgb}'s sibling ([VEX.128.66.0F.WIG E3 /r]). *)
     | Vpsadbw  (** [vpsadbw src2, src1, dst] - {!Vpavgb}'s own group ([VEX.128.66.0F.WIG F6 /r]). *)
+    | Vpsllw
+        (** [vpsllw src2, src1, dst] - the VEX sibling of the legacy {!Psllw}/{!Pslld}/{!Psllq}/
+            {!Psrlw}/{!Psrld}/{!Psrlq}/{!Psraw}/{!Psrad} register/memory-count shift family
+            ([VEX.128.66.0F.WIG F1 /r]); the separate immediate-count group-opcode form remains
+            unadmitted in both arcs. Confirmed against real GNU as: [vpsllw %xmm2,%xmm1,%xmm0] ->
+            [c5 f1 f1 c2]. *)
+    | Vpslld  (** [vpslld src2, src1, dst] - {!Vpsllw}'s sibling ([VEX.128.66.0F.WIG F2 /r]). *)
+    | Vpsllq  (** [vpsllq src2, src1, dst] - {!Vpsllw}'s sibling ([VEX.128.66.0F.WIG F3 /r]). *)
+    | Vpsrlw
+        (** [vpsrlw src2, src1, dst] - {!Vpsllw}'s own group at a different opcode byte
+            ([VEX.128.66.0F.WIG D1 /r]). *)
+    | Vpsrld  (** [vpsrld src2, src1, dst] - {!Vpsrlw}'s sibling ([VEX.128.66.0F.WIG D2 /r]). *)
+    | Vpsrlq  (** [vpsrlq src2, src1, dst] - {!Vpsrlw}'s sibling ([VEX.128.66.0F.WIG D3 /r]). *)
+    | Vpsraw
+        (** [vpsraw src2, src1, dst] - {!Vpsllw}'s own group at a different opcode byte
+            ([VEX.128.66.0F.WIG E1 /r]). *)
+    | Vpsrad
+        (** [vpsrad src2, src1, dst] - {!Vpsraw}'s sibling ([VEX.128.66.0F.WIG E2 /r]). There is
+            no 2-byte-VEX [vpsraq]: confirmed against real GNU as that spelling assembles to an
+            EVEX-encoded ([62 ..]) AVX-512VL form instead, not the plain-VEX ([c5]/[c4]) shape
+            every other mnemonic here uses - out of scope, the same "no EVEX/3-byte-VEX
+            infrastructure" gap [vmovq] (VEX.W1) was already found to need. *)
     | Vmovdqa
         (** [vmovdqa rm, dst] - the VEX sibling of the legacy {!Movdqa}/{!Movdqu} family
             ([VEX.128.66.0F.WIG 6F /r], [pp = 1]), reusing {!Lowered.Vex_unop_r_rm} the same way
@@ -1178,6 +1230,14 @@ module Opcode = struct
     | Pavgb -> "pavgb"
     | Pavgw -> "pavgw"
     | Psadbw -> "psadbw"
+    | Psllw -> "psllw"
+    | Pslld -> "pslld"
+    | Psllq -> "psllq"
+    | Psrlw -> "psrlw"
+    | Psrld -> "psrld"
+    | Psrlq -> "psrlq"
+    | Psraw -> "psraw"
+    | Psrad -> "psrad"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -1326,6 +1386,14 @@ module Opcode = struct
     | Vpavgb -> "vpavgb"
     | Vpavgw -> "vpavgw"
     | Vpsadbw -> "vpsadbw"
+    | Vpsllw -> "vpsllw"
+    | Vpslld -> "vpslld"
+    | Vpsllq -> "vpsllq"
+    | Vpsrlw -> "vpsrlw"
+    | Vpsrld -> "vpsrld"
+    | Vpsrlq -> "vpsrlq"
+    | Vpsraw -> "vpsraw"
+    | Vpsrad -> "vpsrad"
     | Vmovdqa -> "vmovdqa"
     | Vmovdqu -> "vmovdqu"
     | Vpinsrw -> "vpinsrw"
@@ -1595,10 +1663,13 @@ module Instruction = struct
           | Opcode.Vpackssdw | Opcode.Vpackuswb | Opcode.Vpand | Opcode.Vpandn | Opcode.Vpor
           | Opcode.Vpminub | Opcode.Vpmaxub | Opcode.Vpminsw | Opcode.Vpmaxsw | Opcode.Vmovd
           | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw | Opcode.Vpavgb | Opcode.Vpavgw
-          | Opcode.Vpsadbw | Opcode.Movdqa | Opcode.Movdqu | Opcode.Vmovdqa | Opcode.Vmovdqu
-          | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fadds
-          | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll | Opcode.Fsubs
-          | Opcode.Fnstsw | Opcode.Movd ) as op ->
+          | Opcode.Vpsadbw | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw
+          | Opcode.Psrld | Opcode.Psrlq | Opcode.Psraw | Opcode.Psrad | Opcode.Vpsllw
+          | Opcode.Vpslld | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq
+          | Opcode.Vpsraw | Opcode.Vpsrad | Opcode.Movdqa | Opcode.Movdqu | Opcode.Vmovdqa
+          | Opcode.Vmovdqu | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
+          | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
+          | Opcode.Fsubs | Opcode.Fnstsw | Opcode.Movd ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         | _ ->
             Fmt.pf ppf "%s%s %a" (Opcode.name i.op) (suffix_of_width i.width)
@@ -2888,6 +2959,14 @@ module Make (M : MODE) = struct
     | "pavgb", _ -> Ok (Instruction.mk Opcode.Pavgb 32 s.Surface.ops)
     | "pavgw", _ -> Ok (Instruction.mk Opcode.Pavgw 32 s.Surface.ops)
     | "psadbw", _ -> Ok (Instruction.mk Opcode.Psadbw 32 s.Surface.ops)
+    | "psllw", _ -> Ok (Instruction.mk Opcode.Psllw 32 s.Surface.ops)
+    | "pslld", _ -> Ok (Instruction.mk Opcode.Pslld 32 s.Surface.ops)
+    | "psllq", _ -> Ok (Instruction.mk Opcode.Psllq 32 s.Surface.ops)
+    | "psrlw", _ -> Ok (Instruction.mk Opcode.Psrlw 32 s.Surface.ops)
+    | "psrld", _ -> Ok (Instruction.mk Opcode.Psrld 32 s.Surface.ops)
+    | "psrlq", _ -> Ok (Instruction.mk Opcode.Psrlq 32 s.Surface.ops)
+    | "psraw", _ -> Ok (Instruction.mk Opcode.Psraw 32 s.Surface.ops)
+    | "psrad", _ -> Ok (Instruction.mk Opcode.Psrad 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -3094,6 +3173,14 @@ module Make (M : MODE) = struct
     | "vpavgb", _ -> Ok (Instruction.mk Opcode.Vpavgb 32 s.Surface.ops)
     | "vpavgw", _ -> Ok (Instruction.mk Opcode.Vpavgw 32 s.Surface.ops)
     | "vpsadbw", _ -> Ok (Instruction.mk Opcode.Vpsadbw 32 s.Surface.ops)
+    | "vpsllw", _ -> Ok (Instruction.mk Opcode.Vpsllw 32 s.Surface.ops)
+    | "vpslld", _ -> Ok (Instruction.mk Opcode.Vpslld 32 s.Surface.ops)
+    | "vpsllq", _ -> Ok (Instruction.mk Opcode.Vpsllq 32 s.Surface.ops)
+    | "vpsrlw", _ -> Ok (Instruction.mk Opcode.Vpsrlw 32 s.Surface.ops)
+    | "vpsrld", _ -> Ok (Instruction.mk Opcode.Vpsrld 32 s.Surface.ops)
+    | "vpsrlq", _ -> Ok (Instruction.mk Opcode.Vpsrlq 32 s.Surface.ops)
+    | "vpsraw", _ -> Ok (Instruction.mk Opcode.Vpsraw 32 s.Surface.ops)
+    | "vpsrad", _ -> Ok (Instruction.mk Opcode.Vpsrad 32 s.Surface.ops)
     | "vmovdqa", _ -> Ok (Instruction.mk Opcode.Vmovdqa 32 s.Surface.ops)
     | "vmovdqu", _ -> Ok (Instruction.mk Opcode.Vmovdqu 32 s.Surface.ops)
     | "vpinsrw", _ -> Ok (Instruction.mk Opcode.Vpinsrw 32 s.Surface.ops)
@@ -3753,7 +3840,9 @@ module Make (M : MODE) = struct
         | Opcode.Pcmpeqw | Opcode.Pcmpeqd | Opcode.Pcmpgtb | Opcode.Pcmpgtw | Opcode.Pcmpgtd
         | Opcode.Packsswb | Opcode.Packssdw | Opcode.Packuswb | Opcode.Pand | Opcode.Pandn
         | Opcode.Por | Opcode.Pminub | Opcode.Pmaxub | Opcode.Pminsw | Opcode.Pmaxsw | Opcode.Pmullw
-        | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw ),
+        | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw
+        | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
+        | Opcode.Psraw | Opcode.Psrad ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -3776,7 +3865,9 @@ module Make (M : MODE) = struct
         | Opcode.Pcmpeqw | Opcode.Pcmpeqd | Opcode.Pcmpgtb | Opcode.Pcmpgtw | Opcode.Pcmpgtd
         | Opcode.Packsswb | Opcode.Packssdw | Opcode.Packuswb | Opcode.Pand | Opcode.Pandn
         | Opcode.Por | Opcode.Pminub | Opcode.Pmaxub | Opcode.Pminsw | Opcode.Pmaxsw | Opcode.Pmullw
-        | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw ),
+        | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw
+        | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
+        | Opcode.Psraw | Opcode.Psrad ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -3981,9 +4072,11 @@ module Make (M : MODE) = struct
         | Opcode.Vpcmpgtw | Opcode.Vpcmpgtd | Opcode.Vpacksswb | Opcode.Vpackssdw | Opcode.Vpackuswb
         | Opcode.Vpand | Opcode.Vpandn | Opcode.Vpor | Opcode.Vpminub | Opcode.Vpmaxub
         | Opcode.Vpminsw | Opcode.Vpmaxsw | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw
-        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vpsllw | Opcode.Vpslld
+        | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
+        | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src2, xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok (), Ok () ->
@@ -4005,9 +4098,11 @@ module Make (M : MODE) = struct
         | Opcode.Vpcmpgtw | Opcode.Vpcmpgtd | Opcode.Vpacksswb | Opcode.Vpackssdw | Opcode.Vpackuswb
         | Opcode.Vpand | Opcode.Vpandn | Opcode.Vpor | Opcode.Vpminub | Opcode.Vpmaxub
         | Opcode.Vpminsw | Opcode.Vpmaxsw | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw
-        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vpsllw | Opcode.Vpslld
+        | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
+        | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Mem m; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () -> (
@@ -4035,9 +4130,11 @@ module Make (M : MODE) = struct
         | Opcode.Vpcmpgtw | Opcode.Vpcmpgtd | Opcode.Vpacksswb | Opcode.Vpackssdw | Opcode.Vpackuswb
         | Opcode.Vpand | Opcode.Vpandn | Opcode.Vpor | Opcode.Vpminub | Opcode.Vpmaxub
         | Opcode.Vpminsw | Opcode.Vpmaxsw | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw
-        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vmaxsd | Opcode.Vminsd
-        | Opcode.Vmaxss | Opcode.Vminss | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd
-        | Opcode.Vminpd | Opcode.Vsqrtsd | Opcode.Vsqrtss ),
+        | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vpsllw | Opcode.Vpslld
+        | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
+        | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
+        | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
+        | Opcode.Vsqrtss ),
         [ Operand.Sym e; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -4811,6 +4908,14 @@ module Make (M : MODE) = struct
           (Opcode.Pavgb, 0xE0L);
           (Opcode.Pavgw, 0xE3L);
           (Opcode.Psadbw, 0xF6L);
+          (Opcode.Psllw, 0xF1L);
+          (Opcode.Pslld, 0xF2L);
+          (Opcode.Psllq, 0xF3L);
+          (Opcode.Psrlw, 0xD1L);
+          (Opcode.Psrld, 0xD2L);
+          (Opcode.Psrlq, 0xD3L);
+          (Opcode.Psraw, 0xE1L);
+          (Opcode.Psrad, 0xE2L);
         ]
       (C.field ~width:8 "opcode")
 
@@ -5320,6 +5425,14 @@ module Make (M : MODE) = struct
           (Opcode.Vpavgb, 0xE0L);
           (Opcode.Vpavgw, 0xE3L);
           (Opcode.Vpsadbw, 0xF6L);
+          (Opcode.Vpsllw, 0xF1L);
+          (Opcode.Vpslld, 0xF2L);
+          (Opcode.Vpsllq, 0xF3L);
+          (Opcode.Vpsrlw, 0xD1L);
+          (Opcode.Vpsrld, 0xD2L);
+          (Opcode.Vpsrlq, 0xD3L);
+          (Opcode.Vpsraw, 0xE1L);
+          (Opcode.Vpsrad, 0xE2L);
         ]
       (C.field ~width:8 "opcode")
 

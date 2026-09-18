@@ -412,6 +412,20 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PAVGW_XMMdq_MEMdq" | "PSADBW_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PSLLW_XMMdq_XMMdq" | "x86:PSLLD_XMMdq_XMMdq" | "x86:PSLLQ_XMMdq_XMMdq"
+      | "x86:PSRLW_XMMdq_XMMdq" | "x86:PSRLD_XMMdq_XMMdq" | "x86:PSRLQ_XMMdq_XMMdq"
+      | "x86:PSRAW_XMMdq_XMMdq" | "x86:PSRAD_XMMdq_XMMdq" ),
+      ( "PSLLW_XMMdq_XMMdq" | "PSLLD_XMMdq_XMMdq" | "PSLLQ_XMMdq_XMMdq" | "PSRLW_XMMdq_XMMdq"
+      | "PSRLD_XMMdq_XMMdq" | "PSRLQ_XMMdq_XMMdq" | "PSRAW_XMMdq_XMMdq" | "PSRAD_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PSLLW_XMMdq_MEMdq" | "x86:PSLLD_XMMdq_MEMdq" | "x86:PSLLQ_XMMdq_MEMdq"
+      | "x86:PSRLW_XMMdq_MEMdq" | "x86:PSRLD_XMMdq_MEMdq" | "x86:PSRLQ_XMMdq_MEMdq"
+      | "x86:PSRAW_XMMdq_MEMdq" | "x86:PSRAD_XMMdq_MEMdq" ),
+      ( "PSLLW_XMMdq_MEMdq" | "PSLLD_XMMdq_MEMdq" | "PSLLQ_XMMdq_MEMdq" | "PSRLW_XMMdq_MEMdq"
+      | "PSRLD_XMMdq_MEMdq" | "PSRLQ_XMMdq_MEMdq" | "PSRAW_XMMdq_MEMdq" | "PSRAD_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:MOVDQA_XMMdq_XMMdq_0F6F" | "x86:MOVDQU_XMMdq_XMMdq_0F6F" | "x86:MOVDQA_XMMdq_MEMdq"
       | "x86:MOVDQU_XMMdq_MEMdq" | "x86:MOVDQA_MEMdq_XMMdq" | "x86:MOVDQU_MEMdq_XMMdq" ),
       ( "MOVDQA_XMMdq_XMMdq_0F6F" | "MOVDQU_XMMdq_XMMdq_0F6F" | "MOVDQA_XMMdq_MEMdq"
@@ -687,6 +701,24 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "x86:VPAVGW_XMMdq_XMMdq_MEMdq" | "x86:VPSADBW_XMMdq_XMMdq_MEMdq" ),
       ( "VPMULLW_XMMdq_XMMdq_MEMdq" | "VPMULHW_XMMdq_XMMdq_MEMdq" | "VPMULHUW_XMMdq_XMMdq_MEMdq"
       | "VPAVGB_XMMdq_XMMdq_MEMdq" | "VPAVGW_XMMdq_XMMdq_MEMdq" | "VPSADBW_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPSLLW_XMMdq_XMMdq_XMMdq" | "x86:VPSLLD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPSLLQ_XMMdq_XMMdq_XMMdq" | "x86:VPSRLW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPSRLD_XMMdq_XMMdq_XMMdq" | "x86:VPSRLQ_XMMdq_XMMdq_XMMdq"
+      | "x86:VPSRAW_XMMdq_XMMdq_XMMdq" | "x86:VPSRAD_XMMdq_XMMdq_XMMdq" ),
+      ( "VPSLLW_XMMdq_XMMdq_XMMdq" | "VPSLLD_XMMdq_XMMdq_XMMdq" | "VPSLLQ_XMMdq_XMMdq_XMMdq"
+      | "VPSRLW_XMMdq_XMMdq_XMMdq" | "VPSRLD_XMMdq_XMMdq_XMMdq" | "VPSRLQ_XMMdq_XMMdq_XMMdq"
+      | "VPSRAW_XMMdq_XMMdq_XMMdq" | "VPSRAD_XMMdq_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPSLLW_XMMdq_XMMdq_MEMdq" | "x86:VPSLLD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPSLLQ_XMMdq_XMMdq_MEMdq" | "x86:VPSRLW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPSRLD_XMMdq_XMMdq_MEMdq" | "x86:VPSRLQ_XMMdq_XMMdq_MEMdq"
+      | "x86:VPSRAW_XMMdq_XMMdq_MEMdq" | "x86:VPSRAD_XMMdq_XMMdq_MEMdq" ),
+      ( "VPSLLW_XMMdq_XMMdq_MEMdq" | "VPSLLD_XMMdq_XMMdq_MEMdq" | "VPSLLQ_XMMdq_XMMdq_MEMdq"
+      | "VPSRLW_XMMdq_XMMdq_MEMdq" | "VPSRLD_XMMdq_XMMdq_MEMdq" | "VPSRLQ_XMMdq_XMMdq_MEMdq"
+      | "VPSRAW_XMMdq_XMMdq_MEMdq" | "VPSRAD_XMMdq_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VMOVDQA_XMMdq_XMMdq_6F" | "x86:VMOVDQU_XMMdq_XMMdq_6F" | "x86:VMOVDQA_XMMdq_MEMdq"
