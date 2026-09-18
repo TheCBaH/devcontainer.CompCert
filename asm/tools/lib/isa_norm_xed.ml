@@ -4199,6 +4199,15 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PMADDUBSW_XMMdq_MEMdq" ~mnemonic:"pmaddubsw" rec_
   | Ok { iform = Some "PMULHRSW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PMULHRSW_XMMdq_MEMdq" ~mnemonic:"pmulhrsw" rec_
+  (* {!Opcode.Phaddsw}'s own doc comment (GEN-05): {!Phaddw}'s saturating sibling, same shape. *)
+  | Ok { iform = Some "PHADDSW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHADDSW_XMMdq_XMMdq" ~mnemonic:"phaddsw" rec_
+  | Ok { iform = Some "PHSUBSW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHSUBSW_XMMdq_XMMdq" ~mnemonic:"phsubsw" rec_
+  | Ok { iform = Some "PHADDSW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHADDSW_XMMdq_MEMdq" ~mnemonic:"phaddsw" rec_
+  | Ok { iform = Some "PHSUBSW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHSUBSW_XMMdq_MEMdq" ~mnemonic:"phsubsw" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by

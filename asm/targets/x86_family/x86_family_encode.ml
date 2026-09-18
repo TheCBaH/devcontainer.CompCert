@@ -548,6 +548,16 @@ module Opcode = struct
             ([66 0F 38 0B /r]), {!Phaddw}'s own group at a different opcode byte. Confirmed
             against real GNU as: [pmulhrsw %xmm2,%xmm1] -> [66 0f 38 0b ca],
             [pmulhrsw 0x10(%esp),%xmm1] -> [66 0f 38 0b 4c 24 10]. *)
+    | Phaddsw
+        (** [phaddsw rm, reg] - packed horizontal add, word lanes, saturating
+            ([66 0F 38 03 /r]), {!Phaddw}'s own group at a different opcode byte - {!Phaddw}'s
+            saturating sibling, matching real GNU as's own naming. Confirmed against real GNU as:
+            [phaddsw %xmm2,%xmm1] -> [66 0f 38 03 ca], [phaddsw 0x10(%esp),%xmm1] ->
+            [66 0f 38 03 4c 24 10]. *)
+    | Phsubsw
+        (** [phsubsw rm, reg] - packed horizontal subtract, word lanes, saturating
+            ([66 0F 38 07 /r]), {!Phaddsw}'s sibling. Confirmed against real GNU as:
+            [phsubsw %xmm2,%xmm1] -> [66 0f 38 07 ca]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1310,6 +1320,8 @@ module Opcode = struct
     | Psignd -> "psignd"
     | Pmaddubsw -> "pmaddubsw"
     | Pmulhrsw -> "pmulhrsw"
+    | Phaddsw -> "phaddsw"
+    | Phsubsw -> "phsubsw"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3123,6 +3135,8 @@ module Make (M : MODE) = struct
     | "psignd", _ -> Ok (Instruction.mk Opcode.Psignd 32 s.Surface.ops)
     | "pmaddubsw", _ -> Ok (Instruction.mk Opcode.Pmaddubsw 32 s.Surface.ops)
     | "pmulhrsw", _ -> Ok (Instruction.mk Opcode.Pmulhrsw 32 s.Surface.ops)
+    | "phaddsw", _ -> Ok (Instruction.mk Opcode.Phaddsw 32 s.Surface.ops)
+    | "phsubsw", _ -> Ok (Instruction.mk Opcode.Phsubsw 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -4002,7 +4016,7 @@ module Make (M : MODE) = struct
         | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
         | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
         | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
-        | Opcode.Pmaddubsw | Opcode.Pmulhrsw ),
+        | Opcode.Pmaddubsw | Opcode.Pmulhrsw | Opcode.Phaddsw | Opcode.Phsubsw ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -4029,7 +4043,7 @@ module Make (M : MODE) = struct
         | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
         | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
         | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
-        | Opcode.Pmaddubsw | Opcode.Pmulhrsw ),
+        | Opcode.Pmaddubsw | Opcode.Pmulhrsw | Opcode.Phaddsw | Opcode.Phsubsw ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -5148,6 +5162,8 @@ module Make (M : MODE) = struct
           (Opcode.Psignw, 0x09L);
           (Opcode.Psignd, 0x0AL);
           (Opcode.Pmulhrsw, 0x0BL);
+          (Opcode.Phaddsw, 0x03L);
+          (Opcode.Phsubsw, 0x07L);
         ]
       (C.field ~width:8 "opcode")
 
