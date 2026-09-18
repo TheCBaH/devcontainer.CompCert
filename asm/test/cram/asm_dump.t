@@ -281,15 +281,15 @@
   no-asz(){()}
   no-rex(){()}
   sse-binop-f2-op[8]{opcode:8u}
-  sse-binop-f3-op[8]{opcode:8u}
-  sse-binop-66-op[57]{opcode:8u}
-  sse-binop-none-op[18]{opcode:8u}
+  sse-binop-f3-op[9]{opcode:8u}
+  sse-binop-66-op[58]{opcode:8u}
+  sse-binop-none-op[19]{opcode:8u}
   vex-scalar-f2-op[7]{opcode:8u}
   vex-scalar-f3-op[7]{opcode:8u}
   vex-scalar-none-op[12]{opcode:8u}
   vex-scalar-66-op[50]{opcode:8u}
-  vex-unop-none-op[6]{opcode:8u}
-  vex-unop-66-op[7]{opcode:8u}
+  vex-unop-none-op[7]{opcode:8u}
+  vex-unop-66-op[8]{opcode:8u}
   sse-binop-imm-f2-op[2]{opcode:8u}
   sse-binop-imm-f3-op[2]{opcode:8u}
   sse-binop-imm-66-op[3]{opcode:8u}
@@ -301,7 +301,7 @@
   vex-unop-imm-f2-op[1]{opcode:8u}
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
-  vex-unop-f3-op[1]{opcode:8u}
+  vex-unop-f3-op[2]{opcode:8u}
   sse-movmsk-66-op[2]{opcode:8u}
   sse-movmsk-none-op[1]{opcode:8u}
   vex-movmsk-66-op[2]{opcode:8u}
@@ -596,15 +596,15 @@
     [0 cost=0] rex-present      rex-present(){0100 wrxb:4u}
     [1 cost=0] rex-absent       rex-absent(){()}
   sse-binop-f2-op[8]{opcode:8u}
-  sse-binop-f3-op[8]{opcode:8u}
-  sse-binop-66-op[57]{opcode:8u}
-  sse-binop-none-op[18]{opcode:8u}
+  sse-binop-f3-op[9]{opcode:8u}
+  sse-binop-66-op[58]{opcode:8u}
+  sse-binop-none-op[19]{opcode:8u}
   vex-scalar-f2-op[7]{opcode:8u}
   vex-scalar-f3-op[7]{opcode:8u}
   vex-scalar-none-op[12]{opcode:8u}
   vex-scalar-66-op[50]{opcode:8u}
-  vex-unop-none-op[6]{opcode:8u}
-  vex-unop-66-op[7]{opcode:8u}
+  vex-unop-none-op[7]{opcode:8u}
+  vex-unop-66-op[8]{opcode:8u}
   sse-binop-imm-f2-op[2]{opcode:8u}
   sse-binop-imm-f3-op[2]{opcode:8u}
   sse-binop-imm-66-op[3]{opcode:8u}
@@ -616,7 +616,7 @@
   vex-unop-imm-f2-op[1]{opcode:8u}
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
-  vex-unop-f3-op[1]{opcode:8u}
+  vex-unop-f3-op[2]{opcode:8u}
   sse-movmsk-66-op[2]{opcode:8u}
   sse-movmsk-none-op[1]{opcode:8u}
   vex-movmsk-66-op[2]{opcode:8u}

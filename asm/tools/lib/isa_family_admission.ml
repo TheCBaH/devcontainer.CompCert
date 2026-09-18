@@ -306,6 +306,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("CVTPS2PD_XMMpd_MEMq" | "CVTPD2PS_XMMps_MEMpd") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:CVTDQ2PS_XMMps_XMMdq" | "x86:CVTPS2DQ_XMMdq_XMMps" | "x86:CVTTPS2DQ_XMMdq_XMMps"),
+      ("CVTDQ2PS_XMMps_XMMdq" | "CVTPS2DQ_XMMdq_XMMps" | "CVTTPS2DQ_XMMdq_XMMps") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:CVTDQ2PS_XMMps_MEMdq" | "x86:CVTPS2DQ_XMMdq_MEMps" | "x86:CVTTPS2DQ_XMMdq_MEMps"),
+      ("CVTDQ2PS_XMMps_MEMdq" | "CVTPS2DQ_XMMdq_MEMps" | "CVTTPS2DQ_XMMdq_MEMps") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:UNPCKLPS_XMMps_XMMq" | "x86:UNPCKHPS_XMMps_XMMdq" | "x86:UNPCKLPD_XMMpd_XMMq"
       | "x86:UNPCKHPD_XMMpd_XMMq" ),
       ( "UNPCKLPS_XMMps_XMMq" | "UNPCKHPS_XMMps_XMMdq" | "UNPCKLPD_XMMpd_XMMq"
@@ -556,6 +564,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("VCVTPS2PD_XMMdq_XMMq" | "VCVTPD2PS_XMMdq_XMMdq") ) ->
       true
   | (Target.X86_32 | Target.X86_64), "x86:VCVTPS2PD_XMMdq_MEMq", "VCVTPS2PD_XMMdq_MEMq" -> true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VCVTDQ2PS_XMMdq_XMMdq" | "x86:VCVTPS2DQ_XMMdq_XMMdq" | "x86:VCVTTPS2DQ_XMMdq_XMMdq"),
+      ("VCVTDQ2PS_XMMdq_XMMdq" | "VCVTPS2DQ_XMMdq_XMMdq" | "VCVTTPS2DQ_XMMdq_XMMdq") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VCVTDQ2PS_XMMdq_MEMdq" | "x86:VCVTPS2DQ_XMMdq_MEMdq" | "x86:VCVTTPS2DQ_XMMdq_MEMdq"),
+      ("VCVTDQ2PS_XMMdq_MEMdq" | "VCVTPS2DQ_XMMdq_MEMdq" | "VCVTTPS2DQ_XMMdq_MEMdq") ) ->
+      true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VUNPCKLPS_XMMdq_XMMdq_XMMdq" | "x86:VUNPCKHPS_XMMdq_XMMdq_XMMdq"
       | "x86:VUNPCKLPD_XMMdq_XMMdq_XMMdq" | "x86:VUNPCKHPD_XMMdq_XMMdq_XMMdq" ),

@@ -583,6 +583,9 @@ let x86_sse_binop_rr_entries =
           "SQRTPD_XMMpd_XMMpd";
           "CVTPS2PD_XMMpd_XMMq";
           "CVTPD2PS_XMMps_XMMpd";
+          "CVTDQ2PS_XMMps_XMMdq";
+          "CVTPS2DQ_XMMdq_XMMps";
+          "CVTTPS2DQ_XMMdq_XMMps";
           "UNPCKLPS_XMMps_XMMq";
           "UNPCKHPS_XMMps_XMMdq";
           "UNPCKLPD_XMMpd_XMMq";
@@ -703,6 +706,9 @@ let x86_sse_binop_rm_entries =
           "SQRTPD_XMMpd_MEMpd";
           "CVTPS2PD_XMMpd_MEMq";
           "CVTPD2PS_XMMps_MEMpd";
+          "CVTDQ2PS_XMMps_MEMdq";
+          "CVTPS2DQ_XMMdq_MEMps";
+          "CVTTPS2DQ_XMMdq_MEMps";
           "UNPCKLPS_XMMps_MEMdq";
           "UNPCKHPS_XMMps_MEMdq";
           "UNPCKLPD_XMMpd_MEMdq";
@@ -1178,6 +1184,9 @@ let x86_vex_unop_rr_entries =
           "VUCOMISS_XMMdq_XMMd";
           "VCVTPS2PD_XMMdq_XMMq";
           "VCVTPD2PS_XMMdq_XMMdq";
+          "VCVTDQ2PS_XMMdq_XMMdq";
+          "VCVTPS2DQ_XMMdq_XMMdq";
+          "VCVTTPS2DQ_XMMdq_XMMdq";
           "VMOVDQA_XMMdq_XMMdq_6F";
           "VMOVDQU_XMMdq_XMMdq_6F";
         ])
@@ -1218,6 +1227,9 @@ let x86_vex_unop_rr_mem_entries =
           "VCOMISS_XMMd_MEMd";
           "VUCOMISS_XMMdq_MEMd";
           "VCVTPS2PD_XMMdq_MEMq";
+          "VCVTDQ2PS_XMMdq_MEMdq";
+          "VCVTPS2DQ_XMMdq_MEMdq";
+          "VCVTTPS2DQ_XMMdq_MEMdq";
           "VMOVDQA_XMMdq_MEMdq";
           "VMOVDQU_XMMdq_MEMdq";
         ])

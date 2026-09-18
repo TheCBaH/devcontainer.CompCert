@@ -3702,6 +3702,23 @@ let normalize (rec_ : R.t) =
       xmm_binop_rr_form ~form_id:"CVTPD2PS_XMMps_XMMpd" ~mnemonic:"cvtpd2ps" rec_
   | Ok { iform = Some "CVTPD2PS_XMMps_MEMpd"; _ } ->
       xmm_binop_rm_form ~form_id:"CVTPD2PS_XMMps_MEMpd" ~mnemonic:"cvtpd2ps" rec_
+  (* {!Opcode.Cvtdq2ps}'s own doc comment (GEN-05): {!Cvtps2pd}/{!Cvtpd2ps}'s own opcode-0x5B
+     sibling, a three-way none/66/F3 prefix split (no F2 member) rather than a two-way one. All
+     three mnemonics confirmed unambiguous both ways against real GNU as (i686-linux-gnu-as/
+     x86_64-linux-gnu-as 2.44): `0F 5B` (none), `66 0F 5B` (66), `F3 0F 5B` (F3). All three are
+     XED extension SSE2. *)
+  | Ok { iform = Some "CVTDQ2PS_XMMps_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTDQ2PS_XMMps_XMMdq" ~mnemonic:"cvtdq2ps" rec_
+  | Ok { iform = Some "CVTDQ2PS_XMMps_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTDQ2PS_XMMps_MEMdq" ~mnemonic:"cvtdq2ps" rec_
+  | Ok { iform = Some "CVTPS2DQ_XMMdq_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTPS2DQ_XMMdq_XMMps" ~mnemonic:"cvtps2dq" rec_
+  | Ok { iform = Some "CVTPS2DQ_XMMdq_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTPS2DQ_XMMdq_MEMps" ~mnemonic:"cvtps2dq" rec_
+  | Ok { iform = Some "CVTTPS2DQ_XMMdq_XMMps"; _ } ->
+      xmm_binop_rr_form ~form_id:"CVTTPS2DQ_XMMdq_XMMps" ~mnemonic:"cvttps2dq" rec_
+  | Ok { iform = Some "CVTTPS2DQ_XMMdq_MEMps"; _ } ->
+      xmm_binop_rm_form ~form_id:"CVTTPS2DQ_XMMdq_MEMps" ~mnemonic:"cvttps2dq" rec_
   (* {!Opcode.Andps}'s own mandatory-prefix-free/66 group at opcode 0x14/0x15 (GEN-05): the first
      genuine two-source-operand packed binop, the same plain xmm-xmm/xmm-memory shape
      {!xmm_binop_rr_form}/{!xmm_binop_rm_form} already cover generically. UNPCKLPS/UNPCKHPS are
@@ -4446,6 +4463,24 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_mem_form ~form_id:"VCVTPS2PD_XMMdq_MEMq" ~mnemonic:"vcvtps2pd" rec_
   | Ok { iform = Some "VCVTPD2PS_XMMdq_XMMdq"; _ } ->
       vex_unop_rr_form ~form_id:"VCVTPD2PS_XMMdq_XMMdq" ~mnemonic:"vcvtpd2ps" rec_
+  (* {!Opcode.Vcvtdq2ps}'s own doc comment (GEN-05): the VEX sibling of the legacy CVTDQ2PS/
+     CVTPS2DQ/CVTTPS2DQ family (opcode 0x5B), reusing {!vex_unop_rr_form}/{!vex_unop_rr_mem_form}
+     unchanged. Unlike {!Vcvtpd2ps}, none of these three has a same-destination-class
+     VEX.128-vs-VEX.256 collision, so all three admit both directions. Confirmed against real
+     GNU as: `c5 f8 5b ca` (vcvtdq2ps rr), `c5 f9 5b ca` (vcvtps2dq rr), `c5 fa 5b ca`
+     (vcvttps2dq rr), and the matching register<-memory forms. All three are XED extension AVX. *)
+  | Ok { iform = Some "VCVTDQ2PS_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCVTDQ2PS_XMMdq_XMMdq" ~mnemonic:"vcvtdq2ps" rec_
+  | Ok { iform = Some "VCVTDQ2PS_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCVTDQ2PS_XMMdq_MEMdq" ~mnemonic:"vcvtdq2ps" rec_
+  | Ok { iform = Some "VCVTPS2DQ_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCVTPS2DQ_XMMdq_XMMdq" ~mnemonic:"vcvtps2dq" rec_
+  | Ok { iform = Some "VCVTPS2DQ_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCVTPS2DQ_XMMdq_MEMdq" ~mnemonic:"vcvtps2dq" rec_
+  | Ok { iform = Some "VCVTTPS2DQ_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VCVTTPS2DQ_XMMdq_XMMdq" ~mnemonic:"vcvttps2dq" rec_
+  | Ok { iform = Some "VCVTTPS2DQ_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VCVTTPS2DQ_XMMdq_MEMdq" ~mnemonic:"vcvttps2dq" rec_
   (* VSHUFPS/VSHUFPD (GEN-05, {!vex_binop_imm_rrr_form}'s own doc comment): only the plain
      [vex]-space 128-bit iforms - the [evex]-space AVX-512 masked iforms sharing the same
      native name are out of scope. Both are XED extension AVX. *)
