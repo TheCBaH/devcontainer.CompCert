@@ -4149,6 +4149,12 @@ let normalize (rec_ : R.t) =
       xmm_shift_imm_form ~form_id:"PSRAW_XMMdq_IMMb" ~mnemonic:"psraw" rec_
   | Ok { iform = Some "PSRAD_XMMdq_IMMb"; _ } ->
       xmm_shift_imm_form ~form_id:"PSRAD_XMMdq_IMMb" ~mnemonic:"psrad" rec_
+  (* {!Opcode.Pslldq}'s own doc comment (GEN-05): the whole-register byte-shift siblings at the
+     same ext-opcode "group" table, ext 7/3 rather than 6/2/4 - {!xmm_shift_imm_form} unchanged. *)
+  | Ok { iform = Some "PSLLDQ_XMMdq_IMMb"; _ } ->
+      xmm_shift_imm_form ~form_id:"PSLLDQ_XMMdq_IMMb" ~mnemonic:"pslldq" rec_
+  | Ok { iform = Some "PSRLDQ_XMMdq_IMMb"; _ } ->
+      xmm_shift_imm_form ~form_id:"PSRLDQ_XMMdq_IMMb" ~mnemonic:"psrldq" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
@@ -4590,6 +4596,11 @@ let normalize (rec_ : R.t) =
       vex_shift_imm_rr_form ~form_id:"VPSRAW_XMMdq_XMMdq_IMMb" ~mnemonic:"vpsraw" rec_
   | Ok { iform = Some "VPSRAD_XMMdq_XMMdq_IMMb"; _ } ->
       vex_shift_imm_rr_form ~form_id:"VPSRAD_XMMdq_XMMdq_IMMb" ~mnemonic:"vpsrad" rec_
+  (* {!Opcode.Vpslldq}'s own doc comment (GEN-05): the VEX sibling of {!Pslldq}/{!Psrldq}. *)
+  | Ok { iform = Some "VPSLLDQ_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_shift_imm_rr_form ~form_id:"VPSLLDQ_XMMdq_XMMdq_IMMb" ~mnemonic:"vpslldq" rec_
+  | Ok { iform = Some "VPSRLDQ_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_shift_imm_rr_form ~form_id:"VPSRLDQ_XMMdq_XMMdq_IMMb" ~mnemonic:"vpsrldq" rec_
   (* {!Opcode.Vmovdqa}'s own doc comment (GEN-05): the VEX sibling of the legacy
      MOVDQA/MOVDQU family, reusing {!vex_unop_rr_form}/{!vex_unop_rr_mem_form} unchanged - load
      direction only (register-register and register<-memory), matching {!Vmovaps}'s own scope.

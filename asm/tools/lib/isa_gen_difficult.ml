@@ -876,6 +876,8 @@ let x86_xmm_shift_imm_entries =
           "PSRLQ_XMMdq_IMMb";
           "PSRAW_XMMdq_IMMb";
           "PSRAD_XMMdq_IMMb";
+          "PSLLDQ_XMMdq_IMMb";
+          "PSRLDQ_XMMdq_IMMb";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1354,6 +1356,8 @@ let x86_vex_shift_imm_rrr_entries =
           "VPSRLQ_XMMdq_XMMdq_IMMb";
           "VPSRAW_XMMdq_XMMdq_IMMb";
           "VPSRAD_XMMdq_XMMdq_IMMb";
+          "VPSLLDQ_XMMdq_XMMdq_IMMb";
+          "VPSRLDQ_XMMdq_XMMdq_IMMb";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

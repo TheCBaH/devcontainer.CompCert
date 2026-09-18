@@ -497,6 +497,17 @@ module Opcode = struct
             {!Psraw}'s sibling. There is no quadword [psraq] in legacy SSE2 - confirmed against
             real GNU as ([no such instruction]); the quadword arithmetic shift only exists under
             AVX-512 (EVEX-encoded), out of scope for this project. *)
+    | Pslldq
+        (** [pslldq $imm8, xmm] - byte-granularity shift-left of the whole 128-bit register
+            ([66 0F 73 /7 ib], GEN-05), {!Xmm_shift_imm_rm}'s own "group" table at ext 7 -
+            {!Psllw}'s own opcode byte (0x73), unlike {!Psllq}/{!Psrlq}'s ext 6/2 at that same
+            byte. No register/memory-count sibling exists for this mnemonic - confirmed against
+            real GNU as: [pslldq %xmm2,%xmm1] is rejected, only the imm8 form assembles. Confirmed
+            against real GNU as: [pslldq $5,%xmm1] -> [66 0f 73 f9 05]. *)
+    | Psrldq
+        (** [psrldq $imm8, xmm] - {!Pslldq}'s shift-right sibling ([66 0F 73 /3 ib]), ext 3 at the
+            same opcode byte. Confirmed against real GNU as: [psrldq $5,%xmm1] ->
+            [66 0f 73 d9 05]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -992,6 +1003,14 @@ module Opcode = struct
             EVEX-encoded ([62 ..]) AVX-512VL form instead, not the plain-VEX ([c5]/[c4]) shape
             every other mnemonic here uses - out of scope, the same "no EVEX/3-byte-VEX
             infrastructure" gap [vmovq] (VEX.W1) was already found to need. *)
+    | Vpslldq
+        (** [vpslldq $imm8, src, dst] - {!Pslldq}'s VEX sibling ([VEX.128.66.0F.WIG 73 /7 ib]),
+            {!Vex_shift_imm_rm}'s own real-[vvvv] shape. Confirmed against real GNU as:
+            [vpslldq $5,%xmm2,%xmm1] -> [c5 f1 73 fa 05]. *)
+    | Vpsrldq
+        (** [vpsrldq $imm8, src, dst] - {!Vpslldq}'s shift-right sibling
+            ([VEX.128.66.0F.WIG 73 /3 ib]). Confirmed against real GNU as:
+            [vpsrldq $5,%xmm2,%xmm1] -> [c5 f1 73 da 05]. *)
     | Vmovdqa
         (** [vmovdqa rm, dst] - the VEX sibling of the legacy {!Movdqa}/{!Movdqu} family
             ([VEX.128.66.0F.WIG 6F /r], [pp = 1]), reusing {!Lowered.Vex_unop_r_rm} the same way
@@ -1239,6 +1258,8 @@ module Opcode = struct
     | Psrlq -> "psrlq"
     | Psraw -> "psraw"
     | Psrad -> "psrad"
+    | Pslldq -> "pslldq"
+    | Psrldq -> "psrldq"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -1395,6 +1416,8 @@ module Opcode = struct
     | Vpsrlq -> "vpsrlq"
     | Vpsraw -> "vpsraw"
     | Vpsrad -> "vpsrad"
+    | Vpslldq -> "vpslldq"
+    | Vpsrldq -> "vpsrldq"
     | Vmovdqa -> "vmovdqa"
     | Vmovdqu -> "vmovdqu"
     | Vpinsrw -> "vpinsrw"
@@ -1535,6 +1558,8 @@ module Opcode = struct
     | Psrlq | Vpsrlq -> Some (2, 0x73)
     | Psraw | Vpsraw -> Some (4, 0x71)
     | Psrad | Vpsrad -> Some (4, 0x72)
+    | Pslldq | Vpslldq -> Some (7, 0x73)
+    | Psrldq | Vpsrldq -> Some (3, 0x73)
     | _ -> None
 
   let of_xmm_shift_ext_opcode ~opcode ext =
@@ -1547,6 +1572,8 @@ module Opcode = struct
     | 0x72, 4 -> Some Psrad
     | 0x73, 6 -> Some Psllq
     | 0x73, 2 -> Some Psrlq
+    | 0x73, 7 -> Some Pslldq
+    | 0x73, 3 -> Some Psrldq
     | _ -> None
 
   let of_vex_shift_ext_opcode ~opcode ext =
@@ -1559,6 +1586,8 @@ module Opcode = struct
     | 0x72, 4 -> Some Vpsrad
     | 0x73, 6 -> Some Vpsllq
     | 0x73, 2 -> Some Vpsrlq
+    | 0x73, 7 -> Some Vpslldq
+    | 0x73, 3 -> Some Vpsrldq
     | _ -> None
 end
 
@@ -3032,6 +3061,8 @@ module Make (M : MODE) = struct
     | "psrlq", _ -> Ok (Instruction.mk Opcode.Psrlq 32 s.Surface.ops)
     | "psraw", _ -> Ok (Instruction.mk Opcode.Psraw 32 s.Surface.ops)
     | "psrad", _ -> Ok (Instruction.mk Opcode.Psrad 32 s.Surface.ops)
+    | "pslldq", _ -> Ok (Instruction.mk Opcode.Pslldq 32 s.Surface.ops)
+    | "psrldq", _ -> Ok (Instruction.mk Opcode.Psrldq 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -3246,6 +3277,8 @@ module Make (M : MODE) = struct
     | "vpsrlq", _ -> Ok (Instruction.mk Opcode.Vpsrlq 32 s.Surface.ops)
     | "vpsraw", _ -> Ok (Instruction.mk Opcode.Vpsraw 32 s.Surface.ops)
     | "vpsrad", _ -> Ok (Instruction.mk Opcode.Vpsrad 32 s.Surface.ops)
+    | "vpslldq", _ -> Ok (Instruction.mk Opcode.Vpslldq 32 s.Surface.ops)
+    | "vpsrldq", _ -> Ok (Instruction.mk Opcode.Vpsrldq 32 s.Surface.ops)
     | "vmovdqa", _ -> Ok (Instruction.mk Opcode.Vmovdqa 32 s.Surface.ops)
     | "vmovdqu", _ -> Ok (Instruction.mk Opcode.Vmovdqu 32 s.Surface.ops)
     | "vpinsrw", _ -> Ok (Instruction.mk Opcode.Vpinsrw 32 s.Surface.ops)
@@ -3941,7 +3974,7 @@ module Make (M : MODE) = struct
        of the register/memory-count shift family just above - register-only, per
        {!Lowered.Xmm_shift_imm_rm}'s own comment. *)
     | ( ( Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
-        | Opcode.Psraw | Opcode.Psrad ),
+        | Opcode.Psraw | Opcode.Psrad | Opcode.Pslldq | Opcode.Psrldq ),
         [ Operand.Imm v; Operand.Reg dst ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -4227,7 +4260,7 @@ module Make (M : MODE) = struct
        operand order, into {!Lowered.Vex_shift_imm_rm} instead of {!Vex_unop_imm_r_rm} since
        [dst] is real vvvv here, not architecturally-unused. *)
     | ( ( Opcode.Vpsllw | Opcode.Vpslld | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld
-        | Opcode.Vpsrlq | Opcode.Vpsraw | Opcode.Vpsrad ),
+        | Opcode.Vpsrlq | Opcode.Vpsraw | Opcode.Vpsrad | Opcode.Vpslldq | Opcode.Vpsrldq ),
         [ Operand.Imm v; Operand.Reg src; Operand.Reg dst ] ) -> (
         match imm_of v with
         | Error e -> Error e

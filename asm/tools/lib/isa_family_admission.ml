@@ -433,6 +433,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PSRLD_XMMdq_IMMb" | "PSRLQ_XMMdq_IMMb" | "PSRAW_XMMdq_IMMb" | "PSRAD_XMMdq_IMMb" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:PSLLDQ_XMMdq_IMMb" | "x86:PSRLDQ_XMMdq_IMMb"),
+      ("PSLLDQ_XMMdq_IMMb" | "PSRLDQ_XMMdq_IMMb") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:MOVDQA_XMMdq_XMMdq_0F6F" | "x86:MOVDQU_XMMdq_XMMdq_0F6F" | "x86:MOVDQA_XMMdq_MEMdq"
       | "x86:MOVDQU_XMMdq_MEMdq" | "x86:MOVDQA_MEMdq_XMMdq" | "x86:MOVDQU_MEMdq_XMMdq" ),
       ( "MOVDQA_XMMdq_XMMdq_0F6F" | "MOVDQU_XMMdq_XMMdq_0F6F" | "MOVDQA_XMMdq_MEMdq"
@@ -735,6 +739,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "VPSLLW_XMMdq_XMMdq_IMMb" | "VPSLLD_XMMdq_XMMdq_IMMb" | "VPSLLQ_XMMdq_XMMdq_IMMb"
       | "VPSRLW_XMMdq_XMMdq_IMMb" | "VPSRLD_XMMdq_XMMdq_IMMb" | "VPSRLQ_XMMdq_XMMdq_IMMb"
       | "VPSRAW_XMMdq_XMMdq_IMMb" | "VPSRAD_XMMdq_XMMdq_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ("x86:VPSLLDQ_XMMdq_XMMdq_IMMb" | "x86:VPSRLDQ_XMMdq_XMMdq_IMMb"),
+      ("VPSLLDQ_XMMdq_XMMdq_IMMb" | "VPSRLDQ_XMMdq_XMMdq_IMMb") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VMOVDQA_XMMdq_XMMdq_6F" | "x86:VMOVDQU_XMMdq_XMMdq_6F" | "x86:VMOVDQA_XMMdq_MEMdq"
