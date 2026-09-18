@@ -441,6 +441,22 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("PSHUFB_XMMdq_XMMdq" | "PSHUFB_XMMdq_MEMdq") ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PHADDW_XMMdq_XMMdq" | "x86:PHADDD_XMMdq_XMMdq" | "x86:PHSUBW_XMMdq_XMMdq"
+      | "x86:PHSUBD_XMMdq_XMMdq" | "x86:PSIGNB_XMMdq_XMMdq" | "x86:PSIGNW_XMMdq_XMMdq"
+      | "x86:PSIGND_XMMdq_XMMdq" | "x86:PMADDUBSW_XMMdq_XMMdq" | "x86:PMULHRSW_XMMdq_XMMdq" ),
+      ( "PHADDW_XMMdq_XMMdq" | "PHADDD_XMMdq_XMMdq" | "PHSUBW_XMMdq_XMMdq" | "PHSUBD_XMMdq_XMMdq"
+      | "PSIGNB_XMMdq_XMMdq" | "PSIGNW_XMMdq_XMMdq" | "PSIGND_XMMdq_XMMdq" | "PMADDUBSW_XMMdq_XMMdq"
+      | "PMULHRSW_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PHADDW_XMMdq_MEMdq" | "x86:PHADDD_XMMdq_MEMdq" | "x86:PHSUBW_XMMdq_MEMdq"
+      | "x86:PHSUBD_XMMdq_MEMdq" | "x86:PSIGNB_XMMdq_MEMdq" | "x86:PSIGNW_XMMdq_MEMdq"
+      | "x86:PSIGND_XMMdq_MEMdq" | "x86:PMADDUBSW_XMMdq_MEMdq" | "x86:PMULHRSW_XMMdq_MEMdq" ),
+      ( "PHADDW_XMMdq_MEMdq" | "PHADDD_XMMdq_MEMdq" | "PHSUBW_XMMdq_MEMdq" | "PHSUBD_XMMdq_MEMdq"
+      | "PSIGNB_XMMdq_MEMdq" | "PSIGNW_XMMdq_MEMdq" | "PSIGND_XMMdq_MEMdq" | "PMADDUBSW_XMMdq_MEMdq"
+      | "PMULHRSW_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:MOVDQA_XMMdq_XMMdq_0F6F" | "x86:MOVDQU_XMMdq_XMMdq_0F6F" | "x86:MOVDQA_XMMdq_MEMdq"
       | "x86:MOVDQU_XMMdq_MEMdq" | "x86:MOVDQA_MEMdq_XMMdq" | "x86:MOVDQU_MEMdq_XMMdq" ),
       ( "MOVDQA_XMMdq_XMMdq_0F6F" | "MOVDQU_XMMdq_XMMdq_0F6F" | "MOVDQA_XMMdq_MEMdq"

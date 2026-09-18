@@ -518,6 +518,36 @@ module Opcode = struct
             VEX prefix this project has not built (the same gap {!Vmovq}'s own comment already
             names) - out of scope here. Confirmed against real GNU as: [pshufb %xmm2,%xmm1] ->
             [66 0f 38 00 ca], [pshufb 0x10(%esp),%xmm1] -> [66 0f 38 00 4c 24 10]. *)
+    | Phaddw
+        (** [phaddw rm, reg] - packed horizontal add, word lanes ([66 0F 38 01 /r], SSSE3,
+            GEN-05), {!Pshufb}'s own map-2 group at a different opcode byte. Confirmed against
+            real GNU as: [phaddw %xmm2,%xmm1] -> [66 0f 38 01 ca]. *)
+    | Phaddd
+        (** [phaddd rm, reg] - packed horizontal add, doubleword lanes ([66 0F 38 02 /r]),
+            {!Phaddw}'s sibling. *)
+    | Phsubw
+        (** [phsubw rm, reg] - packed horizontal subtract, word lanes ([66 0F 38 05 /r]),
+            {!Phaddw}'s own group at a different opcode byte. *)
+    | Phsubd
+        (** [phsubd rm, reg] - packed horizontal subtract, doubleword lanes ([66 0F 38 06 /r]),
+            {!Phsubw}'s sibling. *)
+    | Psignb
+        (** [psignb rm, reg] - packed conditional sign-flip, byte lanes ([66 0F 38 08 /r]),
+            {!Phaddw}'s own group at a different opcode byte. *)
+    | Psignw
+        (** [psignw rm, reg] - packed conditional sign-flip, word lanes ([66 0F 38 09 /r]),
+            {!Psignb}'s sibling. *)
+    | Psignd
+        (** [psignd rm, reg] - packed conditional sign-flip, doubleword lanes ([66 0F 38 0A /r]),
+            {!Psignb}'s sibling. *)
+    | Pmaddubsw
+        (** [pmaddubsw rm, reg] - packed multiply unsigned-signed bytes, horizontal add into word
+            lanes ([66 0F 38 04 /r]), {!Phaddw}'s own group at a different opcode byte. *)
+    | Pmulhrsw
+        (** [pmulhrsw rm, reg] - packed multiply high, round and scale, word lanes
+            ([66 0F 38 0B /r]), {!Phaddw}'s own group at a different opcode byte. Confirmed
+            against real GNU as: [pmulhrsw %xmm2,%xmm1] -> [66 0f 38 0b ca],
+            [pmulhrsw 0x10(%esp),%xmm1] -> [66 0f 38 0b 4c 24 10]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1271,6 +1301,15 @@ module Opcode = struct
     | Pslldq -> "pslldq"
     | Psrldq -> "psrldq"
     | Pshufb -> "pshufb"
+    | Phaddw -> "phaddw"
+    | Phaddd -> "phaddd"
+    | Phsubw -> "phsubw"
+    | Phsubd -> "phsubd"
+    | Psignb -> "psignb"
+    | Psignw -> "psignw"
+    | Psignd -> "psignd"
+    | Pmaddubsw -> "pmaddubsw"
+    | Pmulhrsw -> "pmulhrsw"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3075,6 +3114,15 @@ module Make (M : MODE) = struct
     | "pslldq", _ -> Ok (Instruction.mk Opcode.Pslldq 32 s.Surface.ops)
     | "psrldq", _ -> Ok (Instruction.mk Opcode.Psrldq 32 s.Surface.ops)
     | "pshufb", _ -> Ok (Instruction.mk Opcode.Pshufb 32 s.Surface.ops)
+    | "phaddw", _ -> Ok (Instruction.mk Opcode.Phaddw 32 s.Surface.ops)
+    | "phaddd", _ -> Ok (Instruction.mk Opcode.Phaddd 32 s.Surface.ops)
+    | "phsubw", _ -> Ok (Instruction.mk Opcode.Phsubw 32 s.Surface.ops)
+    | "phsubd", _ -> Ok (Instruction.mk Opcode.Phsubd 32 s.Surface.ops)
+    | "psignb", _ -> Ok (Instruction.mk Opcode.Psignb 32 s.Surface.ops)
+    | "psignw", _ -> Ok (Instruction.mk Opcode.Psignw 32 s.Surface.ops)
+    | "psignd", _ -> Ok (Instruction.mk Opcode.Psignd 32 s.Surface.ops)
+    | "pmaddubsw", _ -> Ok (Instruction.mk Opcode.Pmaddubsw 32 s.Surface.ops)
+    | "pmulhrsw", _ -> Ok (Instruction.mk Opcode.Pmulhrsw 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -3952,7 +4000,9 @@ module Make (M : MODE) = struct
         | Opcode.Por | Opcode.Pminub | Opcode.Pmaxub | Opcode.Pminsw | Opcode.Pmaxsw | Opcode.Pmullw
         | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw
         | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
-        | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb ),
+        | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
+        | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
+        | Opcode.Pmaddubsw | Opcode.Pmulhrsw ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -3977,7 +4027,9 @@ module Make (M : MODE) = struct
         | Opcode.Por | Opcode.Pminub | Opcode.Pmaxub | Opcode.Pminsw | Opcode.Pmaxsw | Opcode.Pmullw
         | Opcode.Pmulhw | Opcode.Pmulhuw | Opcode.Pavgb | Opcode.Pavgw | Opcode.Psadbw
         | Opcode.Psllw | Opcode.Pslld | Opcode.Psllq | Opcode.Psrlw | Opcode.Psrld | Opcode.Psrlq
-        | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb ),
+        | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
+        | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
+        | Opcode.Pmaddubsw | Opcode.Pmulhrsw ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -5084,7 +5136,19 @@ module Make (M : MODE) = struct
      rather than map 1. A one-entry table since {!Pshufb} is this map's only admitted mnemonic. *)
   let sse_binop_0f38_codec =
     C.iso_table ~name:"sse-binop-0f38-op" ~equal:( = ) ~show:Opcode.name
-      ~entries:[ (Opcode.Pshufb, 0x00L) ]
+      ~entries:
+        [
+          (Opcode.Pshufb, 0x00L);
+          (Opcode.Phaddw, 0x01L);
+          (Opcode.Phaddd, 0x02L);
+          (Opcode.Pmaddubsw, 0x04L);
+          (Opcode.Phsubw, 0x05L);
+          (Opcode.Phsubd, 0x06L);
+          (Opcode.Psignb, 0x08L);
+          (Opcode.Psignw, 0x09L);
+          (Opcode.Psignd, 0x0AL);
+          (Opcode.Pmulhrsw, 0x0BL);
+        ]
       (C.field ~width:8 "opcode")
 
   let sse_binop_0f38_alt ~label ~priority ~mandatory ~opcode_codec =

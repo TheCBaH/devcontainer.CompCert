@@ -639,6 +639,15 @@ let x86_sse_binop_rr_entries =
           "PSRAW_XMMdq_XMMdq";
           "PSRAD_XMMdq_XMMdq";
           "PSHUFB_XMMdq_XMMdq";
+          "PHADDW_XMMdq_XMMdq";
+          "PHADDD_XMMdq_XMMdq";
+          "PHSUBW_XMMdq_XMMdq";
+          "PHSUBD_XMMdq_XMMdq";
+          "PSIGNB_XMMdq_XMMdq";
+          "PSIGNW_XMMdq_XMMdq";
+          "PSIGND_XMMdq_XMMdq";
+          "PMADDUBSW_XMMdq_XMMdq";
+          "PMULHRSW_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -769,6 +778,15 @@ let x86_sse_binop_rm_entries =
           "PSRAW_XMMdq_MEMdq";
           "PSRAD_XMMdq_MEMdq";
           "PSHUFB_XMMdq_MEMdq";
+          "PHADDW_XMMdq_MEMdq";
+          "PHADDD_XMMdq_MEMdq";
+          "PHSUBW_XMMdq_MEMdq";
+          "PHSUBD_XMMdq_MEMdq";
+          "PSIGNB_XMMdq_MEMdq";
+          "PSIGNW_XMMdq_MEMdq";
+          "PSIGND_XMMdq_MEMdq";
+          "PMADDUBSW_XMMdq_MEMdq";
+          "PMULHRSW_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

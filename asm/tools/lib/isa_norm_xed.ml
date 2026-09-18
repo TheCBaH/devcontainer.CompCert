@@ -4162,6 +4162,43 @@ let normalize (rec_ : R.t) =
       xmm_binop_rr_form ~form_id:"PSHUFB_XMMdq_XMMdq" ~mnemonic:"pshufb" rec_
   | Ok { iform = Some "PSHUFB_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PSHUFB_XMMdq_MEMdq" ~mnemonic:"pshufb" rec_
+  (* {!Opcode.Phaddw}'s own doc comment (GEN-05): {!Pshufb}'s own map-2 group, same shape. *)
+  | Ok { iform = Some "PHADDW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHADDW_XMMdq_XMMdq" ~mnemonic:"phaddw" rec_
+  | Ok { iform = Some "PHADDD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHADDD_XMMdq_XMMdq" ~mnemonic:"phaddd" rec_
+  | Ok { iform = Some "PHSUBW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHSUBW_XMMdq_XMMdq" ~mnemonic:"phsubw" rec_
+  | Ok { iform = Some "PHSUBD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHSUBD_XMMdq_XMMdq" ~mnemonic:"phsubd" rec_
+  | Ok { iform = Some "PSIGNB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PSIGNB_XMMdq_XMMdq" ~mnemonic:"psignb" rec_
+  | Ok { iform = Some "PSIGNW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PSIGNW_XMMdq_XMMdq" ~mnemonic:"psignw" rec_
+  | Ok { iform = Some "PSIGND_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PSIGND_XMMdq_XMMdq" ~mnemonic:"psignd" rec_
+  | Ok { iform = Some "PMADDUBSW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMADDUBSW_XMMdq_XMMdq" ~mnemonic:"pmaddubsw" rec_
+  | Ok { iform = Some "PMULHRSW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULHRSW_XMMdq_XMMdq" ~mnemonic:"pmulhrsw" rec_
+  | Ok { iform = Some "PHADDW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHADDW_XMMdq_MEMdq" ~mnemonic:"phaddw" rec_
+  | Ok { iform = Some "PHADDD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHADDD_XMMdq_MEMdq" ~mnemonic:"phaddd" rec_
+  | Ok { iform = Some "PHSUBW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHSUBW_XMMdq_MEMdq" ~mnemonic:"phsubw" rec_
+  | Ok { iform = Some "PHSUBD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHSUBD_XMMdq_MEMdq" ~mnemonic:"phsubd" rec_
+  | Ok { iform = Some "PSIGNB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PSIGNB_XMMdq_MEMdq" ~mnemonic:"psignb" rec_
+  | Ok { iform = Some "PSIGNW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PSIGNW_XMMdq_MEMdq" ~mnemonic:"psignw" rec_
+  | Ok { iform = Some "PSIGND_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PSIGND_XMMdq_MEMdq" ~mnemonic:"psignd" rec_
+  | Ok { iform = Some "PMADDUBSW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMADDUBSW_XMMdq_MEMdq" ~mnemonic:"pmaddubsw" rec_
+  | Ok { iform = Some "PMULHRSW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULHRSW_XMMdq_MEMdq" ~mnemonic:"pmulhrsw" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
