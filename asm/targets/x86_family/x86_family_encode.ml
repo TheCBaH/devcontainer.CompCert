@@ -966,6 +966,38 @@ module Opcode = struct
             silently reassembles as the unrelated three-byte-opcode [c4 e3 79 15 08 01] instead,
             out of scope, matching {!Pextrw}'s own legacy precedent exactly). Confirmed against
             real GNU as: [vpextrw $1,%xmm1,%eax] -> [c5 f9 c5 c1 01]. *)
+    | Movmskps
+        (** [movmskps xmm, gpr32] - extract each packed-single lane's sign bit into a GPR
+            ([0F 50 /r], no mandatory prefix): {!Sse_binop_r_rm}'s cross-register-class member,
+            [reg] the GPR32 destination (width 32, {!Pextrw}'s own [reg] convention) and [rm] an
+            xmm source (width 128) restricted to a register by construction - confirmed against
+            real GNU as, [movmskps (%eax),%eax] is rejected outright ("operand size mismatch"; no
+            memory form exists at all, unlike {!Pextrw} where the memory spelling is merely
+            routed elsewhere). No REX.W-equivalent 64-bit-GPR variant exists either: real GNU as
+            silently accepts the [%rax]-named spelling as identical to [%eax] (no REX.W emitted),
+            which this project's own [width_ok] naturally rejects as an unimplemented-but-real
+            substitution, the same deliberate boundary {!Vmovd}'s own doc comment describes for
+            [vmovq]. Confirmed against real GNU as: [movmskps %xmm0,%eax] -> [0f 50 c0]. *)
+    | Movmskpd
+        (** [movmskpd xmm, gpr32] - {!Movmskps}'s mandatory-66 sibling ([66 0F 50 /r], packed
+            double). Confirmed against real GNU as: [movmskpd %xmm1,%ecx] -> [66 0f 50 c9]. *)
+    | Pmovmskb
+        (** [pmovmskb xmm, gpr32] - {!Movmskps}'s integer sibling at a different opcode byte
+            ([66 0F D7 /r], packed byte). Confirmed against real GNU as: [pmovmskb %xmm2,%edx] ->
+            [66 0f d7 d2]. *)
+    | Vmovmskps
+        (** [vmovmskps xmm, gpr32] - the VEX sibling of the legacy {!Movmskps}
+            ([VEX.128.0F.WIG 50 /r]): {!Lowered.Vex_unop_r_rm}'s own cross-register-class member,
+            [dst] a GPR32 rather than xmm - the mandatory-prefix-free counterpart of {!Vmovd}'s
+            own GPR-crossing shape. Confirmed against real GNU as: [vmovmskps %xmm0,%eax] ->
+            [c5 f8 50 c0]. *)
+    | Vmovmskpd
+        (** [vmovmskpd xmm, gpr32] - {!Vmovmskps}'s mandatory-66 sibling ([VEX.128.66.0F.WIG
+            50 /r]). Confirmed against real GNU as: [vmovmskpd %xmm1,%ecx] -> [c5 f9 50 c9]. *)
+    | Vpmovmskb
+        (** [vpmovmskb xmm, gpr32] - {!Vmovmskps}'s integer sibling at a different opcode byte
+            ([VEX.128.66.0F.WIG D7 /r]). Confirmed against real GNU as: [vpmovmskb %xmm2,%edx] ->
+            [c5 f9 d7 d2]. *)
     | Fldl
     | Fstpl
     | Fstps
@@ -1123,6 +1155,9 @@ module Opcode = struct
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
     | Pextrw -> "pextrw"
+    | Movmskps -> "movmskps"
+    | Movmskpd -> "movmskpd"
+    | Pmovmskb -> "pmovmskb"
     | Andps -> "andps"
     | Andnps -> "andnps"
     | Orps -> "orps"
@@ -1265,6 +1300,9 @@ module Opcode = struct
     | Vmovdqu -> "vmovdqu"
     | Vpinsrw -> "vpinsrw"
     | Vpextrw -> "vpextrw"
+    | Vmovmskps -> "vmovmskps"
+    | Vmovmskpd -> "vmovmskpd"
+    | Vpmovmskb -> "vpmovmskb"
     | Fldl -> "fldl"
     | Fstpl -> "fstpl"
     | Fstps -> "fstps"
@@ -2820,6 +2858,9 @@ module Make (M : MODE) = struct
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
     | "pextrw", _ -> Ok (Instruction.mk Opcode.Pextrw 32 s.Surface.ops)
+    | "movmskps", _ -> Ok (Instruction.mk Opcode.Movmskps 32 s.Surface.ops)
+    | "movmskpd", _ -> Ok (Instruction.mk Opcode.Movmskpd 32 s.Surface.ops)
+    | "pmovmskb", _ -> Ok (Instruction.mk Opcode.Pmovmskb 32 s.Surface.ops)
     (* Packed bitwise-logical family (GEN-05): {!Opcode.Xorpd}'s siblings, all matched the same
        fixed-mnemonic way. *)
     | "andps", _ -> Ok (Instruction.mk Opcode.Andps 32 s.Surface.ops)
@@ -3020,6 +3061,9 @@ module Make (M : MODE) = struct
     | "vmovdqu", _ -> Ok (Instruction.mk Opcode.Vmovdqu 32 s.Surface.ops)
     | "vpinsrw", _ -> Ok (Instruction.mk Opcode.Vpinsrw 32 s.Surface.ops)
     | "vpextrw", _ -> Ok (Instruction.mk Opcode.Vpextrw 32 s.Surface.ops)
+    | "vmovmskps", _ -> Ok (Instruction.mk Opcode.Vmovmskps 32 s.Surface.ops)
+    | "vmovmskpd", _ -> Ok (Instruction.mk Opcode.Vmovmskpd 32 s.Surface.ops)
+    | "vpmovmskb", _ -> Ok (Instruction.mk Opcode.Vpmovmskb 32 s.Surface.ops)
     (* {3 x87 (M5, asm/docs/corpus.md)}
 
        [fldl]/[fstpl]/[fstps]: ccomp's own double/single-precision spill and
@@ -3868,6 +3912,15 @@ module Make (M : MODE) = struct
                     Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src; imm };
                   ]
             | Error e, _ | _, Error e -> Error e))
+    (* [movmskps]/[movmskpd]/[pmovmskb] ({!Opcode.Movmskps}'s own doc comment): [rm] (source) is
+       xmm, [reg] (dest) is a GPR32 - the same field roles as {!Pextrw} minus the immediate; no
+       memory-source arm exists, matching real GNU as's own outright rejection of that spelling. *)
+    | (Opcode.Movmskps | Opcode.Movmskpd | Opcode.Pmovmskb), [ Operand.Reg src; Operand.Reg reg ]
+      -> (
+        match (xmm_ok src, width_ok reg) with
+        | Ok (), Ok () ->
+            Ok [ Lowered.Sse_binop_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src } ]
+        | Error e, _ | _, Error e -> Error e)
     (* {3 x86 VEX (GEN-05, x86 vector extensions)}
 
        [vaddsd src2, src1, dst]: real GNU as's own AT&T operand order for the
@@ -4152,6 +4205,15 @@ module Make (M : MODE) = struct
                         { op = i.Instruction.op; dst; src = Rm.Reg src; imm };
                     ]
             | Error e, _ | _, Error e -> Error e))
+    (* [vmovmskps]/[vmovmskpd]/[vpmovmskb] ({!Opcode.Vmovmskps}'s own doc comment): {!Vpextrw}'s
+       own field roles and two-byte-VEX [src.num >= 8] restriction, minus the immediate. *)
+    | (Opcode.Vmovmskps | Opcode.Vmovmskpd | Opcode.Vpmovmskb), [ Operand.Reg src; Operand.Reg dst ]
+      -> (
+        match (xmm_ok src, width_ok dst) with
+        | Ok (), Ok () ->
+            if src.num >= 8 then bad (`Vex_rm_extended_register src.name)
+            else Ok [ Lowered.Vex_unop_r_rm { op = i.Instruction.op; dst; src = Rm.Reg src } ]
+        | Error e, _ | _, Error e -> Error e)
     (* [fldl]/[fstpl]/[fstps]/[flds] (M5, asm/docs/corpus.md): ccomp's own x87
        double/single-precision spill-and-reload sequence around a `%st(0)`
        return value - always to/from a stack memory operand in this corpus,
@@ -4950,6 +5012,55 @@ module Make (M : MODE) = struct
            asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:16 0x0FC5L ** rm_codec
            ** le ~signedness:C.Unsigned ~width:8 "imm8"))
 
+  (* [movmskpd]/[pmovmskb] ([66 0F 50 /r] / [66 0F D7 /r], {!Opcode.Movmskps}'s own doc comment):
+     {!Sse_pextrw_alt}'s own field roles ([reg] a GPR32 at width 32, [rm] an xmm register at
+     width 128) minus the trailing immediate, generalized over an opcode table the way
+     {!sse_binop_alt} is - both members share the mandatory-66 prefix. *)
+  let sse_movmsk_66_codec =
+    C.iso_table ~name:"sse-movmsk-66-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Movmskpd, 0x50L); (Opcode.Pmovmskb, 0xD7L) ]
+      (C.field ~width:8 "opcode")
+
+  let sse_movmsk_alt ~label ~priority ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_r_rm { op; reg; rm } ->
+               let p = prefixes_of ~width:32 ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), (op, { re_reg = reg.num; re_rm = rm })))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), (op, e))))) ->
+           let p = { asz; opsz = false; rex } in
+           Some
+             (Lowered.Sse_binop_r_rm
+                { op; reg = reg_field ~p ~width:32 e.re_reg; rm = rm_of ~p ~width:128 e.re_rm }))
+         C.(
+           asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:8 0x0FL ** opcode_codec
+           ** rm_codec))
+
+  (* [movmskps] ([0F 50 /r], no mandatory prefix): {!Sse_movmsk_alt}'s mandatory-prefix-free
+     sibling, {!sse_binop_none_alt}'s own [prefixes_codec] shape with the same width fix. A
+     single-entry table since {!Movmskps} has no other opcode-byte sibling at this shape. *)
+  let sse_movmsk_none_codec =
+    C.iso_table ~name:"sse-movmsk-none-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Movmskps, 0x50L) ]
+      (C.field ~width:8 "opcode")
+
+  let sse_movmsk_none_alt ~label ~priority ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_r_rm { op; reg; rm } ->
+               Some
+                 ( prefixes_of ~width:32 ~reg:reg.num ~rm,
+                   ((), (op, { re_reg = reg.num; re_rm = rm })) )
+           | _ -> None)
+         ~decode:(fun (p, ((), (op, e))) ->
+           Some
+             (Lowered.Sse_binop_r_rm
+                { op; reg = reg_field ~p ~width:32 e.re_reg; rm = rm_of ~p ~width:128 e.re_rm }))
+         C.(prefixes_codec ** const ~width:8 0x0FL ** opcode_codec ** rm_codec))
+
   (* [cvtsi2sd]/[cvtsi2ss] ([0F 2A]), and - via [~opcode16] - {!Movd}'s own load direction
      ([0F 6E], GEN-05): the one place [~width] threaded into {!prefixes_of} is a real GPR width
      rather than the [32] REX.W-clear sentinel the rest of this section uses - [rm] is the
@@ -5518,6 +5629,43 @@ module Make (M : MODE) = struct
          C.(
            const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** const ~width:8 0xC5L ** rm_codec
            ** le ~signedness:C.Unsigned ~width:8 "imm8"))
+
+  (* [vmovmskps]/[vmovmskpd]/[vpmovmskb] ({!Opcode.Vmovmskps}'s own doc comment): {!vex_unop_alt}'s
+     own two-byte-VEX field layout and restriction, with [dst] decoded at width 32 (a GPR) rather
+     than 128 - the mandatory-prefix-table-generalized VEX sibling of {!Vex_pextrw_alt}'s own
+     fixed-opcode cross-register-class shape, minus the immediate. *)
+  let vex_movmsk_alt ~label ~priority ~pp ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_unop_r_rm { op; dst; src } when vex_rm_ok src ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor pp) in
+               Some ((), (byte2, (op, { re_reg = dst.num; re_rm = src })))
+           | _ -> None)
+         ~decode:(fun ((), (byte2, (op, e))) ->
+           let b = Int64.to_int byte2 in
+           let r_bit = (b lsr 7) land 1 in
+           let l = (b lsr 2) land 1 in
+           let observed_pp = b land 3 in
+           if l <> 0 || observed_pp <> pp then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+             in
+             Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width:32 dst_num; src }))
+         C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** opcode_codec ** rm_codec))
+
+  let vex_movmsk_66_codec =
+    C.iso_table ~name:"vex-movmsk-66-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Vmovmskpd, 0x50L); (Opcode.Vpmovmskb, 0xD7L) ]
+      (C.field ~width:8 "opcode")
+
+  let vex_movmsk_none_codec =
+    C.iso_table ~name:"vex-movmsk-none-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Vmovmskps, 0x50L) ]
+      (C.field ~width:8 "opcode")
 
   (* Zero-/sign-extending move (M5, asm/docs/corpus.md): [0F B6/B7/BE/BF /r].
      No mandatory prefix, so this reuses [prefixes_codec] directly rather than
@@ -6482,6 +6630,15 @@ module Make (M : MODE) = struct
           sse_pextrw_alt ~label:"sse-pextrw" ~priority:94;
           vex_pinsrw_alt ~label:"vex-pinsrw" ~priority:95;
           vex_pextrw_alt ~label:"vex-pextrw" ~priority:96;
+          (* [movmskps]/[movmskpd]/[pmovmskb] (GEN-05): the mandatory-66 group must be tried
+             before the mandatory-prefix-free group, the same [prefixes_codec] opsz-consuming
+             ambiguity reason as {!sse_binop_alt}'s own 66-before-none ordering. *)
+          sse_movmsk_alt ~label:"sse-movmsk-66" ~priority:97 ~opcode_codec:sse_movmsk_66_codec;
+          sse_movmsk_none_alt ~label:"sse-movmsk-none" ~priority:98
+            ~opcode_codec:sse_movmsk_none_codec;
+          vex_movmsk_alt ~label:"vex-movmsk-66" ~priority:99 ~pp:1 ~opcode_codec:vex_movmsk_66_codec;
+          vex_movmsk_alt ~label:"vex-movmsk-none" ~priority:100 ~pp:0
+            ~opcode_codec:vex_movmsk_none_codec;
         ]
       (* M5 (asm/docs/corpus.md), unconditional for the same reason as the
          SSE block above: nothing here is bit-pattern-dead in either mode. *)

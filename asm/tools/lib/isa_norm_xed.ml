@@ -2875,6 +2875,70 @@ let pextrw_rr_form ~form_id ~mnemonic (rec_ : R.t) =
            (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* [movmskps]/[movmskpd]/[pmovmskb] and their VEX siblings (GEN-05): {!pextrw_rr_form}'s own
+   REG0/REG1 pair and class split (GPR dest, xmm src) minus the trailing IMM0 - a mask-extract
+   ([reg := sign_bits(rm)]) rather than a lane-extract, but byte-for-byte the same operand shape.
+   Dispatched for both the legacy iform and its VEX sibling, the same reuse [pextrw_rr_form]/
+   [movd_load_rr_form] already establish. *)
+let movmsk_rr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b ] }
+    when a.op_name = "REG0" && b.op_name = "REG1" ->
+      let dest =
+        {
+          op_name = "dest";
+          op_kind = Register { class_ = X86_gpr; excluded = [] };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ src; dest ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [ Syn_decorated ("%", Syn_operand "src"); Syn_decorated ("%", Syn_operand "dest") ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "REG0 (rw=%s, dest), REG1 (rw=%s, src) taken verbatim from encoding.operands"
+                    a.rw b.rw;
+              };
+              {
+                label = Inferred;
+                note = "AT&T operand order (src, dest) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected REG0/REG1 operands in that order, got %d" (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* [vpinsrw]'s own cross-register-class member (VPINSRW_XMMdq_XMMdq_GPR32d_IMMb, GEN-05):
    {!vex_binop_imm_rrr_form}'s own REG0/REG1/REG2/IMM0 quadruple with [X86_gpr] replacing
    [X86_xmm] on [src2] - {!pinsrw_rr_form}'s own class split, generalized to the non-destructive
@@ -3457,6 +3521,22 @@ let normalize (rec_ : R.t) =
       vpinsrw_rr_mem_form ~form_id:"VPINSRW_XMMdq_XMMdq_MEMw_IMMb" ~mnemonic:"vpinsrw" rec_
   | Ok { iform = Some "VPEXTRW_GPR32d_XMMdq_IMMb_C5"; _ } ->
       pextrw_rr_form ~form_id:"VPEXTRW_GPR32d_XMMdq_IMMb_C5" ~mnemonic:"vpextrw" rec_
+  (* [movmskps]/[movmskpd]/[pmovmskb] and their VEX siblings (GEN-05, {!movmsk_rr_form}'s own doc
+     comment): only the XMM-operand VEX iforms are admitted, not their [_YMMqq] siblings (256-bit,
+     out of scope - this project has no VEX.L=1 infrastructure). [PMOVMSKB_GPR32_MMXq]'s MMX
+     iform is skipped entirely, {!Pinsrw}'s own precedent. *)
+  | Ok { iform = Some "MOVMSKPS_GPR32_XMMps"; _ } ->
+      movmsk_rr_form ~form_id:"MOVMSKPS_GPR32_XMMps" ~mnemonic:"movmskps" rec_
+  | Ok { iform = Some "MOVMSKPD_GPR32_XMMpd"; _ } ->
+      movmsk_rr_form ~form_id:"MOVMSKPD_GPR32_XMMpd" ~mnemonic:"movmskpd" rec_
+  | Ok { iform = Some "PMOVMSKB_GPR32_XMMdq"; _ } ->
+      movmsk_rr_form ~form_id:"PMOVMSKB_GPR32_XMMdq" ~mnemonic:"pmovmskb" rec_
+  | Ok { iform = Some "VMOVMSKPS_GPR32d_XMMdq"; _ } ->
+      movmsk_rr_form ~form_id:"VMOVMSKPS_GPR32d_XMMdq" ~mnemonic:"vmovmskps" rec_
+  | Ok { iform = Some "VMOVMSKPD_GPR32d_XMMdq"; _ } ->
+      movmsk_rr_form ~form_id:"VMOVMSKPD_GPR32d_XMMdq" ~mnemonic:"vmovmskpd" rec_
+  | Ok { iform = Some "VPMOVMSKB_GPR32d_XMMdq"; _ } ->
+      movmsk_rr_form ~form_id:"VPMOVMSKB_GPR32d_XMMdq" ~mnemonic:"vpmovmskb" rec_
   (* Packed bitwise-logical family: {!Opcode.Xorpd}'s siblings, the same plain
      xmm-xmm/xmm-memory binop shape {!xmm_binop_rr_form}/{!xmm_binop_rm_form}
      already cover generically. ANDPS/ANDNPS/ORPS/XORPS are XED extension SSE

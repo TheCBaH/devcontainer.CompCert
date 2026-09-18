@@ -227,6 +227,13 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "VPEXTRW_GPR32d_XMMdq_IMMb_C5" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:MOVMSKPS_GPR32_XMMps" | "x86:MOVMSKPD_GPR32_XMMpd" | "x86:PMOVMSKB_GPR32_XMMdq"
+      | "x86:VMOVMSKPS_GPR32d_XMMdq" | "x86:VMOVMSKPD_GPR32d_XMMdq" | "x86:VPMOVMSKB_GPR32d_XMMdq"
+        ),
+      ( "MOVMSKPS_GPR32_XMMps" | "MOVMSKPD_GPR32_XMMpd" | "PMOVMSKB_GPR32_XMMdq"
+      | "VMOVMSKPS_GPR32d_XMMdq" | "VMOVMSKPD_GPR32d_XMMdq" | "VPMOVMSKB_GPR32d_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:ANDPS_XMMxud_XMMxud" | "x86:ANDNPS_XMMxud_XMMxud" | "x86:ORPS_XMMxud_XMMxud"
       | "x86:XORPS_XMMxud_XMMxud" | "x86:ANDPD_XMMxuq_XMMxuq" | "x86:ANDNPD_XMMxuq_XMMxuq"
       | "x86:ORPD_XMMxuq_XMMxuq" ),

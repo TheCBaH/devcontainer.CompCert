@@ -352,6 +352,10 @@ val x86_vpextrw_rr_entries : entry list
 (** [vpextrw $1, %xmm0, %eax] on x86-32 and x86-64 - {!x86_pextrw_rr_entries} reused verbatim
     under the VEX iform's own lookup key. *)
 
+val x86_movmsk_entries : entry list
+(** [movmskps]/[movmskpd]/[pmovmskb] and their VEX siblings, [%xmm0, %eax], on x86-32 and x86-64 -
+    {!x86_cvtf2i_rr_entry} reused verbatim (no immediate) under each mnemonic's own lookup key. *)
+
 val x86_fadd_entries : entry list
 (** [fadd %st(1), %st] on x86-32 and x86-64, selecting XED's
     [FADD_ST0_X87] rather than its reverse-direction sibling. *)

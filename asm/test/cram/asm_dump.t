@@ -254,6 +254,10 @@
     [94 cost=0] sse-pextrw       sse-pextrw(){no-asz 01100110 no-rex 0000111111000101 modrm imm8:8u}
     [95 cost=0] vex-pinsrw       vex-pinsrw(){11000101 vex-byte2:8u 11000100 modrm imm8:8u}
     [96 cost=0] vex-pextrw       vex-pextrw(){11000101 vex-byte2:8u 11000101 modrm imm8:8u}
+    [97 cost=0] sse-movmsk-66    sse-movmsk-66(){no-asz 01100110 no-rex 00001111 sse-movmsk-66-op modrm}
+    [98 cost=0] sse-movmsk-none  sse-movmsk-none(){prefixes 00001111 sse-movmsk-none-op modrm}
+    [99 cost=0] vex-movmsk-66    vex-movmsk-66(){11000101 vex-byte2:8u vex-movmsk-66-op modrm}
+    [100 cost=0] vex-movmsk-none  vex-movmsk-none(){11000101 vex-byte2:8u vex-movmsk-none-op modrm}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -298,6 +302,10 @@
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
   vex-unop-f3-op[1]{opcode:8u}
+  sse-movmsk-66-op[2]{opcode:8u}
+  sse-movmsk-none-op[1]{opcode:8u}
+  vex-movmsk-66-op[2]{opcode:8u}
+  vex-movmsk-none-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -558,6 +566,10 @@
     [94 cost=0] sse-pextrw       sse-pextrw(){asz 01100110 rex 0000111111000101 modrm imm8:8u}
     [95 cost=0] vex-pinsrw       vex-pinsrw(){11000101 vex-byte2:8u 11000100 modrm imm8:8u}
     [96 cost=0] vex-pextrw       vex-pextrw(){11000101 vex-byte2:8u 11000101 modrm imm8:8u}
+    [97 cost=0] sse-movmsk-66    sse-movmsk-66(){asz 01100110 rex 00001111 sse-movmsk-66-op modrm}
+    [98 cost=0] sse-movmsk-none  sse-movmsk-none(){prefixes 00001111 sse-movmsk-none-op modrm}
+    [99 cost=0] vex-movmsk-66    vex-movmsk-66(){11000101 vex-byte2:8u vex-movmsk-66-op modrm}
+    [100 cost=0] vex-movmsk-none  vex-movmsk-none(){11000101 vex-byte2:8u vex-movmsk-none-op modrm}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -605,6 +617,10 @@
   vex-unop-imm-f3-op[1]{opcode:8u}
   vex-unop-imm-66-op[1]{opcode:8u}
   vex-unop-f3-op[1]{opcode:8u}
+  sse-movmsk-66-op[2]{opcode:8u}
+  sse-movmsk-none-op[1]{opcode:8u}
+  vex-movmsk-66-op[2]{opcode:8u}
+  vex-movmsk-none-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
