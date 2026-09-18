@@ -835,6 +835,7 @@ let x86_sse_binop_imm_rr_entries =
           ("PSHUFD_XMMdq_XMMdq_IMMb", "27");
           ("PSHUFLW_XMMdq_XMMdq_IMMb", "27");
           ("PSHUFHW_XMMdq_XMMdq_IMMb", "27");
+          ("PALIGNR_XMMdq_XMMdq_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -870,6 +871,7 @@ let x86_sse_binop_imm_rm_entries =
           ("PSHUFD_XMMdq_MEMdq_IMMb", "27");
           ("PSHUFLW_XMMdq_MEMdq_IMMb", "27");
           ("PSHUFHW_XMMdq_MEMdq_IMMb", "27");
+          ("PALIGNR_XMMdq_MEMdq_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 

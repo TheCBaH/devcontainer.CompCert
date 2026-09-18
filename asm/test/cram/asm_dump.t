@@ -265,6 +265,7 @@
     [105 cost=0] vex-shift-imm-d  vex-shift-imm-d(){11000101 vex-byte2:8u 01110010 modrm imm8:8u}
     [106 cost=0] vex-shift-imm-q  vex-shift-imm-q(){11000101 vex-byte2:8u 01110011 modrm imm8:8u}
     [107 cost=0] sse-binop-0f38-66 sse-binop-0f38-66(){no-asz 01100110 no-rex 00001111 00111000 sse-binop-0f38-op modrm}
+    [108 cost=0] sse-binop-imm-0f3a-66 sse-binop-imm-0f3a-66(){no-asz 01100110 no-rex 00001111 00111010 sse-binop-imm-0f3a-op modrm imm8:8u}
   prefixes(){no-asz opsz no-rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -314,6 +315,7 @@
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
   sse-binop-0f38-op[15]{opcode:8u}
+  sse-binop-imm-0f3a-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -585,6 +587,7 @@
     [105 cost=0] vex-shift-imm-d  vex-shift-imm-d(){11000101 vex-byte2:8u 01110010 modrm imm8:8u}
     [106 cost=0] vex-shift-imm-q  vex-shift-imm-q(){11000101 vex-byte2:8u 01110011 modrm imm8:8u}
     [107 cost=0] sse-binop-0f38-66 sse-binop-0f38-66(){asz 01100110 rex 00001111 00111000 sse-binop-0f38-op modrm}
+    [108 cost=0] sse-binop-imm-0f3a-66 sse-binop-imm-0f3a-66(){asz 01100110 rex 00001111 00111010 sse-binop-imm-0f3a-op modrm imm8:8u}
   prefixes(){asz opsz rex}
   alu-acc-imm8-opcode(){opcode:8u}
   alu-acc-imm-opcode(){opcode:8u}
@@ -637,6 +640,7 @@
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
   sse-binop-0f38-op[15]{opcode:8u}
+  sse-binop-imm-0f3a-op[1]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}

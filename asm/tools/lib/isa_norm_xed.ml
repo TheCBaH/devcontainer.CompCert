@@ -4222,6 +4222,12 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PABSW_XMMdq_MEMdq" ~mnemonic:"pabsw" rec_
   | Ok { iform = Some "PABSD_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PABSD_XMMdq_MEMdq" ~mnemonic:"pabsd" rec_
+  (* {!Opcode.Palignr}'s own doc comment (GEN-05): opcode map 3, but the same [reg, rm, imm8]
+     shape as {!Pshufd}'s own {!xmm_binop_imm_rr_form}/{!xmm_binop_imm_rm_form}. *)
+  | Ok { iform = Some "PALIGNR_XMMdq_XMMdq_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"PALIGNR_XMMdq_XMMdq_IMMb" ~mnemonic:"palignr" rec_
+  | Ok { iform = Some "PALIGNR_XMMdq_MEMdq_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"PALIGNR_XMMdq_MEMdq_IMMb" ~mnemonic:"palignr" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by

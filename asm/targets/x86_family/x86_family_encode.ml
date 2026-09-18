@@ -572,6 +572,15 @@ module Opcode = struct
     | Pabsd
         (** [pabsd rm, reg] - packed absolute value, doubleword lanes ([66 0F 38 1E /r]),
             {!Pabsb}'s sibling. *)
+    | Palignr
+        (** [palignr $imm8, rm, reg] - packed right-align concatenation of [reg:rm] by [imm8]
+            bytes ([66 0F 3A 0F /r ib], SSSE3, GEN-05): {!Shld}'s own [imm, rm, reg] operand order,
+            the exact same {!Lowered.Sse_binop_imm_r_rm} shape {!Pshufd}/{!Shufps} already use -
+            but opcode map 3 ([0F 3A xx]) rather than {!Pshufd}'s map 1, so it gets its own codec
+            alt ({!sse_binop_imm_0f3a_alt}) with one extra fixed [0x3A] byte, the exact map-3
+            counterpart of {!Pshufb}'s own map-2 {!sse_binop_0f38_alt}. Confirmed against real GNU
+            as: [palignr $5,%xmm2,%xmm1] -> [66 0f 3a 0f ca 05],
+            [palignr $5,0x10(%esp),%xmm1] -> [66 0f 3a 0f 4c 24 10 05]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1339,6 +1348,7 @@ module Opcode = struct
     | Pabsb -> "pabsb"
     | Pabsw -> "pabsw"
     | Pabsd -> "pabsd"
+    | Palignr -> "palignr"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3157,6 +3167,7 @@ module Make (M : MODE) = struct
     | "pabsb", _ -> Ok (Instruction.mk Opcode.Pabsb 32 s.Surface.ops)
     | "pabsw", _ -> Ok (Instruction.mk Opcode.Pabsw 32 s.Surface.ops)
     | "pabsd", _ -> Ok (Instruction.mk Opcode.Pabsd 32 s.Surface.ops)
+    | "palignr", _ -> Ok (Instruction.mk Opcode.Palignr 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -3889,7 +3900,7 @@ module Make (M : MODE) = struct
        [imm, rm, reg] - GAS's [parse_one_operand] builds the same order for any instruction
        whose immediate comes first. *)
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
-        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw ),
+        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr ),
         [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -3902,7 +3913,7 @@ module Make (M : MODE) = struct
                   ]
             | Error e, _ | _, Error e -> Error e))
     | ( ( Opcode.Shufps | Opcode.Shufpd | Opcode.Cmpss | Opcode.Cmpsd | Opcode.Cmpps | Opcode.Cmppd
-        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw ),
+        | Opcode.Pshufd | Opcode.Pshuflw | Opcode.Pshufhw | Opcode.Palignr ),
         [ Operand.Imm v; Operand.Mem m; Operand.Reg reg ] ) -> (
         match imm_of v with
         | Error e -> Error e
@@ -5411,6 +5422,39 @@ module Make (M : MODE) = struct
     C.iso_table ~name:"sse-binop-imm-none-op" ~equal:( = ) ~show:Opcode.name
       ~entries:[ (Opcode.Shufps, 0xC6L); (Opcode.Cmpps, 0xC2L) ]
       (C.field ~width:8 "opcode")
+
+  (* {!Opcode.Palignr}'s own doc comment (GEN-05): {!sse_binop_imm_alt}'s exact field layout, one
+     extra fixed [0x3A] byte spliced in between the [0x0F] escape and the opcode byte - opcode map
+     3 rather than map 1, {!sse_binop_0f38_alt}'s own map-2 trick repeated for map 3. A one-entry
+     table since {!Palignr} is this map's only admitted mnemonic. *)
+  let sse_binop_imm_0f3a_codec =
+    C.iso_table ~name:"sse-binop-imm-0f3a-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:[ (Opcode.Palignr, 0x0FL) ]
+      (C.field ~width:8 "opcode")
+
+  let sse_binop_imm_0f3a_alt ~label ~priority ~mandatory ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_imm_r_rm { op; reg; rm; imm } ->
+               let p = prefixes_of ~width:32 ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), ((), (op, ({ re_reg = reg.num; re_rm = rm }, imm)))))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), ((), (op, (e, imm))))))) ->
+           let p = { asz; opsz = false; rex } in
+           Some
+             (Lowered.Sse_binop_imm_r_rm
+                {
+                  op;
+                  reg = reg_field ~p ~width:128 e.re_reg;
+                  rm = rm_of ~p ~width:128 e.re_rm;
+                  imm;
+                }))
+         C.(
+           asz_codec
+           ** const ~width:8 (Int64.of_int mandatory)
+           ** rex_codec ** const ~width:8 0x0FL ** const ~width:8 0x3AL ** opcode_codec ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
 
   (* [pinsrw $imm8, gpr32/m16, xmm] ([66 0F C4 /r ib], {!Opcode.Pinsrw}'s own doc comment):
      {!Lowered.Sse_binop_imm_r_rm}'s first cross-register-class user - [reg] is the xmm
@@ -7113,6 +7157,10 @@ module Make (M : MODE) = struct
             ~opcode_codec:sse_binop_imm_66_codec;
           sse_binop_imm_none_alt ~label:"sse-binop-imm-none" ~priority:76
             ~opcode_codec:sse_binop_imm_none_codec;
+          (* [palignr] (GEN-05): {!Opcode.Palignr}'s own doc comment - opcode map 3, disjoint
+             from every map-1 alt above by construction (the extra [0x3A] byte). *)
+          sse_binop_imm_0f3a_alt ~label:"sse-binop-imm-0f3a-66" ~priority:108 ~mandatory:0x66
+            ~opcode_codec:sse_binop_imm_0f3a_codec;
           vex_binop_imm_rrr_alt ~label:"vex-binop-imm-f2" ~priority:77 ~pp:3
             ~opcode_codec:vex_binop_imm_f2_codec;
           vex_binop_imm_rrr_alt ~label:"vex-binop-imm-f3" ~priority:78 ~pp:2

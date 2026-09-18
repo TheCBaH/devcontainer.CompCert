@@ -464,6 +464,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       ("x86:PABSB_XMMdq_MEMdq" | "x86:PABSW_XMMdq_MEMdq" | "x86:PABSD_XMMdq_MEMdq"),
       ("PABSB_XMMdq_MEMdq" | "PABSW_XMMdq_MEMdq" | "PABSD_XMMdq_MEMdq") ) ->
       true
+  | (Target.X86_32 | Target.X86_64), "x86:PALIGNR_XMMdq_XMMdq_IMMb", "PALIGNR_XMMdq_XMMdq_IMMb" ->
+      true
+  | (Target.X86_32 | Target.X86_64), "x86:PALIGNR_XMMdq_MEMdq_IMMb", "PALIGNR_XMMdq_MEMdq_IMMb" ->
+      true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PHADDW_XMMdq_MEMdq" | "x86:PHADDD_XMMdq_MEMdq" | "x86:PHSUBW_XMMdq_MEMdq"
       | "x86:PHSUBD_XMMdq_MEMdq" | "x86:PSIGNB_XMMdq_MEMdq" | "x86:PSIGNW_XMMdq_MEMdq"
