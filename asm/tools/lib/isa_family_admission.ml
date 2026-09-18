@@ -481,6 +481,28 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "ROUNDSD_XMMq_MEMq_IMMb" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PCMPEQQ_XMMdq_XMMdq" | "x86:PCMPGTQ_XMMdq_XMMdq" | "x86:PACKUSDW_XMMdq_XMMdq"
+      | "x86:PMAXSB_XMMdq_XMMdq" | "x86:PMAXSD_XMMdq_XMMdq" | "x86:PMAXUD_XMMdq_XMMdq"
+      | "x86:PMAXUW_XMMdq_XMMdq" | "x86:PMINSB_XMMdq_XMMdq" | "x86:PMINSD_XMMdq_XMMdq"
+      | "x86:PMINUD_XMMdq_XMMdq" | "x86:PMINUW_XMMdq_XMMdq" | "x86:PMULDQ_XMMdq_XMMdq"
+      | "x86:PMULLD_XMMdq_XMMdq" | "x86:PHMINPOSUW_XMMdq_XMMdq" ),
+      ( "PCMPEQQ_XMMdq_XMMdq" | "PCMPGTQ_XMMdq_XMMdq" | "PACKUSDW_XMMdq_XMMdq"
+      | "PMAXSB_XMMdq_XMMdq" | "PMAXSD_XMMdq_XMMdq" | "PMAXUD_XMMdq_XMMdq" | "PMAXUW_XMMdq_XMMdq"
+      | "PMINSB_XMMdq_XMMdq" | "PMINSD_XMMdq_XMMdq" | "PMINUD_XMMdq_XMMdq" | "PMINUW_XMMdq_XMMdq"
+      | "PMULDQ_XMMdq_XMMdq" | "PMULLD_XMMdq_XMMdq" | "PHMINPOSUW_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PCMPEQQ_XMMdq_MEMdq" | "x86:PCMPGTQ_XMMdq_MEMdq" | "x86:PACKUSDW_XMMdq_MEMdq"
+      | "x86:PMAXSB_XMMdq_MEMdq" | "x86:PMAXSD_XMMdq_MEMdq" | "x86:PMAXUD_XMMdq_MEMdq"
+      | "x86:PMAXUW_XMMdq_MEMdq" | "x86:PMINSB_XMMdq_MEMdq" | "x86:PMINSD_XMMdq_MEMdq"
+      | "x86:PMINUD_XMMdq_MEMdq" | "x86:PMINUW_XMMdq_MEMdq" | "x86:PMULDQ_XMMdq_MEMdq"
+      | "x86:PMULLD_XMMdq_MEMdq" | "x86:PHMINPOSUW_XMMdq_MEMdq" ),
+      ( "PCMPEQQ_XMMdq_MEMdq" | "PCMPGTQ_XMMdq_MEMdq" | "PACKUSDW_XMMdq_MEMdq"
+      | "PMAXSB_XMMdq_MEMdq" | "PMAXSD_XMMdq_MEMdq" | "PMAXUD_XMMdq_MEMdq" | "PMAXUW_XMMdq_MEMdq"
+      | "PMINSB_XMMdq_MEMdq" | "PMINSD_XMMdq_MEMdq" | "PMINUD_XMMdq_MEMdq" | "PMINUW_XMMdq_MEMdq"
+      | "PMULDQ_XMMdq_MEMdq" | "PMULLD_XMMdq_MEMdq" | "PHMINPOSUW_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PHADDW_XMMdq_MEMdq" | "x86:PHADDD_XMMdq_MEMdq" | "x86:PHSUBW_XMMdq_MEMdq"
       | "x86:PHSUBD_XMMdq_MEMdq" | "x86:PSIGNB_XMMdq_MEMdq" | "x86:PSIGNW_XMMdq_MEMdq"
       | "x86:PSIGND_XMMdq_MEMdq" | "x86:PMADDUBSW_XMMdq_MEMdq" | "x86:PMULHRSW_XMMdq_MEMdq" ),

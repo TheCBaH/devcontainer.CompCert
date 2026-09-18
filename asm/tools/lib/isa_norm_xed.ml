@@ -4245,6 +4245,63 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rm_form ~form_id:"ROUNDSS_XMMd_MEMd_IMMb" ~mnemonic:"roundss" rec_
   | Ok { iform = Some "ROUNDSD_XMMq_MEMq_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"ROUNDSD_XMMq_MEMq_IMMb" ~mnemonic:"roundsd" rec_
+  (* {!Opcode.Pcmpeqq}'s own doc comment (GEN-05): {!Pshufb}'s own map-2 group, same shape. *)
+  | Ok { iform = Some "PCMPEQQ_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPEQQ_XMMdq_XMMdq" ~mnemonic:"pcmpeqq" rec_
+  | Ok { iform = Some "PCMPGTQ_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PCMPGTQ_XMMdq_XMMdq" ~mnemonic:"pcmpgtq" rec_
+  | Ok { iform = Some "PACKUSDW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PACKUSDW_XMMdq_XMMdq" ~mnemonic:"packusdw" rec_
+  | Ok { iform = Some "PMAXSB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMAXSB_XMMdq_XMMdq" ~mnemonic:"pmaxsb" rec_
+  | Ok { iform = Some "PMAXSD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMAXSD_XMMdq_XMMdq" ~mnemonic:"pmaxsd" rec_
+  | Ok { iform = Some "PMAXUD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMAXUD_XMMdq_XMMdq" ~mnemonic:"pmaxud" rec_
+  | Ok { iform = Some "PMAXUW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMAXUW_XMMdq_XMMdq" ~mnemonic:"pmaxuw" rec_
+  | Ok { iform = Some "PMINSB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMINSB_XMMdq_XMMdq" ~mnemonic:"pminsb" rec_
+  | Ok { iform = Some "PMINSD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMINSD_XMMdq_XMMdq" ~mnemonic:"pminsd" rec_
+  | Ok { iform = Some "PMINUD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMINUD_XMMdq_XMMdq" ~mnemonic:"pminud" rec_
+  | Ok { iform = Some "PMINUW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMINUW_XMMdq_XMMdq" ~mnemonic:"pminuw" rec_
+  | Ok { iform = Some "PMULDQ_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULDQ_XMMdq_XMMdq" ~mnemonic:"pmuldq" rec_
+  | Ok { iform = Some "PMULLD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMULLD_XMMdq_XMMdq" ~mnemonic:"pmulld" rec_
+  | Ok { iform = Some "PHMINPOSUW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PHMINPOSUW_XMMdq_XMMdq" ~mnemonic:"phminposuw" rec_
+  | Ok { iform = Some "PCMPEQQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPEQQ_XMMdq_MEMdq" ~mnemonic:"pcmpeqq" rec_
+  | Ok { iform = Some "PCMPGTQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PCMPGTQ_XMMdq_MEMdq" ~mnemonic:"pcmpgtq" rec_
+  | Ok { iform = Some "PACKUSDW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PACKUSDW_XMMdq_MEMdq" ~mnemonic:"packusdw" rec_
+  | Ok { iform = Some "PMAXSB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMAXSB_XMMdq_MEMdq" ~mnemonic:"pmaxsb" rec_
+  | Ok { iform = Some "PMAXSD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMAXSD_XMMdq_MEMdq" ~mnemonic:"pmaxsd" rec_
+  | Ok { iform = Some "PMAXUD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMAXUD_XMMdq_MEMdq" ~mnemonic:"pmaxud" rec_
+  | Ok { iform = Some "PMAXUW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMAXUW_XMMdq_MEMdq" ~mnemonic:"pmaxuw" rec_
+  | Ok { iform = Some "PMINSB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMINSB_XMMdq_MEMdq" ~mnemonic:"pminsb" rec_
+  | Ok { iform = Some "PMINSD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMINSD_XMMdq_MEMdq" ~mnemonic:"pminsd" rec_
+  | Ok { iform = Some "PMINUD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMINUD_XMMdq_MEMdq" ~mnemonic:"pminud" rec_
+  | Ok { iform = Some "PMINUW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMINUW_XMMdq_MEMdq" ~mnemonic:"pminuw" rec_
+  | Ok { iform = Some "PMULDQ_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULDQ_XMMdq_MEMdq" ~mnemonic:"pmuldq" rec_
+  | Ok { iform = Some "PMULLD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMULLD_XMMdq_MEMdq" ~mnemonic:"pmulld" rec_
+  | Ok { iform = Some "PHMINPOSUW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PHMINPOSUW_XMMdq_MEMdq" ~mnemonic:"phminposuw" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by

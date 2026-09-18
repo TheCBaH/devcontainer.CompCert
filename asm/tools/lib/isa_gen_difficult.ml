@@ -653,6 +653,20 @@ let x86_sse_binop_rr_entries =
           "PABSB_XMMdq_XMMdq";
           "PABSW_XMMdq_XMMdq";
           "PABSD_XMMdq_XMMdq";
+          "PCMPEQQ_XMMdq_XMMdq";
+          "PCMPGTQ_XMMdq_XMMdq";
+          "PACKUSDW_XMMdq_XMMdq";
+          "PMAXSB_XMMdq_XMMdq";
+          "PMAXSD_XMMdq_XMMdq";
+          "PMAXUD_XMMdq_XMMdq";
+          "PMAXUW_XMMdq_XMMdq";
+          "PMINSB_XMMdq_XMMdq";
+          "PMINSD_XMMdq_XMMdq";
+          "PMINUD_XMMdq_XMMdq";
+          "PMINUW_XMMdq_XMMdq";
+          "PMULDQ_XMMdq_XMMdq";
+          "PMULLD_XMMdq_XMMdq";
+          "PHMINPOSUW_XMMdq_XMMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -797,6 +811,20 @@ let x86_sse_binop_rm_entries =
           "PABSB_XMMdq_MEMdq";
           "PABSW_XMMdq_MEMdq";
           "PABSD_XMMdq_MEMdq";
+          "PCMPEQQ_XMMdq_MEMdq";
+          "PCMPGTQ_XMMdq_MEMdq";
+          "PACKUSDW_XMMdq_MEMdq";
+          "PMAXSB_XMMdq_MEMdq";
+          "PMAXSD_XMMdq_MEMdq";
+          "PMAXUD_XMMdq_MEMdq";
+          "PMAXUW_XMMdq_MEMdq";
+          "PMINSB_XMMdq_MEMdq";
+          "PMINSD_XMMdq_MEMdq";
+          "PMINUD_XMMdq_MEMdq";
+          "PMINUW_XMMdq_MEMdq";
+          "PMULDQ_XMMdq_MEMdq";
+          "PMULLD_XMMdq_MEMdq";
+          "PHMINPOSUW_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

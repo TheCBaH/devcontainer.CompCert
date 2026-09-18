@@ -600,6 +600,55 @@ module Opcode = struct
     | Roundsd
         (** [roundsd $imm8, rm, reg] - scalar round to integer, double precision
             ([66 0F 3A 0B /r ib]), {!Roundss}'s sibling. *)
+    | Pcmpeqq
+        (** [pcmpeqq rm, reg] - packed compare equal, qword lanes ([66 0F 38 29 /r], SSE4.1,
+            GEN-05): {!Pshufb}'s own map-2 group at a different opcode byte, same
+            {!Lowered.Sse_binop_r_rm}/{!sse_binop_0f38_alt} shape unchanged. Confirmed against
+            real GNU as: [pcmpeqq %xmm2,%xmm1] -> [66 0f 38 29 ca],
+            [pcmpeqq 0x10(%esp),%xmm1] -> [66 0f 38 29 4c 24 10]. *)
+    | Pcmpgtq
+        (** [pcmpgtq rm, reg] - packed compare greater-than (signed), qword lanes
+            ([66 0F 38 37 /r]), {!Pcmpeqq}'s sibling. *)
+    | Packusdw
+        (** [packusdw rm, reg] - pack doubleword to word with unsigned saturation
+            ([66 0F 38 2B /r]), {!Pcmpeqq}'s own group at a different opcode byte. *)
+    | Pmaxsb
+        (** [pmaxsb rm, reg] - packed maximum, signed byte lanes ([66 0F 38 3C /r]),
+            {!Pcmpeqq}'s own group at a different opcode byte. *)
+    | Pmaxsd
+        (** [pmaxsd rm, reg] - packed maximum, signed doubleword lanes ([66 0F 38 3D /r]),
+            {!Pmaxsb}'s sibling. *)
+    | Pmaxud
+        (** [pmaxud rm, reg] - packed maximum, unsigned doubleword lanes ([66 0F 38 3F /r]),
+            {!Pmaxsb}'s sibling. *)
+    | Pmaxuw
+        (** [pmaxuw rm, reg] - packed maximum, unsigned word lanes ([66 0F 38 3E /r]),
+            {!Pmaxsb}'s sibling. *)
+    | Pminsb
+        (** [pminsb rm, reg] - packed minimum, signed byte lanes ([66 0F 38 38 /r]),
+            {!Pmaxsb}'s minimum-direction sibling. *)
+    | Pminsd
+        (** [pminsd rm, reg] - packed minimum, signed doubleword lanes ([66 0F 38 39 /r]),
+            {!Pminsb}'s sibling. *)
+    | Pminud
+        (** [pminud rm, reg] - packed minimum, unsigned doubleword lanes ([66 0F 38 3B /r]),
+            {!Pminsb}'s sibling. *)
+    | Pminuw
+        (** [pminuw rm, reg] - packed minimum, unsigned word lanes ([66 0F 38 3A /r]),
+            {!Pminsb}'s sibling. *)
+    | Pmuldq
+        (** [pmuldq rm, reg] - packed signed multiply, low 32 bits of each even qword lane widened
+            to 64 bits ([66 0F 38 28 /r]), {!Pcmpeqq}'s own group at a different opcode byte. *)
+    | Pmulld
+        (** [pmulld rm, reg] - packed signed multiply, doubleword lanes, low 32 bits of the
+            product ([66 0F 38 40 /r]), {!Pcmpeqq}'s own group at a different opcode byte. *)
+    | Phminposuw
+        (** [phminposuw rm, reg] - packed horizontal minimum of unsigned word lanes plus its
+            index ([66 0F 38 41 /r]): REG0's XED [rw="w"] (write-only, unlike every other member
+            here's [rw="rw"]) still fits {!Lowered.Sse_binop_r_rm}/{!sse_binop_0f38_alt} unchanged,
+            the same fact {!Pabsb}'s own doc comment already established. Confirmed against real
+            GNU as: [phminposuw %xmm2,%xmm1] -> [66 0f 38 41 ca],
+            [phminposuw 0x10(%esp),%xmm1] -> [66 0f 38 41 4c 24 10]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1372,6 +1421,20 @@ module Opcode = struct
     | Roundpd -> "roundpd"
     | Roundss -> "roundss"
     | Roundsd -> "roundsd"
+    | Pcmpeqq -> "pcmpeqq"
+    | Pcmpgtq -> "pcmpgtq"
+    | Packusdw -> "packusdw"
+    | Pmaxsb -> "pmaxsb"
+    | Pmaxsd -> "pmaxsd"
+    | Pmaxud -> "pmaxud"
+    | Pmaxuw -> "pmaxuw"
+    | Pminsb -> "pminsb"
+    | Pminsd -> "pminsd"
+    | Pminud -> "pminud"
+    | Pminuw -> "pminuw"
+    | Pmuldq -> "pmuldq"
+    | Pmulld -> "pmulld"
+    | Phminposuw -> "phminposuw"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3195,6 +3258,20 @@ module Make (M : MODE) = struct
     | "roundpd", _ -> Ok (Instruction.mk Opcode.Roundpd 32 s.Surface.ops)
     | "roundss", _ -> Ok (Instruction.mk Opcode.Roundss 32 s.Surface.ops)
     | "roundsd", _ -> Ok (Instruction.mk Opcode.Roundsd 32 s.Surface.ops)
+    | "pcmpeqq", _ -> Ok (Instruction.mk Opcode.Pcmpeqq 32 s.Surface.ops)
+    | "pcmpgtq", _ -> Ok (Instruction.mk Opcode.Pcmpgtq 32 s.Surface.ops)
+    | "packusdw", _ -> Ok (Instruction.mk Opcode.Packusdw 32 s.Surface.ops)
+    | "pmaxsb", _ -> Ok (Instruction.mk Opcode.Pmaxsb 32 s.Surface.ops)
+    | "pmaxsd", _ -> Ok (Instruction.mk Opcode.Pmaxsd 32 s.Surface.ops)
+    | "pmaxud", _ -> Ok (Instruction.mk Opcode.Pmaxud 32 s.Surface.ops)
+    | "pmaxuw", _ -> Ok (Instruction.mk Opcode.Pmaxuw 32 s.Surface.ops)
+    | "pminsb", _ -> Ok (Instruction.mk Opcode.Pminsb 32 s.Surface.ops)
+    | "pminsd", _ -> Ok (Instruction.mk Opcode.Pminsd 32 s.Surface.ops)
+    | "pminud", _ -> Ok (Instruction.mk Opcode.Pminud 32 s.Surface.ops)
+    | "pminuw", _ -> Ok (Instruction.mk Opcode.Pminuw 32 s.Surface.ops)
+    | "pmuldq", _ -> Ok (Instruction.mk Opcode.Pmuldq 32 s.Surface.ops)
+    | "pmulld", _ -> Ok (Instruction.mk Opcode.Pmulld 32 s.Surface.ops)
+    | "phminposuw", _ -> Ok (Instruction.mk Opcode.Phminposuw 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -4077,7 +4154,10 @@ module Make (M : MODE) = struct
         | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
         | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
         | Opcode.Pmaddubsw | Opcode.Pmulhrsw | Opcode.Phaddsw | Opcode.Phsubsw | Opcode.Pabsb
-        | Opcode.Pabsw | Opcode.Pabsd ),
+        | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
+        | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
+        | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
+        | Opcode.Phminposuw ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -4105,7 +4185,10 @@ module Make (M : MODE) = struct
         | Opcode.Psraw | Opcode.Psrad | Opcode.Pshufb | Opcode.Phaddw | Opcode.Phaddd
         | Opcode.Phsubw | Opcode.Phsubd | Opcode.Psignb | Opcode.Psignw | Opcode.Psignd
         | Opcode.Pmaddubsw | Opcode.Pmulhrsw | Opcode.Phaddsw | Opcode.Phsubsw | Opcode.Pabsb
-        | Opcode.Pabsw | Opcode.Pabsd ),
+        | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
+        | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
+        | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
+        | Opcode.Phminposuw ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -5229,6 +5312,20 @@ module Make (M : MODE) = struct
           (Opcode.Pabsb, 0x1CL);
           (Opcode.Pabsw, 0x1DL);
           (Opcode.Pabsd, 0x1EL);
+          (Opcode.Pmuldq, 0x28L);
+          (Opcode.Pcmpeqq, 0x29L);
+          (Opcode.Packusdw, 0x2BL);
+          (Opcode.Pminsb, 0x38L);
+          (Opcode.Pminsd, 0x39L);
+          (Opcode.Pminuw, 0x3AL);
+          (Opcode.Pminud, 0x3BL);
+          (Opcode.Pmaxsb, 0x3CL);
+          (Opcode.Pmaxsd, 0x3DL);
+          (Opcode.Pmaxuw, 0x3EL);
+          (Opcode.Pmaxud, 0x3FL);
+          (Opcode.Pmulld, 0x40L);
+          (Opcode.Phminposuw, 0x41L);
+          (Opcode.Pcmpgtq, 0x37L);
         ]
       (C.field ~width:8 "opcode")
 
