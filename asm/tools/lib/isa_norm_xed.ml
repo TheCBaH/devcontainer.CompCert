@@ -4208,6 +4208,20 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PHADDSW_XMMdq_MEMdq" ~mnemonic:"phaddsw" rec_
   | Ok { iform = Some "PHSUBSW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PHSUBSW_XMMdq_MEMdq" ~mnemonic:"phsubsw" rec_
+  (* {!Opcode.Pabsb}'s own doc comment (GEN-05): REG0's XED [rw="w"] still fits
+     {!xmm_binop_rr_form}/{!xmm_binop_rm_form}'s generic [role_of_rw] unchanged. *)
+  | Ok { iform = Some "PABSB_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PABSB_XMMdq_XMMdq" ~mnemonic:"pabsb" rec_
+  | Ok { iform = Some "PABSW_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PABSW_XMMdq_XMMdq" ~mnemonic:"pabsw" rec_
+  | Ok { iform = Some "PABSD_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PABSD_XMMdq_XMMdq" ~mnemonic:"pabsd" rec_
+  | Ok { iform = Some "PABSB_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PABSB_XMMdq_MEMdq" ~mnemonic:"pabsb" rec_
+  | Ok { iform = Some "PABSW_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PABSW_XMMdq_MEMdq" ~mnemonic:"pabsw" rec_
+  | Ok { iform = Some "PABSD_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PABSD_XMMdq_MEMdq" ~mnemonic:"pabsd" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
