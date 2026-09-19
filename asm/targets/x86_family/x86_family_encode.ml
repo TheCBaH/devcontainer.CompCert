@@ -55,6 +55,11 @@ module Reg = struct
      its operand registers' width, not carried separately. *)
   let names_ymm = Array.init 16 (fun i -> Printf.sprintf "ymm%d" i)
 
+  (* [zmm0]-[zmm15] (AVX-512, GEN-05): {!names_ymm}'s own 512-bit sibling, width 512 as the class
+     marker for EVEX.L'L = 2. [zmm16]-[zmm31] need the EVEX [R'], [V'] and [X] extension bits and
+     are not modelled yet. *)
+  let names_zmm = Array.init 16 (fun i -> Printf.sprintf "zmm%d" i)
+
   let base_regs width names =
     Array.to_list (Array.mapi (fun i n -> { name = n; num = i; width }) names)
 
@@ -4092,6 +4097,21 @@ module Make (M : MODE) = struct
       if r.width = 256 then Ok ()
       else bad (`Sse_operand_class { sse_reg = r.name; sse_reg_width = r.width })
     in
+    let zmm_ok (r : Reg.t) =
+      if r.width = 512 then Ok ()
+      else bad (`Sse_operand_class { sse_reg = r.name; sse_reg_width = r.width })
+    in
+    (* EVEX (AVX-512F, {!Opcode.Vaddps}'s own doc comment): only the register-register spelling of
+       the packed-float binops with an EVEX form is admitted at 512 bits, unmasked. *)
+    let evex512_binop = function
+      | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vmaxps
+      | Opcode.Vminps | Opcode.Vunpcklps | Opcode.Vunpckhps | Opcode.Vaddpd | Opcode.Vsubpd
+      | Opcode.Vmulpd | Opcode.Vdivpd | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vunpcklpd
+      | Opcode.Vunpckhpd ->
+          true
+      | _ -> false
+    in
+
     let vex256_binop = function
       | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vandps
       | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps | Opcode.Vmaxps | Opcode.Vminps
@@ -4858,6 +4878,14 @@ module Make (M : MODE) = struct
        {!Vex_rm_extended_register} names exactly which operand and why. A
        memory [src2] needs the same check on its base/index (if present)
        instead of on a register number directly - {!vex_mem_ok}. *)
+    (* 512-bit EVEX ([zmm]): every operand must be [zmm]; register source only. *)
+    | op, [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ]
+      when dst.Reg.width = 512 && evex512_binop op -> (
+        match (zmm_ok src2, zmm_ok src1, zmm_ok dst) with
+        | Ok (), Ok (), Ok () ->
+            if src2.num >= 8 then bad (`Vex_rm_extended_register src2.name)
+            else Ok [ Lowered.Vex_binop_rr_rm { op; dst; src1; src2 = Rm.Reg src2 } ]
+        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
     (* 256-bit VEX ([ymm], {!Opcode.Vaddps}'s own doc comment): every operand must be [ymm], the
        same [src2.num >= 8] / {!vex_mem_ok} restriction applies. *)
     | op, [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ]
@@ -6516,7 +6544,8 @@ module Make (M : MODE) = struct
     C.alt ~label ~priority
       (C.iso_fun ~name:label
          ~encode:(function
-           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 ->
+           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 && dst.width <> 512
+             ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
                let vvvv = lnot src1.num land 0xF in
                let l = if dst.width = 256 then 1 else 0 in
@@ -6582,7 +6611,8 @@ module Make (M : MODE) = struct
     C.alt ~label ~priority
       (C.iso_fun ~name:label
          ~encode:(function
-           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 ->
+           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 && dst.width <> 512
+             ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
                let vvvv = lnot src1.num land 0xF in
                let l = if dst.width = 256 then 1 else 0 in
@@ -6721,6 +6751,77 @@ module Make (M : MODE) = struct
          C.(
            const ~width:8 0xC4L ** field ~width:8 "vex3-byte1" ** field ~width:8 "vex3-byte2"
            ** opcode_codec ** rm_codec))
+
+  (* The EVEX prefix ([0x62], AVX-512, {!Opcode.Vaddps}'s own doc comment): [0x62], then [P0 = R X B
+     R' 0 mmm] (extension bits inverted; [mmm = 1] selects map 0F), [P1 = W vvvv 1 pp], [P2 = z L'L
+     b V' aaa] - here always unmasked ([z = 0], [aaa = 0]), no broadcast/rounding ([b = 0]), 512
+     bits ([L'L = 10]), and [R'] = [V'] = 1 (registers below 16). [W] is fixed per group: 0 for the
+     [ps] mnemonics, 1 for [pd] (unlike VEX, where the same opcodes are WIG). *)
+  let evex_ps_codec =
+    C.iso_table ~name:"evex-ps-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vaddps, 0x58L);
+          (Opcode.Vsubps, 0x5CL);
+          (Opcode.Vmulps, 0x59L);
+          (Opcode.Vdivps, 0x5EL);
+          (Opcode.Vmaxps, 0x5FL);
+          (Opcode.Vminps, 0x5DL);
+          (Opcode.Vunpcklps, 0x14L);
+          (Opcode.Vunpckhps, 0x15L);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let evex_pd_codec =
+    C.iso_table ~name:"evex-pd-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vaddpd, 0x58L);
+          (Opcode.Vsubpd, 0x5CL);
+          (Opcode.Vmulpd, 0x59L);
+          (Opcode.Vdivpd, 0x5EL);
+          (Opcode.Vmaxpd, 0x5FL);
+          (Opcode.Vminpd, 0x5DL);
+          (Opcode.Vunpcklpd, 0x14L);
+          (Opcode.Vunpckhpd, 0x15L);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let evex_binop_rrr_alt ~label ~priority ~pp ~w ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when dst.width = 512 && vex_rm_ok src2
+             ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let vvvv = lnot src1.num land 0xF in
+               let p0 = Int64.of_int ((r_bit lsl 7) lor 0x40 lor 0x20 lor 0x10 lor 1) in
+               let p1 = Int64.of_int ((w lsl 7) lor (vvvv lsl 3) lor 4 lor pp) in
+               Some ((), (p0, (p1, (0x48L, (op, { re_reg = dst.num; re_rm = src2 })))))
+           | _ -> None)
+         ~decode:(fun ((), (p0, (p1, (p2, (op, e))))) ->
+           let b0 = Int64.to_int p0 and b1 = Int64.to_int p1 in
+           if
+             b0 land 0x7F <> 0x71
+             || (b1 lsr 7) land 1 <> w
+             || b1 land 4 = 0
+             || b1 land 3 <> pp
+             || p2 <> 0x48L
+           then None
+           else
+             let r_bit = (b0 lsr 7) land 1 in
+             let vvvv = (b1 lsr 3) land 0xF in
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src1_num = lnot vvvv land 0xF in
+             let src2 =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:512 r) | Rm.Mem _ as m -> m
+             in
+             Some
+               (Lowered.Vex_binop_rr_rm
+                  { op; dst = reg_at ~width:512 dst_num; src1 = reg_at ~width:512 src1_num; src2 }))
+         C.(
+           const ~width:8 0x62L ** field ~width:8 "evex-p0" ** field ~width:8 "evex-p1"
+           ** field ~width:8 "evex-p2" ** opcode_codec ** rm_codec))
 
   (* [pp = 0] - {!Opcode.Vsqrtps}'s own group: opcode 0x51 does not collide with
      {!vex_scalar_none_codec}'s entries (0x54-0x59/0x5C-0x5F), so this could have been added
@@ -8035,6 +8136,10 @@ module Make (M : MODE) = struct
             ~opcode_codec:vex3_map2_66_codec;
           vex3_map2_unop_alt ~label:"vex3-map2-66-unop" ~priority:112 ~pp:1
             ~opcode_codec:vex3_map2_unop_codec;
+          evex_binop_rrr_alt ~label:"evex-ps-rrr" ~priority:113 ~pp:0 ~w:0
+            ~opcode_codec:evex_ps_codec;
+          evex_binop_rrr_alt ~label:"evex-pd-rrr" ~priority:114 ~pp:1 ~w:1
+            ~opcode_codec:evex_pd_codec;
           vex3_map3_imm_rrr_alt ~label:"vex3-map3-66-imm-rrr" ~priority:111 ~pp:1
             ~opcode_codec:vex3_map3_66_codec;
           vex_unop_alt ~label:"vex-unop-none" ~priority:71 ~pp:0 ~opcode_codec:vex_unop_none_codec;

@@ -1462,6 +1462,58 @@ let vex_binop_rrr_form ?(vec = X86_xmm) ~form_id ~mnemonic (rec_ : R.t) =
            (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+let contains_substring s sub =
+  let n = String.length s and m = String.length sub in
+  let rec go i = i + m <= n && (String.sub s i m = sub || go (i + 1)) in
+  go 0
+
+(* EVEX 512-bit register-register binops (VADDPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512 etc., GEN-05):
+   XED's resolved operands are REG0 (dest, w), REG1 (the [MASK1] opmask, r), REG2 (src1/vvvv, r)
+   and REG3 (src2/rm, r). The opmask is dropped and the remaining three renumbered so
+   {!vex_binop_rrr_form} builds the rest with the [X86_zmm] class: this project's admitted spelling
+   is the unmasked one (opmask [k0], no [{%k}]/[{z}] decoration), recorded as an [Inferred] fact
+   rather than modelled as an operand. *)
+let evex_binop_rrr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { pattern; _ } when not (contains_substring pattern "BCRC=0") ->
+      (* The same iform has a second record with [BCRC=1] (EVEX.b set: embedded rounding or SAE,
+         [{rn-sae}] etc.) - a different encoding this normalizer must not fold into the plain one. *)
+      err (form_id ^ "-embedded-rounding")
+        "EVEX.b = 1 (embedded rounding / SAE) record, not admitted"
+  | R.X86_encoding ({ operands = [ a; m; b; c ]; _ } as e)
+    when a.op_name = "REG0" && m.op_name = "REG1" && m.lookupfn_name = Some "MASK1"
+         && b.op_name = "REG2" && c.op_name = "REG3" -> (
+      let trimmed =
+        {
+          rec_ with
+          encoding =
+            R.X86_encoding
+              { e with operands = [ a; { b with op_name = "REG1" }; { c with op_name = "REG2" } ] };
+        }
+      in
+      match vex_binop_rrr_form ~vec:X86_zmm ~form_id ~mnemonic trimmed with
+      | Error _ as err -> err
+      | Ok (form : Isa_norm_model.form) ->
+          Ok
+            {
+              form with
+              facts =
+                form.facts
+                @ [
+                    {
+                      label = Inferred;
+                      note =
+                        "REG1 (MASK1, opmask) omitted: the admitted spelling is unmasked (k0, no \
+                         {%k}/{z} decoration)";
+                    };
+                  ];
+            })
+  | R.X86_encoding _ ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        "expected REG0, a MASK1 opmask, REG2 and REG3 operands in that order"
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* {!vex_binop_rrr_form}'s register<-memory sibling (VADDSD_XMMdq_XMMdq_MEMq
    etc.): XED's resolved operands are REG0 (dest, w), REG1 (src1/vvvv, r) and
    MEM0 (src2/rm-as-memory, r), the same REG0/REG1 pair as
@@ -5320,6 +5372,54 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_mem_form ~vec:X86_ymm ~form_id:"VMOVDQA_YMMqq_MEMqq" ~mnemonic:"vmovdqa" rec_
   | Ok { iform = Some "VMOVDQU_YMMqq_MEMqq"; _ } ->
       vex_unop_rr_mem_form ~vec:X86_ymm ~form_id:"VMOVDQU_YMMqq_MEMqq" ~mnemonic:"vmovdqu" rec_
+  | Ok { iform = Some "VADDPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VADDPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vaddps"
+        rec_
+  | Ok { iform = Some "VSUBPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VSUBPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vsubps"
+        rec_
+  | Ok { iform = Some "VMULPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMULPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vmulps"
+        rec_
+  | Ok { iform = Some "VDIVPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VDIVPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vdivps"
+        rec_
+  | Ok { iform = Some "VMAXPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMAXPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vmaxps"
+        rec_
+  | Ok { iform = Some "VMINPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMINPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512" ~mnemonic:"vminps"
+        rec_
+  | Ok { iform = Some "VUNPCKLPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VUNPCKLPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"
+        ~mnemonic:"vunpcklps" rec_
+  | Ok { iform = Some "VUNPCKHPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VUNPCKHPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512"
+        ~mnemonic:"vunpckhps" rec_
+  | Ok { iform = Some "VADDPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VADDPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vaddpd"
+        rec_
+  | Ok { iform = Some "VSUBPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VSUBPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vsubpd"
+        rec_
+  | Ok { iform = Some "VMULPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMULPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vmulpd"
+        rec_
+  | Ok { iform = Some "VDIVPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VDIVPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vdivpd"
+        rec_
+  | Ok { iform = Some "VMAXPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMAXPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vmaxpd"
+        rec_
+  | Ok { iform = Some "VMINPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VMINPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512" ~mnemonic:"vminpd"
+        rec_
+  | Ok { iform = Some "VUNPCKLPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VUNPCKLPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"
+        ~mnemonic:"vunpcklpd" rec_
+  | Ok { iform = Some "VUNPCKHPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"; _ } ->
+      evex_binop_rrr_form ~form_id:"VUNPCKHPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512"
+        ~mnemonic:"vunpckhpd" rec_
   | Ok { iform = Some "VPABSB_YMMqq_YMMqq"; _ } ->
       vex_unop_rr_form ~vec:X86_ymm ~form_id:"VPABSB_YMMqq_YMMqq" ~mnemonic:"vpabsb" rec_
   | Ok { iform = Some "VPABSW_YMMqq_YMMqq"; _ } ->

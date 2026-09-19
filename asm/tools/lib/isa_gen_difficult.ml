@@ -2071,6 +2071,34 @@ let x86_vex256_unop_rr_mem_entries =
         ])
     [ Target.X86_32; Target.X86_64 ]
 
+(* 512-bit EVEX register-register packed-float binops ({!Isa_norm_xed.evex_binop_rrr_form}'s own doc
+   comment): the VEX three-register entry builder with [zmm] register names. *)
+let x86_evex512_binop_rrr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_binop_rrr_entry ~vreg:"zmm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VADDPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VSUBPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VMULPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VDIVPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VMAXPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VMINPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VUNPCKLPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VUNPCKHPS_ZMMf32_MASKmskw_ZMMf32_ZMMf32_AVX512";
+          "VADDPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VSUBPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VMULPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VDIVPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VMAXPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VMINPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VUNPCKLPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+          "VUNPCKHPD_ZMMf64_MASKmskw_ZMMf64_ZMMf64_AVX512";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
 (* PEXTRB/PEXTRD/EXTRACTPS memory-destination forms ({!Isa_norm_xed.pextr_store_mr_form}'s own doc
    comment): {!x86_movd_store_mr_entry}'s own stack-based addressing plus the trailing imm8. *)
 let x86_pextr_store_mr_entry ~target ~form_id ~lookup_key ~imm =
@@ -5784,11 +5812,11 @@ let all =
   @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries @ vpopc_m_entries @ vmandnot_mm_entries
   @ vmornot_mm_entries @ vfredsum_vs_entries @ vfwredsum_vs_entries @ vl1r_v_entries
   @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
-  @ x86_vex256_binop_rrr_entries @ x86_vex256_binop_rr_mem_entries @ x86_vex256_unop_rr_entries
-  @ x86_vex256_unop_rr_mem_entries @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries
-  @ x86_vex_unop_rr_entries @ x86_vex_unop_rr_mem_entries @ x86_vex_binop_imm_rrr_entries
-  @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries @ x86_vex_unop_imm_rm_entries
-  @ x86_vex_shift_imm_rrr_entries
+  @ x86_evex512_binop_rrr_entries @ x86_vex256_binop_rrr_entries @ x86_vex256_binop_rr_mem_entries
+  @ x86_vex256_unop_rr_entries @ x86_vex256_unop_rr_mem_entries @ x86_vex_binop_rrr_entries
+  @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries @ x86_vex_unop_rr_mem_entries
+  @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries
+  @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

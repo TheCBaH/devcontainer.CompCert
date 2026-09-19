@@ -366,6 +366,9 @@ val x86_vex256_unop_rr_entries : entry list
 val x86_vex256_unop_rr_mem_entries : entry list
 (** {!x86_vex256_unop_rr_entries}'s memory-source sibling. *)
 
+val x86_evex512_binop_rrr_entries : entry list
+(** 512-bit (zmm) EVEX packed-float binops, register operands, unmasked, on x86-32 and x86-64. *)
+
 val x86_pinsrw_rr_entries : entry list
 (** [pinsrw $1, %eax, %xmm0] on x86-32 and x86-64 - {!Isa_norm_xed.pinsrw_rr_form}'s own
     cross-register-class member, a GPR source rather than xmm. *)
