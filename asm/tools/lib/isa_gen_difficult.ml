@@ -1863,6 +1863,69 @@ let x86_vex256_binop_rrr_entries =
           "VMINPD_YMMqq_YMMqq_YMMqq";
           "VUNPCKLPD_YMMqq_YMMqq_YMMqq";
           "VUNPCKHPD_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKLQDQ_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKHQDQ_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKLBW_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKHBW_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKLWD_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKHWD_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKLDQ_YMMqq_YMMqq_YMMqq";
+          "VPUNPCKHDQ_YMMqq_YMMqq_YMMqq";
+          "VPADDB_YMMqq_YMMqq_YMMqq";
+          "VPADDW_YMMqq_YMMqq_YMMqq";
+          "VPADDD_YMMqq_YMMqq_YMMqq";
+          "VPADDQ_YMMqq_YMMqq_YMMqq";
+          "VPSUBB_YMMqq_YMMqq_YMMqq";
+          "VPSUBW_YMMqq_YMMqq_YMMqq";
+          "VPSUBD_YMMqq_YMMqq_YMMqq";
+          "VPSUBQ_YMMqq_YMMqq_YMMqq";
+          "VPCMPEQB_YMMqq_YMMqq_YMMqq";
+          "VPCMPEQW_YMMqq_YMMqq_YMMqq";
+          "VPCMPEQD_YMMqq_YMMqq_YMMqq";
+          "VPCMPGTB_YMMqq_YMMqq_YMMqq";
+          "VPCMPGTW_YMMqq_YMMqq_YMMqq";
+          "VPCMPGTD_YMMqq_YMMqq_YMMqq";
+          "VPACKSSWB_YMMqq_YMMqq_YMMqq";
+          "VPACKSSDW_YMMqq_YMMqq_YMMqq";
+          "VPACKUSWB_YMMqq_YMMqq_YMMqq";
+          "VPAND_YMMqq_YMMqq_YMMqq";
+          "VPANDN_YMMqq_YMMqq_YMMqq";
+          "VPOR_YMMqq_YMMqq_YMMqq";
+          "VPMINUB_YMMqq_YMMqq_YMMqq";
+          "VPMAXUB_YMMqq_YMMqq_YMMqq";
+          "VPMINSW_YMMqq_YMMqq_YMMqq";
+          "VPMAXSW_YMMqq_YMMqq_YMMqq";
+          "VPMULLW_YMMqq_YMMqq_YMMqq";
+          "VPMULHW_YMMqq_YMMqq_YMMqq";
+          "VPMULHUW_YMMqq_YMMqq_YMMqq";
+          "VPAVGB_YMMqq_YMMqq_YMMqq";
+          "VPAVGW_YMMqq_YMMqq_YMMqq";
+          "VPSADBW_YMMqq_YMMqq_YMMqq";
+          "VPSHUFB_YMMqq_YMMqq_YMMqq";
+          "VPHADDW_YMMqq_YMMqq_YMMqq";
+          "VPHADDD_YMMqq_YMMqq_YMMqq";
+          "VPHADDSW_YMMqq_YMMqq_YMMqq";
+          "VPMADDUBSW_YMMqq_YMMqq_YMMqq";
+          "VPHSUBW_YMMqq_YMMqq_YMMqq";
+          "VPHSUBD_YMMqq_YMMqq_YMMqq";
+          "VPHSUBSW_YMMqq_YMMqq_YMMqq";
+          "VPSIGNB_YMMqq_YMMqq_YMMqq";
+          "VPSIGNW_YMMqq_YMMqq_YMMqq";
+          "VPSIGND_YMMqq_YMMqq_YMMqq";
+          "VPMULHRSW_YMMqq_YMMqq_YMMqq";
+          "VPMULDQ_YMMqq_YMMqq_YMMqq";
+          "VPCMPEQQ_YMMqq_YMMqq_YMMqq";
+          "VPACKUSDW_YMMqq_YMMqq_YMMqq";
+          "VPCMPGTQ_YMMqq_YMMqq_YMMqq";
+          "VPMINSB_YMMqq_YMMqq_YMMqq";
+          "VPMINSD_YMMqq_YMMqq_YMMqq";
+          "VPMINUW_YMMqq_YMMqq_YMMqq";
+          "VPMINUD_YMMqq_YMMqq_YMMqq";
+          "VPMAXSB_YMMqq_YMMqq_YMMqq";
+          "VPMAXSD_YMMqq_YMMqq_YMMqq";
+          "VPMAXUW_YMMqq_YMMqq_YMMqq";
+          "VPMAXUD_YMMqq_YMMqq_YMMqq";
+          "VPMULLD_YMMqq_YMMqq_YMMqq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1897,6 +1960,69 @@ let x86_vex256_binop_rr_mem_entries =
           "VMINPD_YMMqq_YMMqq_MEMqq";
           "VUNPCKLPD_YMMqq_YMMqq_MEMqq";
           "VUNPCKHPD_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKLQDQ_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKHQDQ_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKLBW_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKHBW_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKLWD_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKHWD_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKLDQ_YMMqq_YMMqq_MEMqq";
+          "VPUNPCKHDQ_YMMqq_YMMqq_MEMqq";
+          "VPADDB_YMMqq_YMMqq_MEMqq";
+          "VPADDW_YMMqq_YMMqq_MEMqq";
+          "VPADDD_YMMqq_YMMqq_MEMqq";
+          "VPADDQ_YMMqq_YMMqq_MEMqq";
+          "VPSUBB_YMMqq_YMMqq_MEMqq";
+          "VPSUBW_YMMqq_YMMqq_MEMqq";
+          "VPSUBD_YMMqq_YMMqq_MEMqq";
+          "VPSUBQ_YMMqq_YMMqq_MEMqq";
+          "VPCMPEQB_YMMqq_YMMqq_MEMqq";
+          "VPCMPEQW_YMMqq_YMMqq_MEMqq";
+          "VPCMPEQD_YMMqq_YMMqq_MEMqq";
+          "VPCMPGTB_YMMqq_YMMqq_MEMqq";
+          "VPCMPGTW_YMMqq_YMMqq_MEMqq";
+          "VPCMPGTD_YMMqq_YMMqq_MEMqq";
+          "VPACKSSWB_YMMqq_YMMqq_MEMqq";
+          "VPACKSSDW_YMMqq_YMMqq_MEMqq";
+          "VPACKUSWB_YMMqq_YMMqq_MEMqq";
+          "VPAND_YMMqq_YMMqq_MEMqq";
+          "VPANDN_YMMqq_YMMqq_MEMqq";
+          "VPOR_YMMqq_YMMqq_MEMqq";
+          "VPMINUB_YMMqq_YMMqq_MEMqq";
+          "VPMAXUB_YMMqq_YMMqq_MEMqq";
+          "VPMINSW_YMMqq_YMMqq_MEMqq";
+          "VPMAXSW_YMMqq_YMMqq_MEMqq";
+          "VPMULLW_YMMqq_YMMqq_MEMqq";
+          "VPMULHW_YMMqq_YMMqq_MEMqq";
+          "VPMULHUW_YMMqq_YMMqq_MEMqq";
+          "VPAVGB_YMMqq_YMMqq_MEMqq";
+          "VPAVGW_YMMqq_YMMqq_MEMqq";
+          "VPSADBW_YMMqq_YMMqq_MEMqq";
+          "VPSHUFB_YMMqq_YMMqq_MEMqq";
+          "VPHADDW_YMMqq_YMMqq_MEMqq";
+          "VPHADDD_YMMqq_YMMqq_MEMqq";
+          "VPHADDSW_YMMqq_YMMqq_MEMqq";
+          "VPMADDUBSW_YMMqq_YMMqq_MEMqq";
+          "VPHSUBW_YMMqq_YMMqq_MEMqq";
+          "VPHSUBD_YMMqq_YMMqq_MEMqq";
+          "VPHSUBSW_YMMqq_YMMqq_MEMqq";
+          "VPSIGNB_YMMqq_YMMqq_MEMqq";
+          "VPSIGNW_YMMqq_YMMqq_MEMqq";
+          "VPSIGND_YMMqq_YMMqq_MEMqq";
+          "VPMULHRSW_YMMqq_YMMqq_MEMqq";
+          "VPMULDQ_YMMqq_YMMqq_MEMqq";
+          "VPCMPEQQ_YMMqq_YMMqq_MEMqq";
+          "VPACKUSDW_YMMqq_YMMqq_MEMqq";
+          "VPCMPGTQ_YMMqq_YMMqq_MEMqq";
+          "VPMINSB_YMMqq_YMMqq_MEMqq";
+          "VPMINSD_YMMqq_YMMqq_MEMqq";
+          "VPMINUW_YMMqq_YMMqq_MEMqq";
+          "VPMINUD_YMMqq_YMMqq_MEMqq";
+          "VPMAXSB_YMMqq_YMMqq_MEMqq";
+          "VPMAXSD_YMMqq_YMMqq_MEMqq";
+          "VPMAXUW_YMMqq_YMMqq_MEMqq";
+          "VPMAXUD_YMMqq_YMMqq_MEMqq";
+          "VPMULLD_YMMqq_YMMqq_MEMqq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1915,6 +2041,10 @@ let x86_vex256_unop_rr_entries =
           "VMOVUPD_YMMqq_YMMqq_10";
           "VMOVDQA_YMMqq_YMMqq_6F";
           "VMOVDQU_YMMqq_YMMqq_6F";
+          "VPABSB_YMMqq_YMMqq";
+          "VPABSW_YMMqq_YMMqq";
+          "VPABSD_YMMqq_YMMqq";
+          "VPTEST_YMMqq_YMMqq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1933,6 +2063,11 @@ let x86_vex256_unop_rr_mem_entries =
           "VMOVUPD_YMMqq_MEMqq";
           "VMOVDQA_YMMqq_MEMqq";
           "VMOVDQU_YMMqq_MEMqq";
+          "VPABSB_YMMqq_MEMqq";
+          "VPABSW_YMMqq_MEMqq";
+          "VPABSD_YMMqq_MEMqq";
+          "VPTEST_YMMqq_MEMqq";
+          "VMOVNTDQA_YMMqq_MEMqq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

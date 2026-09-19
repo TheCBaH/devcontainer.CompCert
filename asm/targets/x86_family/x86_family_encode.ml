@@ -4097,13 +4097,27 @@ module Make (M : MODE) = struct
       | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps | Opcode.Vmaxps | Opcode.Vminps
       | Opcode.Vunpcklps | Opcode.Vunpckhps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
       | Opcode.Vdivpd | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd
-      | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vunpcklpd | Opcode.Vunpckhpd ->
+      | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vunpcklpd | Opcode.Vunpckhpd | Opcode.Vpunpcklqdq
+      | Opcode.Vpunpckhqdq | Opcode.Vpunpcklbw | Opcode.Vpunpckhbw | Opcode.Vpunpcklwd
+      | Opcode.Vpunpckhwd | Opcode.Vpunpckldq | Opcode.Vpunpckhdq | Opcode.Vpaddb | Opcode.Vpaddw
+      | Opcode.Vpaddd | Opcode.Vpaddq | Opcode.Vpsubb | Opcode.Vpsubw | Opcode.Vpsubd
+      | Opcode.Vpsubq | Opcode.Vpcmpeqb | Opcode.Vpcmpeqw | Opcode.Vpcmpeqd | Opcode.Vpcmpgtb
+      | Opcode.Vpcmpgtw | Opcode.Vpcmpgtd | Opcode.Vpacksswb | Opcode.Vpackssdw | Opcode.Vpackuswb
+      | Opcode.Vpand | Opcode.Vpandn | Opcode.Vpor | Opcode.Vpminub | Opcode.Vpmaxub
+      | Opcode.Vpminsw | Opcode.Vpmaxsw | Opcode.Vpmullw | Opcode.Vpmulhw | Opcode.Vpmulhuw
+      | Opcode.Vpavgb | Opcode.Vpavgw | Opcode.Vpsadbw | Opcode.Vpshufb | Opcode.Vphaddw
+      | Opcode.Vphaddd | Opcode.Vphaddsw | Opcode.Vpmaddubsw | Opcode.Vphsubw | Opcode.Vphsubd
+      | Opcode.Vphsubsw | Opcode.Vpsignb | Opcode.Vpsignw | Opcode.Vpsignd | Opcode.Vpmulhrsw
+      | Opcode.Vpmuldq | Opcode.Vpcmpeqq | Opcode.Vpackusdw | Opcode.Vpcmpgtq | Opcode.Vpminsb
+      | Opcode.Vpminsd | Opcode.Vpminuw | Opcode.Vpminud | Opcode.Vpmaxsb | Opcode.Vpmaxsd
+      | Opcode.Vpmaxuw | Opcode.Vpmaxud | Opcode.Vpmulld ->
           true
       | _ -> false
     in
     let vex256_unop = function
       | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
-      | Opcode.Vmovupd | Opcode.Vmovdqa | Opcode.Vmovdqu ->
+      | Opcode.Vmovupd | Opcode.Vmovdqa | Opcode.Vmovdqu | Opcode.Vpabsb | Opcode.Vpabsw
+      | Opcode.Vpabsd | Opcode.Vptest | Opcode.Vmovntdqa ->
           true
       | _ -> false
     in
@@ -4858,7 +4872,8 @@ module Make (M : MODE) = struct
         match (ymm_ok src1, ymm_ok dst, vex_mem_ok m) with
         | Ok (), Ok (), Ok () -> Ok [ Lowered.Vex_binop_rr_rm { op; dst; src1; src2 = Rm.Mem m } ]
         | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
-    | op, [ Operand.Reg src; Operand.Reg dst ] when dst.Reg.width = 256 && vex256_unop op -> (
+    | op, [ Operand.Reg src; Operand.Reg dst ]
+      when dst.Reg.width = 256 && vex256_unop op && op <> Opcode.Vmovntdqa -> (
         match (ymm_ok src, ymm_ok dst) with
         | Ok (), Ok () ->
             if src.num >= 8 then bad (`Vex_rm_extended_register src.name)
@@ -6570,8 +6585,9 @@ module Make (M : MODE) = struct
            | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
                let vvvv = lnot src1.num land 0xF in
+               let l = if dst.width = 256 then 1 else 0 in
                let byte1 = Int64.of_int ((r_bit lsl 7) lor 0x40 lor 0x20 lor 2) in
-               let byte2 = Int64.of_int ((vvvv lsl 3) lor pp) in
+               let byte2 = Int64.of_int ((vvvv lsl 3) lor (l lsl 2) lor pp) in
                Some ((), (byte1, (byte2, (op, { re_reg = dst.num; re_rm = src2 }))))
            | _ -> None)
          ~decode:(fun ((), (byte1, (byte2, (op, e)))) ->
@@ -6579,17 +6595,17 @@ module Make (M : MODE) = struct
            let r_bit = (b1 lsr 7) land 1 in
            let vvvv = (b2 lsr 3) land 0xF in
            let w = (b2 lsr 7) land 1 in
-           let l = (b2 lsr 2) land 1 in
-           if b1 land 0x7F <> 0x62 || w <> 0 || l <> 0 || b2 land 3 <> pp then None
+           let width = if (b2 lsr 2) land 1 = 1 then 256 else 128 in
+           if b1 land 0x7F <> 0x62 || w <> 0 || b2 land 3 <> pp then None
            else
              let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
              let src1_num = lnot vvvv land 0xF in
              let src2 =
-               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width r) | Rm.Mem _ as m -> m
              in
              Some
                (Lowered.Vex_binop_rr_rm
-                  { op; dst = reg_at ~width:128 dst_num; src1 = reg_at ~width:128 src1_num; src2 }))
+                  { op; dst = reg_at ~width dst_num; src1 = reg_at ~width src1_num; src2 }))
          C.(
            const ~width:8 0xC4L ** field ~width:8 "vex3-byte1" ** field ~width:8 "vex3-byte2"
            ** opcode_codec ** rm_codec))
@@ -6684,8 +6700,9 @@ module Make (M : MODE) = struct
          ~encode:(function
            | Lowered.Vex_unop_r_rm { op; dst; src } when vex_rm_ok src ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
+               let l = if dst.width = 256 then 1 else 0 in
                let byte1 = Int64.of_int ((r_bit lsl 7) lor 0x40 lor 0x20 lor 2) in
-               let byte2 = Int64.of_int ((0xF lsl 3) lor pp) in
+               let byte2 = Int64.of_int ((0xF lsl 3) lor (l lsl 2) lor pp) in
                Some ((), (byte1, (byte2, (op, { re_reg = dst.num; re_rm = src }))))
            | _ -> None)
          ~decode:(fun ((), (byte1, (byte2, (op, e)))) ->
@@ -6693,14 +6710,14 @@ module Make (M : MODE) = struct
            let r_bit = (b1 lsr 7) land 1 in
            let vvvv = (b2 lsr 3) land 0xF in
            let w = (b2 lsr 7) land 1 in
-           let l = (b2 lsr 2) land 1 in
-           if b1 land 0x7F <> 0x62 || w <> 0 || l <> 0 || vvvv <> 0xF || b2 land 3 <> pp then None
+           let width = if (b2 lsr 2) land 1 = 1 then 256 else 128 in
+           if b1 land 0x7F <> 0x62 || w <> 0 || vvvv <> 0xF || b2 land 3 <> pp then None
            else
              let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
              let src =
-               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width r) | Rm.Mem _ as m -> m
              in
-             Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width:128 dst_num; src }))
+             Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width dst_num; src }))
          C.(
            const ~width:8 0xC4L ** field ~width:8 "vex3-byte1" ** field ~width:8 "vex3-byte2"
            ** opcode_codec ** rm_codec))
