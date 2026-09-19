@@ -2782,6 +2782,90 @@ let movd_store_mr_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected MEM0/REG0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* PEXTRB/PEXTRD/EXTRACTPS memory-destination forms (PEXTRB_MEMb_XMMdq_IMMb, GEN-05):
+   {!movd_store_mr_form}'s own MEM0 (written) / REG0 (xmm, read) pair plus the trailing IMM0
+   {!pextrw_rr_form} adds, spelled (imm, xmm source, memory destination) in AT&T order. *)
+let pextr_store_mr_form ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; opcode_map; opcode; pattern; operands = [ a; b; c ] }
+    when a.op_name = "MEM0" && b.op_name = "REG0" && c.op_name = "IMM0" ->
+      let mem =
+        {
+          op_name = "dest";
+          op_kind = Memory { width_bits = None };
+          role = role_of_rw a.rw;
+          explicit = true;
+        }
+      in
+      let src =
+        {
+          op_name = "src";
+          op_kind = Register { class_ = X86_xmm; excluded = [] };
+          role = role_of_rw b.rw;
+          explicit = true;
+        }
+      in
+      let imm =
+        {
+          op_name = "imm";
+          op_kind =
+            Immediate
+              {
+                width_bits = 8;
+                signed = false;
+                implicit_low_zero_bits = 0;
+                nonzero = false;
+                runs = [];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "x86:" ^ form_id;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands = [ imm; src; mem ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands =
+                [
+                  Syn_decorated ("$", Syn_operand "imm");
+                  Syn_decorated ("%", Syn_operand "src");
+                  Syn_operand "dest";
+                ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  Printf.sprintf
+                    "MEM0 (rw=%s, dest), REG0 (rw=%s, src), IMM0 (rw=%s) taken verbatim from \
+                     encoding.operands"
+                    a.rw b.rw c.rw;
+              };
+              {
+                label = Inferred;
+                note = "AT&T operand order (imm, src, dest) is GAS convention, not a XED fact";
+              };
+            ];
+          diagnostics = [];
+        }
+  | R.X86_encoding { operands; _ } ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        (Printf.sprintf "expected MEM0/REG0/IMM0 operands in that order, got %d"
+           (List.length operands))
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* BLENDVPS/BLENDVPD/PBLENDVB (GEN-05): {!xmm_binop_rr_form}/{!xmm_binop_rm_form}'s own two
    explicit operands plus a trailing SUPPRESSED-visibility, fixed-[bits] [XED_REG_XMM0] mask
    (REG2 for the register form, REG1 for the memory form). The mask is modelled as an
@@ -3722,6 +3806,12 @@ let normalize (rec_ : R.t) =
       pinsrw_rm_form ~form_id:"PINSRW_XMMdq_MEMw_IMMb" ~mnemonic:"pinsrw" rec_
   | Ok { iform = Some "PEXTRW_GPR32_XMMdq_IMMb"; _ } ->
       pextrw_rr_form ~form_id:"PEXTRW_GPR32_XMMdq_IMMb" ~mnemonic:"pextrw" rec_
+  | Ok { iform = Some "PEXTRB_MEMb_XMMdq_IMMb"; _ } ->
+      pextr_store_mr_form ~form_id:"PEXTRB_MEMb_XMMdq_IMMb" ~mnemonic:"pextrb" rec_
+  | Ok { iform = Some "PEXTRD_MEMd_XMMdq_IMMb"; _ } ->
+      pextr_store_mr_form ~form_id:"PEXTRD_MEMd_XMMdq_IMMb" ~mnemonic:"pextrd" rec_
+  | Ok { iform = Some "EXTRACTPS_MEMd_XMMps_IMMb"; _ } ->
+      pextr_store_mr_form ~form_id:"EXTRACTPS_MEMd_XMMps_IMMb" ~mnemonic:"extractps" rec_
   | Ok { iform = Some "BLENDVPS_XMMdq_XMMdq"; _ } ->
       xmm_blendv_form ~mem:false ~form_id:"BLENDVPS_XMMdq_XMMdq" ~mnemonic:"blendvps" rec_
   | Ok { iform = Some "BLENDVPS_XMMdq_MEMdq"; _ } ->

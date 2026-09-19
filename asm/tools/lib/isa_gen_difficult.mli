@@ -350,6 +350,10 @@ val x86_blendv_entries : entry list
     and x86-64 - {!Isa_norm_xed.xmm_blendv_form}'s implicit-[%xmm0]-mask family, both
     register-register and register<-memory. *)
 
+val x86_pextr_store_mr_entries : entry list
+(** [pextrb|pextrd|extractps $1, %xmm0, 16(%esp|%rsp)] on x86-32 and x86-64 -
+    {!Isa_norm_xed.pextr_store_mr_form}'s memory-destination family. *)
+
 val x86_pinsrw_rr_entries : entry list
 (** [pinsrw $1, %eax, %xmm0] on x86-32 and x86-64 - {!Isa_norm_xed.pinsrw_rr_form}'s own
     cross-register-class member, a GPR source rather than xmm. *)

@@ -539,6 +539,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "BLENDVPD_XMMdq_MEMdq" | "PBLENDVB_XMMdq_XMMdq" | "PBLENDVB_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ("x86:PEXTRB_MEMb_XMMdq_IMMb" | "x86:PEXTRD_MEMd_XMMdq_IMMb" | "x86:EXTRACTPS_MEMd_XMMps_IMMb"),
+      ("PEXTRB_MEMb_XMMdq_IMMb" | "PEXTRD_MEMd_XMMdq_IMMb" | "EXTRACTPS_MEMd_XMMps_IMMb") ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PINSRB_XMMdq_GPR32d_IMMb" | "x86:PINSRD_XMMdq_GPR32d_IMMb"
       | "x86:PINSRB_XMMdq_MEMb_IMMb" | "x86:PINSRD_XMMdq_MEMd_IMMb" | "x86:PEXTRB_GPR32d_XMMdq_IMMb"
       | "x86:PEXTRD_GPR32d_XMMdq_IMMb" | "x86:EXTRACTPS_GPR32d_XMMdq_IMMb" ),

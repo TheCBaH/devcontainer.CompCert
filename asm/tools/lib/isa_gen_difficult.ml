@@ -1723,6 +1723,31 @@ let x86_vmovd_store_mr_entries =
       x86_movd_store_mr_entry ~target ~form_id:"x86:VMOVD_MEMd_XMMd" ~lookup_key:"VMOVD_MEMd_XMMd")
     [ Target.X86_32; Target.X86_64 ]
 
+(* PEXTRB/PEXTRD/EXTRACTPS memory-destination forms ({!Isa_norm_xed.pextr_store_mr_form}'s own doc
+   comment): {!x86_movd_store_mr_entry}'s own stack-based addressing plus the trailing imm8. *)
+let x86_pextr_store_mr_entry ~target ~form_id ~lookup_key ~imm =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id = Printf.sprintf "%s:store-base-disp8-sib:%s" form_id (Target.to_string target);
+    rule_ids = [ "store-base-disp8-sib"; "mixed-gpr-xmm-operands" ];
+    operands = [ ("imm", imm); ("src", "xmm0"); ("dest", Printf.sprintf "16(%%%s)" stack) ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_pextr_store_mr_entries =
+  List.concat_map
+    (fun form ->
+      List.map
+        (fun target ->
+          x86_pextr_store_mr_entry ~target ~form_id:("x86:" ^ form) ~lookup_key:form ~imm:"1")
+        [ Target.X86_32; Target.X86_64 ])
+    [ "PEXTRB_MEMb_XMMdq_IMMb"; "PEXTRD_MEMd_XMMdq_IMMb"; "EXTRACTPS_MEMd_XMMps_IMMb" ]
+
 (* BLENDVPS/BLENDVPD/PBLENDVB ({!Isa_norm_xed.xmm_blendv_form}'s own doc comment): the canonical
    spelling writes the implicit [%xmm0] mask first, so [dest] is [%xmm2] here to keep the mask
    distinguishable from it. *)
@@ -5279,20 +5304,21 @@ let all =
   @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries @ x86_movd_store_rr_entries
   @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries @ x86_vmovd_load_rm_entries
   @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries @ x86_blendv_entries
-  @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries
-  @ x86_vpinsrw_rr_mem_entries @ x86_vpextrw_rr_entries @ x86_movmsk_entries @ x86_fadd_entries
-  @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries
-  @ fsub_d_entries @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries
-  @ fsd_entries @ sh1add_entries @ sh2add_entries @ sh3add_entries @ sh1adduw_entries
-  @ sh2adduw_entries @ sh3adduw_entries @ min_entries @ minu_entries @ max_entries @ maxu_entries
-  @ andn_entries @ orn_entries @ xnor_entries @ rol_entries @ ror_entries @ clz_entries
-  @ ctz_entries @ cpop_entries @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries
-  @ ctzw_entries @ cpopw_entries @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries
-  @ packw_entries @ zip_entries @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries
-  @ roriw_entries @ bclr_entries @ bext_entries @ binv_entries @ bset_entries @ bclri_entries
-  @ bexti_entries @ binvi_entries @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries
-  @ clmulr_entries @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries
-  @ xperm4_entries @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
+  @ x86_pextr_store_mr_entries @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries
+  @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries @ x86_vpinsrw_rr_mem_entries
+  @ x86_vpextrw_rr_entries @ x86_movmsk_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries
+  @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries
+  @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries @ fsd_entries @ sh1add_entries
+  @ sh2add_entries @ sh3add_entries @ sh1adduw_entries @ sh2adduw_entries @ sh3adduw_entries
+  @ min_entries @ minu_entries @ max_entries @ maxu_entries @ andn_entries @ orn_entries
+  @ xnor_entries @ rol_entries @ ror_entries @ clz_entries @ ctz_entries @ cpop_entries
+  @ sextb_entries @ sexth_entries @ orcb_entries @ clzw_entries @ ctzw_entries @ cpopw_entries
+  @ brev8_entries @ rev8_entries @ pack_entries @ packh_entries @ packw_entries @ zip_entries
+  @ unzip_entries @ rolw_entries @ rorw_entries @ rori_entries @ roriw_entries @ bclr_entries
+  @ bext_entries @ binv_entries @ bset_entries @ bclri_entries @ bexti_entries @ binvi_entries
+  @ bseti_entries @ zext_h_entries @ clmul_entries @ clmulh_entries @ clmulr_entries
+  @ czero_eqz_entries @ czero_nez_entries @ sm3p0_entries @ sm3p1_entries @ xperm4_entries
+  @ xperm8_entries @ sha256sum0_entries @ sha256sum1_entries @ sha256sig0_entries
   @ sha256sig1_entries @ sha512sum0_entries @ sha512sum1_entries @ sha512sig0_entries
   @ sha512sig1_entries @ sha512sum0r_entries @ sha512sum1r_entries @ sha512sig0l_entries
   @ sha512sig1l_entries @ sha512sig0h_entries @ sha512sig1h_entries @ aes64ds_entries
