@@ -667,6 +667,19 @@ let x86_sse_binop_rr_entries =
           "PMULDQ_XMMdq_XMMdq";
           "PMULLD_XMMdq_XMMdq";
           "PHMINPOSUW_XMMdq_XMMdq";
+          "PTEST_XMMdq_XMMdq";
+          "PMOVSXBW_XMMdq_XMMq";
+          "PMOVSXBD_XMMdq_XMMd";
+          "PMOVSXBQ_XMMdq_XMMw";
+          "PMOVSXWD_XMMdq_XMMq";
+          "PMOVSXWQ_XMMdq_XMMd";
+          "PMOVSXDQ_XMMdq_XMMq";
+          "PMOVZXBW_XMMdq_XMMq";
+          "PMOVZXBD_XMMdq_XMMd";
+          "PMOVZXBQ_XMMdq_XMMw";
+          "PMOVZXWD_XMMdq_XMMq";
+          "PMOVZXWQ_XMMdq_XMMd";
+          "PMOVZXDQ_XMMdq_XMMq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -825,6 +838,20 @@ let x86_sse_binop_rm_entries =
           "PMULDQ_XMMdq_MEMdq";
           "PMULLD_XMMdq_MEMdq";
           "PHMINPOSUW_XMMdq_MEMdq";
+          "PTEST_XMMdq_MEMdq";
+          "PMOVSXBW_XMMdq_MEMq";
+          "PMOVSXBD_XMMdq_MEMd";
+          "PMOVSXBQ_XMMdq_MEMw";
+          "PMOVSXWD_XMMdq_MEMq";
+          "PMOVSXWQ_XMMdq_MEMd";
+          "PMOVSXDQ_XMMdq_MEMq";
+          "PMOVZXBW_XMMdq_MEMq";
+          "PMOVZXBD_XMMdq_MEMd";
+          "PMOVZXBQ_XMMdq_MEMw";
+          "PMOVZXWD_XMMdq_MEMq";
+          "PMOVZXWQ_XMMdq_MEMd";
+          "PMOVZXDQ_XMMdq_MEMq";
+          "MOVNTDQA_XMMdq_MEMdq";
         ])
     [ Target.X86_32; Target.X86_64 ]
 

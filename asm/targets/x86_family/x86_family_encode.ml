@@ -649,6 +649,35 @@ module Opcode = struct
             the same fact {!Pabsb}'s own doc comment already established. Confirmed against real
             GNU as: [phminposuw %xmm2,%xmm1] -> [66 0f 38 41 ca],
             [phminposuw 0x10(%esp),%xmm1] -> [66 0f 38 41 4c 24 10]. *)
+    | Ptest
+        (** [ptest rm, reg] - logical compare setting ZF/CF, no register written ([66 0F 38 17 /r],
+            SSE4.1, GEN-05): {!Pshufb}'s own map-2 group at a different opcode byte, same
+            {!Lowered.Sse_binop_r_rm}/{!sse_binop_0f38_alt} shape unchanged; REG0's XED [rw="r"] is a
+            normalization-layer fact, the same one {!Pabsb}'s doc comment already established.
+            Confirmed against real GNU as: [ptest %xmm2,%xmm1] -> [66 0f 38 17 ca],
+            [ptest 0x10(%esp),%xmm1] -> [66 0f 38 17 4c 24 10]. *)
+    | Pmovsxbw
+        (** [pmovsx{bw,bd,bq,wd,wq,dq} rm, reg] / [pmovzx...] - sign-/zero-extending packed move
+            ([66 0F 38 20..25] / [66 0F 38 30..35], SSE4.1, GEN-05), {!Ptest}'s own group. XED's
+            source width varies per form ([XMMq]/[XMMd]/[XMMw], [MEMq]/[MEMd]/[MEMw]) but AT&T
+            spelling carries no size, so the encoder shape is unchanged. Confirmed against real GNU
+            as: [pmovsxbw %xmm2,%xmm1] -> [66 0f 38 20 ca], [pmovzxdq 0x10(%esp),%xmm1] ->
+            [66 0f 38 35 4c 24 10]. *)
+    | Pmovsxbd  (** See {!Pmovsxbw}. *)
+    | Pmovsxbq  (** See {!Pmovsxbw}. *)
+    | Pmovsxwd  (** See {!Pmovsxbw}. *)
+    | Pmovsxwq  (** See {!Pmovsxbw}. *)
+    | Pmovsxdq  (** See {!Pmovsxbw}. *)
+    | Pmovzxbw  (** See {!Pmovsxbw}. *)
+    | Pmovzxbd  (** See {!Pmovsxbw}. *)
+    | Pmovzxbq  (** See {!Pmovsxbw}. *)
+    | Pmovzxwd  (** See {!Pmovsxbw}. *)
+    | Pmovzxwq  (** See {!Pmovsxbw}. *)
+    | Pmovzxdq  (** See {!Pmovsxbw}. *)
+    | Movntdqa
+        (** [movntdqa mem, reg] - non-temporal aligned load ([66 0F 38 2A /r], SSE4.1, GEN-05),
+            {!Ptest}'s own group, memory source only. Confirmed against real GNU as:
+            [movntdqa 0x10(%esp),%xmm1] -> [66 0f 38 2a 4c 24 10]. *)
     | Blendps
         (** [blendps $imm8, rm, reg] - packed blend, single precision, per-dword mask selected by
             [imm8] ([66 0F 3A 0C /r ib], SSE4.1, GEN-05): {!Palignr}'s own map-3 group at a
@@ -1458,6 +1487,20 @@ module Opcode = struct
     | Pmuldq -> "pmuldq"
     | Pmulld -> "pmulld"
     | Phminposuw -> "phminposuw"
+    | Ptest -> "ptest"
+    | Pmovsxbw -> "pmovsxbw"
+    | Pmovsxbd -> "pmovsxbd"
+    | Pmovsxbq -> "pmovsxbq"
+    | Pmovsxwd -> "pmovsxwd"
+    | Pmovsxwq -> "pmovsxwq"
+    | Pmovsxdq -> "pmovsxdq"
+    | Pmovzxbw -> "pmovzxbw"
+    | Pmovzxbd -> "pmovzxbd"
+    | Pmovzxbq -> "pmovzxbq"
+    | Pmovzxwd -> "pmovzxwd"
+    | Pmovzxwq -> "pmovzxwq"
+    | Pmovzxdq -> "pmovzxdq"
+    | Movntdqa -> "movntdqa"
     | Blendps -> "blendps"
     | Blendpd -> "blendpd"
     | Dpps -> "dpps"
@@ -3301,6 +3344,20 @@ module Make (M : MODE) = struct
     | "pmuldq", _ -> Ok (Instruction.mk Opcode.Pmuldq 32 s.Surface.ops)
     | "pmulld", _ -> Ok (Instruction.mk Opcode.Pmulld 32 s.Surface.ops)
     | "phminposuw", _ -> Ok (Instruction.mk Opcode.Phminposuw 32 s.Surface.ops)
+    | "ptest", _ -> Ok (Instruction.mk Opcode.Ptest 32 s.Surface.ops)
+    | "pmovsxbw", _ -> Ok (Instruction.mk Opcode.Pmovsxbw 32 s.Surface.ops)
+    | "pmovsxbd", _ -> Ok (Instruction.mk Opcode.Pmovsxbd 32 s.Surface.ops)
+    | "pmovsxbq", _ -> Ok (Instruction.mk Opcode.Pmovsxbq 32 s.Surface.ops)
+    | "pmovsxwd", _ -> Ok (Instruction.mk Opcode.Pmovsxwd 32 s.Surface.ops)
+    | "pmovsxwq", _ -> Ok (Instruction.mk Opcode.Pmovsxwq 32 s.Surface.ops)
+    | "pmovsxdq", _ -> Ok (Instruction.mk Opcode.Pmovsxdq 32 s.Surface.ops)
+    | "pmovzxbw", _ -> Ok (Instruction.mk Opcode.Pmovzxbw 32 s.Surface.ops)
+    | "pmovzxbd", _ -> Ok (Instruction.mk Opcode.Pmovzxbd 32 s.Surface.ops)
+    | "pmovzxbq", _ -> Ok (Instruction.mk Opcode.Pmovzxbq 32 s.Surface.ops)
+    | "pmovzxwd", _ -> Ok (Instruction.mk Opcode.Pmovzxwd 32 s.Surface.ops)
+    | "pmovzxwq", _ -> Ok (Instruction.mk Opcode.Pmovzxwq 32 s.Surface.ops)
+    | "pmovzxdq", _ -> Ok (Instruction.mk Opcode.Pmovzxdq 32 s.Surface.ops)
+    | "movntdqa", _ -> Ok (Instruction.mk Opcode.Movntdqa 32 s.Surface.ops)
     | "blendps", _ -> Ok (Instruction.mk Opcode.Blendps 32 s.Surface.ops)
     | "blendpd", _ -> Ok (Instruction.mk Opcode.Blendpd 32 s.Surface.ops)
     | "dpps", _ -> Ok (Instruction.mk Opcode.Dpps 32 s.Surface.ops)
@@ -4194,7 +4251,9 @@ module Make (M : MODE) = struct
         | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
         | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
         | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
-        | Opcode.Phminposuw ),
+        | Opcode.Phminposuw | Opcode.Ptest | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq
+        | Opcode.Pmovsxwd | Opcode.Pmovsxwq | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd
+        | Opcode.Pmovzxbq | Opcode.Pmovzxwd | Opcode.Pmovzxwq | Opcode.Pmovzxdq ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -4225,7 +4284,9 @@ module Make (M : MODE) = struct
         | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
         | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
         | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
-        | Opcode.Phminposuw ),
+        | Opcode.Phminposuw | Opcode.Ptest | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq
+        | Opcode.Pmovsxwd | Opcode.Pmovsxwq | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd
+        | Opcode.Pmovzxbq | Opcode.Pmovzxwd | Opcode.Pmovzxwq | Opcode.Pmovzxdq | Opcode.Movntdqa ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -5363,6 +5424,20 @@ module Make (M : MODE) = struct
           (Opcode.Pmulld, 0x40L);
           (Opcode.Phminposuw, 0x41L);
           (Opcode.Pcmpgtq, 0x37L);
+          (Opcode.Ptest, 0x17L);
+          (Opcode.Pmovsxbw, 0x20L);
+          (Opcode.Pmovsxbd, 0x21L);
+          (Opcode.Pmovsxbq, 0x22L);
+          (Opcode.Pmovsxwd, 0x23L);
+          (Opcode.Pmovsxwq, 0x24L);
+          (Opcode.Pmovsxdq, 0x25L);
+          (Opcode.Pmovzxbw, 0x30L);
+          (Opcode.Pmovzxbd, 0x31L);
+          (Opcode.Pmovzxbq, 0x32L);
+          (Opcode.Pmovzxwd, 0x33L);
+          (Opcode.Pmovzxwq, 0x34L);
+          (Opcode.Pmovzxdq, 0x35L);
+          (Opcode.Movntdqa, 0x2AL);
         ]
       (C.field ~width:8 "opcode")
 

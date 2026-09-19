@@ -4274,6 +4274,32 @@ let normalize (rec_ : R.t) =
       xmm_binop_rr_form ~form_id:"PMULLD_XMMdq_XMMdq" ~mnemonic:"pmulld" rec_
   | Ok { iform = Some "PHMINPOSUW_XMMdq_XMMdq"; _ } ->
       xmm_binop_rr_form ~form_id:"PHMINPOSUW_XMMdq_XMMdq" ~mnemonic:"phminposuw" rec_
+  | Ok { iform = Some "PTEST_XMMdq_XMMdq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PTEST_XMMdq_XMMdq" ~mnemonic:"ptest" rec_
+  | Ok { iform = Some "PMOVSXBW_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXBW_XMMdq_XMMq" ~mnemonic:"pmovsxbw" rec_
+  | Ok { iform = Some "PMOVSXBD_XMMdq_XMMd"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXBD_XMMdq_XMMd" ~mnemonic:"pmovsxbd" rec_
+  | Ok { iform = Some "PMOVSXBQ_XMMdq_XMMw"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXBQ_XMMdq_XMMw" ~mnemonic:"pmovsxbq" rec_
+  | Ok { iform = Some "PMOVSXWD_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXWD_XMMdq_XMMq" ~mnemonic:"pmovsxwd" rec_
+  | Ok { iform = Some "PMOVSXWQ_XMMdq_XMMd"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXWQ_XMMdq_XMMd" ~mnemonic:"pmovsxwq" rec_
+  | Ok { iform = Some "PMOVSXDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVSXDQ_XMMdq_XMMq" ~mnemonic:"pmovsxdq" rec_
+  | Ok { iform = Some "PMOVZXBW_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXBW_XMMdq_XMMq" ~mnemonic:"pmovzxbw" rec_
+  | Ok { iform = Some "PMOVZXBD_XMMdq_XMMd"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXBD_XMMdq_XMMd" ~mnemonic:"pmovzxbd" rec_
+  | Ok { iform = Some "PMOVZXBQ_XMMdq_XMMw"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXBQ_XMMdq_XMMw" ~mnemonic:"pmovzxbq" rec_
+  | Ok { iform = Some "PMOVZXWD_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXWD_XMMdq_XMMq" ~mnemonic:"pmovzxwd" rec_
+  | Ok { iform = Some "PMOVZXWQ_XMMdq_XMMd"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXWQ_XMMdq_XMMd" ~mnemonic:"pmovzxwq" rec_
+  | Ok { iform = Some "PMOVZXDQ_XMMdq_XMMq"; _ } ->
+      xmm_binop_rr_form ~form_id:"PMOVZXDQ_XMMdq_XMMq" ~mnemonic:"pmovzxdq" rec_
   | Ok { iform = Some "PCMPEQQ_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PCMPEQQ_XMMdq_MEMdq" ~mnemonic:"pcmpeqq" rec_
   | Ok { iform = Some "PCMPGTQ_XMMdq_MEMdq"; _ } ->
@@ -4302,6 +4328,34 @@ let normalize (rec_ : R.t) =
       xmm_binop_rm_form ~form_id:"PMULLD_XMMdq_MEMdq" ~mnemonic:"pmulld" rec_
   | Ok { iform = Some "PHMINPOSUW_XMMdq_MEMdq"; _ } ->
       xmm_binop_rm_form ~form_id:"PHMINPOSUW_XMMdq_MEMdq" ~mnemonic:"phminposuw" rec_
+  | Ok { iform = Some "PTEST_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PTEST_XMMdq_MEMdq" ~mnemonic:"ptest" rec_
+  | Ok { iform = Some "PMOVSXBW_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXBW_XMMdq_MEMq" ~mnemonic:"pmovsxbw" rec_
+  | Ok { iform = Some "PMOVSXBD_XMMdq_MEMd"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXBD_XMMdq_MEMd" ~mnemonic:"pmovsxbd" rec_
+  | Ok { iform = Some "PMOVSXBQ_XMMdq_MEMw"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXBQ_XMMdq_MEMw" ~mnemonic:"pmovsxbq" rec_
+  | Ok { iform = Some "PMOVSXWD_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXWD_XMMdq_MEMq" ~mnemonic:"pmovsxwd" rec_
+  | Ok { iform = Some "PMOVSXWQ_XMMdq_MEMd"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXWQ_XMMdq_MEMd" ~mnemonic:"pmovsxwq" rec_
+  | Ok { iform = Some "PMOVSXDQ_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVSXDQ_XMMdq_MEMq" ~mnemonic:"pmovsxdq" rec_
+  | Ok { iform = Some "PMOVZXBW_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXBW_XMMdq_MEMq" ~mnemonic:"pmovzxbw" rec_
+  | Ok { iform = Some "PMOVZXBD_XMMdq_MEMd"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXBD_XMMdq_MEMd" ~mnemonic:"pmovzxbd" rec_
+  | Ok { iform = Some "PMOVZXBQ_XMMdq_MEMw"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXBQ_XMMdq_MEMw" ~mnemonic:"pmovzxbq" rec_
+  | Ok { iform = Some "PMOVZXWD_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXWD_XMMdq_MEMq" ~mnemonic:"pmovzxwd" rec_
+  | Ok { iform = Some "PMOVZXWQ_XMMdq_MEMd"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXWQ_XMMdq_MEMd" ~mnemonic:"pmovzxwq" rec_
+  | Ok { iform = Some "PMOVZXDQ_XMMdq_MEMq"; _ } ->
+      xmm_binop_rm_form ~form_id:"PMOVZXDQ_XMMdq_MEMq" ~mnemonic:"pmovzxdq" rec_
+  | Ok { iform = Some "MOVNTDQA_XMMdq_MEMdq"; _ } ->
+      xmm_binop_rm_form ~form_id:"MOVNTDQA_XMMdq_MEMdq" ~mnemonic:"movntdqa" rec_
   (* {!Opcode.Blendps}'s own doc comment (GEN-05): {!Palignr}'s own map-3 group, same shape. *)
   | Ok { iform = Some "BLENDPS_XMMdq_XMMdq_IMMb"; _ } ->
       xmm_binop_imm_rr_form ~form_id:"BLENDPS_XMMdq_XMMdq_IMMb" ~mnemonic:"blendps" rec_

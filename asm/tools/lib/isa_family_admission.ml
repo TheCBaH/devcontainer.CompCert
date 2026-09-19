@@ -503,6 +503,29 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "PMULDQ_XMMdq_MEMdq" | "PMULLD_XMMdq_MEMdq" | "PHMINPOSUW_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PTEST_XMMdq_XMMdq" | "x86:PMOVSXBW_XMMdq_XMMq" | "x86:PMOVSXBD_XMMdq_XMMd"
+      | "x86:PMOVSXBQ_XMMdq_XMMw" | "x86:PMOVSXWD_XMMdq_XMMq" | "x86:PMOVSXWQ_XMMdq_XMMd"
+      | "x86:PMOVSXDQ_XMMdq_XMMq" | "x86:PMOVZXBW_XMMdq_XMMq" | "x86:PMOVZXBD_XMMdq_XMMd"
+      | "x86:PMOVZXBQ_XMMdq_XMMw" | "x86:PMOVZXWD_XMMdq_XMMq" | "x86:PMOVZXWQ_XMMdq_XMMd"
+      | "x86:PMOVZXDQ_XMMdq_XMMq" ),
+      ( "PTEST_XMMdq_XMMdq" | "PMOVSXBW_XMMdq_XMMq" | "PMOVSXBD_XMMdq_XMMd" | "PMOVSXBQ_XMMdq_XMMw"
+      | "PMOVSXWD_XMMdq_XMMq" | "PMOVSXWQ_XMMdq_XMMd" | "PMOVSXDQ_XMMdq_XMMq"
+      | "PMOVZXBW_XMMdq_XMMq" | "PMOVZXBD_XMMdq_XMMd" | "PMOVZXBQ_XMMdq_XMMw"
+      | "PMOVZXWD_XMMdq_XMMq" | "PMOVZXWQ_XMMdq_XMMd" | "PMOVZXDQ_XMMdq_XMMq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PTEST_XMMdq_MEMdq" | "x86:PMOVSXBW_XMMdq_MEMq" | "x86:PMOVSXBD_XMMdq_MEMd"
+      | "x86:PMOVSXBQ_XMMdq_MEMw" | "x86:PMOVSXWD_XMMdq_MEMq" | "x86:PMOVSXWQ_XMMdq_MEMd"
+      | "x86:PMOVSXDQ_XMMdq_MEMq" | "x86:PMOVZXBW_XMMdq_MEMq" | "x86:PMOVZXBD_XMMdq_MEMd"
+      | "x86:PMOVZXBQ_XMMdq_MEMw" | "x86:PMOVZXWD_XMMdq_MEMq" | "x86:PMOVZXWQ_XMMdq_MEMd"
+      | "x86:PMOVZXDQ_XMMdq_MEMq" | "x86:MOVNTDQA_XMMdq_MEMdq" ),
+      ( "PTEST_XMMdq_MEMdq" | "PMOVSXBW_XMMdq_MEMq" | "PMOVSXBD_XMMdq_MEMd" | "PMOVSXBQ_XMMdq_MEMw"
+      | "PMOVSXWD_XMMdq_MEMq" | "PMOVSXWQ_XMMdq_MEMd" | "PMOVSXDQ_XMMdq_MEMq"
+      | "PMOVZXBW_XMMdq_MEMq" | "PMOVZXBD_XMMdq_MEMd" | "PMOVZXBQ_XMMdq_MEMw"
+      | "PMOVZXWD_XMMdq_MEMq" | "PMOVZXWQ_XMMdq_MEMd" | "PMOVZXDQ_XMMdq_MEMq"
+      | "MOVNTDQA_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:BLENDPS_XMMdq_XMMdq_IMMb" | "x86:BLENDPD_XMMdq_XMMdq_IMMb"
       | "x86:DPPS_XMMdq_XMMdq_IMMb" | "x86:DPPD_XMMdq_XMMdq_IMMb" | "x86:MPSADBW_XMMdq_XMMdq_IMMb"
       | "x86:PBLENDW_XMMdq_XMMdq_IMMb" ),
