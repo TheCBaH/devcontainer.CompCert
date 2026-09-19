@@ -5252,8 +5252,78 @@ let normalize (rec_ : R.t) =
       vex_unop_rr_mem_form ~form_id:"VCVTDQ2PS_XMMdq_MEMdq" ~mnemonic:"vcvtdq2ps" rec_
   | Ok { iform = Some "VCVTPS2DQ_XMMdq_XMMdq"; _ } ->
       vex_unop_rr_form ~form_id:"VCVTPS2DQ_XMMdq_XMMdq" ~mnemonic:"vcvtps2dq" rec_
+  | Ok { iform = Some "VPABSB_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPABSB_XMMdq_XMMdq" ~mnemonic:"vpabsb" rec_
+  | Ok { iform = Some "VPABSW_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPABSW_XMMdq_XMMdq" ~mnemonic:"vpabsw" rec_
+  | Ok { iform = Some "VPABSD_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPABSD_XMMdq_XMMdq" ~mnemonic:"vpabsd" rec_
+  | Ok { iform = Some "VPHMINPOSUW_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPHMINPOSUW_XMMdq_XMMdq" ~mnemonic:"vphminposuw" rec_
+  | Ok { iform = Some "VPTEST_XMMdq_XMMdq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPTEST_XMMdq_XMMdq" ~mnemonic:"vptest" rec_
+  | Ok { iform = Some "VPMOVSXBW_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXBW_XMMdq_XMMq" ~mnemonic:"vpmovsxbw" rec_
+  | Ok { iform = Some "VPMOVSXBD_XMMdq_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXBD_XMMdq_XMMd" ~mnemonic:"vpmovsxbd" rec_
+  | Ok { iform = Some "VPMOVSXBQ_XMMdq_XMMw"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXBQ_XMMdq_XMMw" ~mnemonic:"vpmovsxbq" rec_
+  | Ok { iform = Some "VPMOVSXWD_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXWD_XMMdq_XMMq" ~mnemonic:"vpmovsxwd" rec_
+  | Ok { iform = Some "VPMOVSXWQ_XMMdq_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXWQ_XMMdq_XMMd" ~mnemonic:"vpmovsxwq" rec_
+  | Ok { iform = Some "VPMOVSXDQ_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVSXDQ_XMMdq_XMMq" ~mnemonic:"vpmovsxdq" rec_
+  | Ok { iform = Some "VPMOVZXBW_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXBW_XMMdq_XMMq" ~mnemonic:"vpmovzxbw" rec_
+  | Ok { iform = Some "VPMOVZXBD_XMMdq_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXBD_XMMdq_XMMd" ~mnemonic:"vpmovzxbd" rec_
+  | Ok { iform = Some "VPMOVZXBQ_XMMdq_XMMw"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXBQ_XMMdq_XMMw" ~mnemonic:"vpmovzxbq" rec_
+  | Ok { iform = Some "VPMOVZXWD_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXWD_XMMdq_XMMq" ~mnemonic:"vpmovzxwd" rec_
+  | Ok { iform = Some "VPMOVZXWQ_XMMdq_XMMd"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXWQ_XMMdq_XMMd" ~mnemonic:"vpmovzxwq" rec_
+  | Ok { iform = Some "VPMOVZXDQ_XMMdq_XMMq"; _ } ->
+      vex_unop_rr_form ~form_id:"VPMOVZXDQ_XMMdq_XMMq" ~mnemonic:"vpmovzxdq" rec_
   | Ok { iform = Some "VCVTPS2DQ_XMMdq_MEMdq"; _ } ->
       vex_unop_rr_mem_form ~form_id:"VCVTPS2DQ_XMMdq_MEMdq" ~mnemonic:"vcvtps2dq" rec_
+  | Ok { iform = Some "VPABSB_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPABSB_XMMdq_MEMdq" ~mnemonic:"vpabsb" rec_
+  | Ok { iform = Some "VPABSW_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPABSW_XMMdq_MEMdq" ~mnemonic:"vpabsw" rec_
+  | Ok { iform = Some "VPABSD_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPABSD_XMMdq_MEMdq" ~mnemonic:"vpabsd" rec_
+  | Ok { iform = Some "VPHMINPOSUW_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPHMINPOSUW_XMMdq_MEMdq" ~mnemonic:"vphminposuw" rec_
+  | Ok { iform = Some "VPTEST_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPTEST_XMMdq_MEMdq" ~mnemonic:"vptest" rec_
+  | Ok { iform = Some "VPMOVSXBW_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXBW_XMMdq_MEMq" ~mnemonic:"vpmovsxbw" rec_
+  | Ok { iform = Some "VPMOVSXBD_XMMdq_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXBD_XMMdq_MEMd" ~mnemonic:"vpmovsxbd" rec_
+  | Ok { iform = Some "VPMOVSXBQ_XMMdq_MEMw"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXBQ_XMMdq_MEMw" ~mnemonic:"vpmovsxbq" rec_
+  | Ok { iform = Some "VPMOVSXWD_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXWD_XMMdq_MEMq" ~mnemonic:"vpmovsxwd" rec_
+  | Ok { iform = Some "VPMOVSXWQ_XMMdq_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXWQ_XMMdq_MEMd" ~mnemonic:"vpmovsxwq" rec_
+  | Ok { iform = Some "VPMOVSXDQ_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVSXDQ_XMMdq_MEMq" ~mnemonic:"vpmovsxdq" rec_
+  | Ok { iform = Some "VPMOVZXBW_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXBW_XMMdq_MEMq" ~mnemonic:"vpmovzxbw" rec_
+  | Ok { iform = Some "VPMOVZXBD_XMMdq_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXBD_XMMdq_MEMd" ~mnemonic:"vpmovzxbd" rec_
+  | Ok { iform = Some "VPMOVZXBQ_XMMdq_MEMw"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXBQ_XMMdq_MEMw" ~mnemonic:"vpmovzxbq" rec_
+  | Ok { iform = Some "VPMOVZXWD_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXWD_XMMdq_MEMq" ~mnemonic:"vpmovzxwd" rec_
+  | Ok { iform = Some "VPMOVZXWQ_XMMdq_MEMd"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXWQ_XMMdq_MEMd" ~mnemonic:"vpmovzxwq" rec_
+  | Ok { iform = Some "VPMOVZXDQ_XMMdq_MEMq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VPMOVZXDQ_XMMdq_MEMq" ~mnemonic:"vpmovzxdq" rec_
+  | Ok { iform = Some "VMOVNTDQA_XMMdq_MEMdq"; _ } ->
+      vex_unop_rr_mem_form ~form_id:"VMOVNTDQA_XMMdq_MEMdq" ~mnemonic:"vmovntdqa" rec_
   | Ok { iform = Some "VCVTTPS2DQ_XMMdq_XMMdq"; _ } ->
       vex_unop_rr_form ~form_id:"VCVTTPS2DQ_XMMdq_XMMdq" ~mnemonic:"vcvttps2dq" rec_
   | Ok { iform = Some "VCVTTPS2DQ_XMMdq_MEMdq"; _ } ->

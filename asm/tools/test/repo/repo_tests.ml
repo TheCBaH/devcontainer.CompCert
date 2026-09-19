@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:722;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:774;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:783;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:785
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:818;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:820
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -913,9 +913,9 @@ let test_isa_family_admission repo =
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
     ~promoted_support:744 ~blocked:380;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
-    ~promoted_support:772 ~blocked:7104;
+    ~promoted_support:807 ~blocked:7069;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:780 ~blocked:9786
+    ~promoted_support:815 ~blocked:9751
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -969,9 +969,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3064)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3134)"
        !roundtrip_count)
-    (!roundtrip_count = 3064)
+    (!roundtrip_count = 3134)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's
