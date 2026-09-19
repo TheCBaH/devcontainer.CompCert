@@ -1040,14 +1040,14 @@ let x86_sse_mov_entries =
    three-real-register x86 entry, fixed to [%xmm2] (src2)/[%xmm1] (src1)/[%xmm0] (dest) -
    confirmed against real GNU as ({!Isa_norm_xed.vex_binop_rrr_form}'s own doc comment) -
    rather than {!x86_sse_binop_rr_entry}'s two-operand shape. *)
-let x86_vex_binop_rrr_entry ~target ~form_id ~lookup_key =
+let x86_vex_binop_rrr_entry ~vreg ~target ~form_id ~lookup_key =
   {
     form_id;
     target;
     lookup_key;
     case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
     rule_ids = [ "canonical-spelling"; "vex-three-register-operands" ];
-    operands = [ ("src2", "xmm2"); ("src1", "xmm1"); ("dest", "xmm0") ];
+    operands = [ ("src2", vreg ^ "2"); ("src1", vreg ^ "1"); ("dest", vreg ^ "0") ];
     lines_before = [];
     lines_after = [];
     configuration = Isa_gen_case_build.configuration_for target;
@@ -1058,7 +1058,7 @@ let x86_vex_binop_rrr_entries =
     (fun target ->
       List.map
         (fun lookup_key ->
-          x86_vex_binop_rrr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+          x86_vex_binop_rrr_entry ~vreg:"xmm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
         [
           "VADDSD_XMMdq_XMMdq_XMMq";
           "VSUBSD_XMMdq_XMMdq_XMMq";
@@ -1177,7 +1177,7 @@ let x86_vex_binop_rrr_entries =
    {!x86_sse_binop_rm_entry}'s base+disp8 SIB addressing standing in for
    [src2], which is register 4 ([%esp]/[%rsp]) on both targets and so always
    satisfies the two-byte-VEX base/index restriction. *)
-let x86_vex_binop_rr_mem_entry ~target ~form_id ~lookup_key =
+let x86_vex_binop_rr_mem_entry ~vreg ~target ~form_id ~lookup_key =
   let stack, _, _ = x86_registers target in
   {
     form_id;
@@ -1185,7 +1185,8 @@ let x86_vex_binop_rr_mem_entry ~target ~form_id ~lookup_key =
     lookup_key;
     case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
     rule_ids = [ "load-base-disp8-sib"; "vex-two-register-one-memory-operands" ];
-    operands = [ ("src2", Printf.sprintf "16(%%%s)" stack); ("src1", "xmm1"); ("dest", "xmm0") ];
+    operands =
+      [ ("src2", Printf.sprintf "16(%%%s)" stack); ("src1", vreg ^ "1"); ("dest", vreg ^ "0") ];
     lines_before = [];
     lines_after = [];
     configuration = Isa_gen_case_build.configuration_for target;
@@ -1196,7 +1197,7 @@ let x86_vex_binop_rr_mem_entries =
     (fun target ->
       List.map
         (fun lookup_key ->
-          x86_vex_binop_rr_mem_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+          x86_vex_binop_rr_mem_entry ~vreg:"xmm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
         [
           "VADDSD_XMMdq_XMMdq_MEMq";
           "VSUBSD_XMMdq_XMMdq_MEMq";
@@ -1402,14 +1403,14 @@ let x86_vex_binop_imm_rr_mem_entries =
 (* {!x86_vex_binop_rrr_entry}'s two-operand unary sibling ({!Isa_norm_xed.vex_unop_rr_form}'s
    own doc comment): [%xmm1] (src)/[%xmm0] (dest), no [vvvv]-carried third operand - real GNU
    as rejects a third operand for these mnemonics outright. *)
-let x86_vex_unop_rr_entry ~target ~form_id ~lookup_key =
+let x86_vex_unop_rr_entry ~vreg ~target ~form_id ~lookup_key =
   {
     form_id;
     target;
     lookup_key;
     case_id = Printf.sprintf "%s:register-register:%s" form_id (Target.to_string target);
     rule_ids = [ "canonical-spelling"; "vex-two-register-operands" ];
-    operands = [ ("src", "xmm1"); ("dest", "xmm0") ];
+    operands = [ ("src", vreg ^ "1"); ("dest", vreg ^ "0") ];
     lines_before = [];
     lines_after = [];
     configuration = Isa_gen_case_build.configuration_for target;
@@ -1419,7 +1420,8 @@ let x86_vex_unop_rr_entries =
   List.concat_map
     (fun target ->
       List.map
-        (fun lookup_key -> x86_vex_unop_rr_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        (fun lookup_key ->
+          x86_vex_unop_rr_entry ~vreg:"xmm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
         [
           "VSQRTPS_XMMdq_XMMdq";
           "VSQRTPD_XMMdq_XMMdq";
@@ -1461,7 +1463,7 @@ let x86_vex_unop_rr_entries =
 (* {!x86_vex_unop_rr_entry}'s register<-memory sibling
    ({!Isa_norm_xed.vex_unop_rr_mem_form}'s own doc comment): {!x86_sse_binop_rm_entry}'s
    base+disp8 SIB addressing standing in for [src]. *)
-let x86_vex_unop_rr_mem_entry ~target ~form_id ~lookup_key =
+let x86_vex_unop_rr_mem_entry ~vreg ~target ~form_id ~lookup_key =
   let stack, _, _ = x86_registers target in
   {
     form_id;
@@ -1469,7 +1471,7 @@ let x86_vex_unop_rr_mem_entry ~target ~form_id ~lookup_key =
     lookup_key;
     case_id = Printf.sprintf "%s:load-base-disp8-sib:%s" form_id (Target.to_string target);
     rule_ids = [ "load-base-disp8-sib"; "vex-one-register-one-memory-operands" ];
-    operands = [ ("src", Printf.sprintf "16(%%%s)" stack); ("dest", "xmm0") ];
+    operands = [ ("src", Printf.sprintf "16(%%%s)" stack); ("dest", vreg ^ "0") ];
     lines_before = [];
     lines_after = [];
     configuration = Isa_gen_case_build.configuration_for target;
@@ -1480,7 +1482,7 @@ let x86_vex_unop_rr_mem_entries =
     (fun target ->
       List.map
         (fun lookup_key ->
-          x86_vex_unop_rr_mem_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+          x86_vex_unop_rr_mem_entry ~vreg:"xmm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
         [
           "VSQRTPS_XMMdq_MEMdq";
           "VSQRTPD_XMMdq_MEMdq";
@@ -1826,6 +1828,112 @@ let x86_vmovd_store_mr_entries =
   List.map
     (fun target ->
       x86_movd_store_mr_entry ~target ~form_id:"x86:VMOVD_MEMd_XMMd" ~lookup_key:"VMOVD_MEMd_XMMd")
+    [ Target.X86_32; Target.X86_64 ]
+
+(* 256-bit (ymm, VEX.L = 1) packed-float binops and moves/square roots ({!Isa_norm_xed.vex_binop_rrr_form}'s
+   [?vec] parameter): the same entry builders as the 128-bit groups above with [ymm] register names. *)
+let x86_vex256_binop_rrr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_binop_rrr_entry ~vreg:"ymm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VADDPS_YMMqq_YMMqq_YMMqq";
+          "VSUBPS_YMMqq_YMMqq_YMMqq";
+          "VMULPS_YMMqq_YMMqq_YMMqq";
+          "VDIVPS_YMMqq_YMMqq_YMMqq";
+          "VANDPS_YMMqq_YMMqq_YMMqq";
+          "VANDNPS_YMMqq_YMMqq_YMMqq";
+          "VORPS_YMMqq_YMMqq_YMMqq";
+          "VXORPS_YMMqq_YMMqq_YMMqq";
+          "VMAXPS_YMMqq_YMMqq_YMMqq";
+          "VMINPS_YMMqq_YMMqq_YMMqq";
+          "VUNPCKLPS_YMMqq_YMMqq_YMMqq";
+          "VUNPCKHPS_YMMqq_YMMqq_YMMqq";
+          "VADDPD_YMMqq_YMMqq_YMMqq";
+          "VSUBPD_YMMqq_YMMqq_YMMqq";
+          "VMULPD_YMMqq_YMMqq_YMMqq";
+          "VDIVPD_YMMqq_YMMqq_YMMqq";
+          "VANDPD_YMMqq_YMMqq_YMMqq";
+          "VANDNPD_YMMqq_YMMqq_YMMqq";
+          "VORPD_YMMqq_YMMqq_YMMqq";
+          "VXORPD_YMMqq_YMMqq_YMMqq";
+          "VMAXPD_YMMqq_YMMqq_YMMqq";
+          "VMINPD_YMMqq_YMMqq_YMMqq";
+          "VUNPCKLPD_YMMqq_YMMqq_YMMqq";
+          "VUNPCKHPD_YMMqq_YMMqq_YMMqq";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+let x86_vex256_binop_rr_mem_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_binop_rr_mem_entry ~vreg:"ymm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VADDPS_YMMqq_YMMqq_MEMqq";
+          "VSUBPS_YMMqq_YMMqq_MEMqq";
+          "VMULPS_YMMqq_YMMqq_MEMqq";
+          "VDIVPS_YMMqq_YMMqq_MEMqq";
+          "VANDPS_YMMqq_YMMqq_MEMqq";
+          "VANDNPS_YMMqq_YMMqq_MEMqq";
+          "VORPS_YMMqq_YMMqq_MEMqq";
+          "VXORPS_YMMqq_YMMqq_MEMqq";
+          "VMAXPS_YMMqq_YMMqq_MEMqq";
+          "VMINPS_YMMqq_YMMqq_MEMqq";
+          "VUNPCKLPS_YMMqq_YMMqq_MEMqq";
+          "VUNPCKHPS_YMMqq_YMMqq_MEMqq";
+          "VADDPD_YMMqq_YMMqq_MEMqq";
+          "VSUBPD_YMMqq_YMMqq_MEMqq";
+          "VMULPD_YMMqq_YMMqq_MEMqq";
+          "VDIVPD_YMMqq_YMMqq_MEMqq";
+          "VANDPD_YMMqq_YMMqq_MEMqq";
+          "VANDNPD_YMMqq_YMMqq_MEMqq";
+          "VORPD_YMMqq_YMMqq_MEMqq";
+          "VXORPD_YMMqq_YMMqq_MEMqq";
+          "VMAXPD_YMMqq_YMMqq_MEMqq";
+          "VMINPD_YMMqq_YMMqq_MEMqq";
+          "VUNPCKLPD_YMMqq_YMMqq_MEMqq";
+          "VUNPCKHPD_YMMqq_YMMqq_MEMqq";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+let x86_vex256_unop_rr_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_unop_rr_entry ~vreg:"ymm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VSQRTPS_YMMqq_YMMqq";
+          "VSQRTPD_YMMqq_YMMqq";
+          "VMOVAPS_YMMqq_YMMqq_28";
+          "VMOVUPS_YMMqq_YMMqq_10";
+          "VMOVAPD_YMMqq_YMMqq_28";
+          "VMOVUPD_YMMqq_YMMqq_10";
+          "VMOVDQA_YMMqq_YMMqq_6F";
+          "VMOVDQU_YMMqq_YMMqq_6F";
+        ])
+    [ Target.X86_32; Target.X86_64 ]
+
+let x86_vex256_unop_rr_mem_entries =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun lookup_key ->
+          x86_vex_unop_rr_mem_entry ~vreg:"ymm" ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key)
+        [
+          "VSQRTPS_YMMqq_MEMqq";
+          "VSQRTPD_YMMqq_MEMqq";
+          "VMOVAPS_YMMqq_MEMqq";
+          "VMOVUPS_YMMqq_MEMqq";
+          "VMOVAPD_YMMqq_MEMqq";
+          "VMOVUPD_YMMqq_MEMqq";
+          "VMOVDQA_YMMqq_MEMqq";
+          "VMOVDQU_YMMqq_MEMqq";
+        ])
     [ Target.X86_32; Target.X86_64 ]
 
 (* PEXTRB/PEXTRD/EXTRACTPS memory-destination forms ({!Isa_norm_xed.pextr_store_mr_form}'s own doc
@@ -5541,9 +5649,11 @@ let all =
   @ vfwmaccbf16_vv_entries @ vfwmaccbf16_vf_entries @ vpopc_m_entries @ vmandnot_mm_entries
   @ vmornot_mm_entries @ vfredsum_vs_entries @ vfwredsum_vs_entries @ vl1r_v_entries
   @ vl2r_v_entries @ vl4r_v_entries @ vl8r_v_entries @ vle1_v_entries @ vse1_v_entries
-  @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries
-  @ x86_vex_unop_rr_mem_entries @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries
-  @ x86_vex_unop_imm_rr_entries @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries
+  @ x86_vex256_binop_rrr_entries @ x86_vex256_binop_rr_mem_entries @ x86_vex256_unop_rr_entries
+  @ x86_vex256_unop_rr_mem_entries @ x86_vex_binop_rrr_entries @ x86_vex_binop_rr_mem_entries
+  @ x86_vex_unop_rr_entries @ x86_vex_unop_rr_mem_entries @ x86_vex_binop_imm_rrr_entries
+  @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries @ x86_vex_unop_imm_rm_entries
+  @ x86_vex_shift_imm_rrr_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

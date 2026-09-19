@@ -50,6 +50,11 @@ module Reg = struct
      8/16/32/64 already mark the four GPR widths. *)
   let names_xmm = Array.init 16 (fun i -> Printf.sprintf "xmm%d" i)
 
+  (* [ymm0]-[ymm15] (AVX, GEN-05): {!names_xmm}'s own 256-bit sibling, width 256 serving as the
+     class marker for the same reason 128 does for xmm - a VEX instruction's [L] bit is read off
+     its operand registers' width, not carried separately. *)
+  let names_ymm = Array.init 16 (fun i -> Printf.sprintf "ymm%d" i)
+
   let base_regs width names =
     Array.to_list (Array.mapi (fun i n -> { name = n; num = i; width }) names)
 
@@ -4078,6 +4083,30 @@ module Make (M : MODE) = struct
       if r.width = 128 then Ok ()
       else bad (`Sse_operand_class { sse_reg = r.name; sse_reg_width = r.width })
     in
+    (* The 256-bit ([ymm], VEX.L = 1) counterpart of {!xmm_ok}, and the per-mnemonic gate on which
+       VEX instructions have a 256-bit form at all: only packed-float binops and the packed
+       moves/square roots are admitted here, so a [ymm] operand on any other mnemonic (scalar
+       [vaddsd], the integer group that needs AVX2, ...) still falls through to {!xmm_ok}'s error
+       rather than mis-encoding. *)
+    let ymm_ok (r : Reg.t) =
+      if r.width = 256 then Ok ()
+      else bad (`Sse_operand_class { sse_reg = r.name; sse_reg_width = r.width })
+    in
+    let vex256_binop = function
+      | Opcode.Vaddps | Opcode.Vsubps | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vandps
+      | Opcode.Vandnps | Opcode.Vorps | Opcode.Vxorps | Opcode.Vmaxps | Opcode.Vminps
+      | Opcode.Vunpcklps | Opcode.Vunpckhps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
+      | Opcode.Vdivpd | Opcode.Vandpd | Opcode.Vandnpd | Opcode.Vorpd | Opcode.Vxorpd
+      | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vunpcklpd | Opcode.Vunpckhpd ->
+          true
+      | _ -> false
+    in
+    let vex256_unop = function
+      | Opcode.Vsqrtps | Opcode.Vsqrtpd | Opcode.Vmovaps | Opcode.Vmovups | Opcode.Vmovapd
+      | Opcode.Vmovupd | Opcode.Vmovdqa | Opcode.Vmovdqu ->
+          true
+      | _ -> false
+    in
     (* The two-byte-VEX memory-operand counterpart of {!Vex_binop_rr_rm}'s
        own register-side [src2.num >= 8] check: a RIP base ([num = -1]) never
        consumes the restricted 3-bit field, so it always passes here without
@@ -4815,6 +4844,30 @@ module Make (M : MODE) = struct
        {!Vex_rm_extended_register} names exactly which operand and why. A
        memory [src2] needs the same check on its base/index (if present)
        instead of on a register number directly - {!vex_mem_ok}. *)
+    (* 256-bit VEX ([ymm], {!Opcode.Vaddps}'s own doc comment): every operand must be [ymm], the
+       same [src2.num >= 8] / {!vex_mem_ok} restriction applies. *)
+    | op, [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ]
+      when dst.Reg.width = 256 && vex256_binop op -> (
+        match (ymm_ok src2, ymm_ok src1, ymm_ok dst) with
+        | Ok (), Ok (), Ok () ->
+            if src2.num >= 8 then bad (`Vex_rm_extended_register src2.name)
+            else Ok [ Lowered.Vex_binop_rr_rm { op; dst; src1; src2 = Rm.Reg src2 } ]
+        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
+    | op, [ Operand.Mem m; Operand.Reg src1; Operand.Reg dst ]
+      when dst.Reg.width = 256 && vex256_binop op -> (
+        match (ymm_ok src1, ymm_ok dst, vex_mem_ok m) with
+        | Ok (), Ok (), Ok () -> Ok [ Lowered.Vex_binop_rr_rm { op; dst; src1; src2 = Rm.Mem m } ]
+        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e)
+    | op, [ Operand.Reg src; Operand.Reg dst ] when dst.Reg.width = 256 && vex256_unop op -> (
+        match (ymm_ok src, ymm_ok dst) with
+        | Ok (), Ok () ->
+            if src.num >= 8 then bad (`Vex_rm_extended_register src.name)
+            else Ok [ Lowered.Vex_unop_r_rm { op; dst; src = Rm.Reg src } ]
+        | Error e, _ | _, Error e -> Error e)
+    | op, [ Operand.Mem m; Operand.Reg dst ] when dst.Reg.width = 256 && vex256_unop op -> (
+        match (ymm_ok dst, vex_mem_ok m) with
+        | Ok (), Ok () -> Ok [ Lowered.Vex_unop_r_rm { op; dst; src = Rm.Mem m } ]
+        | Error e, _ | _, Error e -> Error e)
     | ( ( Opcode.Vaddsd | Opcode.Vsubsd | Opcode.Vmulsd | Opcode.Vdivsd | Opcode.Vaddss
         | Opcode.Vsubss | Opcode.Vmulss | Opcode.Vdivss | Opcode.Vaddps | Opcode.Vsubps
         | Opcode.Vmulps | Opcode.Vdivps | Opcode.Vaddpd | Opcode.Vsubpd | Opcode.Vmulpd
@@ -6451,25 +6504,26 @@ module Make (M : MODE) = struct
            | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
                let vvvv = lnot src1.num land 0xF in
-               let byte2 = Int64.of_int ((r_bit lsl 7) lor (vvvv lsl 3) lor pp) in
+               let l = if dst.width = 256 then 1 else 0 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (vvvv lsl 3) lor (l lsl 2) lor pp) in
                Some ((), (byte2, (op, { re_reg = dst.num; re_rm = src2 })))
            | _ -> None)
          ~decode:(fun ((), (byte2, (op, e))) ->
            let b = Int64.to_int byte2 in
            let r_bit = (b lsr 7) land 1 in
            let vvvv = (b lsr 3) land 0xF in
-           let l = (b lsr 2) land 1 in
+           let width = if (b lsr 2) land 1 = 1 then 256 else 128 in
            let observed_pp = b land 3 in
-           if l <> 0 || observed_pp <> pp then None
+           if observed_pp <> pp then None
            else
              let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
              let src1_num = lnot vvvv land 0xF in
              let src2 =
-               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width r) | Rm.Mem _ as m -> m
              in
              Some
                (Lowered.Vex_binop_rr_rm
-                  { op; dst = reg_at ~width:128 dst_num; src1 = reg_at ~width:128 src1_num; src2 }))
+                  { op; dst = reg_at ~width dst_num; src1 = reg_at ~width src1_num; src2 }))
          C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** opcode_codec ** rm_codec))
 
   (* The three-byte VEX prefix ([0xC4], {!Opcode.Vpshufb}'s own doc comment): [0xC4], then [R X B
@@ -6702,21 +6756,22 @@ module Make (M : MODE) = struct
          ~encode:(function
            | Lowered.Vex_unop_r_rm { op; dst; src } when vex_rm_ok src ->
                let r_bit = if dst.num >= 8 then 0 else 1 in
-               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor pp) in
+               let l = if dst.width = 256 then 1 else 0 in
+               let byte2 = Int64.of_int ((r_bit lsl 7) lor (0xF lsl 3) lor (l lsl 2) lor pp) in
                Some ((), (byte2, (op, { re_reg = dst.num; re_rm = src })))
            | _ -> None)
          ~decode:(fun ((), (byte2, (op, e))) ->
            let b = Int64.to_int byte2 in
            let r_bit = (b lsr 7) land 1 in
-           let l = (b lsr 2) land 1 in
+           let width = if (b lsr 2) land 1 = 1 then 256 else 128 in
            let observed_pp = b land 3 in
-           if l <> 0 || observed_pp <> pp then None
+           if observed_pp <> pp then None
            else
              let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
              let src =
-               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width r) | Rm.Mem _ as m -> m
              in
-             Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width:128 dst_num; src }))
+             Some (Lowered.Vex_unop_r_rm { op; dst = reg_at ~width dst_num; src }))
          C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** opcode_codec ** rm_codec))
 
   (* [vmovd] load direction ([VEX.128.66.0F.W0 6E /r], GEN-05): {!vex_unop_alt}'s own two-byte-VEX
