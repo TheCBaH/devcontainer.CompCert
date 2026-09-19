@@ -901,6 +901,7 @@ let x86_sse_binop_imm_rr_entries =
           ("DPPD_XMMdq_XMMdq_IMMb", "5");
           ("MPSADBW_XMMdq_XMMdq_IMMb", "5");
           ("PBLENDW_XMMdq_XMMdq_IMMb", "5");
+          ("INSERTPS_XMMps_XMMps_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -947,6 +948,7 @@ let x86_sse_binop_imm_rm_entries =
           ("DPPD_XMMdq_MEMdq_IMMb", "5");
           ("MPSADBW_XMMdq_MEMdq_IMMb", "5");
           ("PBLENDW_XMMdq_MEMdq_IMMb", "5");
+          ("INSERTPS_XMMps_MEMd_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 

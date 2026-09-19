@@ -532,6 +532,10 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "BLENDPS_XMMdq_XMMdq_IMMb" | "BLENDPD_XMMdq_XMMdq_IMMb" | "DPPS_XMMdq_XMMdq_IMMb"
       | "DPPD_XMMdq_XMMdq_IMMb" | "MPSADBW_XMMdq_XMMdq_IMMb" | "PBLENDW_XMMdq_XMMdq_IMMb" ) ) ->
       true
+  | (Target.X86_32 | Target.X86_64), "x86:INSERTPS_XMMps_XMMps_IMMb", "INSERTPS_XMMps_XMMps_IMMb" ->
+      true
+  | (Target.X86_32 | Target.X86_64), "x86:INSERTPS_XMMps_MEMd_IMMb", "INSERTPS_XMMps_MEMd_IMMb" ->
+      true
   | ( (Target.X86_32 | Target.X86_64),
       ( "x86:BLENDPS_XMMdq_MEMdq_IMMb" | "x86:BLENDPD_XMMdq_MEMdq_IMMb"
       | "x86:DPPS_XMMdq_MEMdq_IMMb" | "x86:DPPD_XMMdq_MEMdq_IMMb" | "x86:MPSADBW_XMMdq_MEMdq_IMMb"

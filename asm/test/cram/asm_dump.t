@@ -315,7 +315,7 @@
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
   sse-binop-0f38-op[43]{opcode:8u}
-  sse-binop-imm-0f3a-op[11]{opcode:8u}
+  sse-binop-imm-0f3a-op[12]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}
@@ -640,7 +640,7 @@
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
   sse-binop-0f38-op[43]{opcode:8u}
-  sse-binop-imm-0f3a-op[11]{opcode:8u}
+  sse-binop-imm-0f3a-op[12]{opcode:8u}
   alt opsz
     [0 cost=0] opsz-present     opsz-present(){01100110}
     [1 cost=0] opsz-absent      opsz-absent(){()}

@@ -4369,6 +4369,8 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rr_form ~form_id:"MPSADBW_XMMdq_XMMdq_IMMb" ~mnemonic:"mpsadbw" rec_
   | Ok { iform = Some "PBLENDW_XMMdq_XMMdq_IMMb"; _ } ->
       xmm_binop_imm_rr_form ~form_id:"PBLENDW_XMMdq_XMMdq_IMMb" ~mnemonic:"pblendw" rec_
+  | Ok { iform = Some "INSERTPS_XMMps_XMMps_IMMb"; _ } ->
+      xmm_binop_imm_rr_form ~form_id:"INSERTPS_XMMps_XMMps_IMMb" ~mnemonic:"insertps" rec_
   | Ok { iform = Some "BLENDPS_XMMdq_MEMdq_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"BLENDPS_XMMdq_MEMdq_IMMb" ~mnemonic:"blendps" rec_
   | Ok { iform = Some "BLENDPD_XMMdq_MEMdq_IMMb"; _ } ->
@@ -4381,6 +4383,8 @@ let normalize (rec_ : R.t) =
       xmm_binop_imm_rm_form ~form_id:"MPSADBW_XMMdq_MEMdq_IMMb" ~mnemonic:"mpsadbw" rec_
   | Ok { iform = Some "PBLENDW_XMMdq_MEMdq_IMMb"; _ } ->
       xmm_binop_imm_rm_form ~form_id:"PBLENDW_XMMdq_MEMdq_IMMb" ~mnemonic:"pblendw" rec_
+  | Ok { iform = Some "INSERTPS_XMMps_MEMd_IMMb"; _ } ->
+      xmm_binop_imm_rm_form ~form_id:"INSERTPS_XMMps_MEMd_IMMb" ~mnemonic:"insertps" rec_
   (* {!Opcode.Movdqa}'s own doc comment (GEN-05): {!Movsd}/{!Movss}'s own load/store shape
      ({!xmm_mov_form}) for the memory directions, plus {!xmm_binop_rr_form} reused verbatim for
      the register-register form (a plain move's REG0 rw="w" is handled generically by
