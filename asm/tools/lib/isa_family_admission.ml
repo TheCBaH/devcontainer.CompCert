@@ -767,6 +767,54 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "VPUNPCKLDQ_XMMdq_XMMdq_MEMdq" | "VPUNPCKHDQ_XMMdq_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPSHUFB_XMMdq_XMMdq_XMMdq" | "x86:VPHADDW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPHADDD_XMMdq_XMMdq_XMMdq" | "x86:VPHADDSW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMADDUBSW_XMMdq_XMMdq_XMMdq" | "x86:VPHSUBW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPHSUBD_XMMdq_XMMdq_XMMdq" | "x86:VPHSUBSW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPSIGNB_XMMdq_XMMdq_XMMdq" | "x86:VPSIGNW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPSIGND_XMMdq_XMMdq_XMMdq" | "x86:VPMULHRSW_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMULDQ_XMMdq_XMMdq_XMMdq" | "x86:VPCMPEQQ_XMMdq_XMMdq_XMMdq"
+      | "x86:VPACKUSDW_XMMdq_XMMdq_XMMdq" | "x86:VPCMPGTQ_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMINSB_XMMdq_XMMdq_XMMdq" | "x86:VPMINSD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMINUW_XMMdq_XMMdq_XMMdq" | "x86:VPMINUD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMAXSB_XMMdq_XMMdq_XMMdq" | "x86:VPMAXSD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMAXUW_XMMdq_XMMdq_XMMdq" | "x86:VPMAXUD_XMMdq_XMMdq_XMMdq"
+      | "x86:VPMULLD_XMMdq_XMMdq_XMMdq" ),
+      ( "VPSHUFB_XMMdq_XMMdq_XMMdq" | "VPHADDW_XMMdq_XMMdq_XMMdq" | "VPHADDD_XMMdq_XMMdq_XMMdq"
+      | "VPHADDSW_XMMdq_XMMdq_XMMdq" | "VPMADDUBSW_XMMdq_XMMdq_XMMdq" | "VPHSUBW_XMMdq_XMMdq_XMMdq"
+      | "VPHSUBD_XMMdq_XMMdq_XMMdq" | "VPHSUBSW_XMMdq_XMMdq_XMMdq" | "VPSIGNB_XMMdq_XMMdq_XMMdq"
+      | "VPSIGNW_XMMdq_XMMdq_XMMdq" | "VPSIGND_XMMdq_XMMdq_XMMdq" | "VPMULHRSW_XMMdq_XMMdq_XMMdq"
+      | "VPMULDQ_XMMdq_XMMdq_XMMdq" | "VPCMPEQQ_XMMdq_XMMdq_XMMdq" | "VPACKUSDW_XMMdq_XMMdq_XMMdq"
+      | "VPCMPGTQ_XMMdq_XMMdq_XMMdq" | "VPMINSB_XMMdq_XMMdq_XMMdq" | "VPMINSD_XMMdq_XMMdq_XMMdq"
+      | "VPMINUW_XMMdq_XMMdq_XMMdq" | "VPMINUD_XMMdq_XMMdq_XMMdq" | "VPMAXSB_XMMdq_XMMdq_XMMdq"
+      | "VPMAXSD_XMMdq_XMMdq_XMMdq" | "VPMAXUW_XMMdq_XMMdq_XMMdq" | "VPMAXUD_XMMdq_XMMdq_XMMdq"
+      | "VPMULLD_XMMdq_XMMdq_XMMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPSHUFB_XMMdq_XMMdq_MEMdq" | "x86:VPHADDW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPHADDD_XMMdq_XMMdq_MEMdq" | "x86:VPHADDSW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMADDUBSW_XMMdq_XMMdq_MEMdq" | "x86:VPHSUBW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPHSUBD_XMMdq_XMMdq_MEMdq" | "x86:VPHSUBSW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPSIGNB_XMMdq_XMMdq_MEMdq" | "x86:VPSIGNW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPSIGND_XMMdq_XMMdq_MEMdq" | "x86:VPMULHRSW_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMULDQ_XMMdq_XMMdq_MEMdq" | "x86:VPCMPEQQ_XMMdq_XMMdq_MEMdq"
+      | "x86:VPACKUSDW_XMMdq_XMMdq_MEMdq" | "x86:VPCMPGTQ_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMINSB_XMMdq_XMMdq_MEMdq" | "x86:VPMINSD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMINUW_XMMdq_XMMdq_MEMdq" | "x86:VPMINUD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMAXSB_XMMdq_XMMdq_MEMdq" | "x86:VPMAXSD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMAXUW_XMMdq_XMMdq_MEMdq" | "x86:VPMAXUD_XMMdq_XMMdq_MEMdq"
+      | "x86:VPMULLD_XMMdq_XMMdq_MEMdq" ),
+      ( "VPSHUFB_XMMdq_XMMdq_MEMdq" | "VPHADDW_XMMdq_XMMdq_MEMdq" | "VPHADDD_XMMdq_XMMdq_MEMdq"
+      | "VPHADDSW_XMMdq_XMMdq_MEMdq" | "VPMADDUBSW_XMMdq_XMMdq_MEMdq" | "VPHSUBW_XMMdq_XMMdq_MEMdq"
+      | "VPHSUBD_XMMdq_XMMdq_MEMdq" | "VPHSUBSW_XMMdq_XMMdq_MEMdq" | "VPSIGNB_XMMdq_XMMdq_MEMdq"
+      | "VPSIGNW_XMMdq_XMMdq_MEMdq" | "VPSIGND_XMMdq_XMMdq_MEMdq" | "VPMULHRSW_XMMdq_XMMdq_MEMdq"
+      | "VPMULDQ_XMMdq_XMMdq_MEMdq" | "VPCMPEQQ_XMMdq_XMMdq_MEMdq" | "VPACKUSDW_XMMdq_XMMdq_MEMdq"
+      | "VPCMPGTQ_XMMdq_XMMdq_MEMdq" | "VPMINSB_XMMdq_XMMdq_MEMdq" | "VPMINSD_XMMdq_XMMdq_MEMdq"
+      | "VPMINUW_XMMdq_XMMdq_MEMdq" | "VPMINUD_XMMdq_XMMdq_MEMdq" | "VPMAXSB_XMMdq_XMMdq_MEMdq"
+      | "VPMAXSD_XMMdq_XMMdq_MEMdq" | "VPMAXUW_XMMdq_XMMdq_MEMdq" | "VPMAXUD_XMMdq_XMMdq_MEMdq"
+      | "VPMULLD_XMMdq_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VPADDB_XMMdq_XMMdq_XMMdq" | "x86:VPADDW_XMMdq_XMMdq_XMMdq"
       | "x86:VPADDD_XMMdq_XMMdq_XMMdq" | "x86:VPADDQ_XMMdq_XMMdq_XMMdq"
       | "x86:VPSUBB_XMMdq_XMMdq_XMMdq" | "x86:VPSUBW_XMMdq_XMMdq_XMMdq"

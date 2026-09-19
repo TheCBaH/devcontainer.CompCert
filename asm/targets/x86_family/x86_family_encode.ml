@@ -746,6 +746,39 @@ module Opcode = struct
         (** [extractps $imm8, xmm, gpr32/m32] - extract a single-precision lane ([66 0F 3A 17 /r
             ib]), {!Pextrb}'s sibling. Confirmed against real GNU as: [extractps $1,%xmm1,%eax]
             -> [66 0f 3a 17 c8 01]. *)
+    | Vpshufb
+        (** [vpshufb src2, src1, dst] - the VEX sibling of the legacy {!Pshufb} and the first
+            mnemonic needing the three-byte VEX prefix ([0xC4], GEN-05): [VEX.128.66.0F38.WIG 00
+            /r], opcode map 2 selected by the prefix's own [mmmmm] field rather than a fixed [0x0F
+            0x38] escape pair. Same {!Lowered.Vex_binop_rr_rm} shape as {!Vpaddb}, so the same
+            two-byte-VEX register restriction on [src2] still applies here for now, and the whole
+            [VEX.128.66.0F38] group below ({!Vphaddw}..{!Vpmulld}) mirrors the legacy map-2 binop
+            table entry for entry. Confirmed against real GNU as: [vpmulld %xmm7,%xmm3,%xmm5] ->
+            [c4 e2 61 40 ef], [vpshufb 0x10(%esp),%xmm1,%xmm0] -> [c4 e2 71 00 44 24 10]. *)
+    | Vphaddw  (** See {!Vpshufb}. *)
+    | Vphaddd  (** See {!Vpshufb}. *)
+    | Vphaddsw  (** See {!Vpshufb}. *)
+    | Vpmaddubsw  (** See {!Vpshufb}. *)
+    | Vphsubw  (** See {!Vpshufb}. *)
+    | Vphsubd  (** See {!Vpshufb}. *)
+    | Vphsubsw  (** See {!Vpshufb}. *)
+    | Vpsignb  (** See {!Vpshufb}. *)
+    | Vpsignw  (** See {!Vpshufb}. *)
+    | Vpsignd  (** See {!Vpshufb}. *)
+    | Vpmulhrsw  (** See {!Vpshufb}. *)
+    | Vpmuldq  (** See {!Vpshufb}. *)
+    | Vpcmpeqq  (** See {!Vpshufb}. *)
+    | Vpackusdw  (** See {!Vpshufb}. *)
+    | Vpcmpgtq  (** See {!Vpshufb}. *)
+    | Vpminsb  (** See {!Vpshufb}. *)
+    | Vpminsd  (** See {!Vpshufb}. *)
+    | Vpminuw  (** See {!Vpshufb}. *)
+    | Vpminud  (** See {!Vpshufb}. *)
+    | Vpmaxsb  (** See {!Vpshufb}. *)
+    | Vpmaxsd  (** See {!Vpshufb}. *)
+    | Vpmaxuw  (** See {!Vpshufb}. *)
+    | Vpmaxud  (** See {!Vpshufb}. *)
+    | Vpmulld  (** See {!Vpshufb}. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1561,6 +1594,31 @@ module Opcode = struct
     | Pextrb -> "pextrb"
     | Pextrd -> "pextrd"
     | Extractps -> "extractps"
+    | Vpshufb -> "vpshufb"
+    | Vphaddw -> "vphaddw"
+    | Vphaddd -> "vphaddd"
+    | Vphaddsw -> "vphaddsw"
+    | Vpmaddubsw -> "vpmaddubsw"
+    | Vphsubw -> "vphsubw"
+    | Vphsubd -> "vphsubd"
+    | Vphsubsw -> "vphsubsw"
+    | Vpsignb -> "vpsignb"
+    | Vpsignw -> "vpsignw"
+    | Vpsignd -> "vpsignd"
+    | Vpmulhrsw -> "vpmulhrsw"
+    | Vpmuldq -> "vpmuldq"
+    | Vpcmpeqq -> "vpcmpeqq"
+    | Vpackusdw -> "vpackusdw"
+    | Vpcmpgtq -> "vpcmpgtq"
+    | Vpminsb -> "vpminsb"
+    | Vpminsd -> "vpminsd"
+    | Vpminuw -> "vpminuw"
+    | Vpminud -> "vpminud"
+    | Vpmaxsb -> "vpmaxsb"
+    | Vpmaxsd -> "vpmaxsd"
+    | Vpmaxuw -> "vpmaxuw"
+    | Vpmaxud -> "vpmaxud"
+    | Vpmulld -> "vpmulld"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -2039,7 +2097,12 @@ module Instruction = struct
           | Opcode.Psrld | Opcode.Psrlq | Opcode.Psraw | Opcode.Psrad | Opcode.Vpsllw
           | Opcode.Vpslld | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq
           | Opcode.Vpsraw | Opcode.Vpsrad | Opcode.Movdqa | Opcode.Movdqu | Opcode.Vmovdqa
-          | Opcode.Vmovdqu | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
+          | Opcode.Vmovdqu | Opcode.Vpshufb | Opcode.Vphaddw | Opcode.Vphaddd | Opcode.Vphaddsw
+          | Opcode.Vpmaddubsw | Opcode.Vphsubw | Opcode.Vphsubd | Opcode.Vphsubsw | Opcode.Vpsignb
+          | Opcode.Vpsignw | Opcode.Vpsignd | Opcode.Vpmulhrsw | Opcode.Vpmuldq | Opcode.Vpcmpeqq
+          | Opcode.Vpackusdw | Opcode.Vpcmpgtq | Opcode.Vpminsb | Opcode.Vpminsd | Opcode.Vpminuw
+          | Opcode.Vpminud | Opcode.Vpmaxsb | Opcode.Vpmaxsd | Opcode.Vpmaxuw | Opcode.Vpmaxud
+          | Opcode.Vpmulld | Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll
           | Opcode.Fadds | Opcode.Fadd | Opcode.Fnstcw | Opcode.Fldcw | Opcode.Fistpll
           | Opcode.Fsubs | Opcode.Fnstsw | Opcode.Movd ) as op ->
             Fmt.pf ppf "%s %a" (Opcode.name op) Fmt.(list ~sep:(any ", ") Operand.pp) ops
@@ -3427,6 +3490,31 @@ module Make (M : MODE) = struct
     | "pextrb", _ -> Ok (Instruction.mk Opcode.Pextrb 32 s.Surface.ops)
     | "pextrd", _ -> Ok (Instruction.mk Opcode.Pextrd 32 s.Surface.ops)
     | "extractps", _ -> Ok (Instruction.mk Opcode.Extractps 32 s.Surface.ops)
+    | "vpshufb", _ -> Ok (Instruction.mk Opcode.Vpshufb 32 s.Surface.ops)
+    | "vphaddw", _ -> Ok (Instruction.mk Opcode.Vphaddw 32 s.Surface.ops)
+    | "vphaddd", _ -> Ok (Instruction.mk Opcode.Vphaddd 32 s.Surface.ops)
+    | "vphaddsw", _ -> Ok (Instruction.mk Opcode.Vphaddsw 32 s.Surface.ops)
+    | "vpmaddubsw", _ -> Ok (Instruction.mk Opcode.Vpmaddubsw 32 s.Surface.ops)
+    | "vphsubw", _ -> Ok (Instruction.mk Opcode.Vphsubw 32 s.Surface.ops)
+    | "vphsubd", _ -> Ok (Instruction.mk Opcode.Vphsubd 32 s.Surface.ops)
+    | "vphsubsw", _ -> Ok (Instruction.mk Opcode.Vphsubsw 32 s.Surface.ops)
+    | "vpsignb", _ -> Ok (Instruction.mk Opcode.Vpsignb 32 s.Surface.ops)
+    | "vpsignw", _ -> Ok (Instruction.mk Opcode.Vpsignw 32 s.Surface.ops)
+    | "vpsignd", _ -> Ok (Instruction.mk Opcode.Vpsignd 32 s.Surface.ops)
+    | "vpmulhrsw", _ -> Ok (Instruction.mk Opcode.Vpmulhrsw 32 s.Surface.ops)
+    | "vpmuldq", _ -> Ok (Instruction.mk Opcode.Vpmuldq 32 s.Surface.ops)
+    | "vpcmpeqq", _ -> Ok (Instruction.mk Opcode.Vpcmpeqq 32 s.Surface.ops)
+    | "vpackusdw", _ -> Ok (Instruction.mk Opcode.Vpackusdw 32 s.Surface.ops)
+    | "vpcmpgtq", _ -> Ok (Instruction.mk Opcode.Vpcmpgtq 32 s.Surface.ops)
+    | "vpminsb", _ -> Ok (Instruction.mk Opcode.Vpminsb 32 s.Surface.ops)
+    | "vpminsd", _ -> Ok (Instruction.mk Opcode.Vpminsd 32 s.Surface.ops)
+    | "vpminuw", _ -> Ok (Instruction.mk Opcode.Vpminuw 32 s.Surface.ops)
+    | "vpminud", _ -> Ok (Instruction.mk Opcode.Vpminud 32 s.Surface.ops)
+    | "vpmaxsb", _ -> Ok (Instruction.mk Opcode.Vpmaxsb 32 s.Surface.ops)
+    | "vpmaxsd", _ -> Ok (Instruction.mk Opcode.Vpmaxsd 32 s.Surface.ops)
+    | "vpmaxuw", _ -> Ok (Instruction.mk Opcode.Vpmaxuw 32 s.Surface.ops)
+    | "vpmaxud", _ -> Ok (Instruction.mk Opcode.Vpmaxud 32 s.Surface.ops)
+    | "vpmulld", _ -> Ok (Instruction.mk Opcode.Vpmulld 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -4640,7 +4728,12 @@ module Make (M : MODE) = struct
         | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
         | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
         | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
-        | Opcode.Vsqrtss ),
+        | Opcode.Vsqrtss | Opcode.Vpshufb | Opcode.Vphaddw | Opcode.Vphaddd | Opcode.Vphaddsw
+        | Opcode.Vpmaddubsw | Opcode.Vphsubw | Opcode.Vphsubd | Opcode.Vphsubsw | Opcode.Vpsignb
+        | Opcode.Vpsignw | Opcode.Vpsignd | Opcode.Vpmulhrsw | Opcode.Vpmuldq | Opcode.Vpcmpeqq
+        | Opcode.Vpackusdw | Opcode.Vpcmpgtq | Opcode.Vpminsb | Opcode.Vpminsd | Opcode.Vpminuw
+        | Opcode.Vpminud | Opcode.Vpmaxsb | Opcode.Vpmaxsd | Opcode.Vpmaxuw | Opcode.Vpmaxud
+        | Opcode.Vpmulld ),
         [ Operand.Reg src2; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src2, xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok (), Ok () ->
@@ -4666,7 +4759,12 @@ module Make (M : MODE) = struct
         | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
         | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
         | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
-        | Opcode.Vsqrtss ),
+        | Opcode.Vsqrtss | Opcode.Vpshufb | Opcode.Vphaddw | Opcode.Vphaddd | Opcode.Vphaddsw
+        | Opcode.Vpmaddubsw | Opcode.Vphsubw | Opcode.Vphsubd | Opcode.Vphsubsw | Opcode.Vpsignb
+        | Opcode.Vpsignw | Opcode.Vpsignd | Opcode.Vpmulhrsw | Opcode.Vpmuldq | Opcode.Vpcmpeqq
+        | Opcode.Vpackusdw | Opcode.Vpcmpgtq | Opcode.Vpminsb | Opcode.Vpminsd | Opcode.Vpminuw
+        | Opcode.Vpminud | Opcode.Vpmaxsb | Opcode.Vpmaxsd | Opcode.Vpmaxuw | Opcode.Vpmaxud
+        | Opcode.Vpmulld ),
         [ Operand.Mem m; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () -> (
@@ -4698,7 +4796,12 @@ module Make (M : MODE) = struct
         | Opcode.Vpsllq | Opcode.Vpsrlw | Opcode.Vpsrld | Opcode.Vpsrlq | Opcode.Vpsraw
         | Opcode.Vpsrad | Opcode.Vmaxsd | Opcode.Vminsd | Opcode.Vmaxss | Opcode.Vminss
         | Opcode.Vmaxps | Opcode.Vminps | Opcode.Vmaxpd | Opcode.Vminpd | Opcode.Vsqrtsd
-        | Opcode.Vsqrtss ),
+        | Opcode.Vsqrtss | Opcode.Vpshufb | Opcode.Vphaddw | Opcode.Vphaddd | Opcode.Vphaddsw
+        | Opcode.Vpmaddubsw | Opcode.Vphsubw | Opcode.Vphsubd | Opcode.Vphsubsw | Opcode.Vpsignb
+        | Opcode.Vpsignw | Opcode.Vpsignd | Opcode.Vpmulhrsw | Opcode.Vpmuldq | Opcode.Vpcmpeqq
+        | Opcode.Vpackusdw | Opcode.Vpcmpgtq | Opcode.Vpminsb | Opcode.Vpminsd | Opcode.Vpminuw
+        | Opcode.Vpminud | Opcode.Vpmaxsb | Opcode.Vpmaxsd | Opcode.Vpmaxuw | Opcode.Vpmaxud
+        | Opcode.Vpmulld ),
         [ Operand.Sym e; Operand.Reg src1; Operand.Reg dst ] ) -> (
         match (xmm_ok src1, xmm_ok dst) with
         | Ok (), Ok () ->
@@ -6253,6 +6356,74 @@ module Make (M : MODE) = struct
                   { op; dst = reg_at ~width:128 dst_num; src1 = reg_at ~width:128 src1_num; src2 }))
          C.(const ~width:8 0xC5L ** field ~width:8 "vex-byte2" ** opcode_codec ** rm_codec))
 
+  (* The three-byte VEX prefix ([0xC4], {!Opcode.Vpshufb}'s own doc comment): [0xC4], then [R X B
+     mmmmm] (all three extension bits inverted; [mmmmm = 2] selects opcode map 0F38), then [W vvvv
+     L pp]. {!vex_scalar_rrr_alt}'s own two-byte layout with one extra byte: [R] moves out of the
+     last byte into the middle one and [W = 0] takes its place. [X] and [B] stay 1 (unextended)
+     because [src2] is still restricted to registers below 8 ({!vex_rm_ok}). *)
+  let vex3_map2_66_codec =
+    C.iso_table ~name:"vex3-map2-66-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Vpshufb, 0x00L);
+          (Opcode.Vphaddw, 0x01L);
+          (Opcode.Vphaddd, 0x02L);
+          (Opcode.Vphaddsw, 0x03L);
+          (Opcode.Vpmaddubsw, 0x04L);
+          (Opcode.Vphsubw, 0x05L);
+          (Opcode.Vphsubd, 0x06L);
+          (Opcode.Vphsubsw, 0x07L);
+          (Opcode.Vpsignb, 0x08L);
+          (Opcode.Vpsignw, 0x09L);
+          (Opcode.Vpsignd, 0x0AL);
+          (Opcode.Vpmulhrsw, 0x0BL);
+          (Opcode.Vpmuldq, 0x28L);
+          (Opcode.Vpcmpeqq, 0x29L);
+          (Opcode.Vpackusdw, 0x2BL);
+          (Opcode.Vpcmpgtq, 0x37L);
+          (Opcode.Vpminsb, 0x38L);
+          (Opcode.Vpminsd, 0x39L);
+          (Opcode.Vpminuw, 0x3AL);
+          (Opcode.Vpminud, 0x3BL);
+          (Opcode.Vpmaxsb, 0x3CL);
+          (Opcode.Vpmaxsd, 0x3DL);
+          (Opcode.Vpmaxuw, 0x3EL);
+          (Opcode.Vpmaxud, 0x3FL);
+          (Opcode.Vpmulld, 0x40L);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let vex3_map2_rrr_alt ~label ~priority ~pp ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Vex_binop_rr_rm { op; dst; src1; src2 } when vex_rm_ok src2 ->
+               let r_bit = if dst.num >= 8 then 0 else 1 in
+               let vvvv = lnot src1.num land 0xF in
+               let byte1 = Int64.of_int ((r_bit lsl 7) lor 0x40 lor 0x20 lor 2) in
+               let byte2 = Int64.of_int ((vvvv lsl 3) lor pp) in
+               Some ((), (byte1, (byte2, (op, { re_reg = dst.num; re_rm = src2 }))))
+           | _ -> None)
+         ~decode:(fun ((), (byte1, (byte2, (op, e)))) ->
+           let b1 = Int64.to_int byte1 and b2 = Int64.to_int byte2 in
+           let r_bit = (b1 lsr 7) land 1 in
+           let vvvv = (b2 lsr 3) land 0xF in
+           let w = (b2 lsr 7) land 1 in
+           let l = (b2 lsr 2) land 1 in
+           if b1 land 0x7F <> 0x62 || w <> 0 || l <> 0 || b2 land 3 <> pp then None
+           else
+             let dst_num = (e.re_reg land 7) + if r_bit = 0 then 8 else 0 in
+             let src1_num = lnot vvvv land 0xF in
+             let src2 =
+               match e.re_rm with Rm.Reg r -> Rm.Reg (retype ~width:128 r) | Rm.Mem _ as m -> m
+             in
+             Some
+               (Lowered.Vex_binop_rr_rm
+                  { op; dst = reg_at ~width:128 dst_num; src1 = reg_at ~width:128 src1_num; src2 }))
+         C.(
+           const ~width:8 0xC4L ** field ~width:8 "vex3-byte1" ** field ~width:8 "vex3-byte2"
+           ** opcode_codec ** rm_codec))
+
   (* [pp = 0] - {!Opcode.Vsqrtps}'s own group: opcode 0x51 does not collide with
      {!vex_scalar_none_codec}'s entries (0x54-0x59/0x5C-0x5F), so this could have been added
      there, but a dedicated table keeps it paired with {!vex_unop_alt} the same way every other
@@ -7561,6 +7732,8 @@ module Make (M : MODE) = struct
             ~opcode_codec:vex_scalar_none_codec;
           vex_scalar_rrr_alt ~label:"vex-scalar-66-rrr" ~priority:70 ~pp:1
             ~opcode_codec:vex_scalar_66_codec;
+          vex3_map2_rrr_alt ~label:"vex3-map2-66-rrr" ~priority:110 ~pp:1
+            ~opcode_codec:vex3_map2_66_codec;
           vex_unop_alt ~label:"vex-unop-none" ~priority:71 ~pp:0 ~opcode_codec:vex_unop_none_codec;
           vex_unop_alt ~label:"vex-unop-66" ~priority:72 ~pp:1 ~opcode_codec:vex_unop_66_codec;
           (* [cmpsd]/[cmpss] (GEN-05): {!Cmpsd}/{!Cmpss}'s own one-entry mandatory-[F2]/[F3]
