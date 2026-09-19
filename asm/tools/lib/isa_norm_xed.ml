@@ -2782,6 +2782,50 @@ let movd_store_mr_form ~form_id ~mnemonic (rec_ : R.t) =
         (Printf.sprintf "expected MEM0/REG0 operands in that order, got %d" (List.length operands))
   | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
 
+(* BLENDVPS/BLENDVPD/PBLENDVB (GEN-05): {!xmm_binop_rr_form}/{!xmm_binop_rm_form}'s own two
+   explicit operands plus a trailing SUPPRESSED-visibility, fixed-[bits] [XED_REG_XMM0] mask
+   (REG2 for the register form, REG1 for the memory form). The mask is modelled as an
+   [Implicit_register] ({!alu_al_immb_form}'s own shape) and spelled [%xmm0] literally first, the
+   canonical GAS spelling; the delegate builds everything else from the two explicit operands. *)
+let xmm_blendv_form ~mem ~form_id ~mnemonic (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding ({ operands = [ a; b; m ]; _ } as e)
+    when m.visibility = "SUPPRESSED" && m.bits = Some "XED_REG_XMM0" -> (
+      let trimmed = { rec_ with encoding = R.X86_encoding { e with operands = [ a; b ] } } in
+      match (if mem then xmm_binop_rm_form else xmm_binop_rr_form) ~form_id ~mnemonic trimmed with
+      | Error _ as err -> err
+      | Ok (form : Isa_norm_model.form) ->
+          let mask =
+            {
+              op_name = "mask";
+              op_kind = Implicit_register { class_ = X86_xmm; native_name = "XED_REG_XMM0" };
+              role = role_of_rw m.rw;
+              explicit = false;
+            }
+          in
+          Ok
+            {
+              form with
+              operands = form.operands @ [ mask ];
+              syntax = { form.syntax with operands = Syn_literal "%xmm0" :: form.syntax.operands };
+              facts =
+                form.facts
+                @ [
+                    {
+                      label = Upstream;
+                      note =
+                        Printf.sprintf
+                          "%s (reg, SUPPRESSED, bits XED_REG_XMM0, rw=%s) taken verbatim" m.op_name
+                          m.rw;
+                    };
+                  ];
+            })
+  | R.X86_encoding _ ->
+      err
+        (form_id ^ "-unrecognized-operands")
+        "expected two explicit operands plus a suppressed XED_REG_XMM0 mask"
+  | _ -> err (form_id ^ "-not-x86-encoding") "record's encoding is not XED x86_encoding"
+
 (* [pinsrw]'s own cross-register-class member (PINSRW_XMMdq_GPR32_IMMb, GEN-05): XED's resolved
    operands are REG0 (dest, rw - xmm, a partial-register merge exactly like {!Addsd}'s own dest,
    confirmed by the native record's own [rw] fact, not assumed), REG1 (src, r - GPR, not xmm) and
@@ -3678,6 +3722,18 @@ let normalize (rec_ : R.t) =
       pinsrw_rm_form ~form_id:"PINSRW_XMMdq_MEMw_IMMb" ~mnemonic:"pinsrw" rec_
   | Ok { iform = Some "PEXTRW_GPR32_XMMdq_IMMb"; _ } ->
       pextrw_rr_form ~form_id:"PEXTRW_GPR32_XMMdq_IMMb" ~mnemonic:"pextrw" rec_
+  | Ok { iform = Some "BLENDVPS_XMMdq_XMMdq"; _ } ->
+      xmm_blendv_form ~mem:false ~form_id:"BLENDVPS_XMMdq_XMMdq" ~mnemonic:"blendvps" rec_
+  | Ok { iform = Some "BLENDVPS_XMMdq_MEMdq"; _ } ->
+      xmm_blendv_form ~mem:true ~form_id:"BLENDVPS_XMMdq_MEMdq" ~mnemonic:"blendvps" rec_
+  | Ok { iform = Some "BLENDVPD_XMMdq_XMMdq"; _ } ->
+      xmm_blendv_form ~mem:false ~form_id:"BLENDVPD_XMMdq_XMMdq" ~mnemonic:"blendvpd" rec_
+  | Ok { iform = Some "BLENDVPD_XMMdq_MEMdq"; _ } ->
+      xmm_blendv_form ~mem:true ~form_id:"BLENDVPD_XMMdq_MEMdq" ~mnemonic:"blendvpd" rec_
+  | Ok { iform = Some "PBLENDVB_XMMdq_XMMdq"; _ } ->
+      xmm_blendv_form ~mem:false ~form_id:"PBLENDVB_XMMdq_XMMdq" ~mnemonic:"pblendvb" rec_
+  | Ok { iform = Some "PBLENDVB_XMMdq_MEMdq"; _ } ->
+      xmm_blendv_form ~mem:true ~form_id:"PBLENDVB_XMMdq_MEMdq" ~mnemonic:"pblendvb" rec_
   (* [pinsrb]/[pinsrd]/[pextrb]/[pextrd]/[extractps] ({!Opcode.Pinsrb}'s own doc comment):
      {!pinsrw_rr_form}/{!pinsrw_rm_form}/{!pextrw_rr_form}'s own operand shapes at opcode map 3. *)
   | Ok { iform = Some "PINSRB_XMMdq_GPR32d_IMMb"; _ } ->

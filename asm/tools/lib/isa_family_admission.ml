@@ -533,6 +533,12 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "DPPD_XMMdq_XMMdq_IMMb" | "MPSADBW_XMMdq_XMMdq_IMMb" | "PBLENDW_XMMdq_XMMdq_IMMb" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:BLENDVPS_XMMdq_XMMdq" | "x86:BLENDVPS_XMMdq_MEMdq" | "x86:BLENDVPD_XMMdq_XMMdq"
+      | "x86:BLENDVPD_XMMdq_MEMdq" | "x86:PBLENDVB_XMMdq_XMMdq" | "x86:PBLENDVB_XMMdq_MEMdq" ),
+      ( "BLENDVPS_XMMdq_XMMdq" | "BLENDVPS_XMMdq_MEMdq" | "BLENDVPD_XMMdq_XMMdq"
+      | "BLENDVPD_XMMdq_MEMdq" | "PBLENDVB_XMMdq_XMMdq" | "PBLENDVB_XMMdq_MEMdq" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:PINSRB_XMMdq_GPR32d_IMMb" | "x86:PINSRD_XMMdq_GPR32d_IMMb"
       | "x86:PINSRB_XMMdq_MEMb_IMMb" | "x86:PINSRD_XMMdq_MEMd_IMMb" | "x86:PEXTRB_GPR32d_XMMdq_IMMb"
       | "x86:PEXTRD_GPR32d_XMMdq_IMMb" | "x86:EXTRACTPS_GPR32d_XMMdq_IMMb" ),

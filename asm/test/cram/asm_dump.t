@@ -315,7 +315,7 @@
   sse-movmsk-none-op[1]{opcode:8u}
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
-  sse-binop-0f38-op[43]{opcode:8u}
+  sse-binop-0f38-op[46]{opcode:8u}
   sse-binop-imm-0f3a-op[12]{opcode:8u}
   sse-gpr-imm-0f3a-op[5]{opcode:8u}
   alt opsz
@@ -642,7 +642,7 @@
   sse-movmsk-none-op[1]{opcode:8u}
   vex-movmsk-66-op[2]{opcode:8u}
   vex-movmsk-none-op[1]{opcode:8u}
-  sse-binop-0f38-op[43]{opcode:8u}
+  sse-binop-0f38-op[46]{opcode:8u}
   sse-binop-imm-0f3a-op[12]{opcode:8u}
   sse-gpr-imm-0f3a-op[5]{opcode:8u}
   alt opsz

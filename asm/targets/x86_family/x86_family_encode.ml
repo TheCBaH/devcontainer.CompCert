@@ -678,6 +678,20 @@ module Opcode = struct
         (** [movntdqa mem, reg] - non-temporal aligned load ([66 0F 38 2A /r], SSE4.1, GEN-05),
             {!Ptest}'s own group, memory source only. Confirmed against real GNU as:
             [movntdqa 0x10(%esp),%xmm1] -> [66 0f 38 2a 4c 24 10]. *)
+    | Blendvps
+        (** [blendvps %xmm0, rm, reg] - variable blend, single precision, per-dword mask taken from
+            the implicit [%xmm0] ([66 0F 38 14 /r], SSE4.1, GEN-05): {!Ptest}'s own map-2 group,
+            same {!Lowered.Sse_binop_r_rm}/{!sse_binop_0f38_alt} shape - the mask is not encoded.
+            Real GNU as accepts both spellings, the canonical three-operand one with an explicit
+            [%xmm0] first and the two-operand one without it, and emits identical bytes; only an
+            explicit [%xmm0] mask (register number 0, 128-bit) lowers, any other register falls to
+            the [No_form] catch-all. Confirmed against real GNU as: [blendvps %xmm0,%xmm2,%xmm1]
+            and [blendvps %xmm2,%xmm1] -> [66 0f 38 14 ca], [blendvpd %xmm0,0x10(%esp),%xmm1] ->
+            [66 0f 38 15 4c 24 10]. *)
+    | Blendvpd
+        (** [blendvpd %xmm0, rm, reg] - {!Blendvps}'s double-precision sibling ([66 0F 38 15 /r]). *)
+    | Pblendvb
+        (** [pblendvb %xmm0, rm, reg] - {!Blendvps}'s byte-lane sibling ([66 0F 38 10 /r]). *)
     | Blendps
         (** [blendps $imm8, rm, reg] - packed blend, single precision, per-dword mask selected by
             [imm8] ([66 0F 3A 0C /r ib], SSE4.1, GEN-05): {!Palignr}'s own map-3 group at a
@@ -1532,6 +1546,9 @@ module Opcode = struct
     | Pmovzxwq -> "pmovzxwq"
     | Pmovzxdq -> "pmovzxdq"
     | Movntdqa -> "movntdqa"
+    | Blendvps -> "blendvps"
+    | Blendvpd -> "blendvpd"
+    | Pblendvb -> "pblendvb"
     | Blendps -> "blendps"
     | Blendpd -> "blendpd"
     | Dpps -> "dpps"
@@ -3395,6 +3412,9 @@ module Make (M : MODE) = struct
     | "pmovzxwq", _ -> Ok (Instruction.mk Opcode.Pmovzxwq 32 s.Surface.ops)
     | "pmovzxdq", _ -> Ok (Instruction.mk Opcode.Pmovzxdq 32 s.Surface.ops)
     | "movntdqa", _ -> Ok (Instruction.mk Opcode.Movntdqa 32 s.Surface.ops)
+    | "blendvps", _ -> Ok (Instruction.mk Opcode.Blendvps 32 s.Surface.ops)
+    | "blendvpd", _ -> Ok (Instruction.mk Opcode.Blendvpd 32 s.Surface.ops)
+    | "pblendvb", _ -> Ok (Instruction.mk Opcode.Pblendvb 32 s.Surface.ops)
     | "blendps", _ -> Ok (Instruction.mk Opcode.Blendps 32 s.Surface.ops)
     | "blendpd", _ -> Ok (Instruction.mk Opcode.Blendpd 32 s.Surface.ops)
     | "dpps", _ -> Ok (Instruction.mk Opcode.Dpps 32 s.Surface.ops)
@@ -4294,9 +4314,10 @@ module Make (M : MODE) = struct
         | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
         | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
         | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
-        | Opcode.Phminposuw | Opcode.Ptest | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq
-        | Opcode.Pmovsxwd | Opcode.Pmovsxwq | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd
-        | Opcode.Pmovzxbq | Opcode.Pmovzxwd | Opcode.Pmovzxwq | Opcode.Pmovzxdq ),
+        | Opcode.Phminposuw | Opcode.Blendvps | Opcode.Blendvpd | Opcode.Pblendvb | Opcode.Ptest
+        | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq | Opcode.Pmovsxwd | Opcode.Pmovsxwq
+        | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd | Opcode.Pmovzxbq | Opcode.Pmovzxwd
+        | Opcode.Pmovzxwq | Opcode.Pmovzxdq ),
         [ Operand.Reg src; Operand.Reg reg ] ) -> (
         match (xmm_ok src, xmm_ok reg) with
         | Ok (), Ok () ->
@@ -4327,9 +4348,10 @@ module Make (M : MODE) = struct
         | Opcode.Pabsw | Opcode.Pabsd | Opcode.Pcmpeqq | Opcode.Pcmpgtq | Opcode.Packusdw
         | Opcode.Pmaxsb | Opcode.Pmaxsd | Opcode.Pmaxud | Opcode.Pmaxuw | Opcode.Pminsb
         | Opcode.Pminsd | Opcode.Pminud | Opcode.Pminuw | Opcode.Pmuldq | Opcode.Pmulld
-        | Opcode.Phminposuw | Opcode.Ptest | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq
-        | Opcode.Pmovsxwd | Opcode.Pmovsxwq | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd
-        | Opcode.Pmovzxbq | Opcode.Pmovzxwd | Opcode.Pmovzxwq | Opcode.Pmovzxdq | Opcode.Movntdqa ),
+        | Opcode.Phminposuw | Opcode.Blendvps | Opcode.Blendvpd | Opcode.Pblendvb | Opcode.Ptest
+        | Opcode.Pmovsxbw | Opcode.Pmovsxbd | Opcode.Pmovsxbq | Opcode.Pmovsxwd | Opcode.Pmovsxwq
+        | Opcode.Pmovsxdq | Opcode.Pmovzxbw | Opcode.Pmovzxbd | Opcode.Pmovzxbq | Opcode.Pmovzxwd
+        | Opcode.Pmovzxwq | Opcode.Pmovzxdq | Opcode.Movntdqa ),
         [ Operand.Mem m; Operand.Reg reg ] ) -> (
         match xmm_ok reg with
         | Error e -> Error e
@@ -4477,6 +4499,22 @@ module Make (M : MODE) = struct
                 Lowered.Movd_rm_r
                   { op = i.Instruction.op; width = i.Instruction.width; reg; rm = Rm.Mem m };
               ])
+    (* [blendvps %xmm0, rm, reg] ({!Opcode.Blendvps}'s own doc comment): the canonical spelling
+       with the implicit mask written out, lowered exactly like the two-operand one; a mask other
+       than [%xmm0] matches no arm. *)
+    | ( (Opcode.Blendvps | Opcode.Blendvpd | Opcode.Pblendvb),
+        [ Operand.Reg mask; Operand.Reg src; Operand.Reg reg ] )
+      when mask.Reg.num = 0 && mask.Reg.width = 128 -> (
+        match (xmm_ok src, xmm_ok reg) with
+        | Ok (), Ok () ->
+            Ok [ Lowered.Sse_binop_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src } ]
+        | Error e, _ | _, Error e -> Error e)
+    | ( (Opcode.Blendvps | Opcode.Blendvpd | Opcode.Pblendvb),
+        [ Operand.Reg mask; Operand.Mem m; Operand.Reg reg ] )
+      when mask.Reg.num = 0 && mask.Reg.width = 128 -> (
+        match xmm_ok reg with
+        | Error e -> Error e
+        | Ok () -> Ok [ Lowered.Sse_binop_r_rm { op = i.Instruction.op; reg; rm = Rm.Mem m } ])
     (* [pinsrb]/[pinsrd] ({!Opcode.Pinsrb}'s own doc comment): [rm] is a GPR32 or memory source,
        [reg] the xmm destination - {!Pinsrw}'s own arms below at opcode map 3. *)
     | (Opcode.Pinsrb | Opcode.Pinsrd), [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] -> (
@@ -5518,6 +5556,9 @@ module Make (M : MODE) = struct
           (Opcode.Pmulld, 0x40L);
           (Opcode.Phminposuw, 0x41L);
           (Opcode.Pcmpgtq, 0x37L);
+          (Opcode.Pblendvb, 0x10L);
+          (Opcode.Blendvps, 0x14L);
+          (Opcode.Blendvpd, 0x15L);
           (Opcode.Ptest, 0x17L);
           (Opcode.Pmovsxbw, 0x20L);
           (Opcode.Pmovsxbd, 0x21L);

@@ -1723,6 +1723,42 @@ let x86_vmovd_store_mr_entries =
       x86_movd_store_mr_entry ~target ~form_id:"x86:VMOVD_MEMd_XMMd" ~lookup_key:"VMOVD_MEMd_XMMd")
     [ Target.X86_32; Target.X86_64 ]
 
+(* BLENDVPS/BLENDVPD/PBLENDVB ({!Isa_norm_xed.xmm_blendv_form}'s own doc comment): the canonical
+   spelling writes the implicit [%xmm0] mask first, so [dest] is [%xmm2] here to keep the mask
+   distinguishable from it. *)
+let x86_blendv_entry ~target ~form_id ~lookup_key ~mem =
+  let stack, _, _ = x86_registers target in
+  {
+    form_id;
+    target;
+    lookup_key;
+    case_id =
+      Printf.sprintf "%s:%s:%s" form_id
+        (if mem then "load-base-disp8-sib" else "register-register")
+        (Target.to_string target);
+    rule_ids =
+      [ (if mem then "load-base-disp8-sib" else "canonical-spelling"); "xmm-register-operands" ];
+    operands =
+      [
+        (if mem then ("mem", Printf.sprintf "16(%%%s)" stack) else ("src", "xmm1")); ("dest", "xmm2");
+      ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let x86_blendv_entries =
+  List.concat_map
+    (fun (name, mem) ->
+      List.map
+        (fun target ->
+          let lookup_key = name ^ if mem then "_XMMdq_MEMdq" else "_XMMdq_XMMdq" in
+          x86_blendv_entry ~target ~form_id:("x86:" ^ lookup_key) ~lookup_key ~mem)
+        [ Target.X86_32; Target.X86_64 ])
+    (List.concat_map
+       (fun name -> [ (name, false); (name, true) ])
+       [ "BLENDVPS"; "BLENDVPD"; "PBLENDVB" ])
+
 (* [pinsrw]'s own cross-register-class member ({!Isa_norm_xed.pinsrw_rr_form}'s own doc comment):
    {!x86_sse_binop_imm_rr_entry}'s own [imm]/[dest] shape with a GPR [src] rather than xmm,
    {!x86_cvtsi2f_rr_entry}'s own GPR-source convention. No 64-bit GPR variant exists (always
@@ -5242,8 +5278,8 @@ let all =
   @ x86_cvtsi2f_rm_entries @ x86_cvtf2i_rr_entries @ x86_cvtf2i_rm_entries
   @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries @ x86_movd_store_rr_entries
   @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries @ x86_vmovd_load_rm_entries
-  @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries @ x86_pinsrw_rr_entries
-  @ x86_pinsrw_rm_entries @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries
+  @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries @ x86_blendv_entries
+  @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries
   @ x86_vpinsrw_rr_mem_entries @ x86_vpextrw_rr_entries @ x86_movmsk_entries @ x86_fadd_entries
   @ fadd_s_entries @ fsub_s_entries @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries
   @ fsub_d_entries @ fmul_d_entries @ fdiv_d_entries @ flw_entries @ fld_entries @ fsw_entries
