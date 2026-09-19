@@ -815,6 +815,30 @@ let promoted_case ~target ~form_id ~lookup_key =
       | "VPMULLD_XMMdq_XMMdq_MEMdq" ) ) ->
       true
   | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPALIGNR_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VBLENDPS_XMMdq_XMMdq_XMMdq_IMMb"
+      | "x86:VBLENDPD_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VPBLENDW_XMMdq_XMMdq_XMMdq_IMMb"
+      | "x86:VROUNDSS_XMMdq_XMMdq_XMMd_IMMb" | "x86:VROUNDSD_XMMdq_XMMdq_XMMq_IMMb"
+      | "x86:VDPPS_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VDPPD_XMMdq_XMMdq_XMMdq_IMMb"
+      | "x86:VMPSADBW_XMMdq_XMMdq_XMMdq_IMMb" | "x86:VINSERTPS_XMMdq_XMMdq_XMMdq_IMMb" ),
+      ( "VPALIGNR_XMMdq_XMMdq_XMMdq_IMMb" | "VBLENDPS_XMMdq_XMMdq_XMMdq_IMMb"
+      | "VBLENDPD_XMMdq_XMMdq_XMMdq_IMMb" | "VPBLENDW_XMMdq_XMMdq_XMMdq_IMMb"
+      | "VROUNDSS_XMMdq_XMMdq_XMMd_IMMb" | "VROUNDSD_XMMdq_XMMdq_XMMq_IMMb"
+      | "VDPPS_XMMdq_XMMdq_XMMdq_IMMb" | "VDPPD_XMMdq_XMMdq_XMMdq_IMMb"
+      | "VMPSADBW_XMMdq_XMMdq_XMMdq_IMMb" | "VINSERTPS_XMMdq_XMMdq_XMMdq_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:VPALIGNR_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VBLENDPS_XMMdq_XMMdq_MEMdq_IMMb"
+      | "x86:VBLENDPD_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VPBLENDW_XMMdq_XMMdq_MEMdq_IMMb"
+      | "x86:VROUNDSS_XMMdq_XMMdq_MEMd_IMMb" | "x86:VROUNDSD_XMMdq_XMMdq_MEMq_IMMb"
+      | "x86:VDPPS_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VDPPD_XMMdq_XMMdq_MEMdq_IMMb"
+      | "x86:VMPSADBW_XMMdq_XMMdq_MEMdq_IMMb" | "x86:VINSERTPS_XMMdq_XMMdq_MEMd_IMMb" ),
+      ( "VPALIGNR_XMMdq_XMMdq_MEMdq_IMMb" | "VBLENDPS_XMMdq_XMMdq_MEMdq_IMMb"
+      | "VBLENDPD_XMMdq_XMMdq_MEMdq_IMMb" | "VPBLENDW_XMMdq_XMMdq_MEMdq_IMMb"
+      | "VROUNDSS_XMMdq_XMMdq_MEMd_IMMb" | "VROUNDSD_XMMdq_XMMdq_MEMq_IMMb"
+      | "VDPPS_XMMdq_XMMdq_MEMdq_IMMb" | "VDPPD_XMMdq_XMMdq_MEMdq_IMMb"
+      | "VMPSADBW_XMMdq_XMMdq_MEMdq_IMMb" | "VINSERTPS_XMMdq_XMMdq_MEMd_IMMb" ) ) ->
+      true
+  | ( (Target.X86_32 | Target.X86_64),
       ( "x86:VPADDB_XMMdq_XMMdq_XMMdq" | "x86:VPADDW_XMMdq_XMMdq_XMMdq"
       | "x86:VPADDD_XMMdq_XMMdq_XMMdq" | "x86:VPADDQ_XMMdq_XMMdq_XMMdq"
       | "x86:VPSUBB_XMMdq_XMMdq_XMMdq" | "x86:VPSUBW_XMMdq_XMMdq_XMMdq"

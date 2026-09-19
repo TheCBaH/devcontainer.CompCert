@@ -1341,6 +1341,16 @@ let x86_vex_binop_imm_rrr_entries =
           ("VCMPSD_XMMdq_XMMdq_XMMq_IMMb", "0");
           ("VCMPPS_XMMdq_XMMdq_XMMdq_IMMb", "0");
           ("VCMPPD_XMMdq_XMMdq_XMMdq_IMMb", "0");
+          ("VPALIGNR_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VBLENDPS_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VBLENDPD_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VPBLENDW_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VROUNDSS_XMMdq_XMMdq_XMMd_IMMb", "5");
+          ("VROUNDSD_XMMdq_XMMdq_XMMq_IMMb", "5");
+          ("VDPPS_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VDPPD_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VMPSADBW_XMMdq_XMMdq_XMMdq_IMMb", "5");
+          ("VINSERTPS_XMMdq_XMMdq_XMMdq_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 
@@ -1376,6 +1386,16 @@ let x86_vex_binop_imm_rr_mem_entries =
           ("VCMPSD_XMMdq_XMMdq_MEMq_IMMb", "0");
           ("VCMPPS_XMMdq_XMMdq_MEMdq_IMMb", "0");
           ("VCMPPD_XMMdq_XMMdq_MEMdq_IMMb", "0");
+          ("VPALIGNR_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VBLENDPS_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VBLENDPD_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VPBLENDW_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VROUNDSS_XMMdq_XMMdq_MEMd_IMMb", "5");
+          ("VROUNDSD_XMMdq_XMMdq_MEMq_IMMb", "5");
+          ("VDPPS_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VDPPD_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VMPSADBW_XMMdq_XMMdq_MEMdq_IMMb", "5");
+          ("VINSERTPS_XMMdq_XMMdq_MEMd_IMMb", "5");
         ])
     [ Target.X86_32; Target.X86_64 ]
 

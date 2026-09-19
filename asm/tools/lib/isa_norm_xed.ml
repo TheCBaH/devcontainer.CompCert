@@ -5290,8 +5290,49 @@ let normalize (rec_ : R.t) =
       vex_binop_imm_rr_mem_form ~form_id:"VCMPPS_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vcmpps" rec_
   | Ok { iform = Some "VCMPPD_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
       vex_binop_imm_rrr_form ~form_id:"VCMPPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vcmppd" rec_
+  | Ok { iform = Some "VPALIGNR_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VPALIGNR_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vpalignr" rec_
+  | Ok { iform = Some "VBLENDPS_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VBLENDPS_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vblendps" rec_
+  | Ok { iform = Some "VBLENDPD_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VBLENDPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vblendpd" rec_
+  | Ok { iform = Some "VPBLENDW_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VPBLENDW_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vpblendw" rec_
+  | Ok { iform = Some "VROUNDSS_XMMdq_XMMdq_XMMd_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VROUNDSS_XMMdq_XMMdq_XMMd_IMMb" ~mnemonic:"vroundss" rec_
+  | Ok { iform = Some "VROUNDSD_XMMdq_XMMdq_XMMq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VROUNDSD_XMMdq_XMMdq_XMMq_IMMb" ~mnemonic:"vroundsd" rec_
+  | Ok { iform = Some "VDPPS_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VDPPS_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vdpps" rec_
+  | Ok { iform = Some "VDPPD_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VDPPD_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vdppd" rec_
+  | Ok { iform = Some "VMPSADBW_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VMPSADBW_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vmpsadbw" rec_
+  | Ok { iform = Some "VINSERTPS_XMMdq_XMMdq_XMMdq_IMMb"; _ } ->
+      vex_binop_imm_rrr_form ~form_id:"VINSERTPS_XMMdq_XMMdq_XMMdq_IMMb" ~mnemonic:"vinsertps" rec_
   | Ok { iform = Some "VCMPPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
       vex_binop_imm_rr_mem_form ~form_id:"VCMPPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vcmppd" rec_
+  | Ok { iform = Some "VPALIGNR_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VPALIGNR_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vpalignr" rec_
+  | Ok { iform = Some "VBLENDPS_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VBLENDPS_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vblendps" rec_
+  | Ok { iform = Some "VBLENDPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VBLENDPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vblendpd" rec_
+  | Ok { iform = Some "VPBLENDW_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VPBLENDW_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vpblendw" rec_
+  | Ok { iform = Some "VROUNDSS_XMMdq_XMMdq_MEMd_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VROUNDSS_XMMdq_XMMdq_MEMd_IMMb" ~mnemonic:"vroundss" rec_
+  | Ok { iform = Some "VROUNDSD_XMMdq_XMMdq_MEMq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VROUNDSD_XMMdq_XMMdq_MEMq_IMMb" ~mnemonic:"vroundsd" rec_
+  | Ok { iform = Some "VDPPS_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VDPPS_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vdpps" rec_
+  | Ok { iform = Some "VDPPD_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VDPPD_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vdppd" rec_
+  | Ok { iform = Some "VMPSADBW_XMMdq_XMMdq_MEMdq_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VMPSADBW_XMMdq_XMMdq_MEMdq_IMMb" ~mnemonic:"vmpsadbw" rec_
+  | Ok { iform = Some "VINSERTPS_XMMdq_XMMdq_MEMd_IMMb"; _ } ->
+      vex_binop_imm_rr_mem_form ~form_id:"VINSERTPS_XMMdq_XMMdq_MEMd_IMMb" ~mnemonic:"vinsertps"
+        rec_
   (* VPSHUFD/VPSHUFLW/VPSHUFHW (GEN-05, {!Opcode.Vpshufd}'s own doc comment): the VEX sibling of
      the legacy PSHUFD/PSHUFLW/PSHUFHW family, opcode 0x70, genuinely two-operand-plus-immediate
      (no real [vvvv] operand) - {!vex_unop_imm_rr_form}/{!vex_unop_imm_rm_form} rather than
