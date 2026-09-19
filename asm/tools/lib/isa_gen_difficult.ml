@@ -1741,11 +1741,13 @@ let x86_pinsrw_rr_entry ~target ~form_id ~lookup_key ~imm =
   }
 
 let x86_pinsrw_rr_entries =
-  List.map
-    (fun target ->
-      x86_pinsrw_rr_entry ~target ~form_id:"x86:PINSRW_XMMdq_GPR32_IMMb"
-        ~lookup_key:"PINSRW_XMMdq_GPR32_IMMb" ~imm:"1")
-    [ Target.X86_32; Target.X86_64 ]
+  List.concat_map
+    (fun form ->
+      List.map
+        (fun target ->
+          x86_pinsrw_rr_entry ~target ~form_id:("x86:" ^ form) ~lookup_key:form ~imm:"1")
+        [ Target.X86_32; Target.X86_64 ])
+    [ "PINSRW_XMMdq_GPR32_IMMb"; "PINSRB_XMMdq_GPR32d_IMMb"; "PINSRD_XMMdq_GPR32d_IMMb" ]
 
 (* {!x86_pinsrw_rr_entry}'s register<-memory sibling ({!x86_sse_binop_imm_rm_entry}'s own
    stack-based addressing). *)
@@ -1764,11 +1766,13 @@ let x86_pinsrw_rm_entry ~target ~form_id ~lookup_key ~imm =
   }
 
 let x86_pinsrw_rm_entries =
-  List.map
-    (fun target ->
-      x86_pinsrw_rm_entry ~target ~form_id:"x86:PINSRW_XMMdq_MEMw_IMMb"
-        ~lookup_key:"PINSRW_XMMdq_MEMw_IMMb" ~imm:"1")
-    [ Target.X86_32; Target.X86_64 ]
+  List.concat_map
+    (fun form ->
+      List.map
+        (fun target ->
+          x86_pinsrw_rm_entry ~target ~form_id:("x86:" ^ form) ~lookup_key:form ~imm:"1")
+        [ Target.X86_32; Target.X86_64 ])
+    [ "PINSRW_XMMdq_MEMw_IMMb"; "PINSRB_XMMdq_MEMb_IMMb"; "PINSRD_XMMdq_MEMd_IMMb" ]
 
 (* [pextrw]'s own cross-register-class member: {!x86_cvtf2i_rr_entry}'s own GPR-dest convention
    plus the trailing imm8. Also generates {!Vpextrw}'s own entry below (same shape, a different
@@ -1787,11 +1791,18 @@ let x86_pextrw_rr_entry ~target ~form_id ~lookup_key ~imm =
   }
 
 let x86_pextrw_rr_entries =
-  List.map
-    (fun target ->
-      x86_pextrw_rr_entry ~target ~form_id:"x86:PEXTRW_GPR32_XMMdq_IMMb"
-        ~lookup_key:"PEXTRW_GPR32_XMMdq_IMMb" ~imm:"1")
-    [ Target.X86_32; Target.X86_64 ]
+  List.concat_map
+    (fun form ->
+      List.map
+        (fun target ->
+          x86_pextrw_rr_entry ~target ~form_id:("x86:" ^ form) ~lookup_key:form ~imm:"1")
+        [ Target.X86_32; Target.X86_64 ])
+    [
+      "PEXTRW_GPR32_XMMdq_IMMb";
+      "PEXTRB_GPR32d_XMMdq_IMMb";
+      "PEXTRD_GPR32d_XMMdq_IMMb";
+      "EXTRACTPS_GPR32d_XMMdq_IMMb";
+    ]
 
 (* [vpinsrw]'s own cross-register-class member ({!Isa_norm_xed.vpinsrw_rrr_form}'s own doc
    comment): {!x86_vex_binop_imm_rrr_entry}'s own [imm]/[src1]/[dest] shape with a GPR [src2]

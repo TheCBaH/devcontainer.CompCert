@@ -532,6 +532,14 @@ let promoted_case ~target ~form_id ~lookup_key =
       ( "BLENDPS_XMMdq_XMMdq_IMMb" | "BLENDPD_XMMdq_XMMdq_IMMb" | "DPPS_XMMdq_XMMdq_IMMb"
       | "DPPD_XMMdq_XMMdq_IMMb" | "MPSADBW_XMMdq_XMMdq_IMMb" | "PBLENDW_XMMdq_XMMdq_IMMb" ) ) ->
       true
+  | ( (Target.X86_32 | Target.X86_64),
+      ( "x86:PINSRB_XMMdq_GPR32d_IMMb" | "x86:PINSRD_XMMdq_GPR32d_IMMb"
+      | "x86:PINSRB_XMMdq_MEMb_IMMb" | "x86:PINSRD_XMMdq_MEMd_IMMb" | "x86:PEXTRB_GPR32d_XMMdq_IMMb"
+      | "x86:PEXTRD_GPR32d_XMMdq_IMMb" | "x86:EXTRACTPS_GPR32d_XMMdq_IMMb" ),
+      ( "PINSRB_XMMdq_GPR32d_IMMb" | "PINSRD_XMMdq_GPR32d_IMMb" | "PINSRB_XMMdq_MEMb_IMMb"
+      | "PINSRD_XMMdq_MEMd_IMMb" | "PEXTRB_GPR32d_XMMdq_IMMb" | "PEXTRD_GPR32d_XMMdq_IMMb"
+      | "EXTRACTPS_GPR32d_XMMdq_IMMb" ) ) ->
+      true
   | (Target.X86_32 | Target.X86_64), "x86:INSERTPS_XMMps_XMMps_IMMb", "INSERTPS_XMMps_XMMps_IMMb" ->
       true
   | (Target.X86_32 | Target.X86_64), "x86:INSERTPS_XMMps_MEMd_IMMb", "INSERTPS_XMMps_MEMd_IMMb" ->

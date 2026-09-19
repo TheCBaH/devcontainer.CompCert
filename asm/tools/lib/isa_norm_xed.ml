@@ -3678,6 +3678,22 @@ let normalize (rec_ : R.t) =
       pinsrw_rm_form ~form_id:"PINSRW_XMMdq_MEMw_IMMb" ~mnemonic:"pinsrw" rec_
   | Ok { iform = Some "PEXTRW_GPR32_XMMdq_IMMb"; _ } ->
       pextrw_rr_form ~form_id:"PEXTRW_GPR32_XMMdq_IMMb" ~mnemonic:"pextrw" rec_
+  (* [pinsrb]/[pinsrd]/[pextrb]/[pextrd]/[extractps] ({!Opcode.Pinsrb}'s own doc comment):
+     {!pinsrw_rr_form}/{!pinsrw_rm_form}/{!pextrw_rr_form}'s own operand shapes at opcode map 3. *)
+  | Ok { iform = Some "PINSRB_XMMdq_GPR32d_IMMb"; _ } ->
+      pinsrw_rr_form ~form_id:"PINSRB_XMMdq_GPR32d_IMMb" ~mnemonic:"pinsrb" rec_
+  | Ok { iform = Some "PINSRD_XMMdq_GPR32d_IMMb"; _ } ->
+      pinsrw_rr_form ~form_id:"PINSRD_XMMdq_GPR32d_IMMb" ~mnemonic:"pinsrd" rec_
+  | Ok { iform = Some "PINSRB_XMMdq_MEMb_IMMb"; _ } ->
+      pinsrw_rm_form ~form_id:"PINSRB_XMMdq_MEMb_IMMb" ~mnemonic:"pinsrb" rec_
+  | Ok { iform = Some "PINSRD_XMMdq_MEMd_IMMb"; _ } ->
+      pinsrw_rm_form ~form_id:"PINSRD_XMMdq_MEMd_IMMb" ~mnemonic:"pinsrd" rec_
+  | Ok { iform = Some "PEXTRB_GPR32d_XMMdq_IMMb"; _ } ->
+      pextrw_rr_form ~form_id:"PEXTRB_GPR32d_XMMdq_IMMb" ~mnemonic:"pextrb" rec_
+  | Ok { iform = Some "PEXTRD_GPR32d_XMMdq_IMMb"; _ } ->
+      pextrw_rr_form ~form_id:"PEXTRD_GPR32d_XMMdq_IMMb" ~mnemonic:"pextrd" rec_
+  | Ok { iform = Some "EXTRACTPS_GPR32d_XMMdq_IMMb"; _ } ->
+      pextrw_rr_form ~form_id:"EXTRACTPS_GPR32d_XMMdq_IMMb" ~mnemonic:"extractps" rec_
   | Ok { iform = Some "VPINSRW_XMMdq_XMMdq_GPR32d_IMMb"; _ } ->
       vpinsrw_rrr_form ~form_id:"VPINSRW_XMMdq_XMMdq_GPR32d_IMMb" ~mnemonic:"vpinsrw" rec_
   | Ok { iform = Some "VPINSRW_XMMdq_XMMdq_MEMw_IMMb"; _ } ->

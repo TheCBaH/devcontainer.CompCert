@@ -707,6 +707,31 @@ module Opcode = struct
             byte, same {!Lowered.Sse_binop_imm_r_rm}/{!sse_binop_imm_0f3a_alt} shape unchanged.
             Confirmed against real GNU as: [insertps $0x10,%xmm2,%xmm1] -> [66 0f 3a 21 ca 10],
             [insertps $0x10,0x10(%esp),%xmm1] -> [66 0f 3a 21 4c 24 10 10]. *)
+    | Pinsrb
+        (** [pinsrb $imm8, gpr32/m8, xmm] - packed insert byte ([66 0F 3A 20 /r ib], SSE4.1,
+            GEN-05): {!Pinsrw}'s own cross-register-class field roles ([reg] the xmm destination,
+            [rm] a GPR32 or memory source) at opcode map 3, where the memory spelling exists
+            (unlike {!Pextrw}). Confirmed against real GNU as: [pinsrb $1,%eax,%xmm1] ->
+            [66 0f 3a 20 c8 01]. *)
+    | Pinsrd
+        (** [pinsrd $imm8, gpr32/m32, xmm] - packed insert dword ([66 0F 3A 22 /r ib]),
+            {!Pinsrb}'s sibling. The REX.W-promoted [pinsrq] sibling is not yet built. Confirmed
+            against real GNU as: [pinsrd $1,0x10(%esp),%xmm1] -> [66 0f 3a 22 4c 24 10 01]. *)
+    | Pextrb
+        (** [pextrb $imm8, xmm, gpr32/m8] - packed extract byte ([66 0F 3A 14 /r ib]), {!Pinsrb}'s
+            store-direction mirror with the xmm in the ModR/M [reg] field and the GPR32 or memory
+            destination in [rm] - the opposite field roles from {!Pextrw}'s own two-byte-opcode
+            layout, hence the same {!Lowered.Sse_binop_imm_r_rm} node as {!Pinsrb} with the AT&T
+            operand order reversed at lowering. Confirmed against real GNU as:
+            [pextrb $1,%xmm1,%eax] -> [66 0f 3a 14 c8 01], [pextrb $1,%xmm1,0x10(%esp)] ->
+            [66 0f 3a 14 4c 24 10 01]. *)
+    | Pextrd
+        (** [pextrd $imm8, xmm, gpr32/m32] - packed extract dword ([66 0F 3A 16 /r ib]),
+            {!Pextrb}'s sibling. The REX.W-promoted [pextrq] sibling is not yet built. *)
+    | Extractps
+        (** [extractps $imm8, xmm, gpr32/m32] - extract a single-precision lane ([66 0F 3A 17 /r
+            ib]), {!Pextrb}'s sibling. Confirmed against real GNU as: [extractps $1,%xmm1,%eax]
+            -> [66 0f 3a 17 c8 01]. *)
     | Movdqa
         (** [movdqa rm, reg] / [movdqa reg, rm] - integer/general XMM register move, aligned
             ([66 0F 6F /r] load, [66 0F 7F /r] store, GEN-05), {!Movaps}'s integer-classified
@@ -1514,6 +1539,11 @@ module Opcode = struct
     | Mpsadbw -> "mpsadbw"
     | Pblendw -> "pblendw"
     | Insertps -> "insertps"
+    | Pinsrb -> "pinsrb"
+    | Pinsrd -> "pinsrd"
+    | Pextrb -> "pextrb"
+    | Pextrd -> "pextrd"
+    | Extractps -> "extractps"
     | Movdqa -> "movdqa"
     | Movdqu -> "movdqu"
     | Pinsrw -> "pinsrw"
@@ -3372,6 +3402,11 @@ module Make (M : MODE) = struct
     | "mpsadbw", _ -> Ok (Instruction.mk Opcode.Mpsadbw 32 s.Surface.ops)
     | "pblendw", _ -> Ok (Instruction.mk Opcode.Pblendw 32 s.Surface.ops)
     | "insertps", _ -> Ok (Instruction.mk Opcode.Insertps 32 s.Surface.ops)
+    | "pinsrb", _ -> Ok (Instruction.mk Opcode.Pinsrb 32 s.Surface.ops)
+    | "pinsrd", _ -> Ok (Instruction.mk Opcode.Pinsrd 32 s.Surface.ops)
+    | "pextrb", _ -> Ok (Instruction.mk Opcode.Pextrb 32 s.Surface.ops)
+    | "pextrd", _ -> Ok (Instruction.mk Opcode.Pextrd 32 s.Surface.ops)
+    | "extractps", _ -> Ok (Instruction.mk Opcode.Extractps 32 s.Surface.ops)
     | "movdqa", _ -> Ok (Instruction.mk Opcode.Movdqa 32 s.Surface.ops)
     | "movdqu", _ -> Ok (Instruction.mk Opcode.Movdqu 32 s.Surface.ops)
     | "pinsrw", _ -> Ok (Instruction.mk Opcode.Pinsrw 32 s.Surface.ops)
@@ -4442,6 +4477,57 @@ module Make (M : MODE) = struct
                 Lowered.Movd_rm_r
                   { op = i.Instruction.op; width = i.Instruction.width; reg; rm = Rm.Mem m };
               ])
+    (* [pinsrb]/[pinsrd] ({!Opcode.Pinsrb}'s own doc comment): [rm] is a GPR32 or memory source,
+       [reg] the xmm destination - {!Pinsrw}'s own arms below at opcode map 3. *)
+    | (Opcode.Pinsrb | Opcode.Pinsrd), [ Operand.Imm v; Operand.Reg src; Operand.Reg reg ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (width_ok src, xmm_ok reg) with
+            | Ok (), Ok () ->
+                Ok
+                  [
+                    Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Reg src; imm };
+                  ]
+            | Error e, _ | _, Error e -> Error e))
+    | (Opcode.Pinsrb | Opcode.Pinsrd), [ Operand.Imm v; Operand.Mem m; Operand.Reg reg ] -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match xmm_ok reg with
+            | Error e -> Error e
+            | Ok () ->
+                Ok [ Lowered.Sse_binop_imm_r_rm { op = i.Instruction.op; reg; rm = Rm.Mem m; imm } ]
+            ))
+    (* [pextrb]/[pextrd]/[extractps] ({!Opcode.Pextrb}'s own doc comment): the AT&T destination
+       (GPR32 or memory) is the ModR/M [rm], the xmm source the [reg] - the reverse of the
+       AT&T operand order, unlike {!Pextrw}. *)
+    | ( (Opcode.Pextrb | Opcode.Pextrd | Opcode.Extractps),
+        [ Operand.Imm v; Operand.Reg src; Operand.Reg dst ] ) -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match (xmm_ok src, width_ok dst) with
+            | Ok (), Ok () ->
+                Ok
+                  [
+                    Lowered.Sse_binop_imm_r_rm
+                      { op = i.Instruction.op; reg = src; rm = Rm.Reg dst; imm };
+                  ]
+            | Error e, _ | _, Error e -> Error e))
+    | ( (Opcode.Pextrb | Opcode.Pextrd | Opcode.Extractps),
+        [ Operand.Imm v; Operand.Reg src; Operand.Mem m ] ) -> (
+        match imm_of v with
+        | Error e -> Error e
+        | Ok imm -> (
+            match xmm_ok src with
+            | Error e -> Error e
+            | Ok () ->
+                Ok
+                  [
+                    Lowered.Sse_binop_imm_r_rm
+                      { op = i.Instruction.op; reg = src; rm = Rm.Mem m; imm };
+                  ]))
     (* [pinsrw $imm8, gpr32/m16, xmm] ({!Opcode.Pinsrw}'s own doc comment): {!Lowered.Sse_binop_imm_r_rm}'s
        cross-class member - [rm] is a GPR ([width_ok], not [xmm_ok] - {!Cvtsi2sd}'s own class split
        above) or memory, [reg] is xmm. *)
@@ -5714,6 +5800,40 @@ module Make (M : MODE) = struct
            asz_codec
            ** const ~width:8 (Int64.of_int mandatory)
            ** rex_codec ** const ~width:8 0x0FL ** const ~width:8 0x3AL ** opcode_codec ** rm_codec
+           ** le ~signedness:C.Unsigned ~width:8 "imm8"))
+
+  (* [pinsrb]/[pinsrd]/[pextrb]/[pextrd]/[extractps] ({!Opcode.Pinsrb}'s own doc comment):
+     {!sse_binop_imm_0f3a_alt}'s exact layout with [rm] decoded at width 32 (a GPR32 or memory
+     operand) rather than 128, {!sse_pinsrw_alt}'s own class split. Insert and extract share it:
+     both keep the xmm operand in the ModR/M [reg] field. *)
+  let sse_gpr_imm_0f3a_codec =
+    C.iso_table ~name:"sse-gpr-imm-0f3a-op" ~equal:( = ) ~show:Opcode.name
+      ~entries:
+        [
+          (Opcode.Pextrb, 0x14L);
+          (Opcode.Pextrd, 0x16L);
+          (Opcode.Extractps, 0x17L);
+          (Opcode.Pinsrb, 0x20L);
+          (Opcode.Pinsrd, 0x22L);
+        ]
+      (C.field ~width:8 "opcode")
+
+  let sse_gpr_imm_0f3a_alt ~label ~priority ~opcode_codec =
+    C.alt ~label ~priority
+      (C.iso_fun ~name:label
+         ~encode:(function
+           | Lowered.Sse_binop_imm_r_rm { op; reg; rm; imm } ->
+               let p = prefixes_of ~width:32 ~reg:reg.num ~rm in
+               Some (p.asz, ((), (p.rex, ((), ((), (op, ({ re_reg = reg.num; re_rm = rm }, imm)))))))
+           | _ -> None)
+         ~decode:(fun (asz, ((), (rex, ((), ((), (op, (e, imm))))))) ->
+           let p = { asz; opsz = false; rex } in
+           Some
+             (Lowered.Sse_binop_imm_r_rm
+                { op; reg = reg_field ~p ~width:128 e.re_reg; rm = rm_of ~p ~width:32 e.re_rm; imm }))
+         C.(
+           asz_codec ** const ~width:8 0x66L ** rex_codec ** const ~width:8 0x0FL
+           ** const ~width:8 0x3AL ** opcode_codec ** rm_codec
            ** le ~signedness:C.Unsigned ~width:8 "imm8"))
 
   (* [pinsrw $imm8, gpr32/m16, xmm] ([66 0F C4 /r ib], {!Opcode.Pinsrw}'s own doc comment):
@@ -7421,6 +7541,8 @@ module Make (M : MODE) = struct
              from every map-1 alt above by construction (the extra [0x3A] byte). *)
           sse_binop_imm_0f3a_alt ~label:"sse-binop-imm-0f3a-66" ~priority:108 ~mandatory:0x66
             ~opcode_codec:sse_binop_imm_0f3a_codec;
+          sse_gpr_imm_0f3a_alt ~label:"sse-gpr-imm-0f3a-66" ~priority:109
+            ~opcode_codec:sse_gpr_imm_0f3a_codec;
           vex_binop_imm_rrr_alt ~label:"vex-binop-imm-f2" ~priority:77 ~pp:3
             ~opcode_codec:vex_binop_imm_f2_codec;
           vex_binop_imm_rrr_alt ~label:"vex-binop-imm-f3" ~priority:78 ~pp:2
