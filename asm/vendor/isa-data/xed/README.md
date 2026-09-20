@@ -13,12 +13,11 @@ whole-ISA inventory track, not source code the assembler links against.
 
 This is the primary source for the x86_32/x86_64 leg of the whole-ISA
 instruction/extension inventory track (`.ai/asm_plan.md`'s "Parallel track:
-whole-ISA instruction and extension inventory" section; sourcing survey:
-`.ai/isa-inventory-sources.md`; schema: `asm/docs/isa-inventory.md`).
+whole-ISA instruction and extension inventory" section; schema: `asm/docs/isa-inventory.md`).
 
 `upstream/datafiles/` is literally one directory per extension (`avx512f`,
 `avx-vnni`, `apx-f`, `cet`, `amx-*`, ...) — the cleanest x86-specific
-extension split found in the sourcing survey, and the reason XED was picked
+extension split available, and the reason XED was picked
 over binutils' `i386-opc.tbl` (a single flat table) as the primary x86
 source for this track. binutils remains the byte-oracle this project already
 trusts for `as`/`objdump` differential testing; XED is used here only for its
@@ -28,8 +27,7 @@ per-extension instruction/mnemonic partitioning.
 
 Same reasoning as `riscv-opcodes`: small (~29MB full checkout, `datafiles/`
 itself ~6.8MB), permissively licensed, and a submodule pins the exact commit
-the generated inventory was produced from, per the vendoring-tier
-recommendation in `.ai/isa-inventory-sources.md`.
+the generated inventory was produced from.
 
 This tree carries no dune files, so it needs no `data_only_dirs` marker —
 `asm/dune`'s `(vendored_dirs vendor)` already covers the whole `asm/vendor/`

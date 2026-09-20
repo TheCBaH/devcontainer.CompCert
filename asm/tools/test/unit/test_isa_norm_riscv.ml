@@ -4791,7 +4791,7 @@ let test_fcvt_s_w () =
 
 (* fcvt.w.d/fcvt.wu.d/fcvt.d.w/fcvt.d.wu/fcvt.s.d/fcvt.d.s: the D-extension
    conversions {!test_fcvt_w_s}/{!test_fcvt_s_w} left open - all six already
-   had encoder support from an earlier, pre-isa-consumption pass, verbatim-
+   had encoder support from an earlier pass, verbatim-
    extracted from the checked-in isa-db/export/riscv_opcodes/riscv32.jsonl. *)
 let fcvt_w_d_json =
   {|{"applicability": {"kind": "all", "of": []}, "encoding": {"fields": [{"lsb": 20, "name": "bits[24:20]", "width": 5}, {"lsb": 27, "name": "bits[31:27]", "width": 5}, {"lsb": 25, "name": "bits[26:25]", "width": 2}, {"lsb": 2, "name": "bits[6:2]", "width": 5}, {"lsb": 0, "name": "bits[1:0]", "width": 2}, {"lsb": 7, "name": "rd", "width": 5}, {"lsb": 15, "name": "rs1", "width": 5}, {"lsb": 12, "name": "rm", "width": 3}], "kind": "fixed_bits", "mask": "0xfff0007f", "value": "0xc2000053", "width_bits": 32}, "kind": "instruction-form", "native_name": "fcvt.w.d", "origin": {"line": 23, "path": "extensions/rv_d"}, "provenance": {"extension": "rv_d", "operands": ["rd", "rs1", "rm"], "raw": {"line": "fcvt.w.d  rd rs1 24..20=0 31..27=0x18 rm       26..25=1 6..2=0x14 1..0=3", "tokens": ["fcvt.w.d", "rd", "rs1", "24..20=0", "31..27=0x18", "rm", "26..25=1", "6..2=0x14", "1..0=3"]}, "upstream-resolved": {"mask": "0xfff0007f", "match": "0xc2000053", "variable_fields": ["rd", "rs1", "rm"]}}, "record_id": "riscv-opcodes:rv_d:fcvt.w.d@L23", "relationships": [], "snapshot": "riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396", "source": "riscv_opcodes", "unresolved": []}|}

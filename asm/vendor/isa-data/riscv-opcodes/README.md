@@ -15,8 +15,7 @@ the same way it does for the other two vendored trees.
 
 This is the primary source for the RISC-V leg of the whole-ISA
 instruction/extension inventory track (`.ai/asm_plan.md`'s "Parallel track:
-whole-ISA instruction and extension inventory" section; sourcing survey:
-`.ai/isa-inventory-sources.md`; schema: `asm/docs/isa-inventory.md`). It is
+whole-ISA instruction and extension inventory" section; schema: `asm/docs/isa-inventory.md`). It is
 **not** the same thing as `asm/docs/riscv-inventory.md`, which is the
 narrower, CompCert-corpus-scoped RISC-V document from Milestone 5 — do not
 conflate the two.
@@ -31,8 +30,7 @@ independent of what CompCert or gcc actually choose to emit.
 
 Same reasoning as `err_trace`/`fmt`: a submodule pins an exact commit so the
 generated inventory is reproducible, and the repo is small (~1.2MB) and
-permissively licensed enough to just check in the gitlink outright, per the
-vendoring-tier recommendation in `.ai/isa-inventory-sources.md`.
+permissively licensed enough to just check in the gitlink outright.
 
 This tree carries no dune files (it is a Python/data project, not OCaml), so
 it needs no `data_only_dirs` marker of its own — `asm/dune`'s

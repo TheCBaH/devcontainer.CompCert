@@ -149,7 +149,7 @@
  (action
   (run ./test_isa_generated_case.exe)))
 
-; Isa_gen_pilot's own shape (GEN-01): counts, addw's single-target XLEN
+; Isa_gen_pilot's own shape: counts, addw's single-target XLEN
 ; restriction, and obligations naming real pilot form_ids. Grounding every
 ; entry against real normalization output is repo_tests.ml's job instead.
 
@@ -202,8 +202,7 @@
 
 ; Isa_gen_difficult: pure manifest/case-building checks (entry shapes, legal
 ; offset/label domains, render_source_lines wiring) - the real GNU/ours
-; invocation is make asm-isa-difficult-regen's job (work package GEN, task
-; GEN-03), never tools-test/tools-integration's.
+; invocation is make asm-isa-difficult-regen's job, never tools-test/tools-integration's.
 
 (rule
  (alias runtest)

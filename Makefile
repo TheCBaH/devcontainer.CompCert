@@ -473,11 +473,11 @@ asm-isa-generated-regen: tools-build asm-build
 	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-generated regen
 
 # The isa-difficult non-frozen difficult-form GAS differential generator
-# (GEN-03; names frozen in Isa_gen_difficult).
+# (names frozen in Isa_gen_difficult).
 # Same two-mode split, tool/dependency shape and asm-build requirement as
 # isa-generated above, but for bounded difficult-form families (currently
 # RISC-V split-immediate/compressed cases and x86 addressing/x87) rather than
-# GEN-01's frozen 21-entry pilot, in its own corpus (asm/fixtures/isa-difficult/)
+# the frozen 21-entry pilot, in its own corpus (asm/fixtures/isa-difficult/)
 # so growing it can never touch that one.
 asm-isa-difficult-check: tools-build
 	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-difficult check

@@ -4943,7 +4943,7 @@ let vfncvt_rtz_x_f_w_entries = vext_entries ~mnemonic:"vfncvt.rtz.x.f.w"
    negative control (`vle32.v v1,4(a0)` -> "illegal operands") are both
    real-GNU-confirmed but not separately generated here, matching
    {!opivv_entries}'s own scope (the trailing mask suffix is exercised by
-   the encoder's unit tests instead, per the tracker entry). *)
+   the encoder's unit tests instead). *)
 let v_load_entry ~mnemonic target =
   {
     form_id = "riscv:" ^ mnemonic;

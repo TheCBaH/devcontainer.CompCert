@@ -178,7 +178,7 @@ submodules. This is deliberately not attempted in this pass.
 The RISC-V pilot (`Isa_inventory_riscv`) is done; this section replaces the
 original "open question" placeholder with what live inspection of
 `asm/vendor/isa-data/xed/upstream/datafiles/` actually shows, since it turned
-out messier than the sourcing survey assumed - read this before writing the
+out messier than first assumed - read this before writing the
 x86 generator rather than re-deriving it.
 
 - **110 directories, not all of them extensions.** `datafiles/` has 110
@@ -219,7 +219,7 @@ x86 generator rather than re-deriving it.
   already specified above), and a per-target XED generator produces its own
   `x86_32`/`x86_64` manifest by filtering on the OR'd applicability just
   described - no separate schema field is needed after all; the original
-  "duplicate into both, mark one undefined" idea from the sourcing survey is
+  "duplicate into both, mark one undefined" idea is
   unnecessary once mode data is read from the source directly.
 
 ### Correction (2026-09-05): `datafiles/` traversal must reach two more places
