@@ -272,10 +272,20 @@ let isa_difficult_regen_cmd =
           isa-difficult check replays")
     Cmdliner.Term.(const run $ common)
 
+let isa_difficult_coverage_cmd =
+  let run (err_trace, root) = (err_trace, with_repo root Isa_coverage_class.run) in
+  Cmdliner.Cmd.v
+    (Cmdliner.Cmd.info "coverage"
+       ~doc:
+         "Report the committed corpora by coverage class (canonical, alias, pseudo, negative) per \
+          profile, with each class's per-architecture obligation, and fail if a satisfied \
+          obligation has no case or an unsatisfied one is stale")
+    Cmdliner.Term.(const run $ common)
+
 let isa_difficult_cmd =
   Cmdliner.Cmd.group
     (Cmdliner.Cmd.info "isa-difficult" ~doc:"The difficult-form GAS differential generator")
-    [ isa_difficult_check_cmd; isa_difficult_regen_cmd ]
+    [ isa_difficult_check_cmd; isa_difficult_regen_cmd; isa_difficult_coverage_cmd ]
 
 let corpus_check_cmd =
   let run (err_trace, root) = (err_trace, with_repo root Corpus_classify_cmd.check) in

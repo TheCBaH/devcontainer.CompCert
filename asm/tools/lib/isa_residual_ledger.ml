@@ -21,16 +21,17 @@ let rows =
       capability =
         "Source-derived recipes for the base integer ISA that the assembler already encodes: \
          memory operands (imm(rs1)) for loads/stores, PC-relative branch/jump operands, \
-         upper-immediate and shift-amount shapes, and the pseudo-op family (mv, neg, seqz, snez, \
-         sltz, sgtz, sext.w, zext.b, nop, ret, j, jr, branch-on-zero). Encodings are pinned by \
-         fixtures; no form is credited to a generated case.";
+         upper-immediate and shift-amount shapes, and the remaining pseudo-ops (j, jr, \
+         branch-on-zero). Separately, neg, seqz, sltz, sgtz and zext.b are not accepted by the \
+         assembler at all (GNU as 2.44 accepts them), so they need an encoder alias before they \
+         can be admitted. mv, snez, sext.w, nop and ret are already promoted as the alias class.";
       evidence =
         "family-admission reports these families as unhandled-native-name; the assembler already \
          emits them (asm/test/targets transcripts, CompCert runtime fixtures)";
       task = "GEN-05-RV-BASE";
       reopening_gate =
-        "the pseudo-op family has a normalizer rule and a differential case per profile; \
-         loads/stores/branches have an operand-shape rule and a relocation-free or \
+        "each remaining pseudo-op has an encoder alias, a normalizer rule and a differential case \
+         per profile; loads/stores/branches have an operand-shape rule and a relocation-free or \
          controlled-address case";
     };
     {

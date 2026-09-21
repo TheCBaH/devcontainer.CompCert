@@ -481,6 +481,7 @@ asm-isa-generated-regen: tools-build asm-build
 # so growing it can never touch that one.
 asm-isa-difficult-check: tools-build
 	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-difficult check
+	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-difficult coverage
 
 asm-isa-difficult-regen: tools-build asm-build
 	COMPCERT_REPO_ROOT=$(CURDIR) $(TOOLS_EXE) isa-difficult regen
