@@ -195,6 +195,39 @@ let test_isa_norm_accounting repo =
    source update or an accidental widening of support credit a reviewed
    change, while the per-family invariant makes a dropped native family fail
    even if an aggregate happens to stay plausible. *)
+(* The ledger against the real matrix: every blocked family is owned exactly once, no row is
+   stale, and the records the ledger owns are exactly the blocked records - so the promoted,
+   normalized-only and blocked counts partition each profile's full source denominator. *)
+let test_isa_residual_ledger repo =
+  match Isa_residual_ledger.cells repo with
+  | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
+  | Ok cells ->
+      let audit = Isa_residual_ledger.audit Isa_residual_ledger.rows cells in
+      List.iter
+        (fun p -> check ("isa-residual-ledger: " ^ p) false)
+        (Isa_residual_ledger.problems audit);
+      check "isa-residual-ledger: ledger is clean" (Isa_residual_ledger.is_clean audit);
+      List.iter
+        (fun (source, target) ->
+          let mine =
+            List.filter
+              (fun (c : Isa_residual_ledger.cell) ->
+                String.equal c.source source && c.target = target)
+              cells
+          in
+          let sum f = List.fold_left (fun acc c -> acc + f c) 0 mine in
+          let total = sum (fun (c : Isa_residual_ledger.cell) -> c.total) in
+          check
+            (Printf.sprintf "isa-residual-ledger: %s/%s every record is in exactly one state" source
+               (Target.to_string target))
+            (sum (fun (c : Isa_residual_ledger.cell) -> c.promoted)
+             + sum (fun c -> c.gas_generatable)
+             + sum (fun c -> c.normalized_only)
+             + sum (fun c -> c.oracle_unavailable)
+             + sum (fun c -> c.blocked)
+            = total))
+        Isa_residual_ledger.inputs
+
 let test_isa_family_admission repo =
   let expect ~source target ~total ~normalized_only ~gas_generatable ~promoted_support ~blocked =
     let label = Printf.sprintf "%s/%s" source (Target.to_string target) in
@@ -1058,6 +1091,7 @@ let () =
   test_isa_db_cross_validate repo;
   test_isa_norm_accounting repo;
   test_isa_family_admission repo;
+  test_isa_residual_ledger repo;
   test_isa_norm_jsonl_roundtrip repo;
   test_isa_source_snapshot_diff repo;
   test_gen_pilot_manifest repo;
