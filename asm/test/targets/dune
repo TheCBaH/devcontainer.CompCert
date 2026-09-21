@@ -18,6 +18,10 @@
   x86_64
   riscv32_encode
   riscv64_encode
+  riscv_family_encode
+  x86_32_encode
+  x86_64_encode
+  target_component
   fmt)
  (inline_tests)
  (preprocess

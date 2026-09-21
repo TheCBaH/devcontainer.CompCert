@@ -24,6 +24,17 @@
  (enabled_if
   (<> %{env:ASM_MELANGE=false} true)))
 
+; target_component holds the descriptors a family publishes for its separable
+; instruction components (asm/docs/contracts.md). Pure data, like target_error.
+
+(library
+ (name target_component)
+ (modules target_component)
+ (modes byte native)
+ (libraries foundation)
+ (enabled_if
+  (<> %{env:ASM_MELANGE=false} true)))
+
 (library
  (name target_encode)
  (modules target_encode)

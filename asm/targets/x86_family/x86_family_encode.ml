@@ -1873,6 +1873,14 @@ module Opcode = struct
     | Fnstsw -> "fnstsw"
     | Sahf -> "sahf"
 
+  (* The opcodes the {!X86_x87} component owns. Its tables key forms by mnemonic; this list is
+     the one place a mnemonic is turned back into a constructor, and the family checks at
+     instantiation that it and the component agree. *)
+  let x87 =
+    [ Fldl; Fstpl; Fstps; Flds; Fildll; Fadds; Fadd; Fucomp; Fnstcw; Fldcw; Fistpll; Fsubs; Fnstsw ]
+
+  let of_x87_mnemonic m = List.find_opt (fun o -> String.equal (name o) m) x87
+
   (* The machine encodes add and sub as one opcode with the operation in the
      ModR/M reg field, so the opcode and its extension are two spellings of one
      fact and live together. [-1] is "not an ALU-immediate operation". [Adc]
@@ -3852,43 +3860,11 @@ module Make (M : MODE) = struct
        matched on the full name rather than [stem]/[widthed] - the `l`/`s`
        here is GAS's fixed x87 spelling for the operand's memory width, not
        a general AT&T size suffix a second one could be appended to. *)
-    | "fldl", _ -> Ok (Instruction.mk Opcode.Fldl 32 s.Surface.ops)
-    | "fstpl", _ -> Ok (Instruction.mk Opcode.Fstpl 32 s.Surface.ops)
-    | "fstps", _ -> Ok (Instruction.mk Opcode.Fstps 32 s.Surface.ops)
-    (* [flds] - x87 single-precision *load*, [fstps]'s missing counterpart
-       (M5, asm/docs/corpus.md - i64_dtou.S/i64_stof.S/i64_utof.S's own
-       float<->int conversion helpers). *)
-    | "flds", _ -> Ok (Instruction.mk Opcode.Flds 32 s.Surface.ops)
-    (* [fildll] - x87 64-bit integer load, [fistpll]'s (unevidenced) load counterpart and
-       [fldl]/[fstpl]/[fstps]/[flds]'s integer-typed sibling (M5, asm/docs/corpus.md -
-       gas_frontier.t's i64_stod.S/i64_stof.S/i64_utod.S/i64_utof.S, CompCert's own
-       int64-to-float runtime helpers). *)
-    | "fildll", _ -> Ok (Instruction.mk Opcode.Fildll 32 s.Surface.ops)
-    (* [fadds] - x87 single-precision add, [fstps]/[flds]'s arithmetic sibling (M5,
-       asm/docs/corpus.md - gas_frontier.t's i64_utod.S/i64_utof.S). *)
-    | "fadds", _ -> Ok (Instruction.mk Opcode.Fadds 32 s.Surface.ops)
-    | "fadd", _ -> Ok (Instruction.mk Opcode.Fadd 32 s.Surface.ops)
-    (* [fucomp] - bare, no operand: GAS's own spelling of [fucomp %st(1)], the compare-and-pop
-       counterpart to [fldl]/[fstpl]/[fstps]/[flds]'s load/store family (M5,
-       asm/docs/corpus.md - i64_dtou.S). *)
-    | "fucomp", _ ->
-        if s.Surface.ops = [] then Ok (Instruction.mk Opcode.Fucomp 32 [])
-        else bad `Fucomp_takes_operands
-    (* [fnstcw]/[fldcw] - x87 store/load control-word, {!Fldl}/.../[Fadds]'s memory-operand-only
-       [Fpu_mem] shape at two more disjoint opcode/extension pairs (M5, asm/docs/corpus.md -
-       gas_frontier.t's i64_dtos.S/i64_dtou.S own round-to-nearest-then-truncate idiom). *)
-    | "fnstcw", _ -> Ok (Instruction.mk Opcode.Fnstcw 32 s.Surface.ops)
-    | "fldcw", _ -> Ok (Instruction.mk Opcode.Fldcw 32 s.Surface.ops)
-    (* [fistpll] - x87 64-bit integer store-and-pop, [Fildll]'s store direction, same
-       [Fpu_mem] shape (M5, asm/docs/corpus.md - same fixtures as [fnstcw]). *)
-    | "fistpll", _ -> Ok (Instruction.mk Opcode.Fistpll 32 s.Surface.ops)
-    (* [fsubs] - x87 single-precision subtract, [fadds]'s exact sibling including its bare-symbol
-       duality (M5, asm/docs/corpus.md - gas_frontier.t's i64_dtou.S). *)
-    | "fsubs", _ -> Ok (Instruction.mk Opcode.Fsubs 32 s.Surface.ops)
-    (* [fnstsw %ax] - bare fixed two-byte word, [fucomp]'s exact "no encoded operand" shape; the
-       lone [%ax] operand is checked in {!simplify_instruction} and then discarded rather than
-       carried into {!Lowered.Fnstsw} (M5, asm/docs/corpus.md - gas_frontier.t's i64_dtou.S). *)
-    | "fnstsw", _ -> Ok (Instruction.mk Opcode.Fnstsw 32 s.Surface.ops)
+    | m, _ when X86_x87.owns m -> (
+        match Opcode.of_x87_mnemonic m with
+        | Some Opcode.Fucomp when s.Surface.ops <> [] -> bad `Fucomp_takes_operands
+        | Some op -> Ok (Instruction.mk op 32 (if op = Opcode.Fucomp then [] else s.Surface.ops))
+        | None -> bad (`Unknown_instruction s.Surface.mnemonic))
     (* [sahf] - bare, no operand, {!Fucomp}'s exact fixed-opcode shape (M5,
        asm/docs/corpus.md - same fixture as [fnstsw]). *)
     | "sahf", _ ->
@@ -4058,6 +4034,18 @@ module Make (M : MODE) = struct
       scale = 1;
       disp = Disp.Sym e;
     }
+
+  (* Which operand kinds an x87 memory-form mnemonic takes, from {!X86_x87}. [fadds]/[fsubs]
+     currently accept only a bare symbol, not a register-indirect operand: that is a recorded
+     gap in the implemented subset, kept as-is so the extraction changes no behavior. *)
+  let x87_shape op =
+    Option.map (fun (f : X86_x87.memory_form) -> f.shape) (X86_x87.find_memory (Opcode.name op))
+
+  let x87_memory_op op =
+    match x87_shape op with Some (X86_x87.Memory | Memory_or_symbol) -> true | _ -> false
+
+  let x87_symbol_op op =
+    match x87_shape op with Some (X86_x87.Symbol | Memory_or_symbol) -> true | _ -> false
 
   let lower_instruction state i =
     ignore state;
@@ -5245,9 +5233,7 @@ module Make (M : MODE) = struct
        return value - always to/from a stack memory operand in this corpus,
        never a register, so {!Lowered.Fpu_mem} takes a bare {!Mem.t} rather
        than the general {!Rm.t} every GPR/xmm form above uses. *)
-    | ( ( Opcode.Fldl | Opcode.Fstpl | Opcode.Fstps | Opcode.Flds | Opcode.Fildll | Opcode.Fnstcw
-        | Opcode.Fldcw | Opcode.Fistpll ),
-        [ Operand.Mem m ] ) ->
+    | op, [ Operand.Mem m ] when x87_memory_op op ->
         Ok [ Lowered.Fpu_mem { op = i.Instruction.op; mem = m } ]
     (* [flds sym] / [fadds sym] / [fsubs sym] - a bare-symbol source, the same duality
        [lea]/[movsd]/[xorpd] already read through [mem_of_symbol] (M5, asm/docs/corpus.md -
@@ -5255,7 +5241,7 @@ module Make (M : MODE) = struct
        `fadds LC1`). Scoped to [Flds]/[Fadds]/[Fsubs]: no fixture evidences a
        bare-symbol [fldl]/[fstpl]/[fstps] (every recurrence of those three
        is `disp(%esp)`). *)
-    | (Opcode.Flds | Opcode.Fadds | Opcode.Fsubs), [ Operand.Sym e ] ->
+    | op, [ Operand.Sym e ] when x87_symbol_op op ->
         Ok [ Lowered.Fpu_mem { op = i.Instruction.op; mem = mem_of_symbol e } ]
     (* FADD_ST0_X87: the source is a stack register and the destination is the
        implicit top of stack.  Keep the reverse direction out of this case:
@@ -7285,8 +7271,8 @@ module Make (M : MODE) = struct
          C.(prefixes_codec ** const ~width:8 (Int64.of_int opcode_byte) ** rm_codec))
 
   let fadd_st0_x87_form =
-    C.alt ~label:"fadd-st0-x87" ~priority:65
-      (C.iso_fun ~name:"fadd-st0-x87"
+    C.alt ~label:X86_x87.fadd_st0.label ~priority:X86_x87.fadd_st0.priority
+      (C.iso_fun ~name:X86_x87.fadd_st0.label
          ~encode:(function
            | Lowered.Fadd_st0_x87 { src }
              when src.Reg.width = 80 && src.Reg.num >= 0 && src.Reg.num <= 7 ->
@@ -7737,9 +7723,42 @@ module Make (M : MODE) = struct
              C.(const ~width:8 0xa3L ** sym_disp ~kind:Abs32));
       ]
 
+  (* The x87 component's alternatives, built from the {!X86_x87} tables. A form whose mnemonic
+     has no opcode here is a component/family mismatch, caught when the family is instantiated
+     rather than as a silently missing alternative. *)
+  let x87_alts =
+    let opcode_of mnemonic =
+      match Opcode.of_x87_mnemonic mnemonic with
+      | Some op -> op
+      | None -> invalid_arg ("x86 x87 component: no opcode for " ^ mnemonic)
+    in
+    let fixed (f : X86_x87.fixed_form) =
+      let value = if String.equal f.mnemonic "fucomp" then Lowered.Fucomp else Lowered.Fnstsw in
+      C.alt ~label:f.label ~priority:f.priority
+        (C.iso_fun ~name:f.label
+           ~encode:(fun v -> if Lowered.equal v value then Some () else None)
+           ~decode:(fun () -> Some value)
+           (C.const ~width:f.bits f.word))
+    in
+    List.map
+      (fun (f : X86_x87.memory_form) ->
+        fpu_mem_form ~label:f.label ~priority:f.priority ~opcode_byte:f.opcode_byte ~ext:f.ext
+          ~op:(opcode_of f.mnemonic))
+      X86_x87.memory_forms
+    @ List.map fixed X86_x87.fixed_forms
+    @ [ fadd_st0_x87_form ]
+
+  let components = [ X86_x87.component ]
+
+  let () =
+    (* Every opcode the family lists as x87 must be one the component describes, and back. *)
+    let described = List.sort String.compare (Target_component.mnemonics X86_x87.component) in
+    let listed = List.sort String.compare (List.map Opcode.name Opcode.x87) in
+    if described <> listed then invalid_arg "x86 x87 component and Opcode.x87 disagree"
+
   let codec : (Lowered.t, fixup_kind) C.t =
     C.choice ~name:M.name
-      (general_alts @ moffs_alts
+      (general_alts @ moffs_alts @ x87_alts
       @ [
           (* 8-bit MOV is not the same opcode with a narrower width like every
              other case here - real x86 has no operand-size prefix or REX.W
@@ -8307,34 +8326,7 @@ module Make (M : MODE) = struct
                  ** le ~signedness:C.Signed ~width:32 "imm"));
           push_imm_form ~label:"push-imm8" ~priority:48 ~opcode_byte:0x6a ~imm_width:8;
           push_imm_form ~label:"push-imm32" ~priority:49 ~opcode_byte:0x68 ~imm_width:32;
-          fpu_mem_form ~label:"fldl" ~priority:50 ~opcode_byte:0xDD ~ext:0 ~op:Opcode.Fldl;
-          fpu_mem_form ~label:"fstpl" ~priority:51 ~opcode_byte:0xDD ~ext:3 ~op:Opcode.Fstpl;
-          fpu_mem_form ~label:"fstps" ~priority:52 ~opcode_byte:0xD9 ~ext:3 ~op:Opcode.Fstps;
           shld_imm_form ~label:"shld-imm-rm" ~priority:53;
-          fpu_mem_form ~label:"flds" ~priority:54 ~opcode_byte:0xD9 ~ext:0 ~op:Opcode.Flds;
-          fpu_mem_form ~label:"fildll" ~priority:56 ~opcode_byte:0xDF ~ext:5 ~op:Opcode.Fildll;
-          fpu_mem_form ~label:"fadds" ~priority:57 ~opcode_byte:0xD8 ~ext:0 ~op:Opcode.Fadds;
-          (* [0xDD 0xE9] ({!Lowered.Fucomp} - bare [fucomp], M5, asm/docs/corpus.md):
-             a fixed two-byte word, no ModR/M at all - the same "no operand" shape
-             {!Ret}/{!Ud2} already use, just a different opcode pair. *)
-          C.alt ~label:"fucomp" ~priority:55
-            (C.iso_fun ~name:"fucomp"
-               ~encode:(function Lowered.Fucomp -> Some () | _ -> None)
-               ~decode:(fun () -> Some Lowered.Fucomp)
-               C.(const ~width:16 0xDDE9L));
-          fpu_mem_form ~label:"fnstcw" ~priority:58 ~opcode_byte:0xD9 ~ext:7 ~op:Opcode.Fnstcw;
-          fpu_mem_form ~label:"fldcw" ~priority:59 ~opcode_byte:0xD9 ~ext:5 ~op:Opcode.Fldcw;
-          fpu_mem_form ~label:"fistpll" ~priority:60 ~opcode_byte:0xDF ~ext:7 ~op:Opcode.Fistpll;
-          fpu_mem_form ~label:"fsubs" ~priority:61 ~opcode_byte:0xD8 ~ext:4 ~op:Opcode.Fsubs;
-          fadd_st0_x87_form;
-          (* [0xDF 0xE0] ({!Lowered.Fnstsw} - [fnstsw %ax], M5, asm/docs/corpus.md):
-             a fixed two-byte word, no ModR/M at all - {!Fucomp}'s exact shape, a
-             different opcode pair. *)
-          C.alt ~label:"fnstsw" ~priority:62
-            (C.iso_fun ~name:"fnstsw"
-               ~encode:(function Lowered.Fnstsw -> Some () | _ -> None)
-               ~decode:(fun () -> Some Lowered.Fnstsw)
-               C.(const ~width:16 0xDFE0L));
           (* [0x9E] ({!Lowered.Sahf} - bare [sahf], M5, asm/docs/corpus.md): a fixed
              single-byte word, no ModR/M - {!Fucomp}/{!Fnstsw}'s exact shape at a
              one-byte-shorter opcode. *)

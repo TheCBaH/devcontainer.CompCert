@@ -1,6 +1,9 @@
 open Foundation
 module C = Codec
 
+(* Re-exported: the library's main module hides its siblings otherwise. *)
+module Riscv_ext_m = Riscv_ext_m
+
 module type PROFILE = sig
   val name : string
   val triple : string
@@ -2585,6 +2588,18 @@ module Make (P : PROFILE) = struct
   let rv64 op = if xlen = 64 then Ok () else Error (diag ~pos:__POS__ (`Rv64_only op))
   let wrong op = Error (diag ~pos:__POS__ (`Wrong_operands op))
 
+  (* The M component's forms come from {!Riscv_ext_m}: one table owns the encoding
+     fields, the RV64-only gate and the descriptor, so they cannot drift apart. *)
+  let m_desc op =
+    Option.map
+      (fun (f : Riscv_ext_m.form) -> (f.opcode, f.funct3, f.funct7))
+      (Riscv_ext_m.find (Opcode.name op))
+
+  let m_rv64_only op =
+    match Riscv_ext_m.find (Opcode.name op) with Some f -> f.rv64_only | None -> false
+
+  let components = [ Riscv_ext_m.component ]
+
   let r_desc = function
     | Opcode.Add -> Some (0x33, 0, 0x00)
     | Sub -> Some (0x33, 0, 0x20)
@@ -2596,8 +2611,7 @@ module Make (P : PROFILE) = struct
     | Sra -> Some (0x33, 5, 0x20)
     | Or -> Some (0x33, 6, 0x00)
     | And -> Some (0x33, 7, 0x00)
-    | Mul -> Some (0x33, 0, 0x01)
-    | Remu -> Some (0x33, 7, 0x01)
+    | (Mul | Remu | Mulw) as op -> m_desc op
     | Sh1add -> Some (0x33, 2, 0x10)
     | Sh2add -> Some (0x33, 4, 0x10)
     | Sh3add -> Some (0x33, 6, 0x10)
@@ -2646,7 +2660,6 @@ module Make (P : PROFILE) = struct
     | Sllw -> Some (0x3b, 1, 0x00)
     | Srlw -> Some (0x3b, 5, 0x00)
     | Sraw -> Some (0x3b, 5, 0x20)
-    | Mulw -> Some (0x3b, 0, 0x01)
     | Pack -> Some (0x33, 4, 0x04)
     | Packh -> Some (0x33, 7, 0x04)
     | Packw -> Some (0x3b, 4, 0x04)
@@ -4399,9 +4412,11 @@ module Make (P : PROFILE) = struct
   let lower_instruction state i =
     let opn = Opcode.name i.Instruction.op in
     match (i.op, i.ops) with
-    | ( ( Opcode.Addw | Subw | Sllw | Srlw | Sraw | Mulw | Sh1adduw | Sh2adduw | Sh3adduw | Clzw
-        | Ctzw | Cpopw | Packw | Rolw | Rorw | Sha512sum0 | Sha512sum1 | Sha512sig0 | Sha512sig1
-        | Aes64ds | Aes64dsm | Aes64es | Aes64esm | Aes64ks2 | Aes64im | Aes64ks1i ),
+    | (Opcode.Mul | Remu | Mulw), _ when xlen <> 64 && m_rv64_only i.Instruction.op ->
+        Error (diag ~pos:__POS__ (`Rv64_only opn))
+    | ( ( Opcode.Addw | Subw | Sllw | Srlw | Sraw | Sh1adduw | Sh2adduw | Sh3adduw | Clzw | Ctzw
+        | Cpopw | Packw | Rolw | Rorw | Sha512sum0 | Sha512sum1 | Sha512sig0 | Sha512sig1 | Aes64ds
+        | Aes64dsm | Aes64es | Aes64esm | Aes64ks2 | Aes64im | Aes64ks1i ),
         _ )
       when xlen <> 64 ->
         Error (diag ~pos:__POS__ (`Rv64_only opn))

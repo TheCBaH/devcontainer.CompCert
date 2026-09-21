@@ -4,9 +4,20 @@
 (copy_files#
  (files ../../../lib/target_intf/*.ml))
 
+(copy_files#
+ (files ../../../lib/target_intf/*.mli))
+
 (library
  (name target_error)
  (modules target_error)
+ (modes byte native melange)
+ (libraries foundation)
+ (enabled_if
+  (= %{env:ASM_MELANGE=false} true)))
+
+(library
+ (name target_component)
+ (modules target_component)
  (modes byte native melange)
  (libraries foundation)
  (enabled_if
