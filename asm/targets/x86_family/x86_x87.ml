@@ -86,6 +86,8 @@ let component : Target_component.t =
   {
     id = "x86.x87";
     feature = "x87";
+    requires = [];
+    conflicts = [];
     summary = "x87 loads, stores, single-precision add/subtract, control and status words";
     forms =
       List.map

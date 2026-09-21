@@ -249,8 +249,8 @@ let%expect_test "component descriptors are structurally clean in every profile" 
   report "x86_64" X86_64_encode.components;
   [%expect
     {|
-    riscv32: riscv.m feature=m forms=3
-    riscv64: riscv.m feature=m forms=3
+    riscv32: riscv.zmmul feature=zmmul forms=2; riscv.m feature=m forms=1
+    riscv64: riscv.zmmul feature=zmmul forms=2; riscv.m feature=m forms=1
     x86_32: x86.x87 feature=x87 forms=13
     x86_64: x86.x87 feature=x87 forms=13 |}]
 
@@ -260,17 +260,34 @@ let%expect_test "Target_component.check reports collisions" =
   in
   let src = [ { Target_component.upstream = "test"; name = "n" } ] in
   let a : Target_component.t =
-    { id = "t.a"; feature = "a"; summary = ""; forms = [ form "x" "op" src; form "x" "op2" [] ] }
+    {
+      id = "t.a";
+      feature = "a";
+      requires = [ "ghost" ];
+      conflicts = [];
+      summary = "";
+      forms = [ form "x" "op" src; form "x" "op2" [] ];
+    }
   in
   let b : Target_component.t =
-    { id = "t.a"; feature = "b"; summary = ""; forms = [ form "y" "op" src ] }
+    {
+      id = "t.a";
+      feature = "b";
+      requires = [];
+      conflicts = [];
+      summary = "";
+      forms = [ form "y" "op" src ];
+    }
   in
-  let empty : Target_component.t = { id = "t.e"; feature = "e"; summary = ""; forms = [] } in
+  let empty : Target_component.t =
+    { id = "t.e"; feature = "e"; requires = []; conflicts = []; summary = ""; forms = [] }
+  in
   List.iter print_endline (Target_component.check [ a; b; empty ]);
   [%expect
     {|
     t.a: form x has no source mapping
     t.e: no forms
+    t.a: requires names unknown feature ghost
     duplicate component id t.a
     duplicate form label x
     duplicate mnemonic op |}]
@@ -336,5 +353,5 @@ let%expect_test "M descriptors predict the assembled instruction word" =
     riscv32 mul: matches
     riscv32 remu: matches
     riscv64 mul: matches
-    riscv64 remu: matches
-    riscv64 mulw: matches |}]
+    riscv64 mulw: matches
+    riscv64 remu: matches |}]

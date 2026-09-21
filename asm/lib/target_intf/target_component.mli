@@ -24,6 +24,8 @@ type form = {
 type t = {
   id : string;  (** stable, dot-separated component identity, for example ["riscv.m"] *)
   feature : string;  (** the feature name that gates this component *)
+  requires : string list;  (** features that must also be enabled whenever this one is *)
+  conflicts : string list;  (** features that cannot be enabled together with this one *)
   summary : string;
   forms : form list;
 }
@@ -34,8 +36,13 @@ val mnemonics : t -> string list
 val owns_mnemonic : t -> string -> bool
 (** Whether the component accepts [mnemonic] as a spelling of one of its forms. *)
 
+val feature_of_mnemonic : t list -> string -> string option
+(** The feature gating the component that owns [mnemonic], or [None] when no component does - the
+    mnemonic is then part of the always-available base. *)
+
 val check : t list -> string list
 (** Structural problems across a set of components composed into one family: duplicate component
-    ids, duplicate labels, a mnemonic claimed by two components, a component or form with nothing
-    in it, and a form with no source mapping. Empty means clean. It says nothing about whether the
+    ids or feature names, duplicate labels, a mnemonic claimed by two components, a requirement or
+    conflict naming an unknown feature, a component or form with nothing in it, and a form with no
+    source mapping. Empty means clean. It says nothing about whether the
     forms encode correctly - that is the codec and differential tests' job. *)

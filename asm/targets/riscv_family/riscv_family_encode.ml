@@ -2491,17 +2491,29 @@ module Make (P : PROFILE) = struct
     | Call_hi20 | Call_lo12_i -> Asm_core.Lowered_ast.Call
     | _ -> Asm_core.Lowered_ast.Data_address
 
-  type feature = No_features
+  (* The separable instruction components this family publishes (one per gating feature). The
+     rest of the family is the always-available base. *)
+  let components = [ Riscv_ext_m.zmmul; Riscv_ext_m.m ]
 
+  (* [config] is the validated feature set. It lives in the state, not beside it, so it rides
+     everywhere the state already goes: each unit starts from the caller's initial state, and a
+     lowered fragment replays under the state it was written in. It is deliberately not part of
+     [option_stack]: no directive changes it, so [.option push]/[pop] have nothing to restore. *)
   type target_state = {
     pic : bool;
     relax : bool;
     rvc : bool;
     option_stack : (bool * bool * bool) list;
+    config : Target_config.t;
   }
 
-  let default_state = { pic = false; relax = false; rvc = false; option_stack = [] }
-  let default_features = []
+  let default_config = Target_config.default components
+
+  let default_state =
+    { pic = false; relax = false; rvc = false; option_stack = []; config = default_config }
+
+  let initial_state config = { default_state with config }
+  let state_config s = s.config
 
   type error_kind =
     [ Target_error.shared
@@ -2541,6 +2553,7 @@ module Make (P : PROFILE) = struct
         P.name ^ ".decode"
     | `No_data_relocation _ -> P.name ^ ".data-fixup"
     | `Padding_not_word_multiple -> P.name ^ ".nop"
+    | `Feature_disabled _ -> P.name ^ ".feature"
     | `Compressed_disabled _ -> P.name ^ ".lower"
     | `Immediate_alignment _ | `Immediate_range _ -> P.name ^ ".fixup"
     | _ -> P.name ^ ".lower"
@@ -2557,10 +2570,24 @@ module Make (P : PROFILE) = struct
 
   let make_surface_instruction ~mnemonic ~origin ops = Ok { Surface.mnemonic; ops; origin }
 
-  let simplify_instruction ~features:_ s =
+  (* The one place a form's component is checked against the configuration. Every stage that can
+     see an opcode goes through it, so a disabled form is refused whichever path reached it. *)
+  let feature_gate ?origin state mnemonic =
+    match Target_component.feature_of_mnemonic components mnemonic with
+    | Some f when not (Target_config.enabled state.config f) ->
+        Error (diag ~pos:__POS__ ?origin (`Feature_disabled (mnemonic, f)))
+    | _ -> Ok ()
+
+  let required_feature (i : Instruction.t) =
+    Target_component.feature_of_mnemonic components (Opcode.name i.op)
+
+  let simplify_instruction state s =
     match Opcode.of_mnemonic s.Surface.mnemonic with
     | None -> Error (diag ~pos:__POS__ ~origin:s.origin (`Unknown_instruction s.mnemonic))
-    | Some op -> Ok { Instruction.op; ops = s.ops }
+    | Some op -> (
+        match feature_gate ~origin:s.origin state (Opcode.name op) with
+        | Error _ as e -> e
+        | Ok () -> Ok { Instruction.op; ops = s.ops })
 
   let const n = Asm_core.Expr.Const (Bigint.of_int n)
 
@@ -2597,8 +2624,6 @@ module Make (P : PROFILE) = struct
 
   let m_rv64_only op =
     match Riscv_ext_m.find (Opcode.name op) with Some f -> f.rv64_only | None -> false
-
-  let components = [ Riscv_ext_m.component ]
 
   let r_desc = function
     | Opcode.Add -> Some (0x33, 0, 0x00)
@@ -4409,7 +4434,7 @@ module Make (P : PROFILE) = struct
     in
     go [] ops
 
-  let lower_instruction state i =
+  let lower_instruction_ungated state i =
     let opn = Opcode.name i.Instruction.op in
     match (i.op, i.ops) with
     | (Opcode.Mul | Remu | Mulw), _ when xlen <> 64 && m_rv64_only i.Instruction.op ->
@@ -6292,6 +6317,11 @@ module Make (P : PROFILE) = struct
         Ok [ Lowered.Fixed { name = "fence"; word = 0x0310000fL } ]
     | _ -> wrong opn
 
+  let lower_instruction state i =
+    match feature_gate state (Opcode.name i.Instruction.op) with
+    | Error _ as e -> e
+    | Ok () -> lower_instruction_ungated state i
+
   let mask bits v =
     if bits = 64 then v else Int64.logand v (Int64.sub (Int64.shift_left 1L bits) 1L)
 
@@ -6432,7 +6462,7 @@ module Make (P : PROFILE) = struct
   let form bytes form fixups = { Asm_core.Lowered_ast.bytes; form; fixups }
   let bad_encode kind = Error (diag ~pos:__POS__ kind)
 
-  let encode l =
+  let encode_ungated l =
     let fixed w f = Ok (`Fixed (form (bytes_of_word w) f [])) in
     match l with
     | Lowered.Caddi x -> (
@@ -6609,6 +6639,20 @@ module Make (P : PROFILE) = struct
         Ok (`Fixed (form (bytes_of_word hiword ^ bytes_of_word lowword) x.name [ hi; lo ]))
     | Fixed x -> fixed x.word x.name
 
+  (* The mnemonic of a lowered form that belongs to a component. Only [R] carries a component
+     today: M's forms all lower to it. *)
+  let lowered_mnemonic = function Lowered.R { name; _ } -> Some name | _ -> None
+
+  (* Encoding under a configuration, so a caller that builds lowered forms directly cannot
+     emit a disabled component's instruction. [encode] is the default-configuration wrapper. *)
+  let encode_in state l =
+    match lowered_mnemonic l with
+    | Some name -> (
+        match feature_gate state name with Error _ as e -> e | Ok () -> encode_ungated l)
+    | None -> encode_ungated l
+
+  let encode l = encode_in default_state l
+
   let sign_extend bits v =
     let s = 64 - bits in
     Int64.shift_right (Int64.shift_left v s) s
@@ -6767,7 +6811,7 @@ module Make (P : PROFILE) = struct
 
   type decode_context = { state : target_state; address : int64 }
 
-  let decode ctx bytes ~pos =
+  let decode_ungated ctx bytes ~pos =
     if String.length bytes - pos < 2 then Error (diag ~pos:__POS__ `Decode_short)
     else if Char.code bytes.[pos] land 3 <> 3 then
       let half = read_half bytes pos in
@@ -7018,6 +7062,16 @@ module Make (P : PROFILE) = struct
       match result with
       | None -> Error (diag ~pos:__POS__ `Decode_no_match)
       | Some (i, f) -> Ok (i, f, 4)
+
+  (* Strict decoding: a word that is a disabled component's instruction is refused rather than
+     printed as if it were assemblable under this configuration. *)
+  let decode ctx bytes ~pos =
+    match decode_ungated ctx bytes ~pos with
+    | Ok (insn, _, _) as ok -> (
+        match feature_gate ctx.state (Opcode.name insn.Instruction.op) with
+        | Ok () -> ok
+        | Error _ as e -> e)
+    | Error _ as e -> e
 
   (* The public codec describes the same real words as the explicit encoder
      and decoder above.  Symbol expressions and PC context live outside a raw

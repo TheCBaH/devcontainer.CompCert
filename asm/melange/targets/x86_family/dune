@@ -19,7 +19,7 @@
   asm_core
   target_error
   target_encode
-  target_component)
+  target_features)
  (enabled_if
   (= %{env:ASM_MELANGE=false} true)))
 

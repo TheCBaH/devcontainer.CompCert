@@ -3124,11 +3124,18 @@ module Make (M : MODE) = struct
   let fixup_family = fixup_family
   let fixup_role = fixup_role
 
-  type feature = No_features
-  type target_state = { unused : unit }
+  (* The separable instruction components this family publishes. The rest is the base. *)
+  let components = [ X86_x87.component ]
 
-  let default_state = { unused = () }
-  let default_features = []
+  (* [config] is the validated feature set; see the RISC-V family's [target_state] for why it
+     lives in the state. No directive changes it - [.arch] is not supported - so it is fixed
+     for a unit by the caller's initial state. *)
+  type target_state = { config : Target_config.t }
+
+  let default_config = Target_config.default components
+  let default_state = { config = default_config }
+  let initial_state config = { config }
+  let state_config s = s.config
   let address_regs = List.filter (fun (r : Reg.t) -> r.width = M.address_width) M.registers
 
   let reg_at ~width n =
@@ -3272,6 +3279,7 @@ module Make (M : MODE) = struct
     | `Displacement_not_8bit | `Displacement_not_32bit -> "x86.fixup"
     | `No_data_relocation _ -> "x86.data-fixup"
     | `Negative_padding _ -> "x86.nop"
+    | `Feature_disabled _ -> "x86.feature"
 
   let pp_error ppf e = pp_error_kind ppf (Target_error.kind e)
   let error_code e = error_kind_code (Target_error.kind e)
@@ -3366,8 +3374,7 @@ module Make (M : MODE) = struct
         branch_of m = None
         && (String.equal (String.sub m 0 i) "jmp" || Cc.split_after "j" (String.sub m 0 i) <> None)
 
-  let simplify_instruction ~features s =
-    ignore features;
+  let simplify_instruction_ungated s =
     let bad kind = Error (diag ~pos:__POS__ ~origin:s.Surface.origin kind) in
     let stem, suffix = split_suffix s.Surface.mnemonic in
     (* [~allow16] is narrowly scoped to [mov] (M5, asm/docs/corpus.md:
@@ -4047,8 +4054,7 @@ module Make (M : MODE) = struct
   let x87_symbol_op op =
     match x87_shape op with Some (X86_x87.Symbol | Memory_or_symbol) -> true | _ -> false
 
-  let lower_instruction state i =
-    ignore state;
+  let lower_instruction_ungated i =
     let bad kind = Error (diag ~pos:__POS__ kind) in
     let imm_of v =
       match Bigint.to_int64_opt v with
@@ -7748,8 +7754,6 @@ module Make (M : MODE) = struct
     @ List.map fixed X86_x87.fixed_forms
     @ [ fadd_st0_x87_form ]
 
-  let components = [ X86_x87.component ]
-
   let () =
     (* Every opcode the family lists as x87 must be one the component describes, and back. *)
     let described = List.sort String.compare (Target_component.mnemonics X86_x87.component) in
@@ -8457,7 +8461,7 @@ module Make (M : MODE) = struct
         Some rung
     | _ -> None
 
-  let encode l =
+  let encode_ungated l =
     (* The codec names the phase when it is the only layer that could have seen
        the mistake - a pin for a rung that does not exist - and otherwise this
        one does. A bad suffix in *source* never reaches here: [simplify] rejects
@@ -8908,7 +8912,7 @@ module Make (M : MODE) = struct
     | Lowered.Fnstsw -> Some (Instruction.mk Opcode.Fnstsw 32 [ Operand.Reg (reg_at ~width:16 0) ])
     | Lowered.Sahf -> Some (Instruction.mk Opcode.Sahf 32 [])
 
-  let decode ctx bytes ~pos =
+  let decode_ungated ctx bytes ~pos =
     let bits = C.Bits.of_bytes (String.sub bytes pos (String.length bytes - pos)) in
     match C.decode_bits codec bits with
     | None -> Error (diag ~pos:__POS__ `Decode_no_match)
@@ -8919,6 +8923,59 @@ module Make (M : MODE) = struct
           match instruction_of_lowered ~at:ctx.address ~len d.C.value with
           | None -> Error (diag ~pos:__POS__ `Decode_no_normalized)
           | Some i -> Ok (i, String.concat "." d.C.dform, len))
+
+  (* {2 Configuration}
+
+     A form's component is checked against the configuration wherever the form can be seen: on
+     the surface instruction (best diagnostics), on a normalized instruction handed in directly,
+     on a lowered form handed to the encoder directly, and on decode. Each public entry point
+     below is the [_ungated] one behind a single gate, so a disabled form is refused whichever
+     path reached it. *)
+
+  let feature_gate ?origin state mnemonic =
+    match Target_component.feature_of_mnemonic components mnemonic with
+    | Some f when not (Target_config.enabled state.config f) ->
+        Error (diag ~pos:__POS__ ?origin (`Feature_disabled (mnemonic, f)))
+    | _ -> Ok ()
+
+  let required_feature (i : Instruction.t) =
+    Target_component.feature_of_mnemonic components (Opcode.name i.op)
+
+  let simplify_instruction state s =
+    match simplify_instruction_ungated s with
+    | Error _ as e -> e
+    | Ok i -> (
+        match feature_gate ~origin:s.Surface.origin state (Opcode.name i.Instruction.op) with
+        | Ok () -> Ok i
+        | Error _ as e -> e)
+
+  let lower_instruction state i =
+    match feature_gate state (Opcode.name i.Instruction.op) with
+    | Error _ as e -> e
+    | Ok () -> lower_instruction_ungated i
+
+  (* The mnemonic of a lowered form that belongs to a component. *)
+  let lowered_mnemonic = function
+    | Lowered.Fpu_mem { op; _ } -> Some (Opcode.name op)
+    | Lowered.Fadd_st0_x87 _ -> Some X86_x87.fadd_st0.mnemonic
+    | Lowered.Fucomp -> Some "fucomp"
+    | Lowered.Fnstsw -> Some "fnstsw"
+    | _ -> None
+
+  let encode_in state l =
+    match lowered_mnemonic l with
+    | Some m -> ( match feature_gate state m with Error _ as e -> e | Ok () -> encode_ungated l)
+    | None -> encode_ungated l
+
+  let encode l = encode_in default_state l
+
+  let decode ctx bytes ~pos =
+    match decode_ungated ctx bytes ~pos with
+    | Ok (i, _, _) as ok -> (
+        match feature_gate ctx.state (Opcode.name i.Instruction.op) with
+        | Ok () -> ok
+        | Error _ as e -> e)
+    | Error _ as e -> e
 
   (* {2 Fixups, padding, directives} *)
 
