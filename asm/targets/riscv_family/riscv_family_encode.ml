@@ -299,6 +299,12 @@ module Make (P : PROFILE) = struct
       | Mulw
       | Addi
       | C_addi
+      | C_and
+      | C_or
+      | C_xor
+      | C_sub
+      | C_addw
+      | C_subw
       | Slti
       | Sltiu
       | Xori
@@ -982,6 +988,12 @@ module Make (P : PROFILE) = struct
       | Mulw -> "mulw"
       | Addi -> "addi"
       | C_addi -> "c.addi"
+      | C_and -> "c.and"
+      | C_or -> "c.or"
+      | C_xor -> "c.xor"
+      | C_sub -> "c.sub"
+      | C_addw -> "c.addw"
+      | C_subw -> "c.subw"
       | Slti -> "slti"
       | Sltiu -> "sltiu"
       | Xori -> "xori"
@@ -1666,6 +1678,12 @@ module Make (P : PROFILE) = struct
         Mulw;
         Addi;
         C_addi;
+        C_and;
+        C_or;
+        C_xor;
+        C_sub;
+        C_addw;
+        C_subw;
         Slti;
         Sltiu;
         Xori;
@@ -2396,6 +2414,10 @@ module Make (P : PROFILE) = struct
       | Pair of { name : string; rd : int; tmp : int; target : Asm_core.Expr.t; kind : pair_kind }
       | Fixed of { name : string; word : int64 }
       | Caddi of { rd : int; imm : Asm_core.Expr.t }
+      | Cr2 of { name : string; funct6 : int; funct2 : int; rd_rs1 : int; rs2 : int }
+          (** the CA-format compressed register-register ops ([c.and]/[c.or]/[c.xor]/[c.sub]/
+              [c.addw]/[c.subw]): [rd_rs1]/[rs2] are real register numbers (8..15), not the
+              3-bit compressed field - {!word_cr2} subtracts 8 when packing. *)
 
     let pp_expr ppf e = Asm_core.Expr.pp ppf e
     let reg_name isf n = Printf.sprintf "%s%d" (if isf then "f" else "x") n
@@ -2474,6 +2496,7 @@ module Make (P : PROFILE) = struct
       | Pair x -> Fmt.pf ppf "%s x%d, %a" x.name x.rd pp_expr x.target
       | Fixed x -> Fmt.string ppf x.name
       | Caddi x -> Fmt.pf ppf "c.addi x%d, %a" x.rd pp_expr x.imm
+      | Cr2 x -> Fmt.pf ppf "%s x%d, x%d" x.name x.rd_rs1 x.rs2
 
     let equal (a : t) b = a = b
   end
@@ -2654,6 +2677,19 @@ module Make (P : PROFILE) = struct
 
   let m_rv64_only op =
     match Riscv_ext_m.find (Opcode.name op) with Some f -> f.rv64_only | None -> false
+
+  (* CA-format compressed register-register ops (quadrant 1, funct3=100):
+     funct6 selects word- vs *w-width, funct2 selects the operation.
+     Hand-verified against real riscv64-linux-gnu-as/riscv32-linux-gnu-as
+     2.44/2.43.1 (`c.and a0,a1` -> 8d6d, `c.addw a0,a1` -> 9d2d). *)
+  let ca_desc = function
+    | Opcode.C_sub -> Some (0x23, 0)
+    | C_xor -> Some (0x23, 1)
+    | C_or -> Some (0x23, 2)
+    | C_and -> Some (0x23, 3)
+    | C_subw -> Some (0x27, 0)
+    | C_addw -> Some (0x27, 1)
+    | _ -> None
 
   let r_desc = function
     | Opcode.Add -> Some (0x33, 0, 0x00)
@@ -4489,7 +4525,7 @@ module Make (P : PROFILE) = struct
         Error (diag ~pos:__POS__ (`Rv64_only opn))
     | ( ( Opcode.Addw | Subw | Sllw | Srlw | Sraw | Sh1adduw | Sh2adduw | Sh3adduw | Clzw | Ctzw
         | Cpopw | Packw | Rolw | Rorw | Sha512sum0 | Sha512sum1 | Sha512sig0 | Sha512sig1 | Aes64ds
-        | Aes64dsm | Aes64es | Aes64esm | Aes64ks2 | Aes64im | Aes64ks1i ),
+        | Aes64dsm | Aes64es | Aes64esm | Aes64ks2 | Aes64im | Aes64ks1i | C_addw | C_subw ),
         _ )
       when xlen <> 64 ->
         Error (diag ~pos:__POS__ (`Rv64_only opn))
@@ -4500,10 +4536,17 @@ module Make (P : PROFILE) = struct
         _ )
       when xlen <> 32 ->
         Error (diag ~pos:__POS__ (`Rv32_only opn))
-    | Opcode.C_addi, _ when not state.rvc -> Error (diag ~pos:__POS__ (`Compressed_disabled opn))
+    | (Opcode.C_addi | C_and | C_or | C_xor | C_sub | C_addw | C_subw), _ when not state.rvc ->
+        Error (diag ~pos:__POS__ (`Compressed_disabled opn))
     | Opcode.C_addi, [ a; imm ] -> (
         match (xreg a, expr_of imm) with
         | Some rd, Some imm when rd <> 0 -> Ok [ Lowered.Caddi { rd; imm } ]
+        | _ -> wrong opn)
+    | op, [ a; b ] when Option.is_some (ca_desc op) -> (
+        match (xreg a, xreg b, ca_desc op) with
+        | Some rd_rs1, Some rs2, Some (funct6, funct2)
+          when rd_rs1 >= 8 && rd_rs1 <= 15 && rs2 >= 8 && rs2 <= 15 ->
+            Ok [ Lowered.Cr2 { name = opn; funct6; funct2; rd_rs1; rs2 } ]
         | _ -> wrong opn)
     | ( ( Opcode.Fcvt_l_d | Fmv_x_d | Fcvt_s_l | Fcvt_lu_d | Fcvt_d_l | Fcvt_d_lu | Fcvt_l_s
         | Fcvt_lu_s | Fcvt_s_lu ),
@@ -6545,6 +6588,18 @@ module Make (P : PROFILE) = struct
       (Int64.logor (field 2 5 imm)
          (Int64.logor (field 7 5 (Int64.of_int rd)) (field 12 1 (Int64.shift_right_logical imm 5))))
 
+  (* CA-format: quadrant(01) | rs2'[4:2] | funct2[6:5] | rd_rs1'[9:7] |
+     funct6[15:10], where rd_rs1'/rs2' are [rd_rs1]/[rs2] minus 8 (the
+     RVC compressed-register field). Confirmed against real
+     riscv64-linux-gnu-as: `c.and a0,a1` -> word 0x8d6d. *)
+  let word_cr2 ~funct6 ~funct2 ~rd_rs1 ~rs2 =
+    Int64.logor 0x1L
+      (Int64.logor
+         (field 2 3 (Int64.of_int (rs2 - 8)))
+         (Int64.logor
+            (field 5 2 (Int64.of_int funct2))
+            (Int64.logor (field 7 3 (Int64.of_int (rd_rs1 - 8))) (field 10 6 (Int64.of_int funct6)))))
+
   let bytes_of_word w =
     String.init 4 (fun i ->
         Char.chr (Int64.to_int (Int64.logand (Int64.shift_right_logical w (8 * i)) 0xffL)))
@@ -6607,6 +6662,13 @@ module Make (P : PROFILE) = struct
             Ok (`Fixed (form (bytes_of_half (word_caddi ~rd:x.rd imm)) "c.addi" []))
         | Some _ -> bad_encode (`Immediate_range "c.addi")
         | None -> bad_encode (`Immediate_range ("c.addi " ^ Asm_core.Expr.to_string x.imm)))
+    | Lowered.Cr2 x ->
+        Ok
+          (`Fixed
+             (form
+                (bytes_of_half
+                   (word_cr2 ~funct6:x.funct6 ~funct2:x.funct2 ~rd_rs1:x.rd_rs1 ~rs2:x.rs2))
+                x.name []))
     | Lowered.R x ->
         fixed
           (word_r ~opcode:x.opcode ~funct3:x.funct3 ~funct7:x.funct7 ~rd:x.rd ~rs1:x.rs1 ~rs2:x.rs2)
@@ -6928,6 +6990,16 @@ module Make (P : PROFILE) = struct
         | 1, 0x71, 0 -> Some "fclass.d"
         | _ -> None)
 
+  (* CA-format decode: the inverse of {!ca_desc}, keyed by (funct6, funct2). *)
+  let ca_name = function
+    | 0x23, 0 -> Some "c.sub"
+    | 0x23, 1 -> Some "c.xor"
+    | 0x23, 2 -> Some "c.or"
+    | 0x23, 3 -> Some "c.and"
+    | 0x27, 0 -> Some "c.subw"
+    | 0x27, 1 -> Some "c.addw"
+    | _ -> None
+
   let f_load_name = function 2 -> Some "flw" | 3 -> Some "fld" | _ -> None
   let f_store_name = function 2 -> Some "fsw" | 3 -> Some "fsd" | _ -> None
 
@@ -6957,9 +7029,17 @@ module Make (P : PROFILE) = struct
       let imm_value =
         sign_extend 6 (Int64.logor (bits half 2 5) (Int64.shift_left (bits half 12 1) 5))
       in
+      let funct6 = Int64.to_int (bits half 10 6) in
+      let funct2 = Int64.to_int (bits half 5 2) in
+      let rd_rs1_c = Int64.to_int (bits half 7 3) + 8 in
+      let rs2_c = Int64.to_int (bits half 2 3) + 8 in
       match (quadrant, funct3, rd, imm_value) with
       | 1, 0, rd, imm_value when rd <> 0 && imm_value <> 0L ->
           Ok (instruction Opcode.C_addi [ reg rd; imm imm_value ], "c.addi", 2)
+      | 1, 4, _, _ -> (
+          match ca_name (funct6, funct2) with
+          | Some n -> Ok (instruction (op_exn n) [ reg rd_rs1_c; reg rs2_c ], n, 2)
+          | None -> Error (diag ~pos:__POS__ `Decode_no_match))
       | _ -> Error (diag ~pos:__POS__ `Decode_no_match)
     else if String.length bytes - pos < 4 then Error (diag ~pos:__POS__ `Decode_short)
     else

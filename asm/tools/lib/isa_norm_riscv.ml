@@ -93,6 +93,7 @@ let feature_of_extension = function
   | "rv32_zkn" -> Req_all [ Req_xlen 32; Req_feature "riscv:zkn" ]
   | "rv32_zks" -> Req_all [ Req_xlen 32; Req_feature "riscv:zks" ]
   | "rv32_zknh" -> Req_all [ Req_xlen 32; Req_feature "riscv:zknh" ]
+  | "rv64_c" -> Req_all [ Req_xlen 64; Req_feature "riscv:c" ]
   | ext -> Req_unknown (Printf.sprintf "unmapped riscv-opcodes extension: %s" ext)
 
 let riscv_encoding_of (rec_ : R.t) =
@@ -402,6 +403,7 @@ let requirement_of_mnemonic ~mnemonic (rec_ : R.t) =
 let gpr ?(excluded = []) () = Register { class_ = Riscv_gpr; excluded }
 let fpr () = Register { class_ = Riscv_fpr; excluded = [] }
 let vreg () = Register { class_ = Riscv_vec; excluded = [] }
+let gpr_c () = Register { class_ = Riscv_gpr_c; excluded = [] }
 
 (* imm[hi:lo] <- one raw field's bits verbatim, high-to-low: sw's imm12hi
    (source bits 11:5) then imm12lo (bits 4:0). This is plain concatenation,
@@ -650,6 +652,50 @@ let c_addi_form (rec_ : R.t) =
                   "acc excludes x0 and nzimm excludes 0: both are reserved/HINT encodings per the \
                    RISC-V ISA manual, not stated by the source record - see the '_n0' and 'nz' \
                    field-name conventions the record does carry";
+              };
+            ];
+          diagnostics = [];
+        }
+
+(* c.and/c.or/c.xor/c.sub (CA format, quadrant 1 funct3=100 word ops) and
+   their RV64-only *w siblings c.addw/c.subw: both register operands are
+   restricted to the RVC compressed subset (x8..x15) by their own rd_rs1_p/
+   rs2_p field names, and rd_rs1_p is tied (same register read and
+   written). Each specializes a real instruction of its own (per
+   riscv-opcodes' [kind: instruction-form]), not a pseudo-op alias -
+   confirmed against real riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.and
+   a0,a1` -> 8d6d, `c.addw a0,a1` -> 9d2d, both under 2-operand GAS syntax
+   (the second operand supplies rs2; rd_rs1 is both read and written). *)
+let ca_alu_form ~mnemonic (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err (mnemonic ^ "-not-fixed-bits") msg
+  | Ok encoding ->
+      let acc = { op_name = "acc"; op_kind = gpr_c (); role = In_out; explicit = true } in
+      let rs2 = { op_name = "rs2"; op_kind = gpr_c (); role = In; explicit = true } in
+      Ok
+        {
+          form_id = "riscv:" ^ mnemonic;
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ acc; rs2 ];
+          syntax =
+            { dialect = "gas-att"; mnemonic; operands = [ Syn_operand "acc"; Syn_operand "rs2" ] };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "operand fields rd_rs1_p, rs2_p taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "both fields are 3-bit RVC compressed-register selectors (register number = \
+                   field + 8, i.e. x8..x15 / s0-s1,a0-a5); the record's own field-name suffix \
+                   ('_p') signals this, but the concrete x8..x15 domain is not itself stated";
               };
             ];
           diagnostics = [];
@@ -4776,6 +4822,12 @@ let normalize (rec_ : R.t) =
   | "sw" -> sw_form rec_
   | "beq" -> beq_form rec_
   | "c.addi" -> c_addi_form rec_
+  | "c.and" -> ca_alu_form ~mnemonic:"c.and" rec_
+  | "c.or" -> ca_alu_form ~mnemonic:"c.or" rec_
+  | "c.xor" -> ca_alu_form ~mnemonic:"c.xor" rec_
+  | "c.sub" -> ca_alu_form ~mnemonic:"c.sub" rec_
+  | "c.addw" -> ca_alu_form ~mnemonic:"c.addw" rec_
+  | "c.subw" -> ca_alu_form ~mnemonic:"c.subw" rec_
   | "flw" -> f_load_form ~mnemonic:"flw" rec_
   | "fld" -> f_load_form ~mnemonic:"fld" rec_
   | "fsw" -> f_store_form ~mnemonic:"fsw" rec_

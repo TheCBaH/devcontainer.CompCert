@@ -59,12 +59,18 @@ let rows =
          constraints, and an explicit .option rvc policy so baseline tests never compress \
          opportunistically.";
       evidence =
-        "family-admission credits only c.addi in this group; width derivation is already per \
-         record (CAP-01)";
+        "family-admission credits c.addi plus the CA-format register-register class (c.and/ \
+         c.or/c.xor/c.sub on both profiles, c.addw/c.subw RV64-only) in this group; a \
+         compressed-register-subset operand domain (Riscv_gpr_c, x8..x15) now exists in the \
+         normalizer, closing this row's own reopening_gate for that class, but every other \
+         compressed form (loads/stores, branches, li/lui/mv/add, j/jr/jalr, addi16sp/4spn, \
+         andi/srli/srai, the *w/RV64-only siblings, and every rv_c_d/rv32_c_f/rv_zcb/rv_zcmp/... \
+         sub-extension) remains blocked; width derivation is already per record (CAP-01)";
       task = "GEN-05-RV-C";
       reopening_gate =
-        "a compressed-register-subset operand domain exists in the normalizer and c.* cases \
-         assemble under -march=..._c/_zca with --features/rvc scope recorded";
+        "a compressed-register-subset operand domain exists in the normalizer (done - see \
+         Riscv_gpr_c) and c.* cases assemble under -march=..._c/_zca with --features/rvc scope \
+         recorded (done for the CA-format class; still open for every other compressed form)";
     };
     {
       id = "RES-RV-FP";

@@ -5798,6 +5798,46 @@ let fmv_s_x_entries =
        ~operands:[ ("rd", "fa0"); ("rs1", "a1") ])
     both_riscv
 
+(* c.and/c.or/c.xor/c.sub (CA format, both profiles) and their RV64-only
+   *w siblings c.addw/c.subw: {!c_addi_configuration_for}'s -march=..._c
+   config, bracketed the same [.option rvc]/[.option norvc] way c.addi's
+   own entries are. Concrete forms (each specializes a real instruction of
+   its own), not aliases, so these are not folded into {!alias_entry}'s
+   family - but they reuse its bracketing/configuration conventions. Two
+   register pairs per (mnemonic, target) exercise both ends of the 3-bit
+   compressed-register field (x8 and x15): hand-verified against real
+   riscv64-linux-gnu-as/riscv32-linux-gnu-as - `c.and s0,s1` -> `8c65`,
+   `c.and a4,a5` -> `8f7d`, `c.addw s0,s1` -> `9c25`, `c.addw a4,a5` ->
+   `9f3d` (and likewise for or/xor/sub/subw). *)
+let ca_alu_entry ~mnemonic ~target ~pair_label ~acc ~rs2 =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic pair_label (Target.to_string target);
+    rule_ids = [ pair_label ];
+    operands = [ ("acc", acc); ("rs2", rs2) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let ca_alu_entries ~mnemonic targets =
+  List.concat_map
+    (fun target ->
+      [
+        ca_alu_entry ~mnemonic ~target ~pair_label:"low-register-pair" ~acc:"s0" ~rs2:"s1";
+        ca_alu_entry ~mnemonic ~target ~pair_label:"high-register-pair" ~acc:"a4" ~rs2:"a5";
+      ])
+    targets
+
+let c_and_entries = ca_alu_entries ~mnemonic:"c.and" both_riscv
+let c_or_entries = ca_alu_entries ~mnemonic:"c.or" both_riscv
+let c_xor_entries = ca_alu_entries ~mnemonic:"c.xor" both_riscv
+let c_sub_entries = ca_alu_entries ~mnemonic:"c.sub" both_riscv
+let c_addw_entries = ca_alu_entries ~mnemonic:"c.addw" [ Target.Riscv64 ]
+let c_subw_entries = ca_alu_entries ~mnemonic:"c.subw" [ Target.Riscv64 ]
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -5951,7 +5991,8 @@ let all =
   @ x86_vex256_unop_rr_entries @ x86_vex256_unop_rr_mem_entries @ x86_vex_binop_rrr_entries
   @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries @ x86_vex_unop_rr_mem_entries
   @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries
-  @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries
+  @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries @ c_and_entries @ c_or_entries
+  @ c_xor_entries @ c_sub_entries @ c_addw_entries @ c_subw_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

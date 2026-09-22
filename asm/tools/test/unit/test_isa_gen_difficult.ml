@@ -1129,6 +1129,15 @@ let test_counts () =
     && List.length Isa_gen_difficult.fmv_x_s_entries = 2
     && List.length Isa_gen_difficult.fmv_s_x_entries = 2
     && List.length Isa_gen_difficult.alias_entries = 35);
+  check
+    "CA-format entries: c.and/c.or/c.xor/c.sub two register pairs on both profiles, c.addw/c.subw \
+     RV64 only"
+    (List.length Isa_gen_difficult.c_and_entries = 4
+    && List.length Isa_gen_difficult.c_or_entries = 4
+    && List.length Isa_gen_difficult.c_xor_entries = 4
+    && List.length Isa_gen_difficult.c_sub_entries = 4
+    && List.length Isa_gen_difficult.c_addw_entries = 2
+    && List.length Isa_gen_difficult.c_subw_entries = 2);
   check "alias entries are all marked with the alias-spelling rule and name their target"
     (List.for_all
        (fun (e : Isa_gen_difficult.entry) ->
@@ -1809,7 +1818,13 @@ let test_counts () =
       + List.length Isa_gen_difficult.x86_vex_binop_imm_rr_mem_entries
       + List.length Isa_gen_difficult.x86_vex_unop_imm_rr_entries
       + List.length Isa_gen_difficult.x86_vex_unop_imm_rm_entries
-      + List.length Isa_gen_difficult.x86_vex_shift_imm_rrr_entries);
+      + List.length Isa_gen_difficult.x86_vex_shift_imm_rrr_entries
+      + List.length Isa_gen_difficult.c_and_entries
+      + List.length Isa_gen_difficult.c_or_entries
+      + List.length Isa_gen_difficult.c_xor_entries
+      + List.length Isa_gen_difficult.c_sub_entries
+      + List.length Isa_gen_difficult.c_addw_entries
+      + List.length Isa_gen_difficult.c_subw_entries);
   check "x86_vex_binop_rrr_entries has 218 entries (109 mnemonics, one per target)"
     (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 218);
   check "x86_vex_binop_rr_mem_entries has 218 entries (109 mnemonics, one per target)"

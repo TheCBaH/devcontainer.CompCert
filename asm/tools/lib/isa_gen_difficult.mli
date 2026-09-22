@@ -2873,6 +2873,25 @@ val fmv_s_x_entries : entry list
 val alias_entries : entry list
 (** The alias coverage class: every entry whose rule ids include [alias-spelling]. *)
 
+val c_and_entries : entry list
+(** [c.and s0,s1]/[c.and a4,a5] on both profiles - the CA-format compressed
+    register-register class, not an alias. *)
+
+val c_or_entries : entry list
+(** [c.or s0,s1]/[c.or a4,a5] on both profiles. *)
+
+val c_xor_entries : entry list
+(** [c.xor s0,s1]/[c.xor a4,a5] on both profiles. *)
+
+val c_sub_entries : entry list
+(** [c.sub s0,s1]/[c.sub a4,a5] on both profiles. *)
+
+val c_addw_entries : entry list
+(** [c.addw s0,s1]/[c.addw a4,a5], RV64 only. *)
+
+val c_subw_entries : entry list
+(** [c.subw s0,s1]/[c.subw a4,a5], RV64 only. *)
+
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @
