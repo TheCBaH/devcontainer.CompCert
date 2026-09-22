@@ -1146,6 +1146,17 @@ let test_counts () =
     && List.length Isa_gen_difficult.c_mv_entries = 6
     && List.length Isa_gen_difficult.c_add_entries = 6
     && List.length Isa_gen_difficult.c_ebreak_entries = 2);
+  check
+    "CL/CS/CI/CSS-format entries: c.lw/c.sw three cases on both profiles, c.ld/c.sd RV64 only, \
+     c.lwsp/c.ldsp/c.swsp/c.sdsp mirror the same split"
+    (List.length Isa_gen_difficult.c_lw_entries = 6
+    && List.length Isa_gen_difficult.c_sw_entries = 6
+    && List.length Isa_gen_difficult.c_ld_entries = 3
+    && List.length Isa_gen_difficult.c_sd_entries = 3
+    && List.length Isa_gen_difficult.c_lwsp_entries = 6
+    && List.length Isa_gen_difficult.c_ldsp_entries = 3
+    && List.length Isa_gen_difficult.c_swsp_entries = 6
+    && List.length Isa_gen_difficult.c_sdsp_entries = 3);
   check "alias entries are all marked with the alias-spelling rule and name their target"
     (List.for_all
        (fun (e : Isa_gen_difficult.entry) ->
@@ -1837,7 +1848,15 @@ let test_counts () =
       + List.length Isa_gen_difficult.c_jalr_entries
       + List.length Isa_gen_difficult.c_mv_entries
       + List.length Isa_gen_difficult.c_add_entries
-      + List.length Isa_gen_difficult.c_ebreak_entries);
+      + List.length Isa_gen_difficult.c_ebreak_entries
+      + List.length Isa_gen_difficult.c_lw_entries
+      + List.length Isa_gen_difficult.c_sw_entries
+      + List.length Isa_gen_difficult.c_ld_entries
+      + List.length Isa_gen_difficult.c_sd_entries
+      + List.length Isa_gen_difficult.c_lwsp_entries
+      + List.length Isa_gen_difficult.c_ldsp_entries
+      + List.length Isa_gen_difficult.c_swsp_entries
+      + List.length Isa_gen_difficult.c_sdsp_entries);
   check "x86_vex_binop_rrr_entries has 218 entries (109 mnemonics, one per target)"
     (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 218);
   check "x86_vex_binop_rr_mem_entries has 218 entries (109 mnemonics, one per target)"

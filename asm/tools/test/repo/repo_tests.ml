@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:748;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:803;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:752;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:811;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -986,11 +986,30 @@ let test_isa_family_admission repo =
      form); [c.mv]/[c.add]'s rd does not - real GNU as accepts rd=x0 there as a documented
      HINT, confirmed against real riscv64-linux-gnu-as (`c.jr ra`->`8082`, `c.mv
      zero,a1`->`802e`, `c.add zero,a1`->`902e`, `c.ebreak`->`9002`). All five are present on
-     both RV32 and RV64, moving 5 records per profile from blocked to promoted-support. *)
+     both RV32 and RV64, moving 5 records per profile from blocked to promoted-support.
+
+     [c.lw]/[c.sw]/[c.lwsp]/[c.swsp] (both profiles) and RV64-only [c.ld]/[c.sd]/[c.ldsp]/
+     [c.sdsp] close the row's CL/CS/CI/CSS-format load/store cluster: [c.lw]/[c.sw] reuse
+     Riscv_gpr_c like the CA-format class, [c.lwsp]/[c.swsp]'s base is fixed to x2/sp (a
+     Syn_literal, not an operand - the CI/CSS encodings have no rs1 field at all). [c.lw]'s
+     offset scatters its 5 raw bits as [inst5|hi3|inst6] (a genuine word-offset swap,
+     confirmed against real riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.lw
+     s0,68(s1)`->`40e0`); [c.ld]'s instead concatenate straight (no swap - doubleword
+     alignment leaves nothing to reorder). [c.lwsp]/[c.ldsp]'s rd excludes x0 like
+     [c.jr]/[c.jalr]'s operand (confirmed rejected); [c.swsp]/[c.sdsp]'s rs2 does not
+     (confirmed `c.swsp zero,68(sp)`->`c282` assembles - a store never writes back). RV32's
+     riscv-opcodes export also carries a same-named but genuinely different [c.ld]/[c.sd]/
+     [c.ldsp]/[c.sdsp] under rv32_zclsd (Zclsd's even-register-pair load/store, a $pseudo_op
+     of [c.flw]/[c.fsw]/[c.flwsp]/[c.fswsp] with narrower `_e`-suffixed register fields, not
+     the plain rv64_c fields this cluster models) - Isa_norm_riscv.require_extension pins
+     these four forms to rv64_c specifically so the shadowing rv32_zclsd records are left
+     blocked, not silently misencoded under the wrong register-class model. Moves 4 records
+     per profile from blocked to promoted-support on RV32, 8 on RV64 (the doubleword four are
+     RV64-only). *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:728 ~blocked:341;
+    ~promoted_support:732 ~blocked:337;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:773 ~blocked:351;
+    ~promoted_support:781 ~blocked:343;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1048,9 +1067,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3619)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3631)"
        !roundtrip_count)
-    (!roundtrip_count = 3619)
+    (!roundtrip_count = 3631)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

@@ -1839,6 +1839,14 @@ let promoted_case_part7 ~target ~form_id ~lookup_key =
       ("riscv:c.jr" | "riscv:c.jalr" | "riscv:c.mv" | "riscv:c.add" | "riscv:c.ebreak"),
       ("c.jr" | "c.jalr" | "c.mv" | "c.add" | "c.ebreak") ) ->
       true
+  | ( (Target.Riscv32 | Target.Riscv64),
+      ("riscv:c.lw" | "riscv:c.sw" | "riscv:c.lwsp" | "riscv:c.swsp"),
+      ("c.lw" | "c.sw" | "c.lwsp" | "c.swsp") ) ->
+      true
+  | ( Target.Riscv64,
+      ("riscv:c.ld" | "riscv:c.sd" | "riscv:c.ldsp" | "riscv:c.sdsp"),
+      ("c.ld" | "c.sd" | "c.ldsp" | "c.sdsp") ) ->
+      true
   | _ -> false
 
 (* These are the exact credit-bearing rows of the committed S3 pilot

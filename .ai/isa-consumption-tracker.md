@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 728/1089 (RV32), 773/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases), the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class) and the GEN-05-RV-C follow-up 2 (c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster) each reopened and closed one named ledger gap after S7 closure. |
+| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 732/1089 (RV32), 781/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases), the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class), the GEN-05-RV-C follow-up 2 (c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster) and the GEN-05-RV-C follow-up 3 (c.lw/c.sw/c.lwsp/c.swsp/c.ld/c.sd/c.ldsp/c.sdsp CL/CS/CI/CSS-format loads and stores) each reopened and closed one named ledger gap after S7 closure. |
 | S5 Components | done | MOD-01 through MOD-04 done: RISC-V M and x86 x87 extracted as `Riscv_ext_m` / `X86_x87` descriptor modules over a shared `Target_component` type; the family builds its encode/parse/lowering/codec paths from those tables; codec trees, form IDs, bytes and diagnostics unchanged; `make asm-ci` passes (see the MOD milestone) |
 | S6 Feature selection | done | FEAT-01 through FEAT-05 done: a validated `Target_config` (default = every implemented component; `none`/`+f`/`-f` left to right; enabling closes over `requires`, a contradiction is an error), carried in `target_state`, enforced at simplify, lowering, `encode_in` and strict decode across text, normalized-AST, lowered-AST and byte paths; CLI `--features`/`--dump-features`/`--inspect-disabled`; RISC-V M split into Zmmul/M as a real dependency case; accept/reject table matches GNU as in every configuration (see the FEAT milestone) |
 | S7 Closure | done | CLOSE-01 through CLOSE-03 done: every record in every profile is in exactly one admission state and every blocked family is ledger-owned; the pinned capture-to-oracle workflow reproduces byte-identically and replays offline; the review and the next-source decision are recorded in the CLOSE milestone. Closure of the *process*: most of x86 and about a third of RISC-V remain unadmitted, by name, in the ledger. |
@@ -13948,6 +13948,104 @@ remaining scope is still most of the row - loads/stores (`c.lw`/`c.sw`/
 all-zero-immediate case) - plus every sub-extension in the row's family
 list (`rv_c_d`, `rv32_c_f`, `rv_c_zicfiss`, `rv_c_zihintntl`, `rv_zcb`,
 `rv64_zcb`, `rv_zcmp`, `rv_zcmt`, `rv_zcmop`, `rv32_zclsd`).
+
+#### GEN-05-RV-C follow-up 3: c.lw/c.sw/c.lwsp/c.swsp/c.ld/c.sd/c.ldsp/c.sdsp CL/CS/CI/CSS-format loads and stores
+
+Task / status / owner: GEN-05-RV-C (RES-RV-COMPRESSED ledger row) / partial -
+see "Unknowns" below / Claude.
+
+Closes the third class in `RES-RV-COMPRESSED`: the compressed load/store
+formats - CL-format `c.lw`/`c.ld`, CS-format `c.sw`/`c.sd`, and the two
+SP-relative formats, CI-format `c.lwsp`/`c.ldsp` and CSS-format
+`c.swsp`/`c.sdsp`. `c.lw`/`c.sw`/`c.lwsp`/`c.swsp` live in `rv_c` (both
+profiles); `c.ld`/`c.sd`/`c.ldsp`/`c.sdsp` live in `rv64_c` (RV64-only).
+CL/CS reuse the existing `Riscv_gpr_c` compressed-register-subset class for
+`rd`/`rs1`/`rs2`; CI/CSS are SP-relative, with the base register
+architecturally fixed to `x2`/`sp` (the CI/CSS encoding has no `rs1` field
+at all) - modeled as `Syn_literal "sp"` in the syntax with no corresponding
+`operands` entry, the same pattern `isa_gen_difficult.ml` already documents
+for `Isa_norm_xed`'s fixed `%al` operand.
+
+Two real-hardware nuances confirmed against real GNU as before encoding any
+of this: `c.lwsp`/`c.ldsp`'s `rd` genuinely excludes x0 (rejected "illegal
+operands" - the same reserved-encoding story as `c.jr`/`c.jalr`), but
+`c.swsp`/`c.sdsp`'s `rs2` does *not* exclude x0 (accepted cleanly - a store
+never writes back, so there's no HINT/reserved collision the way there is
+for the loads).
+
+Encoding formulas (`riscv_family_encode.ml`, new `word_c_lw`/`word_c_sw`/
+`word_c_ld`/`word_c_sd`/`word_c_lwsp`/`word_c_ldsp`/`word_c_swsp`/
+`word_c_sdsp`), each hand-derived from `arg_lut.csv`'s bit positions and
+verified byte-for-byte against real GAS/objdump before being transcribed to
+OCaml: `c.lw`/`c.sw` scatter `offset = (inst[5]<<6)|(inst[12:10]<<3)|
+(inst[6]<<2)` (a genuine word-offset bit swap); `c.ld`/`c.sd` are a
+straight concatenation, `offset = (inst[6:5]<<6)|(inst[12:10]<<3)`, no
+swap; `c.lwsp`: `(inst[3:2]<<6)|(inst[12]<<5)|(inst[6:4]<<2)`; `c.ldsp`:
+`(inst[4:2]<<6)|(inst[12]<<5)|(inst[6:5]<<3)`; `c.swsp`:
+`(inst[8:7]<<6)|(inst[12:9]<<2)`; `c.sdsp`: `(inst[9:7]<<6)|
+(inst[12:10]<<3)`. New `Lowered.Cl`/`Cs`/`Clsp`/`Css` constructors, a
+`fits_scaled_unsigned` immediate-range helper, lowering-time dispatch on
+each mnemonic (validating the compressed-register subset, the rd<>x0
+exclusion for the two `*sp` loads, and the fixed sp base for all four
+SP-relative forms), an rv64-only gate for `c.ld`/`c.sd`/`c.ldsp`/`c.sdsp`,
+and 8 new decode-side match arms keyed on `(quadrant, funct3)`.
+
+Evidence: hex encodings hand-verified against real
+`riscv64-linux-gnu-as`/`objdump` for boundary register/offset cases before
+writing any encoder code - `c.lw s0,68(s1)`->`40e0`, `c.ld s0,136(s1)`->
+`64c0`, `c.lwsp ra,68(sp)`->`4096`, `c.ldsp ra,264(sp)`->`60b2`, `c.swsp
+ra,68(sp)`->`c286`, `c.swsp zero,68(sp)`->`c282` (confirming rs2=x0 is
+accepted for stores), `c.sdsp ra,264(sp)`->`e606`. `make
+asm-isa-difficult-regen` generated and passed all 36 new cases against real
+GNU as on both profiles; `make asm-isa-difficult-check` replays them
+offline. One doc-comment bug caught and fixed before regen: the first draft
+of several of these hex values in `isa_gen_difficult.ml`'s comments were
+guessed rather than computed, and wrong; caught by writing a Python
+reference implementation of all 8 formulas and cross-checking against real
+GAS/objdump output for the same instructions, then correcting every wrong
+value.
+
+A second, more serious bug was caught only by `make tools-integration`'s
+residual-ledger check, not by any count-based test: after wiring up
+`c.ld`/`c.sd`/`c.ldsp`/`c.sdsp` by mnemonic string alone, the ledger check
+failed with "row RES-RV-COMPRESSED names rv32_zclsd, which has no blocked
+records". Direct inspection of the checked-in
+`riscv32.jsonl` export showed why: the `rv32_zclsd` extension
+(register-pair compressed load/store) defines its own pseudo-op records
+literally named `c.ld`/`c.sd`/`c.ldsp`/`c.sdsp` - same mnemonics as the
+real RV64 `rv64_c` instructions, but semantically different (paired
+even-registers, narrower `_e`-suffixed field widths) and RV32-only. A
+purely mnemonic-keyed dispatch cannot tell these apart and was silently
+admitting the shadow records too, stealing ledger credit from the
+still-open `rv32_zclsd` family. Fixed with a new `require_extension`
+helper in `isa_norm_riscv.ml`, wrapped around exactly the three affected
+form functions (`c_ld_sd_form`, `c_ldsp_form`, `c_sdsp_form`) so a record
+whose `provenance.extension` isn't literally `"rv64_c"` is left blocked
+rather than admitted. Reran `make tools-integration` after the fix: `ok
+isa-residual-ledger: ledger is clean`, and `rv32_zclsd` remains correctly
+untouched/open.
+
+Counts: promoted-support 728->732 (RV32), 773->781 (RV64); blocked
+341->337 (RV32), 351->343 (RV64); normalized 748->752 (RV32), 803->811
+(RV64); jsonl round-trip 3619->3631. `RES-RV-COMPRESSED`'s family list is
+unchanged; `rv32_zclsd` is confirmed still genuinely open (not swept up by
+this slice).
+
+Tool versions and exact commands: `make tools-build`, `make tools-test`,
+`repo_tests.exe` direct run, `make tools-integration`, `make
+tools-boundary`, `make asm-isa-difficult-regen`, `make
+asm-isa-difficult-check`, `make asm-fmt`/`asm-fmt-check`, `make asm-ci`.
+
+Unknowns, exceptions and follow-up task IDs: `RES-RV-COMPRESSED`'s
+remaining scope is branches (`c.beqz`/`c.bnez`), `c.li`/`c.lui`,
+`c.addi16sp`/`c.addi4spn`, `c.andi`/`c.srli`/`c.srai`/`c.slli`, `c.addiw`,
+`c.nop` (distinct from bare `c.addi`'s all-zero-immediate case) - plus
+every sub-extension in the row's family list (`rv_c_d`, `rv32_c_f`,
+`rv_c_zicfiss`, `rv_c_zihintntl`, `rv_zcb`, `rv64_zcb`, `rv_zcmp`,
+`rv_zcmt`, `rv_zcmop`, `rv32_zclsd` - this last one now confirmed to still
+name real, un-admitted blocked records of its own, distinct from the
+`c.ld`/`c.sd`/`c.ldsp`/`c.sdsp` shadow-record names it happens to share
+with `rv64_c`).
 
 #### S4 slice log
 

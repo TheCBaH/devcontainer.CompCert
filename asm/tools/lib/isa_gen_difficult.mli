@@ -2910,6 +2910,43 @@ val c_add_entries : entry list
 val c_ebreak_entries : entry list
 (** [c.ebreak] on both profiles - the whole encoding is fixed, no operand. *)
 
+val c_lw_entries : entry list
+(** [c.lw s0,68(s1)]/[c.lw a4,68(a5)]/[c.lw s0,124(s1)] on both profiles -
+    the CL-format compressed load: value/base restricted to the RVC
+    compressed subset (x8..x15), a word-scaled offset with the two swapped
+    low bits both set, plus a max-offset boundary case. *)
+
+val c_sw_entries : entry list
+(** [c.sw s0,68(s1)]/[c.sw a4,68(a5)]/[c.sw s0,124(s1)] on both profiles -
+    the CS-format store-side sibling of {!c_lw_entries}. *)
+
+val c_ld_entries : entry list
+(** [c.ld s0,136(s1)]/[c.ld a4,136(a5)]/[c.ld s0,248(s1)], RV64 only - the
+    doubleword-scaled sibling of {!c_lw_entries} (straight concatenation,
+    no swap). *)
+
+val c_sd_entries : entry list
+(** [c.sd s0,136(s1)]/[c.sd a4,136(a5)]/[c.sd s0,248(s1)], RV64 only. *)
+
+val c_lwsp_entries : entry list
+(** [c.lwsp ra,68(sp)]/[c.lwsp t6,68(sp)]/[c.lwsp ra,252(sp)] on both
+    profiles - the CI-format SP-relative load: rd ranges over the full
+    0..31 GPR space (x0 excluded, reserved, like c.jr/c.jalr's rs1), base
+    fixed to x2/sp. *)
+
+val c_ldsp_entries : entry list
+(** [c.ldsp ra,264(sp)]/[c.ldsp t6,264(sp)]/[c.ldsp ra,504(sp)], RV64 only. *)
+
+val c_swsp_entries : entry list
+(** [c.swsp ra,68(sp)]/[c.swsp zero,68(sp)]/[c.swsp t6,252(sp)] on both
+    profiles - the CSS-format SP-relative store: rs2 does NOT exclude x0
+    (a store never writes back), so the middle case exercises that
+    documented zero-register HINT. *)
+
+val c_sdsp_entries : entry list
+(** [c.sdsp ra,264(sp)]/[c.sdsp zero,264(sp)]/[c.sdsp t6,504(sp)], RV64
+    only. *)
+
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @

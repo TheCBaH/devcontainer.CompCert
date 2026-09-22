@@ -5928,6 +5928,132 @@ let c_ebreak_entry ~target =
 
 let c_ebreak_entries = List.map (fun target -> c_ebreak_entry ~target) both_riscv
 
+(* c.lw/c.sw (CL/CS format, both profiles) and their RV64-only doubleword
+   siblings c.ld/c.sd: value/base reuse the CA-format cluster's compressed-
+   register boundary pairs (s0/s1 low, a4/a5 high); the offset in the
+   register-boundary cases (68 for word, 136 for doubleword) sets both
+   halves of the swapped low field simultaneously, so a byte match actually
+   exercises the reorder rather than a case where the swap is a no-op. A
+   third case per mnemonic pins the offset at its architectural max (124
+   word, 248 doubleword) to also exercise the immediate boundary. Hand-
+   verified against real riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.lw
+   s0,68(s1)` -> `40e0`, `c.ld s0,136(s1)` -> `64c0` (RV64). *)
+let c_lw_ld_entry ~mnemonic ~target ~case_label ~value ~base ~offset =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic case_label (Target.to_string target);
+    rule_ids = [ case_label ];
+    operands = [ ("value", value); ("base", base); ("offset", offset) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_lw_ld_entries ~mnemonic ~max_offset ~swap_offset targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_lw_ld_entry ~mnemonic ~target ~case_label:"low-register-pair" ~value:"s0" ~base:"s1"
+          ~offset:swap_offset;
+        c_lw_ld_entry ~mnemonic ~target ~case_label:"high-register-pair" ~value:"a4" ~base:"a5"
+          ~offset:swap_offset;
+        c_lw_ld_entry ~mnemonic ~target ~case_label:"boundary-max-offset" ~value:"s0" ~base:"s1"
+          ~offset:max_offset;
+      ])
+    targets
+
+let c_lw_entries = c_lw_ld_entries ~mnemonic:"c.lw" ~max_offset:"124" ~swap_offset:"68" both_riscv
+let c_sw_entries = c_lw_ld_entries ~mnemonic:"c.sw" ~max_offset:"124" ~swap_offset:"68" both_riscv
+
+let c_ld_entries =
+  c_lw_ld_entries ~mnemonic:"c.ld" ~max_offset:"248" ~swap_offset:"136" [ Target.Riscv64 ]
+
+let c_sd_entries =
+  c_lw_ld_entries ~mnemonic:"c.sd" ~max_offset:"248" ~swap_offset:"136" [ Target.Riscv64 ]
+
+(* c.lwsp/c.ldsp (CI format, quadrant 2): rd ranges over the full 0..31 GPR
+   space like c.jr/c.jalr, so the same boundary registers (ra, t6) cover
+   it; excludes x0 the same way c.jr/c.jalr's rs1 does (see
+   {!Isa_norm_riscv.c_lwsp_form}), so unlike c.swsp/c.sdsp below there is
+   no zero-register HINT case here. The register-boundary cases' offset (68
+   word, 264 doubleword) sets multiple scattered offset bits at once; a
+   third case per mnemonic pins the offset at its architectural max (252
+   word, 504 doubleword). Hand-verified against real
+   riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.lwsp ra,68(sp)` -> `4096`,
+   `c.ldsp ra,264(sp)` -> `60b2` (RV64). *)
+let c_lwsp_ldsp_entry ~mnemonic ~target ~case_label ~rd ~offset =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic case_label (Target.to_string target);
+    rule_ids = [ case_label ];
+    operands = [ ("rd", rd); ("offset", offset) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_lwsp_ldsp_entries ~mnemonic ~max_offset ~swap_offset targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_lwsp_ldsp_entry ~mnemonic ~target ~case_label:"boundary-low-register" ~rd:"ra"
+          ~offset:swap_offset;
+        c_lwsp_ldsp_entry ~mnemonic ~target ~case_label:"boundary-high-register" ~rd:"t6"
+          ~offset:swap_offset;
+        c_lwsp_ldsp_entry ~mnemonic ~target ~case_label:"boundary-max-offset" ~rd:"ra"
+          ~offset:max_offset;
+      ])
+    targets
+
+let c_lwsp_entries =
+  c_lwsp_ldsp_entries ~mnemonic:"c.lwsp" ~max_offset:"252" ~swap_offset:"68" both_riscv
+
+let c_ldsp_entries =
+  c_lwsp_ldsp_entries ~mnemonic:"c.ldsp" ~max_offset:"504" ~swap_offset:"264" [ Target.Riscv64 ]
+
+(* c.swsp/c.sdsp (CSS format, quadrant 2): rs2 does NOT exclude x0 (a store
+   never writes back - see {!Isa_norm_riscv.c_swsp_form}), so unlike
+   c.lwsp/c.ldsp above, one case exercises that documented zero-register
+   HINT directly instead of a second register boundary. A third case pins
+   the offset at its architectural max. Hand-verified against real
+   riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.swsp ra,68(sp)` -> `c286`,
+   `c.swsp zero,68(sp)` -> `c282`, `c.sdsp ra,264(sp)` -> `e606` (RV64). *)
+let c_swsp_sdsp_entry ~mnemonic ~target ~case_label ~rs2 ~offset =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic case_label (Target.to_string target);
+    rule_ids = [ case_label ];
+    operands = [ ("rs2", rs2); ("offset", offset) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_swsp_sdsp_entries ~mnemonic ~max_offset ~swap_offset targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_swsp_sdsp_entry ~mnemonic ~target ~case_label:"boundary-low-register" ~rs2:"ra"
+          ~offset:swap_offset;
+        c_swsp_sdsp_entry ~mnemonic ~target ~case_label:"rs2-zero-hint" ~rs2:"zero"
+          ~offset:swap_offset;
+        c_swsp_sdsp_entry ~mnemonic ~target ~case_label:"boundary-high-offset" ~rs2:"t6"
+          ~offset:max_offset;
+      ])
+    targets
+
+let c_swsp_entries =
+  c_swsp_sdsp_entries ~mnemonic:"c.swsp" ~max_offset:"252" ~swap_offset:"68" both_riscv
+
+let c_sdsp_entries =
+  c_swsp_sdsp_entries ~mnemonic:"c.sdsp" ~max_offset:"504" ~swap_offset:"264" [ Target.Riscv64 ]
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -6083,7 +6209,8 @@ let all =
   @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries
   @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries @ c_and_entries @ c_or_entries
   @ c_xor_entries @ c_sub_entries @ c_addw_entries @ c_subw_entries @ c_jr_entries @ c_jalr_entries
-  @ c_mv_entries @ c_add_entries @ c_ebreak_entries
+  @ c_mv_entries @ c_add_entries @ c_ebreak_entries @ c_lw_entries @ c_sw_entries @ c_ld_entries
+  @ c_sd_entries @ c_lwsp_entries @ c_ldsp_entries @ c_swsp_entries @ c_sdsp_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc
