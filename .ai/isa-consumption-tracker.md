@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 723/1089 (RV32), 768/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases) and the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class) each reopened and closed one named ledger gap after S7 closure. |
+| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 728/1089 (RV32), 773/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases), the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class) and the GEN-05-RV-C follow-up 2 (c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster) each reopened and closed one named ledger gap after S7 closure. |
 | S5 Components | done | MOD-01 through MOD-04 done: RISC-V M and x86 x87 extracted as `Riscv_ext_m` / `X86_x87` descriptor modules over a shared `Target_component` type; the family builds its encode/parse/lowering/codec paths from those tables; codec trees, form IDs, bytes and diagnostics unchanged; `make asm-ci` passes (see the MOD milestone) |
 | S6 Feature selection | done | FEAT-01 through FEAT-05 done: a validated `Target_config` (default = every implemented component; `none`/`+f`/`-f` left to right; enabling closes over `requires`, a contradiction is an error), carried in `target_state`, enforced at simplify, lowering, `encode_in` and strict decode across text, normalized-AST, lowered-AST and byte paths; CLI `--features`/`--dump-features`/`--inspect-disabled`; RISC-V M split into Zmmul/M as a real dependency case; accept/reject table matches GNU as in every configuration (see the FEAT milestone) |
 | S7 Closure | done | CLOSE-01 through CLOSE-03 done: every record in every profile is in exactly one admission state and every blocked family is ledger-owned; the pinned capture-to-oracle workflow reproduces byte-identically and replays offline; the review and the next-source decision are recorded in the CLOSE milestone. Closure of the *process*: most of x86 and about a third of RISC-V remain unadmitted, by name, in the ledger. |
@@ -13872,6 +13872,83 @@ sub-extension in the row's family list (`rv_c_d`, `rv32_c_f`,
 `rv_zcmt`, `rv_zcmop`, `rv32_zclsd`) - this closes only the CA-format
 register-register class.
 
+#### GEN-05-RV-C follow-up 2: c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster
+
+Task / status / owner: GEN-05-RV-C (RES-RV-COMPRESSED ledger row) / partial -
+see "Unknowns" below / Claude.
+
+Closes the second class in `RES-RV-COMPRESSED`: the CR-format
+register-register cluster - `c.jr`/`c.jalr`/`c.mv`/`c.add`/`c.ebreak`, all on
+both profiles. Unlike the CA-format class above, these range over the full
+0..31 GPR space with no compressed-register-subset restriction, so they
+reuse the plain `gpr ()`/`gpr ~excluded:["x0"] ()` operand domains directly
+rather than the `Riscv_gpr_c` class - no new register class needed.
+
+Normalizer forms (`isa_norm_riscv.ml`, next to `ca_alu_form`):
+`c_jr_jalr_form` (one operand, `rs1` excludes x0 - GNU as genuinely rejects
+`c.jr x0`/`c.jalr x0`, since rd_rs1=0 collides with the canonical all-zero
+illegal instruction for `c.jr` and with `c.ebreak`'s own encoding for
+`c.jalr`), `c_mv_form` (`rd` pure `Out`, does not exclude x0) and `c_add_form`
+(`acc` tied `In_out`, does not exclude x0) - both `rs2` excludes x0 (collides
+with `c.jr`'s/`c.jalr`'s own encoding), and `c_ebreak_form` (zero operands,
+fully fixed encoding). All four `concreteness = Concrete`, same as the
+CA-format class. A real, GAS-confirmed nuance: `c.mv`/`c.add`'s destination
+register's `_n0` naming in riscv-opcodes is *not* hardware-enforced - rd=x0
+is a documented HINT, not reserved, confirmed against real GNU as (`c.mv
+x0, a1` / `c.add zero, a1` both assemble cleanly), unlike `c.jr`/`c.jalr`'s
+operand, which genuinely is reserved.
+
+Encoder support in `riscv_family_encode.ml`: five new `Opcode.t` variants; a
+`Lowered.Cr` constructor (the full-width CR-format sibling of `Lowered.Cr2`
+- no -8 bias, `rd_rs1`/`rs2` are real 0..31 register numbers, `c.jr`/`c.jalr`
+set `rs2 = 0`, `c.ebreak` sets both fields to 0 with `funct4 = 9`);
+`word_cr` bit-packing (`word = funct4<<12 | rd_rs1<<7 | rs2<<2 | 0b10`);
+lowering-time dispatch for all five mnemonics (rejecting rs1=x0 for
+`c.jr`/`c.jalr`, rs2=x0 for `c.mv`/`c.add`, both mirroring GNU as); and a
+decode-side quadrant-2/funct3=4 branch discriminating all five shapes by
+`(bit12, rs2==0, rd==0)`.
+
+Evidence: encoding formula hand-verified against real
+`riscv64-linux-gnu-as`/`riscv32-linux-gnu-as` for boundary register pairs
+(`ra`/`t6`, the low/high ends of the full GPR space) before writing any
+encoder code: `c.jr ra`->`8082`, `c.jr t6`->`8f82`, `c.jalr ra`->`9082`,
+`c.jalr t6`->`9f82`, `c.mv ra,t6`->`80fe`, `c.mv t6,ra`->`8f86`, `c.mv
+zero,t6`->`807e`, `c.add ra,t6`->`90fe`, `c.add t6,ra`->`9f86`, `c.add
+zero,t6`->`907e`, `c.ebreak`->`9002` - identical on both profiles. Reserved
+operands confirmed rejected: `c.jr x0`, `c.jalr x0`, `c.mv a0,x0`, `c.add
+a0,x0` (rs2=x0 collides with `c.jr`/`c.jalr`'s own encoding) all "illegal
+operands" under real GAS. `make asm-isa-difficult-regen` generated and
+passed all 22 new cases (two boundary-register cases for `c.jr`/`c.jalr`,
+two boundary pairs plus the rd=x0 HINT case for `c.mv`/`c.add`, one bare
+case for `c.ebreak`, times two profiles) against real GNU as; `make
+asm-isa-difficult-check` replays them offline. One bug caught and fixed
+during this slice: the first difficult-case generator draft hardcoded the
+destination operand's key as `"rd"` for both `c.mv` and `c.add`, but
+`c_add_form`'s accumulator operand is named `"acc"` (tied In_out, unlike
+`c.mv`'s pure-output `rd`) - `c.add`'s six cases all SKIPped
+("no operand assignment for acc") on the first regen run; fixed by
+parameterizing the shared entry builder with a `~dest_key`.
+
+Counts: promoted-support 723->728 (RV32), 768->773 (RV64); blocked
+346->341 (RV32), 356->351 (RV64); normalized 743->748 (RV32), 798->803
+(RV64); jsonl round-trip 3609->3619. `RES-RV-COMPRESSED`'s family list
+is unchanged; only its `capability`/`evidence`/`reopening_gate` text was
+narrowed further in `isa_residual_ledger.ml`.
+
+Tool versions and exact commands: `make tools-build`, `make tools-test`,
+`repo_tests.exe` direct run, `make tools-integration`, `make
+tools-boundary`, `make asm-isa-difficult-regen`, `make
+asm-isa-difficult-check`, `make asm-fmt`/`asm-fmt-check`, `make asm-ci`.
+
+Unknowns, exceptions and follow-up task IDs: `RES-RV-COMPRESSED`'s
+remaining scope is still most of the row - loads/stores (`c.lw`/`c.sw`/
+`c.lwsp`/`c.swsp`/`c.ld`/`c.sd`/`c.ldsp`/`c.sdsp`), branches (`c.beqz`/
+`c.bnez`), `c.li`/`c.lui`, `c.addi16sp`/`c.addi4spn`, `c.andi`/`c.srli`/
+`c.srai`/`c.slli`, `c.addiw`, `c.nop` (distinct from bare `c.addi`'s
+all-zero-immediate case) - plus every sub-extension in the row's family
+list (`rv_c_d`, `rv32_c_f`, `rv_c_zicfiss`, `rv_c_zihintntl`, `rv_zcb`,
+`rv64_zcb`, `rv_zcmp`, `rv_zcmt`, `rv_zcmop`, `rv32_zclsd`).
+
 #### S4 slice log
 
 The stage table's S4 row grew to hold the slice-by-slice admission history
@@ -14162,16 +14239,19 @@ assembler encodes (the base integer ISA is encoded but mostly not credited -
 `RES-RV-BASE-INT`).
 
 This table is this closure run's own snapshot (2026-09-21), left as recorded
-rather than edited in place. Three follow-ups above it moved records from
+rather than edited in place. Four follow-ups above it moved records from
 blocked to promoted after this date: GEN-05-RV-BASE moved 5 records per
 profile out of `RES-RV-BASE-INT` (48/51 -> 43/46 for that row; 706/749 ->
 711/754 overall), GEN-05-RV-FP moved 8 records per profile out of
 `RES-RV-FP` (711/754 -> 719/762 overall; `RES-RV-FP` itself no longer names
-`rv_d`, now fully promoted), and GEN-05-RV-C moved 4 records (RV32) / 6
+`rv_d`, now fully promoted), GEN-05-RV-C moved 4 records (RV32) / 6
 records (RV64) out of `RES-RV-COMPRESSED` (74/71 -> 70/65 for that row;
-719/762 -> 723/768 overall; `RES-RV-COMPRESSED` still names every family
-in its original list - only its capability/evidence text narrowed); see
-those entries and the current Stage status row for the live counts.
+719/762 -> 723/768 overall), and GEN-05-RV-C follow-up 2 moved 5 records
+per profile further out of `RES-RV-COMPRESSED` (70/65 -> 65/60 for that
+row; 723/768 -> 728/773 overall; `RES-RV-COMPRESSED` still names every
+family in its original list - only its capability/evidence text
+narrowed); see those entries and the current Stage status row for the
+live counts.
 
 **CLOSE-02 - the pinned workflow, run again (2026-09-21).**
 

@@ -305,6 +305,11 @@ module Make (P : PROFILE) = struct
       | C_sub
       | C_addw
       | C_subw
+      | C_jr
+      | C_jalr
+      | C_mv
+      | C_add
+      | C_ebreak
       | Slti
       | Sltiu
       | Xori
@@ -994,6 +999,11 @@ module Make (P : PROFILE) = struct
       | C_sub -> "c.sub"
       | C_addw -> "c.addw"
       | C_subw -> "c.subw"
+      | C_jr -> "c.jr"
+      | C_jalr -> "c.jalr"
+      | C_mv -> "c.mv"
+      | C_add -> "c.add"
+      | C_ebreak -> "c.ebreak"
       | Slti -> "slti"
       | Sltiu -> "sltiu"
       | Xori -> "xori"
@@ -1684,6 +1694,11 @@ module Make (P : PROFILE) = struct
         C_sub;
         C_addw;
         C_subw;
+        C_jr;
+        C_jalr;
+        C_mv;
+        C_add;
+        C_ebreak;
         Slti;
         Sltiu;
         Xori;
@@ -2418,6 +2433,11 @@ module Make (P : PROFILE) = struct
           (** the CA-format compressed register-register ops ([c.and]/[c.or]/[c.xor]/[c.sub]/
               [c.addw]/[c.subw]): [rd_rs1]/[rs2] are real register numbers (8..15), not the
               3-bit compressed field - {!word_cr2} subtracts 8 when packing. *)
+      | Cr of { name : string; funct4 : int; rd_rs1 : int; rs2 : int }
+          (** the CR-format compressed register-register cluster ([c.jr]/[c.jalr]/[c.mv]/
+              [c.add]/[c.ebreak]): unlike {!Cr2}, [rd_rs1]/[rs2] range over the full 0..31 GPR
+              space (no compressed-subset restriction, no -8 bias) - [c.jr]/[c.jalr] set
+              [rs2 = 0], [c.ebreak] sets both fields to 0 with [funct4 = 9]. *)
 
     let pp_expr ppf e = Asm_core.Expr.pp ppf e
     let reg_name isf n = Printf.sprintf "%s%d" (if isf then "f" else "x") n
@@ -2497,6 +2517,9 @@ module Make (P : PROFILE) = struct
       | Fixed x -> Fmt.string ppf x.name
       | Caddi x -> Fmt.pf ppf "c.addi x%d, %a" x.rd pp_expr x.imm
       | Cr2 x -> Fmt.pf ppf "%s x%d, x%d" x.name x.rd_rs1 x.rs2
+      | Cr x when x.name = "c.ebreak" -> Fmt.string ppf x.name
+      | Cr x when x.name = "c.jr" || x.name = "c.jalr" -> Fmt.pf ppf "%s x%d" x.name x.rd_rs1
+      | Cr x -> Fmt.pf ppf "%s x%d, x%d" x.name x.rd_rs1 x.rs2
 
     let equal (a : t) b = a = b
   end
@@ -4536,7 +4559,10 @@ module Make (P : PROFILE) = struct
         _ )
       when xlen <> 32 ->
         Error (diag ~pos:__POS__ (`Rv32_only opn))
-    | (Opcode.C_addi | C_and | C_or | C_xor | C_sub | C_addw | C_subw), _ when not state.rvc ->
+    | ( ( Opcode.C_addi | C_and | C_or | C_xor | C_sub | C_addw | C_subw | C_jr | C_jalr | C_mv
+        | C_add | C_ebreak ),
+        _ )
+      when not state.rvc ->
         Error (diag ~pos:__POS__ (`Compressed_disabled opn))
     | Opcode.C_addi, [ a; imm ] -> (
         match (xreg a, expr_of imm) with
@@ -4548,6 +4574,19 @@ module Make (P : PROFILE) = struct
           when rd_rs1 >= 8 && rd_rs1 <= 15 && rs2 >= 8 && rs2 <= 15 ->
             Ok [ Lowered.Cr2 { name = opn; funct6; funct2; rd_rs1; rs2 } ]
         | _ -> wrong opn)
+    | (Opcode.C_jr | C_jalr), [ a ] -> (
+        match xreg a with
+        | Some rd_rs1 when rd_rs1 <> 0 ->
+            let funct4 = if i.Instruction.op = Opcode.C_jr then 8 else 9 in
+            Ok [ Lowered.Cr { name = opn; funct4; rd_rs1; rs2 = 0 } ]
+        | _ -> wrong opn)
+    | (Opcode.C_mv | C_add), [ a; b ] -> (
+        match (xreg a, xreg b) with
+        | Some rd_rs1, Some rs2 when rs2 <> 0 ->
+            let funct4 = if i.Instruction.op = Opcode.C_mv then 8 else 9 in
+            Ok [ Lowered.Cr { name = opn; funct4; rd_rs1; rs2 } ]
+        | _ -> wrong opn)
+    | Opcode.C_ebreak, [] -> Ok [ Lowered.Cr { name = opn; funct4 = 9; rd_rs1 = 0; rs2 = 0 } ]
     | ( ( Opcode.Fcvt_l_d | Fmv_x_d | Fcvt_s_l | Fcvt_lu_d | Fcvt_d_l | Fcvt_d_lu | Fcvt_l_s
         | Fcvt_lu_s | Fcvt_s_lu ),
         _ )
@@ -6600,6 +6639,17 @@ module Make (P : PROFILE) = struct
             (field 5 2 (Int64.of_int funct2))
             (Int64.logor (field 7 3 (Int64.of_int (rd_rs1 - 8))) (field 10 6 (Int64.of_int funct6)))))
 
+  (* CR-format: quadrant(10) | rs2[6:2] | rd_rs1[11:7] | funct4[15:12] -
+     the full-width sibling of {!word_cr2} ([c.jr]/[c.jalr]/[c.mv]/
+     [c.add]/[c.ebreak]): no -8 bias, [rd_rs1]/[rs2] are real 0..31 GPR
+     numbers. Confirmed against real riscv64-linux-gnu-as: `c.jr ra` ->
+     0x8082, `c.mv ra,t6` -> 0x80fe, `c.ebreak` -> 0x9002. *)
+  let word_cr ~funct4 ~rd_rs1 ~rs2 =
+    Int64.logor 0x2L
+      (Int64.logor
+         (field 2 5 (Int64.of_int rs2))
+         (Int64.logor (field 7 5 (Int64.of_int rd_rs1)) (field 12 4 (Int64.of_int funct4))))
+
   let bytes_of_word w =
     String.init 4 (fun i ->
         Char.chr (Int64.to_int (Int64.logand (Int64.shift_right_logical w (8 * i)) 0xffL)))
@@ -6669,6 +6719,10 @@ module Make (P : PROFILE) = struct
                 (bytes_of_half
                    (word_cr2 ~funct6:x.funct6 ~funct2:x.funct2 ~rd_rs1:x.rd_rs1 ~rs2:x.rs2))
                 x.name []))
+    | Lowered.Cr x ->
+        Ok
+          (`Fixed
+             (form (bytes_of_half (word_cr ~funct4:x.funct4 ~rd_rs1:x.rd_rs1 ~rs2:x.rs2)) x.name []))
     | Lowered.R x ->
         fixed
           (word_r ~opcode:x.opcode ~funct3:x.funct3 ~funct7:x.funct7 ~rd:x.rd ~rs1:x.rs1 ~rs2:x.rs2)
@@ -7033,6 +7087,8 @@ module Make (P : PROFILE) = struct
       let funct2 = Int64.to_int (bits half 5 2) in
       let rd_rs1_c = Int64.to_int (bits half 7 3) + 8 in
       let rs2_c = Int64.to_int (bits half 2 3) + 8 in
+      let b12 = Int64.to_int (bits half 12 1) in
+      let rs2_full = Int64.to_int (bits half 2 5) in
       match (quadrant, funct3, rd, imm_value) with
       | 1, 0, rd, imm_value when rd <> 0 && imm_value <> 0L ->
           Ok (instruction Opcode.C_addi [ reg rd; imm imm_value ], "c.addi", 2)
@@ -7040,6 +7096,14 @@ module Make (P : PROFILE) = struct
           match ca_name (funct6, funct2) with
           | Some n -> Ok (instruction (op_exn n) [ reg rd_rs1_c; reg rs2_c ], n, 2)
           | None -> Error (diag ~pos:__POS__ `Decode_no_match))
+      | 2, 4, rd, _ -> (
+          match (b12, rs2_full, rd) with
+          | 0, 0, 0 -> Error (diag ~pos:__POS__ `Decode_no_match)
+          | 0, 0, rd -> Ok (instruction Opcode.C_jr [ reg rd ], "c.jr", 2)
+          | 0, rs2, rd -> Ok (instruction Opcode.C_mv [ reg rd; reg rs2 ], "c.mv", 2)
+          | 1, 0, 0 -> Ok (instruction Opcode.C_ebreak [], "c.ebreak", 2)
+          | 1, 0, rd -> Ok (instruction Opcode.C_jalr [ reg rd ], "c.jalr", 2)
+          | _, rs2, rd -> Ok (instruction Opcode.C_add [ reg rd; reg rs2 ], "c.add", 2))
       | _ -> Error (diag ~pos:__POS__ `Decode_no_match)
     else if String.length bytes - pos < 4 then Error (diag ~pos:__POS__ `Decode_short)
     else

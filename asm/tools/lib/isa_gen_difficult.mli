@@ -2892,6 +2892,24 @@ val c_addw_entries : entry list
 val c_subw_entries : entry list
 (** [c.subw s0,s1]/[c.subw a4,a5], RV64 only. *)
 
+val c_jr_entries : entry list
+(** [c.jr ra]/[c.jr t6] on both profiles - the CR-format compressed
+    register-jump: full 0..31 GPR space, x0 excluded (reserved). *)
+
+val c_jalr_entries : entry list
+(** [c.jalr ra]/[c.jalr t6] on both profiles. *)
+
+val c_mv_entries : entry list
+(** [c.mv ra,t6]/[c.mv t6,ra]/[c.mv zero,t6] on both profiles - the third
+    case is the documented rd=x0 HINT, not reserved (unlike c.jr/c.jalr's
+    rs1). *)
+
+val c_add_entries : entry list
+(** [c.add ra,t6]/[c.add t6,ra]/[c.add zero,t6] on both profiles. *)
+
+val c_ebreak_entries : entry list
+(** [c.ebreak] on both profiles - the whole encoding is fixed, no operand. *)
+
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @

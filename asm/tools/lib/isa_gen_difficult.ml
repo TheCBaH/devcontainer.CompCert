@@ -5838,6 +5838,96 @@ let c_sub_entries = ca_alu_entries ~mnemonic:"c.sub" both_riscv
 let c_addw_entries = ca_alu_entries ~mnemonic:"c.addw" [ Target.Riscv64 ]
 let c_subw_entries = ca_alu_entries ~mnemonic:"c.subw" [ Target.Riscv64 ]
 
+(* c.jr/c.jalr (CR format, quadrant 2): unlike the CA-format cluster above,
+   the register operand ranges over the full 0..31 GPR space (no
+   compressed-subset restriction), so two boundary cases - ra (x1, low
+   end) and t6 (x31, high end) - exercise the field's full width instead
+   of a register-class boundary. Hand-verified against real
+   riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.jr ra` -> `8082`, `c.jr
+   t6` -> `8f82`, `c.jalr ra` -> `9082`, `c.jalr t6` -> `9f82`. *)
+let c_jr_jalr_entry ~mnemonic ~target ~reg_label ~rs1 =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic reg_label (Target.to_string target);
+    rule_ids = [ reg_label ];
+    operands = [ ("rs1", rs1) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_jr_jalr_entries ~mnemonic targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_jr_jalr_entry ~mnemonic ~target ~reg_label:"boundary-low-register" ~rs1:"ra";
+        c_jr_jalr_entry ~mnemonic ~target ~reg_label:"boundary-high-register" ~rs1:"t6";
+      ])
+    targets
+
+let c_jr_entries = c_jr_jalr_entries ~mnemonic:"c.jr" both_riscv
+let c_jalr_entries = c_jr_jalr_entries ~mnemonic:"c.jalr" both_riscv
+
+(* c.mv/c.add (CR format, quadrant 2): same full-width register space as
+   c.jr/c.jalr above, plus a third case exercising the documented rd=x0
+   HINT (real hardware and real GNU as both accept it - unlike c.jr/c.jalr,
+   whose rs1=x0 is genuinely reserved/ambiguous, see
+   {!Isa_norm_riscv.c_jr_jalr_form}). Hand-verified against real
+   riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.mv ra,t6` -> `80fe`, `c.mv
+   t6,ra` -> `8f86`, `c.mv zero,t6` -> `807e` (and likewise `90fe`/`9f86`/
+   `907e` for c.add). *)
+(* [dest_key] is the normalizer's own operand name for the destination
+   register - "rd" for c.mv's pure-output form ({!Isa_norm_riscv.c_mv_form}),
+   "acc" for c.add's tied In_out accumulator ({!Isa_norm_riscv.c_add_form}) -
+   so this cannot be a single hardcoded key shared by both mnemonics. *)
+let c_mv_add_entry ~mnemonic ~dest_key ~target ~pair_label ~rd ~rs2 =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:%s:%s" mnemonic pair_label (Target.to_string target);
+    rule_ids = [ pair_label ];
+    operands = [ (dest_key, rd); ("rs2", rs2) ];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_mv_add_entries ~mnemonic ~dest_key targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_mv_add_entry ~mnemonic ~dest_key ~target ~pair_label:"boundary-low-to-high" ~rd:"ra"
+          ~rs2:"t6";
+        c_mv_add_entry ~mnemonic ~dest_key ~target ~pair_label:"boundary-high-to-low" ~rd:"t6"
+          ~rs2:"ra";
+        c_mv_add_entry ~mnemonic ~dest_key ~target ~pair_label:"rd-zero-hint" ~rd:"zero" ~rs2:"t6";
+      ])
+    targets
+
+let c_mv_entries = c_mv_add_entries ~mnemonic:"c.mv" ~dest_key:"rd" both_riscv
+let c_add_entries = c_mv_add_entries ~mnemonic:"c.add" ~dest_key:"acc" both_riscv
+
+(* c.ebreak (CR format, quadrant 2): the whole encoding is fixed, so one
+   case per profile is enough - no operand to vary. Hand-verified against
+   real riscv64-linux-gnu-as/riscv32-linux-gnu-as: `c.ebreak` -> `9002`. *)
+let c_ebreak_entry ~target =
+  {
+    form_id = "riscv:c.ebreak";
+    target;
+    lookup_key = "c.ebreak";
+    case_id = Printf.sprintf "riscv:c.ebreak:bare:%s" (Target.to_string target);
+    rule_ids = [ "bare" ];
+    operands = [];
+    lines_before = [ ".option rvc" ];
+    lines_after = [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_ebreak_entries = List.map (fun target -> c_ebreak_entry ~target) both_riscv
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -5992,7 +6082,8 @@ let all =
   @ x86_vex_binop_rr_mem_entries @ x86_vex_unop_rr_entries @ x86_vex_unop_rr_mem_entries
   @ x86_vex_binop_imm_rrr_entries @ x86_vex_binop_imm_rr_mem_entries @ x86_vex_unop_imm_rr_entries
   @ x86_vex_unop_imm_rm_entries @ x86_vex_shift_imm_rrr_entries @ c_and_entries @ c_or_entries
-  @ c_xor_entries @ c_sub_entries @ c_addw_entries @ c_subw_entries
+  @ c_xor_entries @ c_sub_entries @ c_addw_entries @ c_subw_entries @ c_jr_entries @ c_jalr_entries
+  @ c_mv_entries @ c_add_entries @ c_ebreak_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

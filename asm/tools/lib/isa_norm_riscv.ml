@@ -701,6 +701,174 @@ let ca_alu_form ~mnemonic (rec_ : R.t) =
           diagnostics = [];
         }
 
+(* c.jr/c.jalr (CR format, quadrant 2, funct3=100): a single register
+   operand tied to rs1_n0/c_rs1_n0's mandatory-nonzero convention - unlike
+   c.mv/c.add's rd (below), real GNU as genuinely rejects x0 here (`c.jr
+   x0` / `c.jalr x0`: "illegal operands"), since the rd_rs1=0 encoding
+   collides with a different real form (the canonical all-zero illegal
+   instruction for c.jr, c.ebreak's own encoding for c.jalr) rather than
+   naming a defined HINT. *)
+let c_jr_jalr_form ~mnemonic (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err (mnemonic ^ "-not-fixed-bits") msg
+  | Ok encoding ->
+      let rs1 =
+        { op_name = "rs1"; op_kind = gpr ~excluded:[ "x0" ] (); role = In; explicit = true }
+      in
+      Ok
+        {
+          form_id = "riscv:" ^ mnemonic;
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ rs1 ];
+          syntax = { dialect = "gas-att"; mnemonic; operands = [ Syn_operand "rs1" ] };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "operand field rs1_n0/c_rs1_n0 taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "x0 excluded: the rd_rs1=0 encoding is reserved (c.jr) or collides with c.ebreak \
+                   (c.jalr), confirmed against real riscv64-linux-gnu-as - not stated by the \
+                   source record itself";
+              };
+            ];
+          diagnostics = [];
+        }
+
+(* c.mv (CR format, quadrant 2): rd is a pure output, unlike c.add's tied
+   accumulator (below). Unlike c.jr/c.jalr's rs1 above, real GNU as accepts
+   rd=x0 - the unpriv ISA manual documents rd=x0 with rs2!=0 as a defined
+   HINT here, not a reserved encoding: `c.mv x0, a1` assembles cleanly.
+   rs2 is genuinely required nonzero (rs2=0 collides with c.jr's own
+   encoding): `c.mv a0, x0` is rejected. Both confirmed against real
+   riscv64-linux-gnu-as. *)
+let c_mv_form (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err "c.mv-not-fixed-bits" msg
+  | Ok encoding ->
+      let rd = { op_name = "rd"; op_kind = gpr (); role = Out; explicit = true } in
+      let rs2 =
+        { op_name = "rs2"; op_kind = gpr ~excluded:[ "x0" ] (); role = In; explicit = true }
+      in
+      Ok
+        {
+          form_id = "riscv:c.mv";
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ rd; rs2 ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic = "c.mv";
+              operands = [ Syn_operand "rd"; Syn_operand "rs2" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "operand fields rd_n0, c_rs2_n0 taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "rs2 excludes x0 (reserved: collides with c.jr's own encoding); rd's '_n0' \
+                   naming is not enforced by hardware - rd=x0 is a documented HINT, confirmed \
+                   against real riscv64-linux-gnu-as (`c.mv x0, a1` assembles)";
+              };
+            ];
+          diagnostics = [];
+        }
+
+(* c.add (CR format, quadrant 2): the RV64/RV32-shared register-register
+   accumulate sibling of {!c_mv_form} - acc (rd_rs1) is tied (In_out,
+   read as rs1 and written as rd), unlike c.mv's pure-output rd. Same
+   x0 story as c.mv: rs2 genuinely excludes x0 (collides with c.jalr's own
+   encoding), acc's x0 is a documented HINT, not reserved - confirmed
+   against real riscv64-linux-gnu-as (`c.add zero, a1` assembles, `c.add
+   a0, x0` is rejected). *)
+let c_add_form (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err "c.add-not-fixed-bits" msg
+  | Ok encoding ->
+      let acc = { op_name = "acc"; op_kind = gpr (); role = In_out; explicit = true } in
+      let rs2 =
+        { op_name = "rs2"; op_kind = gpr ~excluded:[ "x0" ] (); role = In; explicit = true }
+      in
+      Ok
+        {
+          form_id = "riscv:c.add";
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ acc; rs2 ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic = "c.add";
+              operands = [ Syn_operand "acc"; Syn_operand "rs2" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "operand fields rd_rs1_n0, c_rs2_n0 taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "rs2 excludes x0 (reserved: collides with c.jalr's own encoding); acc's '_n0' \
+                   naming is not enforced by hardware - acc=x0 is a documented HINT, confirmed \
+                   against real riscv64-linux-gnu-as (`c.add zero, a1` assembles)";
+              };
+            ];
+          diagnostics = [];
+        }
+
+(* c.ebreak (CR format, quadrant 2): the whole encoding.fields is fixed
+   (rd_rs1=0, rs2=0, funct4=9) - like c.addi/the CA-format ops above, a
+   real instruction-form specializing ebreak's compressed encoding, not a
+   pseudo-op alias (per riscv-opcodes' own [kind: instruction-form]), so
+   this stays Concrete rather than Alias_of ebreak. *)
+let c_ebreak_form (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err "c.ebreak-not-fixed-bits" msg
+  | Ok encoding ->
+      Ok
+        {
+          form_id = "riscv:c.ebreak";
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [];
+          syntax = { dialect = "gas-att"; mnemonic = "c.ebreak"; operands = [] };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "the record's mask covers every bit: a fixed word with no operand";
+              };
+            ];
+          diagnostics = [];
+        }
+
 (* Generic R-type integer register-register form (the RISC-V
    add/sub/mul pilot): riscv-opcodes' [rd, rs1, rs2] variable_fields shape is
    shared by every base-integer and M-extension register-register op, with a
@@ -4828,6 +4996,11 @@ let normalize (rec_ : R.t) =
   | "c.sub" -> ca_alu_form ~mnemonic:"c.sub" rec_
   | "c.addw" -> ca_alu_form ~mnemonic:"c.addw" rec_
   | "c.subw" -> ca_alu_form ~mnemonic:"c.subw" rec_
+  | "c.jr" -> c_jr_jalr_form ~mnemonic:"c.jr" rec_
+  | "c.jalr" -> c_jr_jalr_form ~mnemonic:"c.jalr" rec_
+  | "c.mv" -> c_mv_form rec_
+  | "c.add" -> c_add_form rec_
+  | "c.ebreak" -> c_ebreak_form rec_
   | "flw" -> f_load_form ~mnemonic:"flw" rec_
   | "fld" -> f_load_form ~mnemonic:"fld" rec_
   | "fsw" -> f_store_form ~mnemonic:"fsw" rec_

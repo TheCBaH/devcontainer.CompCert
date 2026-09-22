@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:743;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:798;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:748;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:803;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -968,11 +968,29 @@ let test_isa_family_admission repo =
      `fmv.s fa0,fa1`->`20b58553`, `fmv.x.s a0,fa1`->`e0058553`, `fmv.s.x fa0,a1`->`f0058553`,
      identical on RV32). All eight are present on both RV32 and RV64, moving 8 records per
      profile from blocked to promoted-support; this closes every blocked record rv_d named,
-     so RES-RV-FP's own family list drops it (see isa_residual_ledger.ml). *)
+     so RES-RV-FP's own family list drops it (see isa_residual_ledger.ml).
+
+     [c.and]/[c.or]/[c.xor]/[c.sub] (both profiles) and RV64-only [c.addw]/[c.subw] open
+     RES-RV-COMPRESSED's reopening_gate for the first time (GEN-05-RV-C): the CA-format
+     compressed register-register class, needing a brand-new Riscv_gpr_c operand domain (the
+     RVC compressed x8..x15 register subset) since previously only [c.addi] was admitted in
+     this row. Verified against real riscv64-linux-gnu-as/riscv32-linux-gnu-as (`c.and
+     a0,a1`->`8d6d`, `c.addw a0,a1`->`9d2d`). Moves 4 records per profile from blocked to
+     promoted-support on RV32, 6 on RV64 (the *w pair is RV64-only).
+
+     [c.jr]/[c.jalr]/[c.mv]/[c.add]/[c.ebreak] (both profiles) close the CR-format
+     register-register cluster of the same row: unlike the CA-format class above, these range
+     over the full 0..31 GPR space with no compressed-subset restriction, reusing the plain
+     [gpr]/[gpr ~excluded:["x0"]] domains directly. [c.jr]/[c.jalr]'s register operand
+     genuinely excludes x0 (the rd_rs1=0 encoding is reserved/collides with a different real
+     form); [c.mv]/[c.add]'s rd does not - real GNU as accepts rd=x0 there as a documented
+     HINT, confirmed against real riscv64-linux-gnu-as (`c.jr ra`->`8082`, `c.mv
+     zero,a1`->`802e`, `c.add zero,a1`->`902e`, `c.ebreak`->`9002`). All five are present on
+     both RV32 and RV64, moving 5 records per profile from blocked to promoted-support. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:723 ~blocked:346;
+    ~promoted_support:728 ~blocked:341;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:768 ~blocked:356;
+    ~promoted_support:773 ~blocked:351;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1030,9 +1048,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3609)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3619)"
        !roundtrip_count)
-    (!roundtrip_count = 3609)
+    (!roundtrip_count = 3619)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's
