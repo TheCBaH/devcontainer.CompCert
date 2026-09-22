@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:752;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:811;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:754;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:813;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -1005,11 +1005,20 @@ let test_isa_family_admission repo =
      these four forms to rv64_c specifically so the shadowing rv32_zclsd records are left
      blocked, not silently misencoded under the wrong register-class model. Moves 4 records
      per profile from blocked to promoted-support on RV32, 8 on RV64 (the doubleword four are
-     RV64-only). *)
+     RV64-only).
+
+     GEN-05-RV-C follow-up 4 then admitted c.beqz/c.bnez (CB-format, quadrant 1, both
+     profiles): the compressed sibling of beq's own B-type branch, rs1 restricted to the RVC
+     compressed subset (x8..x15) and a signed 9-bit PC-relative offset instead of B-type's
+     13-bit one - the project's first compressed (2-byte container) PC-relative fixup
+     (Branch9c/cb_slices), reusing the generic slice-patching machinery B's own Branch13
+     fixup already exercises rather than adding anything container-width-specific. No shadow
+     record under either profile's export (checked directly, the same way the rv32_zclsd
+     scare above was caught). Moves 2 records per profile from blocked to promoted-support. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:732 ~blocked:337;
+    ~promoted_support:734 ~blocked:335;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:781 ~blocked:343;
+    ~promoted_support:783 ~blocked:341;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1067,9 +1076,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3631)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3635)"
        !roundtrip_count)
-    (!roundtrip_count = 3631)
+    (!roundtrip_count = 3635)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

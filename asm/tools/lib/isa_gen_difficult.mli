@@ -2947,6 +2947,14 @@ val c_sdsp_entries : entry list
 (** [c.sdsp ra,264(sp)]/[c.sdsp zero,264(sp)]/[c.sdsp t6,504(sp)], RV64
     only. *)
 
+val c_beqz_entries : entry list
+(** [c.beqz s0,1f]/[c.beqz a5,1b] on both profiles - the CB-format
+    compressed conditional branch, forward and backward label references
+    covering both ends of the compressed register subset. *)
+
+val c_bnez_entries : entry list
+(** [c.bnez]'s sibling of {!c_beqz_entries}. *)
+
 val all : entry list
 (** [sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @
     x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @

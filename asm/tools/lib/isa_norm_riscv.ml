@@ -1460,6 +1460,115 @@ let c_sdsp_form (rec_ : R.t) =
               diagnostics = [];
             })
 
+(* c.beqz/c.bnez (CB-format, quadrant 1, both profiles): the compressed
+   sibling of {!beq_form}'s B-type branch - rs1 is restricted to the RVC
+   compressed subset (x8..x15, like {!c_lw_sw_form}'s [base]), compared
+   implicitly against x0, with a 9-bit signed PC-relative offset instead of
+   B-type's 13-bit one. The scatter is a genuine bit permutation like
+   [beq]'s own B-type immediate, not a plain concatenation: c_bimm9hi (source
+   bits 12:10) holds imm[8] at its own top bit then imm[4:3]; c_bimm9lo
+   (source bits 6:2) holds imm[7:6] then imm[5] then imm[2:1]. Confirmed
+   against real riscv64-linux-gnu-as: `c.beqz s0,.+2` -> word 0xc009,
+   `c.beqz s0,.+122` -> word 0xcc2d. *)
+let c_beqz_bnez_form ~mnemonic (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err (mnemonic ^ "-not-fixed-bits") msg
+  | Ok encoding ->
+      let rs1 = { op_name = "rs1"; op_kind = gpr_c (); role = In; explicit = true } in
+      let offset =
+        {
+          op_name = "offset";
+          op_kind =
+            Immediate
+              {
+                width_bits = 9;
+                signed = true;
+                implicit_low_zero_bits = 1;
+                nonzero = false;
+                runs =
+                  [
+                    {
+                      field_name = "c_bimm9hi";
+                      field_hi = 2;
+                      field_lo = 2;
+                      dest_hi = 8;
+                      dest_lo = 8;
+                    };
+                    {
+                      field_name = "c_bimm9hi";
+                      field_hi = 1;
+                      field_lo = 0;
+                      dest_hi = 4;
+                      dest_lo = 3;
+                    };
+                    {
+                      field_name = "c_bimm9lo";
+                      field_hi = 4;
+                      field_lo = 3;
+                      dest_hi = 7;
+                      dest_lo = 6;
+                    };
+                    {
+                      field_name = "c_bimm9lo";
+                      field_hi = 2;
+                      field_lo = 1;
+                      dest_hi = 2;
+                      dest_lo = 1;
+                    };
+                    {
+                      field_name = "c_bimm9lo";
+                      field_hi = 0;
+                      field_lo = 0;
+                      dest_hi = 5;
+                      dest_lo = 5;
+                    };
+                  ];
+              };
+          role = In;
+          explicit = true;
+        }
+      in
+      Ok
+        {
+          form_id = "riscv:" ^ mnemonic;
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ rs1; offset ];
+          syntax =
+            {
+              dialect = "gas-att";
+              mnemonic;
+              operands = [ Syn_operand "rs1"; Syn_operand "offset" ];
+            };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note =
+                  "operand fields rs1_p, c_bimm9lo, c_bimm9hi taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "rs1 restricted to the RVC compressed subset (x8..x15); offset is a signed 9-bit \
+                   B-type-style immediate, c_bimm9hi:c_bimm9lo permuted per the RISC-V ISA \
+                   manual's CB-format layout with an implicit zero low bit - not stated by the \
+                   source record itself";
+              };
+              {
+                label = Inferred;
+                note =
+                  "GAS resolves offset from a label, applying the PC-relative/alignment policy - \
+                   not modeled here";
+              };
+            ];
+          diagnostics = [];
+        }
+
 (* Generic R-type integer register-register form (the RISC-V
    add/sub/mul pilot): riscv-opcodes' [rd, rs1, rs2] variable_fields shape is
    shared by every base-integer and M-extension register-register op, with a
@@ -5600,6 +5709,8 @@ let normalize (rec_ : R.t) =
   | "c.ldsp" -> c_ldsp_form rec_
   | "c.swsp" -> c_swsp_form rec_
   | "c.sdsp" -> c_sdsp_form rec_
+  | "c.beqz" -> c_beqz_bnez_form ~mnemonic:"c.beqz" rec_
+  | "c.bnez" -> c_beqz_bnez_form ~mnemonic:"c.bnez" rec_
   | "flw" -> f_load_form ~mnemonic:"flw" rec_
   | "fld" -> f_load_form ~mnemonic:"fld" rec_
   | "fsw" -> f_store_form ~mnemonic:"fsw" rec_

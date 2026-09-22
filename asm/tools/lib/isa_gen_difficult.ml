@@ -6054,6 +6054,52 @@ let c_swsp_entries =
 let c_sdsp_entries =
   c_swsp_sdsp_entries ~mnemonic:"c.sdsp" ~max_offset:"504" ~swap_offset:"264" [ Target.Riscv64 ]
 
+(* c.beqz/c.bnez (CB-format, quadrant 1, both profiles): {!beq_entries}'
+   own forward/backward label idiom, bracketed the same [.option rvc]/
+   [.option norvc] way every other compressed entry above is, with rs1
+   restricted to the RVC compressed subset (x8..x15) - the low end (s0) on
+   the forward case, the high end (a5) on the backward one, covering both
+   register-field extremes the way {!c_lw_ld_entry}'s own low/high-register
+   pair cases do. Unlike {!beq_entries}, there is no [nop] padding line
+   between the branch and its label: real GNU as opportunistically
+   compresses a plain [nop] to [c.nop] under [.option rvc] (a form of
+   relaxation this project does not model for a bare [nop] mnemonic), which
+   shifted the real byte layout out from under a fixed 4-byte assumption on
+   the first regen attempt (`make asm-isa-difficult-regen` reported
+   DIFFERENT-FORM/BYTE-MISMATCH on all 8 cases: real GAS emitted 4 bytes -
+   `c.beqz`+`c.nop` - where this project's tool emitted 6 - `c.beqz`+a
+   full-width `nop`). Dropping the padding line entirely (offset 2/-2, the
+   branch's own compressed width) sidesteps the ambiguity outright rather
+   than teaching the tool to relax [nop]. Hand-verified against real
+   riscv64-linux-gnu-as: `c.beqz s0,1f` / `1:` -> word `c009` (offset 2);
+   `1:` / `c.beqz a5,1b` -> word `c381` (offset -2). *)
+let c_beqz_bnez_entry ~mnemonic ~target ~direction ~rs1 ~offset ~lines_before ~lines_after =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:branch-%s:%s" mnemonic direction (Target.to_string target);
+    rule_ids = [ Printf.sprintf "branch-%s-label" direction ];
+    operands = [ ("rs1", rs1); ("offset", offset) ];
+    lines_before = ".option rvc" :: lines_before;
+    lines_after = lines_after @ [ ".option norvc" ];
+    configuration = c_addi_configuration_for target;
+  }
+
+let c_beqz_bnez_entries ~mnemonic targets =
+  List.concat_map
+    (fun target ->
+      [
+        c_beqz_bnez_entry ~mnemonic ~target ~direction:"forward" ~rs1:"s0" ~offset:"1f"
+          ~lines_before:[] ~lines_after:[ "1:" ];
+        c_beqz_bnez_entry ~mnemonic ~target ~direction:"backward" ~rs1:"a5" ~offset:"1b"
+          ~lines_before:[ "1:" ] ~lines_after:[];
+      ])
+    targets
+
+let c_beqz_entries = c_beqz_bnez_entries ~mnemonic:"c.beqz" both_riscv
+let c_bnez_entries = c_beqz_bnez_entries ~mnemonic:"c.bnez" both_riscv
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -6211,6 +6257,7 @@ let all =
   @ c_xor_entries @ c_sub_entries @ c_addw_entries @ c_subw_entries @ c_jr_entries @ c_jalr_entries
   @ c_mv_entries @ c_add_entries @ c_ebreak_entries @ c_lw_entries @ c_sw_entries @ c_ld_entries
   @ c_sd_entries @ c_lwsp_entries @ c_ldsp_entries @ c_swsp_entries @ c_sdsp_entries
+  @ c_beqz_entries @ c_bnez_entries
 
 (* The register/immediate ALU family's shared ModR/M reg-extension mapping
    (Opcode.of_ext's own domain, {!Isa_norm_xed.alu_gprv_immz_form}'s doc

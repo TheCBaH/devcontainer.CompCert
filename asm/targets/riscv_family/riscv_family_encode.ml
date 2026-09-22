@@ -318,6 +318,8 @@ module Make (P : PROFILE) = struct
       | C_sd
       | C_ldsp
       | C_sdsp
+      | C_beqz
+      | C_bnez
       | Slti
       | Sltiu
       | Xori
@@ -1020,6 +1022,8 @@ module Make (P : PROFILE) = struct
       | C_sd -> "c.sd"
       | C_ldsp -> "c.ldsp"
       | C_sdsp -> "c.sdsp"
+      | C_beqz -> "c.beqz"
+      | C_bnez -> "c.bnez"
       | Slti -> "slti"
       | Sltiu -> "sltiu"
       | Xori -> "xori"
@@ -1723,6 +1727,8 @@ module Make (P : PROFILE) = struct
         C_sd;
         C_ldsp;
         C_sdsp;
+        C_beqz;
+        C_bnez;
         Slti;
         Sltiu;
         Xori;
@@ -2479,6 +2485,12 @@ module Make (P : PROFILE) = struct
       | Css of { name : string; funct3 : int; rs2 : int; imm : Asm_core.Expr.t }
           (** CSS-format compressed SP-relative stores ([c.swsp]/[c.sdsp]): the store-side
               sibling of {!Clsp}, same fixed-[x2]-base story. *)
+      | Cb of { name : string; funct3 : int; rs1 : int; target : Asm_core.Expr.t }
+          (** CB-format compressed conditional branches ([c.beqz]/[c.bnez]): [rs1] is a real
+              register number (8..15) for the compressed 3-bit field, like {!Cl}. [target] is a
+              PC-relative branch target resolved via a {!fixup_kind.Branch9c} fixup, the
+              compressed sibling of {!B}'s [Branch13] - a 9-bit signed, 2-byte-aligned offset
+              instead of [beq]/[bne]'s 13-bit one. *)
 
     let pp_expr ppf e = Asm_core.Expr.pp ppf e
     let reg_name isf n = Printf.sprintf "%s%d" (if isf then "f" else "x") n
@@ -2565,6 +2577,7 @@ module Make (P : PROFILE) = struct
       | Cs x -> Fmt.pf ppf "%s x%d, %a(x%d)" x.name x.rs2 pp_expr x.imm x.rs1
       | Clsp x -> Fmt.pf ppf "%s x%d, %a(x2)" x.name x.rd pp_expr x.imm
       | Css x -> Fmt.pf ppf "%s x%d, %a(x2)" x.name x.rs2 pp_expr x.imm
+      | Cb x -> Fmt.pf ppf "%s x%d, %a" x.name x.rs1 pp_expr x.target
 
     let equal (a : t) b = a = b
   end
@@ -2573,6 +2586,7 @@ module Make (P : PROFILE) = struct
     | Abs32
     | Abs64
     | Branch13
+    | Branch9c
     | Jal21
     | Pcrel_hi20
     | Pcrel_lo12_i
@@ -2587,6 +2601,7 @@ module Make (P : PROFILE) = struct
     | Abs32 -> "abs32"
     | Abs64 -> "abs64"
     | Branch13 -> "pcrel-b13"
+    | Branch9c -> "pcrel-b9c"
     | Jal21 -> "pcrel-j21"
     | Pcrel_hi20 -> "pcrel-hi20"
     | Pcrel_lo12_i -> "pcrel-lo12-i"
@@ -2602,13 +2617,13 @@ module Make (P : PROFILE) = struct
   let fixup_family = function
     | Abs32 -> "abs32"
     | Abs64 -> "abs64"
-    | Branch13 | Jal21 -> "pcrel-branch"
+    | Branch13 | Branch9c | Jal21 -> "pcrel-branch"
     | Pcrel_hi20 | Pcrel_lo12_i | Pcrel_lo12_s -> "pcrel-address"
     | Call_hi20 | Call_lo12_i -> "pcrel-call"
     | Abs_hi20 | Abs_lo12_i | Abs_lo12_s -> "absolute-address"
 
   let fixup_role = function
-    | Branch13 | Jal21 -> Asm_core.Lowered_ast.Branch
+    | Branch13 | Branch9c | Jal21 -> Asm_core.Lowered_ast.Branch
     | Call_hi20 | Call_lo12_i -> Asm_core.Lowered_ast.Call
     | _ -> Asm_core.Lowered_ast.Data_address
 
@@ -4614,7 +4629,8 @@ module Make (P : PROFILE) = struct
       when xlen <> 32 ->
         Error (diag ~pos:__POS__ (`Rv32_only opn))
     | ( ( Opcode.C_addi | C_and | C_or | C_xor | C_sub | C_addw | C_subw | C_jr | C_jalr | C_mv
-        | C_add | C_ebreak | C_lw | C_sw | C_lwsp | C_swsp | C_ld | C_sd | C_ldsp | C_sdsp ),
+        | C_add | C_ebreak | C_lw | C_sw | C_lwsp | C_swsp | C_ld | C_sd | C_ldsp | C_sdsp | C_beqz
+        | C_bnez ),
         _ )
       when not state.rvc ->
         Error (diag ~pos:__POS__ (`Compressed_disabled opn))
@@ -4664,6 +4680,12 @@ module Make (P : PROFILE) = struct
         | Some rs2, Some 2 ->
             let funct3 = if i.Instruction.op = Opcode.C_swsp then 6 else 7 in
             Ok [ Lowered.Css { name = opn; funct3; rs2; imm = m.offset } ]
+        | _ -> wrong opn)
+    | (Opcode.C_beqz | C_bnez), [ a; target ] -> (
+        match (xreg a, expr_of target) with
+        | Some rs1, Some target when rs1 >= 8 && rs1 <= 15 ->
+            let funct3 = if i.Instruction.op = Opcode.C_beqz then 6 else 7 in
+            Ok [ Lowered.Cb { name = opn; funct3; rs1; target } ]
         | _ -> wrong opn)
     | ( ( Opcode.Fcvt_l_d | Fmv_x_d | Fcvt_s_l | Fcvt_lu_d | Fcvt_d_l | Fcvt_d_lu | Fcvt_l_s
         | Fcvt_lu_s | Fcvt_s_lu ),
@@ -6728,6 +6750,14 @@ module Make (P : PROFILE) = struct
          (field 2 5 (Int64.of_int rs2))
          (Int64.logor (field 7 5 (Int64.of_int rd_rs1)) (field 12 4 (Int64.of_int funct4))))
 
+  (* CB-format compressed branches: quadrant(01) | rs1'[9:7] | funct3[15:13], where
+     rs1' is [rs1] minus 8 like {!word_cr2}; the offset bits are left zero here and
+     patched in later by the {!fixup_kind.Branch9c} fixup via {!cb_slices}, the same
+     split {!word_b} uses for [beq]/[bne]'s own [Branch13] fixup. *)
+  let word_cb ~funct3 ~rs1 =
+    Int64.logor 0x1L
+      (Int64.logor (field 7 3 (Int64.of_int (rs1 - 8))) (field 13 3 (Int64.of_int funct3)))
+
   (* CL-format compressed loads: quadrant(00) | rd'[4:2] | offset bits | rs1'[9:7] |
      offset bits | funct3[15:13], where rd'/rs1' are [rd]/[rs1] minus 8 like
      {!word_cr2}. [c.lw]'s 5 raw offset bits scatter as [inst5|hi3|inst6] (RISC-V's
@@ -6921,6 +6951,18 @@ module Make (P : PROFILE) = struct
       { bit_offset = 31; bit_width = 1; value_lsb = 20 };
     ]
 
+  (* c.beqz/c.bnez's CB-format branch offset, {!b_slices}'s compressed sibling: a genuine
+     bit scatter (not a plain shift), hand-verified against real riscv64-linux-gnu-as/objdump
+     before writing any encoder code - see the GEN-05-RV-C follow-up 4 tracker entry. *)
+  let cb_slices =
+    [
+      { Asm_core.Lowered_ast.bit_offset = 3; bit_width = 2; value_lsb = 1 };
+      { bit_offset = 10; bit_width = 2; value_lsb = 3 };
+      { bit_offset = 2; bit_width = 1; value_lsb = 5 };
+      { bit_offset = 5; bit_width = 2; value_lsb = 6 };
+      { bit_offset = 12; bit_width = 1; value_lsb = 8 };
+    ]
+
   let u_slices = [ { Asm_core.Lowered_ast.bit_offset = 12; bit_width = 20; value_lsb = 0 } ]
   let form bytes form fixups = { Asm_core.Lowered_ast.bytes; form; fixups }
   let bad_encode kind = Error (diag ~pos:__POS__ kind)
@@ -6989,6 +7031,12 @@ module Make (P : PROFILE) = struct
             Ok (`Fixed (form (bytes_of_half word) x.name []))
         | Some _ -> bad_encode (`Immediate_range x.name)
         | None -> bad_encode (`Immediate_range (x.name ^ " " ^ Asm_core.Expr.to_string x.imm)))
+    | Lowered.Cb x ->
+        let fx =
+          mk_fixup ~kind:Branch9c ~name:"target" ~slices:cb_slices ~byte_offset:0 ~container:2
+            ~range:(Asm_core.Lowered_ast.Signed 9) ~value:x.target ~pairing:Unpaired
+        in
+        Ok (`Fixed (form (bytes_of_half (word_cb ~funct3:x.funct3 ~rs1:x.rs1)) x.name [ fx ]))
     | Lowered.R x ->
         fixed
           (word_r ~opcode:x.opcode ~funct3:x.funct3 ~funct7:x.funct7 ~rd:x.rd ~rs1:x.rs1 ~rs2:x.rs2)
@@ -7389,6 +7437,18 @@ module Make (P : PROFILE) = struct
                       (Int64.shift_left (bits half 11 1) 4)
                       (Int64.shift_left (bits half 12 1) 5)))))
       in
+      let c_beqz_bnez_offset () =
+        sign_extend 9
+          (Int64.logor
+             (Int64.shift_left (bits half 12 1) 8)
+             (Int64.logor
+                (Int64.shift_left (bits half 5 2) 6)
+                (Int64.logor
+                   (Int64.shift_left (bits half 2 1) 5)
+                   (Int64.logor
+                      (Int64.shift_left (bits half 10 2) 3)
+                      (Int64.shift_left (bits half 3 2) 1)))))
+      in
       match (quadrant, funct3, rd, imm_value) with
       | 1, 0, rd, imm_value when rd <> 0 && imm_value <> 0L ->
           Ok (instruction Opcode.C_addi [ reg rd; imm imm_value ], "c.addi", 2)
@@ -7396,6 +7456,18 @@ module Make (P : PROFILE) = struct
           match ca_name (funct6, funct2) with
           | Some n -> Ok (instruction (op_exn n) [ reg rd_rs1_c; reg rs2_c ], n, 2)
           | None -> Error (diag ~pos:__POS__ `Decode_no_match))
+      | 1, 6, _, _ ->
+          Ok
+            ( instruction Opcode.C_beqz
+                [ reg rd_rs1_c; sym (Int64.add ctx.address (c_beqz_bnez_offset ())) ],
+              "c.beqz",
+              2 )
+      | 1, 7, _, _ ->
+          Ok
+            ( instruction Opcode.C_bnez
+                [ reg rd_rs1_c; sym (Int64.add ctx.address (c_beqz_bnez_offset ())) ],
+              "c.bnez",
+              2 )
       | 2, 4, rd, _ -> (
           match (b12, rs2_full, rd) with
           | 0, 0, 0 -> Error (diag ~pos:__POS__ `Decode_no_match)
@@ -7782,6 +7854,7 @@ module Make (P : PROFILE) = struct
         else Error (diag ~pos:__POS__ (`Immediate_range "32-bit address"))
     | Abs64 -> Ok target
     | Branch13 -> aligned "branch" 13
+    | Branch9c -> aligned "branch-c" 9
     | Jal21 -> aligned "jal" 21
     | Pcrel_hi20 | Call_hi20 ->
         if fits_signed 32 d then Ok (hi d) else Error (diag ~pos:__POS__ (`Immediate_range "auipc"))

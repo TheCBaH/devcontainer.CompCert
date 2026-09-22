@@ -1157,6 +1157,9 @@ let test_counts () =
     && List.length Isa_gen_difficult.c_ldsp_entries = 3
     && List.length Isa_gen_difficult.c_swsp_entries = 6
     && List.length Isa_gen_difficult.c_sdsp_entries = 3);
+  check "CB-format entries: c.beqz/c.bnez forward/backward branch cases on both profiles"
+    (List.length Isa_gen_difficult.c_beqz_entries = 4
+    && List.length Isa_gen_difficult.c_bnez_entries = 4);
   check "alias entries are all marked with the alias-spelling rule and name their target"
     (List.for_all
        (fun (e : Isa_gen_difficult.entry) ->
@@ -1856,7 +1859,9 @@ let test_counts () =
       + List.length Isa_gen_difficult.c_lwsp_entries
       + List.length Isa_gen_difficult.c_ldsp_entries
       + List.length Isa_gen_difficult.c_swsp_entries
-      + List.length Isa_gen_difficult.c_sdsp_entries);
+      + List.length Isa_gen_difficult.c_sdsp_entries
+      + List.length Isa_gen_difficult.c_beqz_entries
+      + List.length Isa_gen_difficult.c_bnez_entries);
   check "x86_vex_binop_rrr_entries has 218 entries (109 mnemonics, one per target)"
     (List.length Isa_gen_difficult.x86_vex_binop_rrr_entries = 218);
   check "x86_vex_binop_rr_mem_entries has 218 entries (109 mnemonics, one per target)"

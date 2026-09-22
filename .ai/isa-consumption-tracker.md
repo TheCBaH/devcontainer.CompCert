@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 732/1089 (RV32), 781/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases), the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class), the GEN-05-RV-C follow-up 2 (c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster) and the GEN-05-RV-C follow-up 3 (c.lw/c.sw/c.lwsp/c.swsp/c.ld/c.sd/c.ldsp/c.sdsp CL/CS/CI/CSS-format loads and stores) each reopened and closed one named ledger gap after S7 closure. |
+| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 734/1089 (RV32), 783/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b), the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases), the GEN-05-RV-C follow-up (c.and/c.or/c.xor/c.sub/c.addw/c.subw CA-format class), the GEN-05-RV-C follow-up 2 (c.jr/c.jalr/c.mv/c.add/c.ebreak CR-format cluster), the GEN-05-RV-C follow-up 3 (c.lw/c.sw/c.lwsp/c.swsp/c.ld/c.sd/c.ldsp/c.sdsp CL/CS/CI/CSS-format loads and stores) and the GEN-05-RV-C follow-up 4 (c.beqz/c.bnez CB-format branches) each reopened and closed one named ledger gap after S7 closure. |
 | S5 Components | done | MOD-01 through MOD-04 done: RISC-V M and x86 x87 extracted as `Riscv_ext_m` / `X86_x87` descriptor modules over a shared `Target_component` type; the family builds its encode/parse/lowering/codec paths from those tables; codec trees, form IDs, bytes and diagnostics unchanged; `make asm-ci` passes (see the MOD milestone) |
 | S6 Feature selection | done | FEAT-01 through FEAT-05 done: a validated `Target_config` (default = every implemented component; `none`/`+f`/`-f` left to right; enabling closes over `requires`, a contradiction is an error), carried in `target_state`, enforced at simplify, lowering, `encode_in` and strict decode across text, normalized-AST, lowered-AST and byte paths; CLI `--features`/`--dump-features`/`--inspect-disabled`; RISC-V M split into Zmmul/M as a real dependency case; accept/reject table matches GNU as in every configuration (see the FEAT milestone) |
 | S7 Closure | done | CLOSE-01 through CLOSE-03 done: every record in every profile is in exactly one admission state and every blocked family is ledger-owned; the pinned capture-to-oracle workflow reproduces byte-identically and replays offline; the review and the next-source decision are recorded in the CLOSE milestone. Closure of the *process*: most of x86 and about a third of RISC-V remain unadmitted, by name, in the ledger. |
@@ -14046,6 +14046,71 @@ every sub-extension in the row's family list (`rv_c_d`, `rv32_c_f`,
 name real, un-admitted blocked records of its own, distinct from the
 `c.ld`/`c.sd`/`c.ldsp`/`c.sdsp` shadow-record names it happens to share
 with `rv64_c`).
+
+#### GEN-05-RV-C follow-up 4: c.beqz/c.bnez CB-format branches
+
+Task / status / owner: GEN-05-RV-C (RES-RV-COMPRESSED ledger row) / partial -
+see "Unknowns" below / Claude.
+
+Closes the fourth class in `RES-RV-COMPRESSED`: the CB-format conditional
+branches `c.beqz`/`c.bnez`, on both profiles (`rv_c`). `rs1` is restricted
+to the RVC compressed subset (x8..x15) like `c.lw`/`c.sw`'s own `base`; the
+implicit comparand is x0. Neither mnemonic has a shadow record under either
+profile's export (checked directly, the same way the `rv32_zclsd` scare in
+the prior slice was caught) - a genuinely clean single-owner mnemonic.
+
+This is the project's first compressed (2-byte-container) PC-relative
+fixup. `beq`'s own B-type branch already had a `Branch13` fixup/`b_slices`
+scatter over a 4-byte word; the new `Branch9c` fixup and `cb_slices` reuse
+the exact same generic slice-patching machinery (`patch_container` already
+reads/writes a fixup's byte range generically, with no assumption it's 4
+bytes) unchanged - nothing container-width-specific had to be added
+anywhere in the codec/image layer. Encoding formula (`riscv_family_encode.ml`,
+`word_cb`/`cb_slices`), hand-derived from `arg_lut.csv`'s `c_bimm9hi`
+(source bits 12:10)/`c_bimm9lo` (source bits 6:2) and verified against real
+GAS before writing any encoder code - a genuine bit permutation like
+`beq`'s own B-type immediate, not a plain concatenation: `offset =
+(inst[12]<<8)|(inst[6:5]<<6)|(inst[2]<<5)|(inst[11:10]<<3)|(inst[4:3]<<1)`,
+sign-extended from bit 8. New `Opcode.C_beqz`/`C_bnez`, `Lowered.Cb`
+constructor, lowering-time dispatch validating the compressed-register
+subset, and 2 new decode-side match arms keyed on `(quadrant=1,
+funct3=6/7)`, reconstructing the PC-relative target as `ctx.address + v`
+the same way the word-sized `beq`/`bne`/... decode arm already does.
+
+Evidence: `make asm-isa-difficult-regen` initially reported
+DIFFERENT-FORM/BYTE-MISMATCH on all 8 new cases - the first difficult-entry
+draft padded the branch-to-label gap with a plain `nop`, assuming a fixed
+4-byte width, but real GNU as opportunistically compresses that `nop` to
+`c.nop` under `.option rvc` (a relaxation this project does not model for a
+bare `nop` mnemonic), so real GAS emitted 4 bytes (`c.beqz`+`c.nop`) where
+this project's tool emitted 6 (`c.beqz`+a full-width `nop`). Fixed by
+dropping the padding line entirely (offset ±2, the branch's own compressed
+width), sidestepping the ambiguity rather than teaching the tool to relax
+`nop`. Re-ran `make asm-isa-difficult-regen` after the fix: all 8 cases
+PASS byte-for-byte against real `riscv64-linux-gnu-as`/`riscv32-linux-gnu-as`
+- `c.beqz s0,1f` (forward, offset 2) -> word `c009`, `c.beqz a5,1b`
+(backward, offset -2) -> word `c381`, `c.bnez s0,1f` -> word `e009`,
+`c.bnez a5,1b` -> word `e381`, identical on both profiles; `make
+asm-isa-difficult-check` replays them offline.
+
+Counts: promoted-support 732->734 (RV32), 781->783 (RV64); blocked
+337->335 (RV32), 343->341 (RV64); normalized 752->754 (RV32), 811->813
+(RV64); jsonl round-trip 3631->3635. `RES-RV-COMPRESSED`'s family list is
+unchanged.
+
+Tool versions and exact commands: `make tools-build`, `make tools-test`,
+`repo_tests.exe` direct run, `make tools-integration`, `make
+tools-boundary`, `make asm-isa-difficult-regen`, `make
+asm-isa-difficult-check`, `make asm-fmt`/`asm-fmt-check`, `make asm-ci`.
+
+Unknowns, exceptions and follow-up task IDs: `RES-RV-COMPRESSED`'s
+remaining scope is `c.li`/`c.lui`, `c.addi16sp`/`c.addi4spn`,
+`c.andi`/`c.srli`/`c.srai`/`c.slli`, `c.addiw`, `c.nop` (distinct from bare
+`c.addi`'s all-zero-immediate case, and now also distinct from real GAS's
+own opportunistic `nop`->`c.nop` relaxation this slice ran into and
+sidestepped rather than modeled) - plus every sub-extension in the row's
+family list (`rv_c_d`, `rv32_c_f`, `rv_c_zicfiss`, `rv_c_zihintntl`,
+`rv_zcb`, `rv64_zcb`, `rv_zcmp`, `rv_zcmt`, `rv_zcmop`, `rv32_zclsd`).
 
 #### S4 slice log
 
