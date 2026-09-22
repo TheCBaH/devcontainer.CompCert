@@ -364,6 +364,11 @@ module Make (P : PROFILE) = struct
       | Fdiv_s
       | Fneg_d
       | Fneg_s
+      | Fabs_d
+      | Fabs_s
+      | Fmv_s
+      | Fmv_x_s
+      | Fmv_s_x
       | Fsgnj_s
       | Fsgnj_d
       | Fsgnjn_s
@@ -1042,6 +1047,11 @@ module Make (P : PROFILE) = struct
       | Fdiv_s -> "fdiv.s"
       | Fneg_d -> "fneg.d"
       | Fneg_s -> "fneg.s"
+      | Fabs_d -> "fabs.d"
+      | Fabs_s -> "fabs.s"
+      | Fmv_s -> "fmv.s"
+      | Fmv_x_s -> "fmv.x.s"
+      | Fmv_s_x -> "fmv.s.x"
       | Fsgnj_s -> "fsgnj.s"
       | Fsgnj_d -> "fsgnj.d"
       | Fsgnjn_s -> "fsgnjn.s"
@@ -1721,6 +1731,11 @@ module Make (P : PROFILE) = struct
         Fdiv_s;
         Fneg_d;
         Fneg_s;
+        Fabs_d;
+        Fabs_s;
+        Fmv_s;
+        Fmv_x_s;
+        Fmv_s_x;
         Fsgnj_s;
         Fsgnj_d;
         Fsgnjn_s;
@@ -3094,15 +3109,21 @@ module Make (P : PROFILE) = struct
     | Fdiv_d -> Some (7, 0x0d)
     | _ -> None
 
-  (* [fneg.d]/[fneg.s]/[fmv.d] - FSGNJN/FSGNJ with [rs2] forced equal to [rs1], real
-     hardware's own alias (verified against real riscv64-linux-gnu-as/objdump:
-     `fneg.d fs0, fs1` -> `22949453`, decoding back with [rs1] = [rs2] = 9). The
-     general two-different-register [fsgnj]/[fsgnjn]/[fsgnjx] this shares a word
-     with is {!f_sgnj3_desc}. *)
+  (* [fneg.d]/[fneg.s]/[fmv.d]/[fabs.d]/[fabs.s]/[fmv.s] - FSGNJN/FSGNJ/FSGNJX with
+     [rs2] forced equal to [rs1], real hardware's own alias (verified against real
+     riscv64-linux-gnu-as/objdump: `fneg.d fs0, fs1` -> `22949453`, decoding back
+     with [rs1] = [rs2] = 9; `fabs.s fa0, fa1` -> `20b5a553`, `fabs.d fa0, fa1` ->
+     `22b5a553`, `fmv.s fa0, fa1` -> `20b58553`, funct3/funct7 unchanged from the
+     general [fsgnjx]/[fsgnj] forms - only the forced-equal operand makes these the
+     pseudo spelling). The general two-different-register [fsgnj]/[fsgnjn]/[fsgnjx]
+     this shares a word with is {!f_sgnj3_desc}. *)
   let f_sgnj_desc = function
     | Opcode.Fneg_s -> Some (1, 0x10)
     | Fneg_d -> Some (1, 0x11)
     | Fmv_d -> Some (0, 0x11)
+    | Fabs_s -> Some (2, 0x10)
+    | Fabs_d -> Some (2, 0x11)
+    | Fmv_s -> Some (0, 0x10)
     | _ -> None
 
   (* General [fsgnj]/[fsgnjn]/[fsgnjx] with [rs1]/[rs2] distinct real registers
@@ -3217,8 +3238,15 @@ module Make (P : PROFILE) = struct
      explicit-rounding-mode-override lowering arm and its documented latent
      bug (see {!f_class_desc}'s own comment). Verified against real
      riscv64-linux-gnu-as/objdump: `fmv.x.w a0, fa1` -> `e0058553` (funct7 =
-     0x70, funct3 = 0, matching [fclass.s]'s own group). *)
-  let f_mv_x_w_desc = function Opcode.Fmv_x_w -> Some (0, 0x70, 0) | _ -> None
+     0x70, funct3 = 0, matching [fclass.s]'s own group). [fmv.x.s] is the exact
+     same encoding under the ISA manual's pseudo-op spelling (verified against
+     real riscv64-linux-gnu-as/objdump: `fmv.x.s a0, fa1` -> `e0058553`,
+     byte-identical to [fmv.x.w]; GAS's own disassembly favors the [.w] name
+     regardless of which spelling was assembled). *)
+  let f_mv_x_w_desc = function
+    | Opcode.Fmv_x_w -> Some (0, 0x70, 0)
+    | Fmv_x_s -> Some (0, 0x70, 0)
+    | _ -> None
 
   (* Integer-to-float converts - [rd] is FP, [rs1] is a GPR, [rs2] fixed.
      [fmv.w.x] (bit-for-bit move, not a conversion) shares this shape and has
@@ -3237,6 +3265,11 @@ module Make (P : PROFILE) = struct
     | Fcvt_s_l -> Some (7, 0x68, 2)
     | Fcvt_s_lu -> Some (7, 0x68, 3)
     | Fmv_w_x -> Some (0, 0x78, 0)
+    (* [fmv.s.x] - [fmv.w.x]'s ISA-manual pseudo-op spelling, byte-identical
+       (verified against real riscv64-linux-gnu-as/objdump: `fmv.s.x fa0, a1` ->
+       `f0058553`, matching [fmv.w.x] exactly; same disassembly-favors-the-other-
+       name caveat as {!f_mv_x_w_desc}'s [fmv.x.s]). *)
+    | Fmv_s_x -> Some (0, 0x78, 0)
     | _ -> None
 
   (* Float-to-float precision converts - [rd]/[rs1] both FP, [rs2] fixed (the source

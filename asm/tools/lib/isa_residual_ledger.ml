@@ -72,7 +72,6 @@ let rows =
       families =
         [
           "rv_f";
-          "rv_d";
           "rv_q";
           "rv64_d";
           "rv64_q";
@@ -90,12 +89,13 @@ let rows =
           "rv_q_zfhmin";
         ];
       capability =
-        "Floating-point leftovers: the sign-injection and move pseudo-ops (fabs, fneg, fmv), fcsr \
-         access pseudo-ops, quad and half precision, bfloat16 conversion, and Zfa. Scalar \
-         single/double arithmetic is already promoted.";
+        "Floating-point leftovers: fcsr access pseudo-ops (frcsr, frflags, frrm, fscsr, fsflags, \
+         fsflagsi, fsrm, fsrmi), quad and half precision, bfloat16 conversion, and Zfa. Scalar \
+         single/double arithmetic is already promoted; so is the sign-injection/move alias class \
+         (fabs.s, fabs.d, fneg.s, fneg.d, fmv.s, fmv.d, fmv.x.s, fmv.s.x) - rv_d's own pseudo-ops \
+         were entirely that class, so it no longer names a blocked family here.";
       evidence =
-        "family-admission: the fabs/fneg/fmv and fcsr pseudo-ops of rv_f/rv_d, and all of rv_q and \
-         rv_zfh, are unhandled";
+        "family-admission: rv_f's fcsr pseudo-ops, and all of rv_q and rv_zfh, are unhandled";
       task = "GEN-05-RV-FP";
       reopening_gate =
         "each precision has an FP-register operand class and rounding-mode recipe verified against \

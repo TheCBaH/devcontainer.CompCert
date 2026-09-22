@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 711/1089 (RV32), 754/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b) reopened and closed one named ledger gap after S7 closure. |
+| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 719/1089 (RV32), 762/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b) and the GEN-05-RV-FP follow-up (fneg/fabs/fmv sign-injection and move aliases) each reopened and closed one named ledger gap after S7 closure. |
 | S5 Components | done | MOD-01 through MOD-04 done: RISC-V M and x86 x87 extracted as `Riscv_ext_m` / `X86_x87` descriptor modules over a shared `Target_component` type; the family builds its encode/parse/lowering/codec paths from those tables; codec trees, form IDs, bytes and diagnostics unchanged; `make asm-ci` passes (see the MOD milestone) |
 | S6 Feature selection | done | FEAT-01 through FEAT-05 done: a validated `Target_config` (default = every implemented component; `none`/`+f`/`-f` left to right; enabling closes over `requires`, a contradiction is an error), carried in `target_state`, enforced at simplify, lowering, `encode_in` and strict decode across text, normalized-AST, lowered-AST and byte paths; CLI `--features`/`--dump-features`/`--inspect-disabled`; RISC-V M split into Zmmul/M as a real dependency case; accept/reject table matches GNU as in every configuration (see the FEAT milestone) |
 | S7 Closure | done | CLOSE-01 through CLOSE-03 done: every record in every profile is in exactly one admission state and every blocked family is ledger-owned; the pinned capture-to-oracle workflow reproduces byte-identically and replays offline; the review and the next-source decision are recorded in the CLOSE milestone. Closure of the *process*: most of x86 and about a third of RISC-V remain unadmitted, by name, in the ledger. |
@@ -13756,6 +13756,59 @@ recipes, upper-immediate and shift-amount shapes, `j`/`jr`/branch-on-zero
 credit) is unchanged - this closes only the "not accepted at all" pseudo-op
 gap the previous slice named explicitly.
 
+#### GEN-05-RV-FP follow-up: fneg/fabs/fmv sign-injection and move aliases
+
+Task / status / owner: GEN-05-RV-FP (RES-RV-FP ledger row) / partial - see
+"Unknowns" below / Claude.
+
+Closes the sign-injection/move slice of RES-RV-FP's "leftovers" gap:
+`fneg.s`/`fneg.d`/`fabs.s`/`fabs.d`/`fmv.s`/`fmv.d`/`fmv.x.s`/`fmv.s.x`.
+`fneg.s`/`fneg.d`/`fmv.d` already had an encoder arm (an `f_sgnj_desc` table
+entry each, `rs2` forced equal to `rs1`) but no normalizer/admission credit -
+the same "encoded but uncredited" shape RES-RV-BASE-INT's `neg`/`seqz`/etc.
+had before their own follow-up above. `fabs.s`/`fabs.d`/`fmv.s` needed three
+new `f_sgnj_desc` entries (`fsgnjx`/`fsgnj` with `rs1`=`rs2`, the same
+funct3/funct7 the real three-register instruction uses); `fmv.x.s`/`fmv.s.x`
+needed one new entry each in `f_mv_x_w_desc`/`i_to_f_desc` - byte-identical
+to `fmv.x.w`/`fmv.w.x`, since riscv-opcodes records them as that
+instruction's own ISA-manual pseudo spelling, not a distinct encoding. A new
+`fp_unary_alias_form` normalizer helper (`isa_norm_riscv.ml`, next to
+`unary_gpr_form`) covers all eight - two FP-or-GPR-typed operands, no
+rounding-mode operand, always an alias.
+
+Evidence: each encoding verified against real `riscv64-linux-gnu-as` 2.44
+before writing the encoder arm (`fabs.s fa0,fa1`->`20b5a553`,
+`fabs.d fa0,fa1`->`22b5a553`, `fmv.s fa0,fa1`->`20b58553`,
+`fmv.x.s a0,fa1`->`e0058553`, `fmv.s.x fa0,a1`->`f0058553`; `fneg.s`/
+`fneg.d`/`fmv.d` cross-checked the same way and already matched the
+pre-existing encoder). Identical on `riscv32-linux-gnu-as` 2.43.1. All eight
+records exist on both RV32 and RV64 (`riscv-opcodes:rv_f:*@L*`/
+`riscv-opcodes:rv_d:*@L*`, unconditional applicability), so this moves 8
+records per profile straight from blocked to promoted-support.
+`make asm-isa-difficult-regen` generated and passed all 16 new cases
+(`riscv:{fneg.s,fneg.d,fabs.s,fabs.d,fmv.s,fmv.d,fmv.x.s,fmv.s.x}:alias:riscv{32,64}`)
+against real GNU as; `make asm-isa-difficult-check` replays them offline.
+
+Counts: promoted-support 711->719 (RV32), 754->762 (RV64); blocked
+358->350 (RV32), 370->362 (RV64); normalized 731->739 (RV32), 784->792
+(RV64); jsonl round-trip 3583->3599. This closes every blocked record `rv_d`
+named, so `isa_residual_ledger.ml`'s `RES-RV-FP` row drops `rv_d` from its
+family list (the ledger's own completeness check requires every named
+family to still own at least one blocked record) and its capability text
+narrows to the still-open scope.
+
+Tool versions and exact commands: `make tools-test`, `make
+tools-integration`, `make tools-boundary`, `make asm-isa-difficult-regen`,
+`make asm-isa-difficult-check`, `make asm-fmt`/`asm-fmt-check`, `make
+asm-ci`.
+
+Unknowns, exceptions and follow-up task IDs: `RES-RV-FP`'s remaining scope
+(rv_f's fcsr access pseudo-ops - `frcsr`/`frflags`/`frrm`/`fscsr`/`fsflags`/
+`fsflagsi`/`fsrm`/`fsrmi`, which have variable 1-or-2-operand GAS forms
+unlike this slice's fixed arity; all of `rv_q`; `rv_zfh`/`rv64_zfh`/
+`rv_zfhmin`; `rv_zfbfmin`; and Zfa across every precision) is unchanged -
+this closes only the sign-injection/move alias class.
+
 #### S4 slice log
 
 The stage table's S4 row grew to hold the slice-by-slice admission history
@@ -14046,10 +14099,13 @@ assembler encodes (the base integer ISA is encoded but mostly not credited -
 `RES-RV-BASE-INT`).
 
 This table is this closure run's own snapshot (2026-09-21), left as recorded
-rather than edited in place. The GEN-05-RV-BASE follow-up above it moved 5
-records per profile from `RES-RV-BASE-INT`'s blocked count to promoted after
-this date (48/51 -> 43/46 for that row; 706/749 -> 711/754 overall); see that
-entry and the current Stage status row for the live counts.
+rather than edited in place. Two follow-ups above it moved records from
+blocked to promoted after this date: GEN-05-RV-BASE moved 5 records per
+profile out of `RES-RV-BASE-INT` (48/51 -> 43/46 for that row; 706/749 ->
+711/754 overall), and GEN-05-RV-FP moved 8 records per profile out of
+`RES-RV-FP` (711/754 -> 719/762 overall; `RES-RV-FP` itself no longer names
+`rv_d`, now fully promoted); see those entries and the current Stage status
+row for the live counts.
 
 **CLOSE-02 - the pinned workflow, run again (2026-09-21).**
 

@@ -2846,6 +2846,30 @@ val nop_entries : entry list
 val ret_entries : entry list
 (** [ret] on both profiles: [jalr x0, 0(ra)]. *)
 
+val fneg_s_entries : entry list
+(** [fneg.s fa0, fa1] on both profiles: [fsgnjn.s fa0, fa1, fa1]. *)
+
+val fneg_d_entries : entry list
+(** [fneg.d fa0, fa1] on both profiles: [fsgnjn.d fa0, fa1, fa1]. *)
+
+val fabs_s_entries : entry list
+(** [fabs.s fa0, fa1] on both profiles: [fsgnjx.s fa0, fa1, fa1]. *)
+
+val fabs_d_entries : entry list
+(** [fabs.d fa0, fa1] on both profiles: [fsgnjx.d fa0, fa1, fa1]. *)
+
+val fmv_s_entries : entry list
+(** [fmv.s fa0, fa1] on both profiles: [fsgnj.s fa0, fa1, fa1]. *)
+
+val fmv_d_entries : entry list
+(** [fmv.d fa0, fa1] on both profiles: [fsgnj.d fa0, fa1, fa1]. *)
+
+val fmv_x_s_entries : entry list
+(** [fmv.x.s a0, fa1] on both profiles: the ISA-manual pseudo spelling of [fmv.x.w a0, fa1]. *)
+
+val fmv_s_x_entries : entry list
+(** [fmv.s.x fa0, a1] on both profiles: the ISA-manual pseudo spelling of [fmv.w.x fa0, a1]. *)
+
 val alias_entries : entry list
 (** The alias coverage class: every entry whose rule ids include [alias-spelling]. *)
 

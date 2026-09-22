@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:731;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:784;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:739;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:792;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -955,11 +955,24 @@ let test_isa_family_admission repo =
      riscv64-linux-gnu-as 2.44 (`neg a2,a3`->`40d00633`, `seqz a2,a3`->`0016b613`,
      `sltz a2,a3`->`0006a633`, `sgtz a2,a3`->`00d02633`, `zext.b a2,a3`->`0ff6f613`, identical
      on both profiles). All five are present on both RV32 and RV64, so this moves 5 records per
-     profile from blocked straight to promoted-support. *)
+     profile from blocked straight to promoted-support.
+
+     [fneg.s]/[fneg.d]/[fabs.s]/[fabs.d]/[fmv.s]/[fmv.d]/[fmv.x.s]/[fmv.s.x] close the
+     sign-injection/move slice of RES-RV-FP (GEN-05-RV-FP): the encoder already had
+     [fneg.s]/[fneg.d]/[fmv.d] (an [f_sgnj_desc] table entry each, `rs2` forced equal to `rs1`)
+     but no normalizer/admission credit, the same "encoded but uncredited" gap RES-RV-BASE-INT
+     had; [fabs.s]/[fabs.d]/[fmv.s] needed three new [f_sgnj_desc] entries, and
+     [fmv.x.s]/[fmv.s.x] two new entries in [f_mv_x_w_desc]/[i_to_f_desc] (byte-identical to
+     [fmv.x.w]/[fmv.w.x], the ISA-manual's own alternate spelling). Verified against real
+     riscv64-linux-gnu-as 2.44 (`fabs.s fa0,fa1`->`20b5a553`, `fabs.d fa0,fa1`->`22b5a553`,
+     `fmv.s fa0,fa1`->`20b58553`, `fmv.x.s a0,fa1`->`e0058553`, `fmv.s.x fa0,a1`->`f0058553`,
+     identical on RV32). All eight are present on both RV32 and RV64, moving 8 records per
+     profile from blocked to promoted-support; this closes every blocked record rv_d named,
+     so RES-RV-FP's own family list drops it (see isa_residual_ledger.ml). *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:711 ~blocked:358;
+    ~promoted_support:719 ~blocked:350;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:754 ~blocked:370;
+    ~promoted_support:762 ~blocked:362;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1017,9 +1030,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3583)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3599)"
        !roundtrip_count)
-    (!roundtrip_count = 3583)
+    (!roundtrip_count = 3599)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

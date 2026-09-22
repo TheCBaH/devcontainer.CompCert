@@ -1118,8 +1118,17 @@ let test_counts () =
     && List.length Isa_gen_difficult.zext_b_entries = 2
     && List.length Isa_gen_difficult.nop_entries = 2
     && List.length Isa_gen_difficult.ret_entries = 2
-    && List.length Isa_gen_difficult.sext_w_entries = 1
-    && List.length Isa_gen_difficult.alias_entries = 19);
+    && List.length Isa_gen_difficult.sext_w_entries = 1);
+  check "alias entries: fneg.s/fneg.d/fabs.s/fabs.d/fmv.s/fmv.d/fmv.x.s/fmv.s.x one per profile"
+    (List.length Isa_gen_difficult.fneg_s_entries = 2
+    && List.length Isa_gen_difficult.fneg_d_entries = 2
+    && List.length Isa_gen_difficult.fabs_s_entries = 2
+    && List.length Isa_gen_difficult.fabs_d_entries = 2
+    && List.length Isa_gen_difficult.fmv_s_entries = 2
+    && List.length Isa_gen_difficult.fmv_d_entries = 2
+    && List.length Isa_gen_difficult.fmv_x_s_entries = 2
+    && List.length Isa_gen_difficult.fmv_s_x_entries = 2
+    && List.length Isa_gen_difficult.alias_entries = 35);
   check "alias entries are all marked with the alias-spelling rule and name their target"
     (List.for_all
        (fun (e : Isa_gen_difficult.entry) ->

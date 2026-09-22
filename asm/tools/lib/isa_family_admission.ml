@@ -1825,6 +1825,11 @@ let promoted_case_part7 ~target ~form_id ~lookup_key =
       ("mv" | "snez" | "nop" | "ret" | "neg" | "seqz" | "sltz" | "sgtz" | "zext.b") ) ->
       true
   | Target.Riscv64, "riscv:sext.w", "sext.w" -> true
+  | ( (Target.Riscv32 | Target.Riscv64),
+      ( "riscv:fneg.s" | "riscv:fneg.d" | "riscv:fabs.s" | "riscv:fabs.d" | "riscv:fmv.s"
+      | "riscv:fmv.d" | "riscv:fmv.x.s" | "riscv:fmv.s.x" ),
+      ("fneg.s" | "fneg.d" | "fabs.s" | "fabs.d" | "fmv.s" | "fmv.d" | "fmv.x.s" | "fmv.s.x") ) ->
+      true
   | _ -> false
 
 (* These are the exact credit-bearing rows of the committed S3 pilot

@@ -762,6 +762,47 @@ let unary_gpr_form ?extension_lookup_key ?(source_field = "rs1") ?alias_of ~mnem
             | _ -> []);
         }
 
+(* {!unary_gpr_form}'s own shape generalized to floating-point sign-injection/move aliases -
+   [fneg.s]/[fneg.d]/[fabs.s]/[fabs.d]/[fmv.s]/[fmv.d] (both operands FP, [rs2] forced equal
+   to [rs1] by the source record's own mask, the remaining bits selecting fsgnj/fsgnjn/fsgnjx)
+   and [fmv.x.s]/[fmv.s.x] (one GPR, one FP - riscv-opcodes' own ISA-manual pseudo spelling of
+   [fmv.x.w]/[fmv.w.x], with no register forced equal to another). Every record here specializes
+   a real instruction that already has its own normalized form, so this is always an alias. *)
+let fp_unary_alias_form ~rd_kind ~rs1_kind ~alias_of ~mnemonic (rec_ : R.t) =
+  match riscv_encoding_of rec_ with
+  | Error msg -> err (mnemonic ^ "-not-fixed-bits") msg
+  | Ok encoding ->
+      let rd = { op_name = "rd"; op_kind = rd_kind; role = Out; explicit = true } in
+      let rs1 = { op_name = "rs1"; op_kind = rs1_kind; role = In; explicit = true } in
+      Ok
+        {
+          form_id = "riscv:" ^ mnemonic;
+          arch = Riscv;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement = requirement_of rec_;
+          encoding;
+          operands = [ rd; rs1 ];
+          syntax =
+            { dialect = "gas-att"; mnemonic; operands = [ Syn_operand "rd"; Syn_operand "rs1" ] };
+          concreteness = Alias_of alias_of;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "operand fields rd, rs1 taken verbatim from encoding.fields";
+              };
+              {
+                label = Inferred;
+                note =
+                  "the remaining encoding bits are fully fixed (a forced-equal rs2, or a fixed rs2 \
+                   = 0 selector for the fmv.x.*/fmv.*.x pair), selecting this pseudo spelling \
+                   rather than naming a genuine third operand";
+              };
+            ];
+          diagnostics = [];
+        }
+
 (* A pseudo-op whose whole encoding is fixed and which takes no operand ([nop], [ret]): the
    record's mask covers all 32 bits, so there is nothing to vary and GAS syntax is the bare
    mnemonic. It is an alias of the instruction it specializes, recorded as such rather than as
@@ -4768,6 +4809,32 @@ let normalize (rec_ : R.t) =
   | "sext.w" -> unary_gpr_form ~mnemonic:"sext.w" ~alias_of:"addiw" rec_
   | "nop" -> alias_fixed_form ~mnemonic:"nop" ~alias_of:"addi" rec_
   | "ret" -> alias_fixed_form ~mnemonic:"ret" ~alias_of:"jalr" rec_
+  (* rv_f/rv_d sign-injection and move pseudo-ops: {!fp_unary_alias_form}, aliasing the
+     three-operand fsgnj/fsgnjn/fsgnjx instruction (or fmv.x.w/fmv.w.x) each specializes. *)
+  | "fneg.s" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnjn.s"
+        ~mnemonic:"fneg.s" rec_
+  | "fneg.d" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnjn.d"
+        ~mnemonic:"fneg.d" rec_
+  | "fabs.s" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnjx.s"
+        ~mnemonic:"fabs.s" rec_
+  | "fabs.d" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnjx.d"
+        ~mnemonic:"fabs.d" rec_
+  | "fmv.s" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnj.s" ~mnemonic:"fmv.s"
+        rec_
+  | "fmv.d" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fsgnj.d" ~mnemonic:"fmv.d"
+        rec_
+  | "fmv.x.s" ->
+      fp_unary_alias_form ~rd_kind:(gpr ()) ~rs1_kind:(fpr ()) ~alias_of:"fmv.x.w"
+        ~mnemonic:"fmv.x.s" rec_
+  | "fmv.s.x" ->
+      fp_unary_alias_form ~rd_kind:(fpr ()) ~rs1_kind:(gpr ()) ~alias_of:"fmv.w.x"
+        ~mnemonic:"fmv.s.x" rec_
   (* rev8 (byte-reverse): riscv64.jsonl's own native_name is already "rev8",
      dispatched like any other {!unary_gpr_mnemonics} entry above would be,
      but riscv32.jsonl's native_name is riscv-opcodes' internal

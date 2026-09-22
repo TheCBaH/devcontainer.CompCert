@@ -5687,6 +5687,24 @@ let alias_entry ~mnemonic ~alias_of ~operands target =
 
 let both_riscv = [ Target.Riscv32; Target.Riscv64 ]
 
+(* {!alias_entry}'s own shape for the rv_f/rv_d sign-injection/move aliases
+   ([fneg.s]/[fneg.d]/[fabs.s]/[fabs.d]/[fmv.s]/[fmv.d]/[fmv.x.s]/[fmv.s.x]): FP register
+   operand names instead of {!alias_entry}'s GPR "a0"/"a1", and F/D's own -march=...f/...d
+   configuration ({!f_arith_configuration_for}) rather than the base-ISA config every other
+   {!alias_entry} caller uses. *)
+let fp_alias_entry ~mnemonic ~alias_of ~precision ~operands target =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:alias:%s" mnemonic (Target.to_string target);
+    rule_ids = [ "alias-spelling"; "alias-of:" ^ alias_of ];
+    operands;
+    lines_before = [];
+    lines_after = [];
+    configuration = f_arith_configuration_for precision target;
+  }
+
 let mv_entries =
   List.map
     (alias_entry ~mnemonic:"mv" ~alias_of:"addi" ~operands:[ ("rd", "a0"); ("rs1", "a1") ])
@@ -5732,9 +5750,59 @@ let sext_w_entries =
 let nop_entries = List.map (alias_entry ~mnemonic:"nop" ~alias_of:"addi" ~operands:[]) both_riscv
 let ret_entries = List.map (alias_entry ~mnemonic:"ret" ~alias_of:"jalr" ~operands:[]) both_riscv
 
+let fneg_s_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fneg.s" ~alias_of:"fsgnjn.s" ~precision:"f"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fneg_d_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fneg.d" ~alias_of:"fsgnjn.d" ~precision:"d"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fabs_s_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fabs.s" ~alias_of:"fsgnjx.s" ~precision:"f"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fabs_d_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fabs.d" ~alias_of:"fsgnjx.d" ~precision:"d"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fmv_s_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fmv.s" ~alias_of:"fsgnj.s" ~precision:"f"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fmv_d_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fmv.d" ~alias_of:"fsgnj.d" ~precision:"d"
+       ~operands:[ ("rd", "fa0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fmv_x_s_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fmv.x.s" ~alias_of:"fmv.x.w" ~precision:"f"
+       ~operands:[ ("rd", "a0"); ("rs1", "fa1") ])
+    both_riscv
+
+let fmv_s_x_entries =
+  List.map
+    (fp_alias_entry ~mnemonic:"fmv.s.x" ~alias_of:"fmv.w.x" ~precision:"f"
+       ~operands:[ ("rd", "fa0"); ("rs1", "a1") ])
+    both_riscv
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
-  @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries
+  @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
+  @ fabs_s_entries @ fabs_d_entries @ fmv_s_entries @ fmv_d_entries @ fmv_x_s_entries
+  @ fmv_s_x_entries
 
 let all =
   sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_alu_rr_entries
