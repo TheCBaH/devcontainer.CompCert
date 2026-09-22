@@ -4760,6 +4760,11 @@ let normalize (rec_ : R.t) =
      because the record specializes [sltu rd, x0, rs2]. *)
   | "mv" -> unary_gpr_form ~mnemonic:"mv" ~alias_of:"addi" rec_
   | "snez" -> unary_gpr_form ~mnemonic:"snez" ~source_field:"rs2" ~alias_of:"sltu" rec_
+  | "neg" -> unary_gpr_form ~mnemonic:"neg" ~source_field:"rs2" ~alias_of:"sub" rec_
+  | "seqz" -> unary_gpr_form ~mnemonic:"seqz" ~alias_of:"sltiu" rec_
+  | "sltz" -> unary_gpr_form ~mnemonic:"sltz" ~alias_of:"slt" rec_
+  | "sgtz" -> unary_gpr_form ~mnemonic:"sgtz" ~source_field:"rs2" ~alias_of:"slt" rec_
+  | "zext.b" -> unary_gpr_form ~mnemonic:"zext.b" ~alias_of:"andi" rec_
   | "sext.w" -> unary_gpr_form ~mnemonic:"sext.w" ~alias_of:"addiw" rec_
   | "nop" -> alias_fixed_form ~mnemonic:"nop" ~alias_of:"addi" rec_
   | "ret" -> alias_fixed_form ~mnemonic:"ret" ~alias_of:"jalr" rec_

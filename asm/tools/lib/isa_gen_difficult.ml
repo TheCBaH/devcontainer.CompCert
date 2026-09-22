@@ -5697,6 +5697,31 @@ let snez_entries =
     (alias_entry ~mnemonic:"snez" ~alias_of:"sltu" ~operands:[ ("rd", "a0"); ("rs2", "a1") ])
     both_riscv
 
+let neg_entries =
+  List.map
+    (alias_entry ~mnemonic:"neg" ~alias_of:"sub" ~operands:[ ("rd", "a0"); ("rs2", "a1") ])
+    both_riscv
+
+let seqz_entries =
+  List.map
+    (alias_entry ~mnemonic:"seqz" ~alias_of:"sltiu" ~operands:[ ("rd", "a0"); ("rs1", "a1") ])
+    both_riscv
+
+let sltz_entries =
+  List.map
+    (alias_entry ~mnemonic:"sltz" ~alias_of:"slt" ~operands:[ ("rd", "a0"); ("rs1", "a1") ])
+    both_riscv
+
+let sgtz_entries =
+  List.map
+    (alias_entry ~mnemonic:"sgtz" ~alias_of:"slt" ~operands:[ ("rd", "a0"); ("rs2", "a1") ])
+    both_riscv
+
+let zext_b_entries =
+  List.map
+    (alias_entry ~mnemonic:"zext.b" ~alias_of:"andi" ~operands:[ ("rd", "a0"); ("rs1", "a1") ])
+    both_riscv
+
 let sext_w_entries =
   [
     alias_entry ~mnemonic:"sext.w" ~alias_of:"addiw"
@@ -5706,7 +5731,10 @@ let sext_w_entries =
 
 let nop_entries = List.map (alias_entry ~mnemonic:"nop" ~alias_of:"addi" ~operands:[]) both_riscv
 let ret_entries = List.map (alias_entry ~mnemonic:"ret" ~alias_of:"jalr" ~operands:[]) both_riscv
-let alias_entries = mv_entries @ snez_entries @ sext_w_entries @ nop_entries @ ret_entries
+
+let alias_entries =
+  mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
+  @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries
 
 let all =
   sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_alu_rr_entries
@@ -6146,6 +6174,21 @@ let pilot_entry_of (entry : entry) =
     | "snez" ->
         "riscv_family_encode.ml's lower_instruction Opcode.Snez arm: Lowered.R sltu rd, x0, rs2 \
          (opcode 0x33, funct3 3)"
+    | "neg" ->
+        "riscv_family_encode.ml's lower_instruction Opcode.Neg arm: Lowered.R sub rd, x0, rs2 \
+         (opcode 0x33, funct3 0, funct7 0x20)"
+    | "seqz" ->
+        "riscv_family_encode.ml's lower_instruction Opcode.Seqz arm: Lowered.I sltiu rd, rs1, 1 \
+         (opcode 0x13, funct3 3)"
+    | "sltz" ->
+        "riscv_family_encode.ml's lower_instruction Opcode.Sltz arm: Lowered.R slt rd, rs1, x0 \
+         (opcode 0x33, funct3 2)"
+    | "sgtz" ->
+        "riscv_family_encode.ml's lower_instruction Opcode.Sgtz arm: Lowered.R slt rd, x0, rs2 \
+         (opcode 0x33, funct3 2)"
+    | "zext.b" ->
+        "riscv_family_encode.ml's lower_instruction Opcode.Zext_b arm: Lowered.I andi rd, rs1, \
+         0xff (opcode 0x13, funct3 7)"
     | "sext.w" ->
         "riscv_family_encode.ml's lower_instruction Opcode.Sext_w arm: Lowered.I addiw rd, rs1, 0 \
          (opcode 0x1b, funct3 0)"

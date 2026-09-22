@@ -164,6 +164,11 @@ module Make (P : PROFILE) = struct
       | Slt
       | Sltu
       | Snez
+      | Neg
+      | Seqz
+      | Sltz
+      | Sgtz
+      | Zext_b
       | Xor
       | Srl
       | Sra
@@ -837,6 +842,11 @@ module Make (P : PROFILE) = struct
       | Slt -> "slt"
       | Sltu -> "sltu"
       | Snez -> "snez"
+      | Neg -> "neg"
+      | Seqz -> "seqz"
+      | Sltz -> "sltz"
+      | Sgtz -> "sgtz"
+      | Zext_b -> "zext.b"
       | Xor -> "xor"
       | Srl -> "srl"
       | Sra -> "sra"
@@ -1511,6 +1521,11 @@ module Make (P : PROFILE) = struct
         Slt;
         Sltu;
         Snez;
+        Neg;
+        Seqz;
+        Sltz;
+        Sgtz;
+        Zext_b;
         Xor;
         Srl;
         Sra;
@@ -6104,6 +6119,94 @@ module Make (P : PROFILE) = struct
             Ok
               [
                 Lowered.R { name = "sltu"; opcode = 0x33; funct3 = 3; funct7 = 0; rd; rs1 = 0; rs2 };
+              ]
+        | _ -> wrong opn)
+    | Opcode.Neg, [ a; b ] -> (
+        (* [neg rd, rs] - the base ISA's own negate pseudo, [sub rd, zero, rs] under a
+           different spelling (only ever reachable through [Sub]'s own three-register
+           form otherwise, which has no all-zero-[rs1] entry point of its own, the same
+           gap {!Snez} above fills for [sltu]). Checked against real
+           riscv64-linux-gnu-as/riscv32-linux-gnu-as/objdump: `neg a2, a3` -> `40d00633`
+           on both profiles, matching `sub a2, zero, a3` bit-for-bit. *)
+        match (xreg a, xreg b) with
+        | Some rd, Some rs2 ->
+            Ok
+              [
+                Lowered.R
+                  { name = "sub"; opcode = 0x33; funct3 = 0; funct7 = 0x20; rd; rs1 = 0; rs2 };
+              ]
+        | _ -> wrong opn)
+    | Opcode.Seqz, [ a; b ] -> (
+        (* [seqz rd, rs] - set-equal-zero, [sltiu rd, rs, 1] under a different spelling
+           (unsigned less-than-1 is exactly the zero test). Checked against real
+           riscv64-linux-gnu-as/riscv32-linux-gnu-as/objdump: `seqz a2, a3` -> `0016b613`
+           on both profiles, matching `sltiu a2, a3, 1` bit-for-bit. *)
+        match (xreg a, xreg b) with
+        | Some rd, Some rs1 ->
+            Ok
+              [
+                Lowered.I
+                  {
+                    name = "sltiu";
+                    opcode = 0x13;
+                    funct3 = 3;
+                    funct_hi = 0;
+                    shamt_bits = None;
+                    rd;
+                    rs1;
+                    imm = const 1;
+                  };
+              ]
+        | _ -> wrong opn)
+    | Opcode.Sltz, [ a; b ] -> (
+        (* [sltz rd, rs] - set-less-than-zero, [slt rd, rs, zero] under a different
+           spelling (only ever reachable through [Slt]'s own three-register form
+           otherwise, which has no all-zero-[rs2] entry point of its own). Checked
+           against real riscv64-linux-gnu-as/riscv32-linux-gnu-as/objdump:
+           `sltz a2, a3` -> `0006a633` on both profiles, matching `slt a2, a3, zero`
+           bit-for-bit. *)
+        match (xreg a, xreg b) with
+        | Some rd, Some rs1 ->
+            Ok
+              [
+                Lowered.R { name = "slt"; opcode = 0x33; funct3 = 2; funct7 = 0; rd; rs1; rs2 = 0 };
+              ]
+        | _ -> wrong opn)
+    | Opcode.Sgtz, [ a; b ] -> (
+        (* [sgtz rd, rs] - set-greater-than-zero, [slt rd, zero, rs] under a different
+           spelling (the [Sltz] arm's mirror image: [Slt]'s all-zero-[rs1] entry point).
+           Checked against real riscv64-linux-gnu-as/riscv32-linux-gnu-as/objdump:
+           `sgtz a2, a3` -> `00d02633` on both profiles, matching `slt a2, zero, a3`
+           bit-for-bit. *)
+        match (xreg a, xreg b) with
+        | Some rd, Some rs2 ->
+            Ok
+              [
+                Lowered.R { name = "slt"; opcode = 0x33; funct3 = 2; funct7 = 0; rd; rs1 = 0; rs2 };
+              ]
+        | _ -> wrong opn)
+    | Opcode.Zext_b, [ a; b ] -> (
+        (* [zext.b rd, rs] - the base ISA's own zero-extend-byte pseudo, [andi rd, rs,
+           0xff] under a different spelling; unlike {!Zext_h} below this needs no Zbb
+           dependency (it exists in [rv_i], not a bit-manipulation extension). Checked
+           against real riscv64-linux-gnu-as/riscv32-linux-gnu-as/objdump: `zext.b a2,
+           a3` -> `0ff6f613` on both profiles, matching `andi a2, a3, 0xff`
+           bit-for-bit. *)
+        match (xreg a, xreg b) with
+        | Some rd, Some rs1 ->
+            Ok
+              [
+                Lowered.I
+                  {
+                    name = "andi";
+                    opcode = 0x13;
+                    funct3 = 7;
+                    funct_hi = 0;
+                    shamt_bits = None;
+                    rd;
+                    rs1;
+                    imm = const 255;
+                  };
               ]
         | _ -> wrong opn)
     | Opcode.Zext_h, [ a; b ] -> (

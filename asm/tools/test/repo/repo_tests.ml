@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:726;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:779;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:731;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:784;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -944,11 +944,22 @@ let test_isa_family_admission repo =
      riscv-opcodes $pseudo_op records with a fully fixed encoding, each an alias of the
      instruction it specializes - move 4 (RV32) and 5 (RV64) records from blocked to
      promoted-support after a persisted case per profile pins GNU as and this assembler to the
-     same bytes for the alias spelling. *)
+     same bytes for the alias spelling.
+
+     [neg], [seqz], [sltz], [sgtz] and [zext.b] close RES-RV-BASE-INT's remaining named gap
+     (isa-consumption-tracker.md GEN-05-RV-BASE): the five base-ISA pseudo-ops GNU as 2.44
+     accepted but this assembler previously rejected outright. Each is a new two-operand
+     encoder alias (neg/sgtz reuse [Slt]/[Sub]'s all-zero-[rs1] entry point the same way
+     [snez] does for [sltu]; seqz/zext.b are genuine [sltiu]/[andi] immediate aliases) plus a
+     `unary_gpr_form` normalizer entry, verified against real riscv32-linux-gnu-as 2.43.1 and
+     riscv64-linux-gnu-as 2.44 (`neg a2,a3`->`40d00633`, `seqz a2,a3`->`0016b613`,
+     `sltz a2,a3`->`0006a633`, `sgtz a2,a3`->`00d02633`, `zext.b a2,a3`->`0ff6f613`, identical
+     on both profiles). All five are present on both RV32 and RV64, so this moves 5 records per
+     profile from blocked straight to promoted-support. *)
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:20 ~gas_generatable:0
-    ~promoted_support:706 ~blocked:363;
+    ~promoted_support:711 ~blocked:358;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:30 ~gas_generatable:0
-    ~promoted_support:749 ~blocked:375;
+    ~promoted_support:754 ~blocked:370;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1006,9 +1017,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3573)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 3583)"
        !roundtrip_count)
-    (!roundtrip_count = 3573)
+    (!roundtrip_count = 3583)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

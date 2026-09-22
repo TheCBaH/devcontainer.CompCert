@@ -2822,6 +2822,21 @@ val mv_entries : entry list
 val snez_entries : entry list
 (** [snez a0, a1] on both profiles: [sltu a0, x0, a1]. The source operand is the record's [rs2]. *)
 
+val neg_entries : entry list
+(** [neg a0, a1] on both profiles: [sub a0, x0, a1]. The source operand is the record's [rs2]. *)
+
+val seqz_entries : entry list
+(** [seqz a0, a1] on both profiles: [sltiu a0, a1, 1]. *)
+
+val sltz_entries : entry list
+(** [sltz a0, a1] on both profiles: [slt a0, a1, x0]. *)
+
+val sgtz_entries : entry list
+(** [sgtz a0, a1] on both profiles: [slt a0, x0, a1]. The source operand is the record's [rs2]. *)
+
+val zext_b_entries : entry list
+(** [zext.b a0, a1] on both profiles: [andi a0, a1, 0xff]. *)
+
 val sext_w_entries : entry list
 (** [sext.w a0, a1], RV64 only: [addiw a0, a1, 0]. *)
 

@@ -18,7 +18,7 @@ and next action. `Done` requires acceptance evidence, not just a merged change.
 | S1 Capture fidelity | done | CAP-01 through CAP-06: versioned native-capture envelope, input verification, raw facts, relationship indexing, exact width/mode corrections, deterministic regeneration and loss/unknown report |
 | S2 OCaml model | done | NORM-01 through NORM-05 done (worked-example types, pilot normalization, complete decode/normalize accounting, three-valued mode/XLEN requirements plus exact/ambiguous/missing relationship decoding, a bidirectional normalized-JSONL codec, and a cross-snapshot record-identity mapping report) |
 | S3 Differential pilots | done | GAS-01 through GAS-05 done: the 21-case relocation-free pilot has real GNU and "ours" evidence plus a toolchain-free replay gate, while the existing controlled multi-unit fixture differential provides the complementary linked-image, section/symbol/fixup evidence at matching fixed addresses and relaxation policy. |
-| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 706/1089 (RV32), 749/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log". |
+| S4 Difficult forms | done | GEN-02 through GEN-06 done. Every source family with blocked records is owned by a residual-ledger row (missing capability, evidence, task, reopening gate) and the corpus has negative, alias and canonical classes with per-architecture obligations; promoted-support is 711/1089 (RV32), 754/1154 (RV64), 1022/7887 (x86-32), 1030/10571 (x86-64) - a bounded slice, not the extensions. The slice-by-slice history is preserved verbatim under "S4 slice log"; the GEN-05-RV-BASE follow-up (neg/seqz/sltz/sgtz/zext.b) reopened and closed one named ledger gap after S7 closure. |
 | S5 Components | done | MOD-01 through MOD-04 done: RISC-V M and x86 x87 extracted as `Riscv_ext_m` / `X86_x87` descriptor modules over a shared `Target_component` type; the family builds its encode/parse/lowering/codec paths from those tables; codec trees, form IDs, bytes and diagnostics unchanged; `make asm-ci` passes (see the MOD milestone) |
 | S6 Feature selection | done | FEAT-01 through FEAT-05 done: a validated `Target_config` (default = every implemented component; `none`/`+f`/`-f` left to right; enabling closes over `requires`, a contradiction is an error), carried in `target_state`, enforced at simplify, lowering, `encode_in` and strict decode across text, normalized-AST, lowered-AST and byte paths; CLI `--features`/`--dump-features`/`--inspect-disabled`; RISC-V M split into Zmmul/M as a real dependency case; accept/reject table matches GNU as in every configuration (see the FEAT milestone) |
 | S7 Closure | done | CLOSE-01 through CLOSE-03 done: every record in every profile is in exactly one admission state and every blocked family is ledger-owned; the pinned capture-to-oracle workflow reproduces byte-identically and replays offline; the review and the next-source decision are recorded in the CLOSE milestone. Closure of the *process*: most of x86 and about a third of RISC-V remain unadmitted, by name, in the ledger. |
@@ -13715,6 +13715,47 @@ needing an encoder alias first. Regenerating the difficult corpus costs about
 
 Implementation commits: `2a2c9af` (residual ledger) and `e4f248b` (negatives, aliases, coverage classes).
 
+#### GEN-05-RV-BASE follow-up: neg/seqz/sltz/sgtz/zext.b encoder aliases
+
+Task / status / owner: GEN-05-RV-BASE (RES-RV-BASE-INT ledger row) / done / Claude.
+
+Closes the "not done, on purpose" item directly above: the five base-ISA
+pseudo-ops GNU as 2.44 accepts but this assembler previously rejected
+outright. Each is a new two-operand encoder alias in
+`riscv_family_encode.ml` (`neg`/`sgtz` reuse `Sub`'s/`Slt`'s all-zero-`rs1`
+entry point the same way `snez` already does for `sltu`; `seqz`/`zext.b` are
+genuine `sltiu`/`andi` immediate aliases; `sltz` is `Slt`'s all-zero-`rs2`
+entry point) plus a `unary_gpr_form` normalizer entry per mnemonic in
+`isa_norm_riscv.ml`, following the `mv`/`snez`/`zext.h` precedent exactly -
+no new normalization shape was needed.
+
+Evidence: each encoding verified against real `riscv32-linux-gnu-as`
+2.43.1 and `riscv64-linux-gnu-as` 2.44 before writing the encoder arm
+(`neg a2,a3`->`40d00633`, `seqz a2,a3`->`0016b613`, `sltz a2,a3`->`0006a633`,
+`sgtz a2,a3`->`00d02633`, `zext.b a2,a3`->`0ff6f613`, identical on both
+profiles). All five records exist on both RV32 and RV64
+(`riscv-opcodes:rv_i:{neg,seqz,sltz,sgtz,zext.b}@L*`, unconditional
+applicability), so this moves 5 records per profile straight from blocked to
+promoted-support, matching the `alias-spelling`/`alias-of:*` coverage class
+GEN-06 already defined. `make asm-isa-difficult-regen` generated and passed
+all 10 new cases (`riscv:{neg,seqz,sltz,sgtz,zext.b}:alias:riscv{32,64}`)
+against real GNU as; `make asm-isa-difficult-check` replays them offline.
+
+Counts: promoted-support 706->711 (RV32), 749->754 (RV64); blocked
+363->358 (RV32), 375->370 (RV64); normalized 726->731 (RV32), 779->784
+(RV64); jsonl round-trip 3573->3583. `isa_residual_ledger.ml`'s
+`RES-RV-BASE-INT` capability text updated to drop the now-closed gap.
+
+Tool versions and exact commands: `make tools-test`, `make
+tools-integration`, `make tools-boundary`, `make asm-isa-difficult-regen`,
+`make asm-isa-difficult-check`, `make asm-fmt-check`, `make asm-ci`.
+
+Unknowns, exceptions and follow-up task IDs: `RES-RV-BASE-INT`'s remaining
+scope (memory operand shapes for loads/stores, branch/jump operand
+recipes, upper-immediate and shift-amount shapes, `j`/`jr`/branch-on-zero
+credit) is unchanged - this closes only the "not accepted at all" pseudo-op
+gap the previous slice named explicitly.
+
 #### S4 slice log
 
 The stage table's S4 row grew to hold the slice-by-slice admission history
@@ -14003,6 +14044,12 @@ printed by `isa-difficult coverage`. Promoted-support is the honest headline:
 it credits only forms a persisted case pins to GNU, so it undercounts what the
 assembler encodes (the base integer ISA is encoded but mostly not credited -
 `RES-RV-BASE-INT`).
+
+This table is this closure run's own snapshot (2026-09-21), left as recorded
+rather than edited in place. The GEN-05-RV-BASE follow-up above it moved 5
+records per profile from `RES-RV-BASE-INT`'s blocked count to promoted after
+this date (48/51 -> 43/46 for that row; 706/749 -> 711/754 overall); see that
+entry and the current Stage status row for the live counts.
 
 **CLOSE-02 - the pinned workflow, run again (2026-09-21).**
 

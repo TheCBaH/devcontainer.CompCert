@@ -1820,8 +1820,9 @@ let promoted_case_part7 ~target ~form_id ~lookup_key =
   | (Target.Riscv32 | Target.Riscv64), "riscv:vle1.v", "vle1.v" -> true
   | (Target.Riscv32 | Target.Riscv64), "riscv:vse1.v", "vse1.v" -> true
   | ( (Target.Riscv32 | Target.Riscv64),
-      ("riscv:mv" | "riscv:snez" | "riscv:nop" | "riscv:ret"),
-      ("mv" | "snez" | "nop" | "ret") ) ->
+      ( "riscv:mv" | "riscv:snez" | "riscv:nop" | "riscv:ret" | "riscv:neg" | "riscv:seqz"
+      | "riscv:sltz" | "riscv:sgtz" | "riscv:zext.b" ),
+      ("mv" | "snez" | "nop" | "ret" | "neg" | "seqz" | "sltz" | "sgtz" | "zext.b") ) ->
       true
   | Target.Riscv64, "riscv:sext.w", "sext.w" -> true
   | _ -> false
