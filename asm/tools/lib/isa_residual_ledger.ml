@@ -51,17 +51,17 @@ let rows =
     {
       id = "RES-X86-VEX";
       source = "xed_resolved";
-      families = [ "AVX"; "AVX2GATHER"; "FMA4"; "XOP" ];
+      families = [ "AVX"; "FMA4"; "XOP" ];
       capability =
-        "VEX/XOP forms the generated x86 table does not yet cover: VSIB gathers, VZEROUPPER/ALL \
-         (no ModR/M), and same-spelled twins no pseudo-prefix separates (the FMA4/XOP is4 register \
-         forms of the other VEX.W, which share an iform with GNU's choice).";
+        "VEX/XOP forms GNU as never emits for their spelling: same-spelled twins no pseudo-prefix \
+         separates (the FMA4/XOP is4 register forms of the other VEX.W, vmovq's 6E/7E memory \
+         forms, vpcmpistri's W1 form), which share an iform or an encoding choice with GNU's.";
       evidence =
         "family-admission: most AVX/AVX2/FMA/F16C/VAES/GFNI/VNNI-INT forms are promoted through \
          DEC-X86-TABLE rows, AVX-VNNI/IFMA/NE-CONVERT through {vex}, XOP/TBM/LWP through XOP rows; \
-         the remainder is gathers and the FMA4/XOP W twins";
+         AVX2 gathers through VSIB rows; the remainder is twins";
       task = "GEN-05-X86-VEX";
-      reopening_gate = "VSIB addressing exists";
+      reopening_gate = "a pseudo-prefix or spelling that reaches the twin exists in GNU as";
     };
     {
       id = "RES-X86-LEGACY-SIMD";

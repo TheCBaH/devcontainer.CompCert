@@ -2093,7 +2093,8 @@ module Instruction = struct
           | Mem _ -> `Mem
           | Imm { bytes } -> `Imm bytes
           | Fixed_reg n -> `Fixed n
-          | Rounding _ -> `Rounding)
+          | Rounding _ -> `Rounding
+          | Vsib _ -> `Vsib)
         r.operands
     in
     let dest (r : X86_table_row.row) =
@@ -8579,7 +8580,7 @@ module Make (M : MODE) = struct
 
   (* ModR/M, SIB and displacement for ModR/M.reg [reg] and an rm operand, with the REX.X and
      REX.B bits they need. Memory must be a constant displacement off address-width registers. *)
-  let table_modrm ?(n = 1) ~reg rm =
+  let table_modrm ?(n = 1) ?vsib ~reg rm =
     let byte v = String.make 1 (Char.chr v) in
     match rm with
     | `Reg n -> Some (byte (0xc0 lor ((reg land 7) lsl 3) lor (n land 7)), 0, (n lsr 3) land 1)
@@ -8588,9 +8589,16 @@ module Make (M : MODE) = struct
           | None -> true
           | Some (r : Reg.t) -> r.width = M.address_width && r.num >= 0 && not (is_rip r)
         in
+        (* a VSIB index is a vector register of the row's class, and required *)
+        let index_ok =
+          match (vsib, m.index) with
+          | None, index -> addr_ok index
+          | Some w, Some (r : Reg.t) -> r.width = w && r.num >= 0 && r.num < 16
+          | Some _, None -> false
+        in
         match m.disp with
         | Disp.Sym _ -> None
-        | Disp.Const disp when addr_ok m.base && addr_ok m.index && m.base <> None -> (
+        | Disp.Const disp when addr_ok m.base && index_ok && m.base <> None -> (
             (* EVEX stores disp8 scaled by N (disp8*N); a displacement that is not a multiple
                of N, or whose quotient does not fit a byte, is a full disp32 *)
             let form, disp =
@@ -8640,7 +8648,7 @@ module Make (M : MODE) = struct
       let reg_field = ref (if r.digit >= 0 then Some r.digit else None) in
       let rm = ref None and vvvv = ref None and is4 = ref None and imms = ref [] in
       let opcode_low = ref 0 in
-      let rounding = ref None in
+      let rounding = ref None and vsib = ref None in
       let rex_byte = ref false and ok = ref true in
       List.iter2
         (fun (o : T.operand) op ->
@@ -8658,6 +8666,9 @@ module Make (M : MODE) = struct
           | T.Rounding { sae_only = false }, Operand.Rc n when n >= 0 && n <= 3 ->
               rounding := Some n
           | T.Mem _, Operand.Mem m -> rm := Some (`Mem m)
+          | T.Vsib { cls }, Operand.Mem m ->
+              vsib := Some (T.class_width cls);
+              rm := Some (`Mem m)
           | T.Imm { bytes }, Operand.Imm v -> (
               match Bigint.to_int64_opt v with
               | Some v when fits_bytes bytes v -> imms := !imms @ [ le_bytes bytes v ]
@@ -8668,7 +8679,8 @@ module Make (M : MODE) = struct
       else
         let modrm =
           match (!reg_field, !rm) with
-          | Some reg, Some rm -> Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ~reg rm)
+          | Some reg, Some rm ->
+              Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ?vsib:!vsib ~reg rm)
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
           (* a fixed ModR/M.reg and no rm operand: register form, rm 0 ([lfence] is 0F AE E8) *)
           | Some reg, None when r.digit >= 0 ->
@@ -8952,10 +8964,17 @@ module Make (M : MODE) = struct
               r.digit >= 0
               || List.exists
                    (function
-                     | T.Reg { field = T.Modrm_reg | T.Modrm_rm; _ } | T.Mem _ -> true | _ -> false)
+                     | T.Reg { field = T.Modrm_reg | T.Modrm_rm; _ } | T.Mem _ | T.Vsib _ -> true
+                     | _ -> false)
                    r.operands
             in
-            let has_mem = List.exists (function T.Mem _ -> true | _ -> false) r.operands in
+            (* a VSIB row's index register class *)
+            let vsib =
+              List.find_map (function T.Vsib { cls } -> Some cls | _ -> None) r.operands
+            in
+            let has_mem =
+              List.exists (function T.Mem _ | T.Vsib _ -> true | _ -> false) r.operands
+            in
             let rm_reg =
               List.exists
                 (function T.Reg { field = T.Modrm_rm; _ } -> true | _ -> false)
@@ -9011,7 +9030,11 @@ module Make (M : MODE) = struct
                               match disp (k + 1) md with
                               | None -> (None, k)
                               | Some (d, k) ->
-                                  let index = if ix = 4 then None else Some (regat ix) in
+                                  let index =
+                                    match vsib with
+                                    | Some cls -> Some (reg_at ~width:(T.class_width cls) ix)
+                                    | None -> if ix = 4 then None else Some (regat ix)
+                                  in
                                   ( Some
                                       (Some
                                          {
@@ -9022,6 +9045,7 @@ module Make (M : MODE) = struct
                                          }),
                                     k ))
                       else if rmf = 5 && md = 0 then (None, k)
+                      else if vsib <> None then (None, k)
                       else
                         match disp k md with
                         | None -> (None, k)
@@ -9064,7 +9088,7 @@ module Make (M : MODE) = struct
                                 | None ->
                                     failed := true;
                                     Operand.Imm Bigint.zero)
-                            | T.Mem _ -> (
+                            | T.Mem _ | T.Vsib _ -> (
                                 match mem with
                                 | Some m -> Operand.Mem m
                                 | None ->
@@ -9174,21 +9198,36 @@ module Make (M : MODE) = struct
               | _ -> None)
             spellings
         in
-        (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
+        (* a vector index register is a VSIB address, which only a generated row takes: the
+           hand-written forms would read its number as a GPR's *)
+        let vector_index =
+          List.exists
+            (function
+              | Operand.Mem { Mem.index = Some (i : Reg.t); _ } ->
+                  not (List.mem i.width [ 16; 32; 64 ])
+              | _ -> false)
+            s.Surface.ops
+        in
+        if vector_index then
+          match row [ s.Surface.mnemonic ] with
+          | Some i -> Ok i
+          | None -> Error (diag ~pos:__POS__ (`No_form s.Surface.mnemonic))
+        else
+          (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
        mode), or accept but cannot lower for these operands (a high VEX register), may be a
        generated row's *)
-        match simplify_hand_written s with
-        | Error e as err -> (
-            let spellings =
-              match Target_error.kind (Err.Error.kind e) with
-              | `Unknown_instruction _ -> s.Surface.mnemonic :: inferred
-              | _ -> [ s.Surface.mnemonic ]
-            in
-            match row spellings with Some i -> Ok i | None -> err)
-        | Ok i as ok -> (
-            match lower_hand_written i with
-            | Ok _ -> ok
-            | Error _ -> ( match row [ s.Surface.mnemonic ] with Some t -> Ok t | None -> ok)))
+          match simplify_hand_written s with
+          | Error e as err -> (
+              let spellings =
+                match Target_error.kind (Err.Error.kind e) with
+                | `Unknown_instruction _ -> s.Surface.mnemonic :: inferred
+                | _ -> [ s.Surface.mnemonic ]
+              in
+              match row spellings with Some i -> Ok i | None -> err)
+          | Ok i as ok -> (
+              match lower_hand_written i with
+              | Ok _ -> ok
+              | Error _ -> ( match row [ s.Surface.mnemonic ] with Some t -> Ok t | None -> ok)))
 
   (* A hand-written mnemonic can have generated rows for shapes its own forms do not take (a
      ymm [vpslldq]); those are tried when the hand-written lowering declines. *)

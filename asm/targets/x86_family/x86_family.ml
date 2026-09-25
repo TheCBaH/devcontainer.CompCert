@@ -230,6 +230,13 @@ module Make (M : MODE) = struct
           bad (`Xmm_in_memory_operand n)
       | other -> other
     in
+    (* an index may be a vector register: the VSIB address of a gather or scatter, which only
+       a generated VSIB row accepts *)
+    let index_reg_named n =
+      match reg_named n with
+      | Ok r when r.Reg.width = 128 || r.Reg.width = 256 || r.Reg.width = 512 -> Ok r
+      | _ -> mem_reg_named n
+    in
     let open Asm_syntax in
     match List.map Token.kind slice with
     (* $imm *)
@@ -318,7 +325,7 @@ module Make (M : MODE) = struct
        tokens that remain, not the ones the source wrote. *)
     | [ Token.Int d; Token.Lparen; Token.Register b; Token.Register i; Token.Int s; Token.Rparen ]
       -> (
-        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named b, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named b, index_reg_named i) with
         | Some d, Some s, Ok b, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else
@@ -334,7 +341,7 @@ module Make (M : MODE) = struct
     | Token.Minus
       :: Token.Int d
       :: [ Token.Lparen; Token.Register b; Token.Register i; Token.Int s; Token.Rparen ] -> (
-        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named b, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named b, index_reg_named i) with
         | Some d, Some s, Ok b, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else
@@ -343,7 +350,7 @@ module Make (M : MODE) = struct
                    { Mem.base = Some b; index = Some i; scale = s; disp = Disp.Const (Int64.neg d) })
         | _ -> bad (`Malformed_memory_operand slice))
     | [ Token.Lparen; Token.Register b; Token.Register i; Token.Int s; Token.Rparen ] -> (
-        match (Bigint.to_int_opt s, mem_reg_named b, mem_reg_named i) with
+        match (Bigint.to_int_opt s, mem_reg_named b, index_reg_named i) with
         | Some s, Ok b, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else Ok (Operand.Mem { Mem.base = Some b; index = Some i; scale = s; disp = Disp.zero })
@@ -355,21 +362,21 @@ module Make (M : MODE) = struct
        `movl (%eax,%edx), %ecx` assembles byte-identically to
        `movl (%eax,%edx,1), %ecx`, mod=00 SIB scale=00 (i.e. 1)). *)
     | [ Token.Int d; Token.Lparen; Token.Register b; Token.Register i; Token.Rparen ] -> (
-        match (Bigint.to_int64_opt d, mem_reg_named b, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, mem_reg_named b, index_reg_named i) with
         | Some d, Ok b, Ok i ->
             Ok (Operand.Mem { Mem.base = Some b; index = Some i; scale = 1; disp = Disp.Const d })
         | _ -> bad (`Malformed_memory_operand slice))
     | Token.Minus
       :: Token.Int d
       :: [ Token.Lparen; Token.Register b; Token.Register i; Token.Rparen ] -> (
-        match (Bigint.to_int64_opt d, mem_reg_named b, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, mem_reg_named b, index_reg_named i) with
         | Some d, Ok b, Ok i ->
             Ok
               (Operand.Mem
                  { Mem.base = Some b; index = Some i; scale = 1; disp = Disp.Const (Int64.neg d) })
         | _ -> bad (`Malformed_memory_operand slice))
     | [ Token.Lparen; Token.Register b; Token.Register i; Token.Rparen ] -> (
-        match (mem_reg_named b, mem_reg_named i) with
+        match (mem_reg_named b, index_reg_named i) with
         | Ok b, Ok i ->
             Ok (Operand.Mem { Mem.base = Some b; index = Some i; scale = 1; disp = Disp.zero })
         | Error e, _ | _, Error e -> Error e)
@@ -381,7 +388,7 @@ module Make (M : MODE) = struct
        slices, so what's left to match is the same shape as disp(%base,...)
        minus the base register - not a "commas matter" case. *)
     | [ Token.Int d; Token.Lparen; Token.Register i; Token.Int s; Token.Rparen ] -> (
-        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, index_reg_named i) with
         | Some d, Some s, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else
@@ -389,7 +396,7 @@ module Make (M : MODE) = struct
         | _ -> bad (`Malformed_memory_operand slice))
     | Token.Minus :: Token.Int d :: [ Token.Lparen; Token.Register i; Token.Int s; Token.Rparen ]
       -> (
-        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, mem_reg_named i) with
+        match (Bigint.to_int64_opt d, Bigint.to_int_opt s, index_reg_named i) with
         | Some d, Some s, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else
@@ -398,7 +405,7 @@ module Make (M : MODE) = struct
                    { Mem.base = None; index = Some i; scale = s; disp = Disp.Const (Int64.neg d) })
         | _ -> bad (`Malformed_memory_operand slice))
     | [ Token.Lparen; Token.Register i; Token.Int s; Token.Rparen ] -> (
-        match (Bigint.to_int_opt s, mem_reg_named i) with
+        match (Bigint.to_int_opt s, index_reg_named i) with
         | Some s, Ok i ->
             if log2_scale s = None then bad (`Bad_scale (Int64.of_int s))
             else Ok (Operand.Mem { Mem.base = None; index = Some i; scale = s; disp = Disp.zero })

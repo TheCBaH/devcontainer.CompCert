@@ -15,6 +15,8 @@ type field =
 type operand =
   | Reg of { cls : rclass; field : field }
   | Mem of { bits : int }  (** a ModR/M memory operand; [bits] is informational *)
+  | Vsib of { cls : rclass }
+      (** a VSIB memory operand: SIB always, its index a vector register of class [cls] *)
   | Imm of { bytes : int }  (** an immediate of 1, 2 or 4 bytes *)
   | Fixed_reg of string  (** a register the spelling names but the encoding implies: [%cl] *)
   | Rounding of { sae_only : bool }

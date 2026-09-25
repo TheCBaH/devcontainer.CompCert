@@ -19,6 +19,7 @@ type operand =
   | Imm of { bytes : int }  (** [bytes = 0]: a [z] immediate, 2 or 4 by operand size *)
   | Fixed_reg of string  (** spelled, implied by the encoding: [%cl] *)
   | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
+  | Vsib of { cls : rclass }  (** a VSIB address: its index a vector register of [cls] *)
 
 type spec = {
   record_id : string;

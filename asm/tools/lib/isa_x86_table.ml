@@ -10,6 +10,7 @@ type operand =
   | Imm of { bytes : int }
   | Fixed_reg of string
   | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
+  | Vsib of { cls : rclass }  (** a VSIB address: its index a vector register of [cls] *)
 
 type spec = {
   record_id : string;
@@ -64,6 +65,7 @@ type pattern = {
   free_reg : bool;  (** REG[rrr] with no register operand behind it: GNU encodes 0 *)
   srm_nonzero : bool;  (** SRM!=0: the opcode-embedded register is not the accumulator *)
   bcrc : bool;  (** BCRC=1: EVEX.b set *)
+  vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
 }
 
@@ -85,6 +87,11 @@ let parse_pattern pattern =
             (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
             | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
             | "BCRC=1" -> Some { p with bcrc = true }
+            | "VMODRM_XMM()" | "UISA_VMODRM_XMM()" -> Some { p with vsib = Some Xmm }
+            | "VMODRM_YMM()" | "UISA_VMODRM_YMM()" -> Some { p with vsib = Some Ymm }
+            | "UISA_VMODRM_ZMM()" -> Some { p with vsib = Some Zmm }
+            (* VSIB's SIB escape; any address size but 16-bit *)
+            | "RM=4" | "EASZ!=1" -> Some p
             | "AVX512_ROUND()" -> Some { p with round = `Rc }
             | "SAE()" -> Some { p with round = `Sae }
             | "FIX_ROUND_LEN512()" -> Some { p with vl = 2 }
@@ -161,6 +168,7 @@ let parse_pattern pattern =
          free_reg = false;
          srm_nonzero = false;
          bcrc = false;
+         vsib = None;
          round = `None;
        })
     tokens
@@ -303,6 +311,12 @@ let att_mnemonic ?(vl = -1) ~iclass operands =
   (* GNU as has no q spelling for these: they are twins of the W-ignored forms *)
   | "VPCMPISTRI64" | "VPCMPISTRM64" | "PCMPISTRI64" | "PCMPISTRM64" ->
       String.sub lower 0 (String.length lower - 2)
+  (* an integer source in memory states its width: vcvtsi2sdl / vcvtsi2sdq *)
+  | ("VCVTSI2SD" | "VCVTSI2SS" | "VCVTUSI2SD" | "VCVTUSI2SS" | "VCVTSI2SH" | "VCVTUSI2SH")
+    when List.exists (function Mem { bits = 32 | 64 } -> true | _ -> false) operands ->
+      lower
+      ^
+      if List.exists (function Mem { bits = 64 } -> true | _ -> false) operands then "q" else "l"
   | _ when narrowing iclass && vl >= 0 && mem_to_xmm operands -> (
       lower ^ match vl with 0 -> "x" | 1 -> "y" | _ -> "z")
   (* a class test of memory into a mask register states the vector width the same way *)
@@ -498,12 +512,20 @@ let spec_of_record (rec_ : R.t) =
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match (parse_pattern pattern, int_of_string_opt opcode) with
       | Some p, Some opcode
-        when (match space with "vex" -> p.vex | "evex" -> p.evex | _ -> p.xop) && p.modrm -> (
+        when (match space with "vex" -> p.vex | "evex" -> p.evex | _ -> p.xop)
+             && (p.modrm
+                || List.for_all (fun (o : R.x86_operand) -> o.visibility <> "DEFAULT") operands)
+        -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
           else
             let xed_order = List.filter_map Fun.id (List.filter_map Fun.id ops) in
             let has_mem = List.exists (function Mem _ -> true | _ -> false) xed_order in
+            let xed_order =
+              match p.vsib with
+              | Some cls -> List.map (function Mem _ -> Vsib { cls } | o -> o) xed_order
+              | None -> xed_order
+            in
             let prefix =
               match p.vex_prefix with
               | Some 1 -> Some 0x66
@@ -750,6 +772,7 @@ let form ~requirement (rec_ : R.t) spec =
              match o with
              | Fixed_reg _ -> None
              | Rounding _ -> Some Rounding_mode
+             | Vsib _ -> Some (Memory { width_bits = None })
              | Reg { cls; _ } -> Some (Register { class_ = class_ cls; excluded = [] })
              | Mem { bits } ->
                  Some (Memory { width_bits = (if bits <= 0 then None else Some bits) })
@@ -776,7 +799,7 @@ let form ~requirement (rec_ : R.t) spec =
         match o with
         | Reg _ -> Syn_decorated ("%", Syn_operand (operand_name i))
         (* spelled whole, braces included: {rn-sae} *)
-        | Rounding _ -> Syn_operand (operand_name i)
+        | Rounding _ | Vsib _ -> Syn_operand (operand_name i)
         | Imm _ -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Mem _ -> Syn_operand (operand_name i)
         (* an implied register is assigned per case: its spelling follows the operand size *)
@@ -835,7 +858,8 @@ let twin_primaries specs =
           | Mem _ -> `Mem
           | Imm { bytes } -> `Imm bytes
           | Fixed_reg n -> `Fixed n
-          | Rounding _ -> `Rounding)
+          | Rounding _ -> `Rounding
+          | Vsib { cls } -> `Vsib cls)
         spec.operands )
   in
   let groups = Hashtbl.create 64 in
@@ -961,6 +985,7 @@ let accumulator_positions (records : R.t list) spec =
     | Imm { bytes } -> `Imm (bytes = 1)
     | Fixed_reg n -> `Fixed n
     | Rounding _ -> `Rounding
+    | Vsib _ -> `Vsib
   in
   (* the accumulator a sibling names, against the register width at the same position *)
   let covers acc width =

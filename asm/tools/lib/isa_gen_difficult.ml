@@ -7064,6 +7064,14 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                  in
                  [ (Isa_x86_table.operand_name i, v) ]
              | Fixed_reg name -> [ (Isa_x86_table.operand_name i, name) ]
+             (* the index apart from every register operand: GNU as rejects a gather whose mask,
+                index and destination coincide *)
+             | Vsib { cls } ->
+                 [
+                   ( Isa_x86_table.operand_name i,
+                     if high then Printf.sprintf "16(%%r9,%%%s,4)" (reg_name cls 13)
+                     else Printf.sprintf "16(%%%s,%%%s,4)" stack (reg_name cls 5) );
+                 ]
              | Rounding { sae_only } ->
                  [
                    ( Isa_x86_table.operand_name i,

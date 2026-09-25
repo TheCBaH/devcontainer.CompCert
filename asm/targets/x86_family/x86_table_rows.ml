@@ -8303,6 +8303,278 @@ let rows : row array =
       source = "VPSRLW_YMMqq_YMMqq_IMMb";
     };
     {
+      mnemonic = "vgatherdpd";
+      space = Vex;
+      map = 2;
+      opcode = 0x92;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERDPD_XMMf64_MEMf64_XMMi64_VL128";
+    };
+    {
+      mnemonic = "vgatherdpd";
+      space = Vex;
+      map = 2;
+      opcode = 0x92;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERDPD_YMMf64_MEMf64_YMMi64_VL256";
+    };
+    {
+      mnemonic = "vgatherdps";
+      space = Vex;
+      map = 2;
+      opcode = 0x92;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERDPS_XMMf32_MEMf32_XMMi32_VL128";
+    };
+    {
+      mnemonic = "vgatherdps";
+      space = Vex;
+      map = 2;
+      opcode = 0x92;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERDPS_YMMf32_MEMf32_YMMi32_VL256";
+    };
+    {
+      mnemonic = "vgatherqpd";
+      space = Vex;
+      map = 2;
+      opcode = 0x93;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERQPD_XMMf64_MEMf64_XMMi64_VL128";
+    };
+    {
+      mnemonic = "vgatherqpd";
+      space = Vex;
+      map = 2;
+      opcode = 0x93;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERQPD_YMMf64_MEMf64_YMMi64_VL256";
+    };
+    {
+      mnemonic = "vgatherqps";
+      space = Vex;
+      map = 2;
+      opcode = 0x93;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERQPS_XMMf32_MEMf32_XMMi32_VL128";
+    };
+    {
+      mnemonic = "vgatherqps";
+      space = Vex;
+      map = 2;
+      opcode = 0x93;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VGATHERQPS_XMMf32_MEMf32_XMMi32_VL256";
+    };
+    {
+      mnemonic = "vpgatherdd";
+      space = Vex;
+      map = 2;
+      opcode = 0x90;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERDD_XMMu32_MEMd_XMMi32_VL128";
+    };
+    {
+      mnemonic = "vpgatherdd";
+      space = Vex;
+      map = 2;
+      opcode = 0x90;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERDD_YMMu32_MEMd_YMMi32_VL256";
+    };
+    {
+      mnemonic = "vpgatherdq";
+      space = Vex;
+      map = 2;
+      opcode = 0x90;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERDQ_XMMu64_MEMq_XMMi64_VL128";
+    };
+    {
+      mnemonic = "vpgatherdq";
+      space = Vex;
+      map = 2;
+      opcode = 0x90;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERDQ_YMMu64_MEMq_YMMi64_VL256";
+    };
+    {
+      mnemonic = "vpgatherqd";
+      space = Vex;
+      map = 2;
+      opcode = 0x91;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERQD_XMMu32_MEMd_XMMi32_VL128";
+    };
+    {
+      mnemonic = "vpgatherqd";
+      space = Vex;
+      map = 2;
+      opcode = 0x91;
+      prefix = 0x66;
+      osz = false;
+      w = 0;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERQD_XMMu32_MEMd_XMMi32_VL256";
+    };
+    {
+      mnemonic = "vpgatherqq";
+      space = Vex;
+      map = 2;
+      opcode = 0x91;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Xmm; field = Vvvv }; Vsib { cls = Xmm }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERQQ_XMMu64_MEMq_XMMi64_VL128";
+    };
+    {
+      mnemonic = "vpgatherqq";
+      space = Vex;
+      map = 2;
+      opcode = 0x91;
+      prefix = 0x66;
+      osz = false;
+      w = 1;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Reg { cls = Ymm; field = Vvvv }; Vsib { cls = Ymm }; Reg { cls = Ymm; field = Modrm_reg } ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx2gather";
+      source = "VPGATHERQQ_YMMu64_MEMq_YMMi64_VL256";
+    };
+    {
       mnemonic = "v4fmaddps";
       space = Evex;
       map = 2;
@@ -15817,7 +16089,7 @@ let rows : row array =
       source = "VCVTSI2SH_XMMf16_XMMf16_GPR64i64_AVX512";
     };
     {
-      mnemonic = "vcvtsi2sh";
+      mnemonic = "vcvtsi2shl";
       space = Evex;
       map = 5;
       opcode = 0x2a;
@@ -15832,6 +16104,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512_fp16_scalar";
       source = "VCVTSI2SH_XMMf16_XMMf16_MEMi32_AVX512";
+    };
+    {
+      mnemonic = "vcvtsi2shq";
+      space = Evex;
+      map = 5;
+      opcode = 0x2a;
+      prefix = 0xf3;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512_fp16_scalar";
+      source = "VCVTSI2SH_XMMf16_XMMf16_MEMi64_AVX512";
     };
     {
       mnemonic = "vcvtss2sh";
@@ -16038,7 +16327,7 @@ let rows : row array =
       source = "VCVTUSI2SH_XMMf16_XMMf16_GPR64u64_AVX512";
     };
     {
-      mnemonic = "vcvtusi2sh";
+      mnemonic = "vcvtusi2shl";
       space = Evex;
       map = 5;
       opcode = 0x7b;
@@ -16053,6 +16342,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512_fp16_scalar";
       source = "VCVTUSI2SH_XMMf16_XMMf16_MEMu32_AVX512";
+    };
+    {
+      mnemonic = "vcvtusi2shq";
+      space = Evex;
+      map = 5;
+      opcode = 0x7b;
+      prefix = 0xf3;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512_fp16_scalar";
+      source = "VCVTUSI2SH_XMMf16_XMMf16_MEMu64_AVX512";
     };
     {
       mnemonic = "vdivsh";
@@ -48865,7 +49171,7 @@ let rows : row array =
       source = "VCVTUSI2SD_XMMf64_XMMf64_GPR64u64_AVX512";
     };
     {
-      mnemonic = "vcvtusi2sd";
+      mnemonic = "vcvtusi2sdl";
       space = Evex;
       map = 1;
       opcode = 0x7b;
@@ -48880,6 +49186,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_scalar";
       source = "VCVTUSI2SD_XMMf64_XMMf64_MEMu32_AVX512";
+    };
+    {
+      mnemonic = "vcvtusi2sdq";
+      space = Evex;
+      map = 1;
+      opcode = 0x7b;
+      prefix = 0xf2;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTUSI2SD_XMMf64_XMMf64_MEMu64_AVX512";
     };
     {
       mnemonic = "vcvtusi2ss";
@@ -48916,7 +49239,7 @@ let rows : row array =
       source = "VCVTUSI2SS_XMMf32_XMMf32_GPR64u64_AVX512";
     };
     {
-      mnemonic = "vcvtusi2ss";
+      mnemonic = "vcvtusi2ssl";
       space = Evex;
       map = 1;
       opcode = 0x7b;
@@ -48931,6 +49254,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_scalar";
       source = "VCVTUSI2SS_XMMf32_XMMf32_MEMu32_AVX512";
+    };
+    {
+      mnemonic = "vcvtusi2ssq";
+      space = Evex;
+      map = 1;
+      opcode = 0x7b;
+      prefix = 0xf3;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTUSI2SS_XMMf32_XMMf32_MEMu64_AVX512";
     };
     {
       mnemonic = "vfixupimmsd";
@@ -75147,7 +75487,7 @@ let rows : row array =
       source = "VCVTSI2SD_XMMdq_XMMdq_GPR64q";
     };
     {
-      mnemonic = "vcvtsi2sd";
+      mnemonic = "vcvtsi2sdl";
       space = Vex;
       map = 1;
       opcode = 0x2a;
@@ -75162,6 +75502,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx";
       source = "VCVTSI2SD_XMMdq_XMMdq_MEMd";
+    };
+    {
+      mnemonic = "vcvtsi2sdq";
+      space = Vex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf2;
+      osz = false;
+      w = 1;
+      l = -1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx";
+      source = "VCVTSI2SD_XMMdq_XMMdq_MEMq";
     };
     {
       mnemonic = "vcvtsi2ss";
@@ -75198,7 +75555,7 @@ let rows : row array =
       source = "VCVTSI2SS_XMMdq_XMMdq_GPR64q";
     };
     {
-      mnemonic = "vcvtsi2ss";
+      mnemonic = "vcvtsi2ssl";
       space = Vex;
       map = 1;
       opcode = 0x2a;
@@ -75213,6 +75570,23 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx";
       source = "VCVTSI2SS_XMMdq_XMMdq_MEMd";
+    };
+    {
+      mnemonic = "vcvtsi2ssq";
+      space = Vex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf3;
+      osz = false;
+      w = 1;
+      l = -1;
+      disp8n = 1;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx";
+      source = "VCVTSI2SS_XMMdq_XMMdq_MEMq";
     };
     {
       mnemonic = "vcvtss2si";
@@ -82863,6 +83237,40 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx";
       source = "VXORPS_YMMqq_YMMqq_YMMqq";
+    };
+    {
+      mnemonic = "vzeroall";
+      space = Vex;
+      map = 1;
+      opcode = 0x77;
+      prefix = 0x00;
+      osz = false;
+      w = -1;
+      l = 1;
+      disp8n = 1;
+      digit = -1;
+      operands = [  ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx";
+      source = "VZEROALL";
+    };
+    {
+      mnemonic = "vzeroupper";
+      space = Vex;
+      map = 1;
+      opcode = 0x77;
+      prefix = 0x00;
+      osz = false;
+      w = -1;
+      l = 0;
+      disp8n = 1;
+      digit = -1;
+      operands = [  ];
+      mode = 0;
+      no_acc = [  ];
+      feature = "avx";
+      source = "VZEROUPPER";
     };
     {
       mnemonic = "vaesdeclast";
@@ -94391,7 +94799,7 @@ let rows : row array =
       source = "VCVTSI2SH_XMMf16_XMMf16_GPR32i32_AVX512";
     };
     {
-      mnemonic = "vcvtsi2sh";
+      mnemonic = "vcvtsi2shl";
       space = Evex;
       map = 5;
       opcode = 0x2a;
@@ -94493,7 +94901,7 @@ let rows : row array =
       source = "VCVTUSI2SH_XMMf16_XMMf16_GPR32u32_AVX512";
     };
     {
-      mnemonic = "vcvtusi2sh";
+      mnemonic = "vcvtusi2shl";
       space = Evex;
       map = 5;
       opcode = 0x7b;
@@ -94884,7 +95292,7 @@ let rows : row array =
       source = "VCVTUSI2SD_XMMf64_XMMf64_GPR32u32_AVX512";
     };
     {
-      mnemonic = "vcvtusi2sd";
+      mnemonic = "vcvtusi2sdl";
       space = Evex;
       map = 1;
       opcode = 0x7b;
@@ -94918,7 +95326,7 @@ let rows : row array =
       source = "VCVTUSI2SS_XMMf32_XMMf32_GPR32u32_AVX512";
     };
     {
-      mnemonic = "vcvtusi2ss";
+      mnemonic = "vcvtusi2ssl";
       space = Evex;
       map = 1;
       opcode = 0x7b;
@@ -113771,7 +114179,7 @@ let rows : row array =
       source = "VCVTSI2SD_XMMdq_XMMdq_GPR32d";
     };
     {
-      mnemonic = "vcvtsi2sd";
+      mnemonic = "vcvtsi2sdl";
       space = Vex;
       map = 1;
       opcode = 0x2a;
@@ -113805,7 +114213,7 @@ let rows : row array =
       source = "VCVTSI2SS_XMMdq_XMMdq_GPR32d";
     };
     {
-      mnemonic = "vcvtsi2ss";
+      mnemonic = "vcvtsi2ssl";
       space = Vex;
       map = 1;
       opcode = 0x2a;
@@ -115571,40 +115979,6 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_256";
       source = "VPSRLQ_YMMu64_MASKmskw_YMMu64_IMM8_AVX512";
-    };
-    {
-      mnemonic = "vcvtsi2sh";
-      space = Evex;
-      map = 5;
-      opcode = 0x2a;
-      prefix = 0xf3;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512_fp16_scalar";
-      source = "VCVTSI2SH_XMMf16_XMMf16_MEMi64_AVX512";
-    };
-    {
-      mnemonic = "vcvtusi2sh";
-      space = Evex;
-      map = 5;
-      opcode = 0x7b;
-      prefix = 0xf3;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512_fp16_scalar";
-      source = "VCVTUSI2SH_XMMf16_XMMf16_MEMu64_AVX512";
     };
     {
       mnemonic = "vmovsh";
@@ -126572,6 +126946,40 @@ let rows : row array =
       source = "VCVTSI2SD_XMMf64_XMMf64_GPR64i64_AVX512";
     };
     {
+      mnemonic = "vcvtsi2sdl";
+      space = Evex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf2;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 4;
+      digit = -1;
+      operands = [ Mem { bits = 32 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTSI2SD_XMMf64_XMMf64_MEMi32_AVX512";
+    };
+    {
+      mnemonic = "vcvtsi2sdq";
+      space = Evex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf2;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTSI2SD_XMMf64_XMMf64_MEMi64_AVX512";
+    };
+    {
       mnemonic = "vcvtsi2ss";
       space = Evex;
       map = 1;
@@ -126604,6 +127012,40 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_scalar";
       source = "VCVTSI2SS_XMMf32_XMMf32_GPR64i64_AVX512";
+    };
+    {
+      mnemonic = "vcvtsi2ssl";
+      space = Evex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf3;
+      osz = false;
+      w = 0;
+      l = 0;
+      disp8n = 4;
+      digit = -1;
+      operands = [ Mem { bits = 32 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTSI2SS_XMMf32_XMMf32_MEMi32_AVX512";
+    };
+    {
+      mnemonic = "vcvtsi2ssq";
+      space = Evex;
+      map = 1;
+      opcode = 0x2a;
+      prefix = 0xf3;
+      osz = false;
+      w = 1;
+      l = 0;
+      disp8n = 8;
+      digit = -1;
+      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
+      mode = 64;
+      no_acc = [  ];
+      feature = "avx512f_scalar";
+      source = "VCVTSI2SS_XMMf32_XMMf32_MEMi64_AVX512";
     };
     {
       mnemonic = "vcvtss2sd";
@@ -126842,40 +127284,6 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_scalar";
       source = "VCVTTSS2SI_GPR64i64_XMMf32_AVX512";
-    };
-    {
-      mnemonic = "vcvtusi2sd";
-      space = Evex;
-      map = 1;
-      opcode = 0x7b;
-      prefix = 0xf2;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTUSI2SD_XMMf64_XMMf64_MEMu64_AVX512";
-    };
-    {
-      mnemonic = "vcvtusi2ss";
-      space = Evex;
-      map = 1;
-      opcode = 0x7b;
-      prefix = 0xf3;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTUSI2SS_XMMf32_XMMf32_MEMu64_AVX512";
     };
     {
       mnemonic = "vdivsd";
@@ -133984,40 +134392,6 @@ let rows : row array =
       source = "VPMOVZXWQ_YMMi64_MASKmskw_XMMi16_AVX512";
     };
     {
-      mnemonic = "vcvtsi2sd";
-      space = Vex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf2;
-      osz = false;
-      w = 1;
-      l = -1;
-      disp8n = 1;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx";
-      source = "VCVTSI2SD_XMMdq_XMMdq_MEMq";
-    };
-    {
-      mnemonic = "vcvtsi2ss";
-      space = Vex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf3;
-      osz = false;
-      w = 1;
-      l = -1;
-      disp8n = 1;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx";
-      source = "VCVTSI2SS_XMMdq_XMMdq_MEMq";
-    };
-    {
       mnemonic = "vmovapd";
       space = Vex;
       map = 1;
@@ -135429,7 +135803,7 @@ let rows : row array =
       source = "VCVTSI2SD_XMMf64_XMMf64_GPR32i32_AVX512";
     };
     {
-      mnemonic = "vcvtsi2sd";
+      mnemonic = "vcvtsi2sdl";
       space = Evex;
       map = 1;
       opcode = 0x2a;
@@ -135463,7 +135837,7 @@ let rows : row array =
       source = "VCVTSI2SS_XMMf32_XMMf32_GPR32i32_AVX512";
     };
     {
-      mnemonic = "vcvtsi2ss";
+      mnemonic = "vcvtsi2ssl";
       space = Evex;
       map = 1;
       opcode = 0x2a;
@@ -136755,40 +137129,6 @@ let rows : row array =
       source = "VMOVUPS_YMMf32_MASKmskw_YMMf32_AVX512";
     };
     {
-      mnemonic = "vcvtsi2sd";
-      space = Evex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf2;
-      osz = false;
-      w = 0;
-      l = 0;
-      disp8n = 4;
-      digit = -1;
-      operands = [ Mem { bits = 32 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTSI2SD_XMMf64_XMMf64_MEMi32_AVX512";
-    };
-    {
-      mnemonic = "vcvtsi2ss";
-      space = Evex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf3;
-      osz = false;
-      w = 0;
-      l = 0;
-      disp8n = 4;
-      digit = -1;
-      operands = [ Mem { bits = 32 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTSI2SS_XMMf32_XMMf32_MEMi32_AVX512";
-    };
-    {
       mnemonic = "vmovsd";
       space = Evex;
       map = 1;
@@ -137093,40 +137433,6 @@ let rows : row array =
       no_acc = [  ];
       feature = "avx512f_256";
       source = "VMOVUPS_YMMf32_MASKmskw_YMMf32_AVX512";
-    };
-    {
-      mnemonic = "vcvtsi2sd";
-      space = Evex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf2;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTSI2SD_XMMf64_XMMf64_MEMi64_AVX512";
-    };
-    {
-      mnemonic = "vcvtsi2ss";
-      space = Evex;
-      map = 1;
-      opcode = 0x2a;
-      prefix = 0xf3;
-      osz = false;
-      w = 1;
-      l = 0;
-      disp8n = 8;
-      digit = -1;
-      operands = [ Mem { bits = 64 }; Reg { cls = Xmm; field = Vvvv }; Reg { cls = Xmm; field = Modrm_reg } ];
-      mode = 64;
-      no_acc = [  ];
-      feature = "avx512f_scalar";
-      source = "VCVTSI2SS_XMMf32_XMMf32_MEMi64_AVX512";
     };
     {
       mnemonic = "vmovsd";
