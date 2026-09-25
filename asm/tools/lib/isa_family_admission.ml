@@ -16,7 +16,15 @@ type tally = {
 }
 
 type family = { name : string; total : int; tally : tally }
-type summary = { total : int; families : family list }
+type construct_count = { construct : string; needed : int; sole : int }
+
+type summary = {
+  total : int;
+  families : family list;
+  unruled : int;
+  known_only : int;
+  constructs : construct_count list;
+}
 
 type mutable_tally = {
   mutable normalized_only : int;
@@ -137,23 +145,57 @@ let credit_of ~source ~target (records : Isa_source_record.t list)
     cases;
   credit
 
-let state_of ~source credit rec_ =
-  match normalize source rec_ with
-  | Error diagnostic -> Blocked diagnostic.rule
+let state_of ~source credit ~known rec_ normalized =
+  match normalized with
+  | Error (diagnostic : Isa_norm_model.diagnostic) ->
+      if Isa_construct.is_catch_all diagnostic.rule then Blocked (Isa_construct.blocker known rec_)
+      else Blocked diagnostic.rule
   | Ok (form : Isa_norm_model.form) ->
       let k = (form.form_id, lookup_key source rec_) in
       if Hashtbl.mem credit.promoted k then Promoted_support
       else if Hashtbl.mem credit.attempted k then Gas_generatable
       else Normalized_only
 
+(* Per missing construct over the catch-all-blocked records: how many need it,
+   and how many need nothing else (admitting it alone would unblock them). *)
+let construct_histogram known unruled =
+  let tbl = Hashtbl.create 64 in
+  List.iter
+    (fun rec_ ->
+      let missing = Isa_construct.missing known rec_ in
+      let sole = match missing with [ _ ] -> 1 | _ -> 0 in
+      List.iter
+        (fun c ->
+          let key = Isa_construct.to_string c in
+          let needed, only = Option.value (Hashtbl.find_opt tbl key) ~default:(0, 0) in
+          Hashtbl.replace tbl key (needed + 1, only + sole))
+        missing)
+    unruled;
+  Hashtbl.to_seq tbl |> List.of_seq
+  |> List.map (fun (c, (needed, sole)) -> { construct = c; needed; sole })
+  |> List.sort (fun a b ->
+      match compare (b.sole, b.needed) (a.sole, a.needed) with
+      | 0 -> String.compare a.construct b.construct
+      | n -> n)
+
 let summarize repo ~source target =
   let ( let* ) = Result.bind in
   let* records = Isa_source_record.read_file (Repo.isa_db_export repo ~source target) in
   let* cases = corpus_cases repo in
   let credit = credit_of ~source ~target records cases in
+  let normalized = List.map (fun rec_ -> (rec_, normalize source rec_)) records in
+  let known = Isa_construct.known_of (List.map (fun (r, n) -> (r, Result.is_ok n)) normalized) in
+  let unruled =
+    List.filter_map
+      (fun (rec_, n) ->
+        match n with
+        | Error (d : Isa_norm_model.diagnostic) when Isa_construct.is_catch_all d.rule -> Some rec_
+        | _ -> None)
+      normalized
+  in
   let tallies = Hashtbl.create 64 in
   List.iter
-    (fun (rec_ : Isa_source_record.t) ->
+    (fun ((rec_ : Isa_source_record.t), n) ->
       let name = family_of rec_ in
       let tally =
         match Hashtbl.find_opt tallies name with
@@ -163,15 +205,22 @@ let summarize repo ~source target =
             Hashtbl.add tallies name tally;
             tally
       in
-      record tally (state_of ~source credit rec_))
-    records;
+      record tally (state_of ~source credit ~known rec_ n))
+    normalized;
   let families =
     Hashtbl.to_seq tallies |> List.of_seq
     |> List.map (fun (name, tally) ->
         { name; total = tally_total (tally_of tally); tally = tally_of tally })
     |> List.sort (fun a b -> String.compare a.name b.name)
   in
-  Ok { total = List.length records; families }
+  Ok
+    {
+      total = List.length records;
+      families;
+      unruled = List.length unruled;
+      known_only = List.length (List.filter (fun r -> Isa_construct.missing known r = []) unruled);
+      constructs = construct_histogram known unruled;
+    }
 
 let report_lines ~label (summary : summary) =
   let header =
@@ -193,7 +242,15 @@ let report_lines ~label (summary : summary) =
       family.name family.total t.normalized_only t.gas_generatable t.promoted_support
       t.oracle_unavailable blockers
   in
-  header :: List.map line summary.families
+  let construct_lines =
+    Printf.sprintf
+      "isa-construct: %s: %d records without a normalizer rule, %d need only known constructs" label
+      summary.unruled summary.known_only
+    :: List.map
+         (fun c -> Printf.sprintf "  %-52s needed=%-5d sole=%d" c.construct c.needed c.sole)
+         summary.constructs
+  in
+  (header :: List.map line summary.families) @ construct_lines
 
 let targets_and_sources =
   [

@@ -31,7 +31,7 @@ x86 ledger worked down in the plan section 6 order.
 | ID | Work package | State | Depends on | Next action |
 |---|---|---|---|---|
 | INF-01 | Promotion credit from committed passing cases | done | — | — |
-| INF-02 | Operand-vocabulary normalization, construct-keyed blockers | ready | — | Draft the XED operand vocabulary from the captured operand fields |
+| INF-02 | Operand-vocabulary normalization, construct-keyed blockers | done | — | Generic operand-driven normalization moves into INF-05R/INF-05X |
 | INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
 | INF-04 | Batched, sharded, incremental GAS regeneration | ready | — | Measure current regen time per case; design batch labels |
 | INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | investigating | INF-02 | Write the decision record |
@@ -80,17 +80,38 @@ lines. Adding credit for a new form now needs only its committed case.
 
 ### INF-02 — operand vocabulary and construct-keyed blockers
 
-- [ ] Inventory the distinct XED operand facts in the resolved exports
+- [x] Inventory the distinct XED operand facts in the resolved exports
   (register lookup names, memory widths, immediate kinds, visibility, `BCRC`,
   VSIB, tuple type, EVEX/VEX/XOP/REX2 space markers) with record counts.
-- [ ] Map each to a normalized operand domain or an explicit
-  `unknown-operand:<construct>` / `unsupported-encoding:<feature>` diagnostic.
-- [ ] Keep per-iform arms only as overrides; every currently promoted form
-  must normalize to an identical dump (`jsonl` round-trip unchanged).
-- [ ] Same for RISC-V `variable_fields` via `arg-lut`: each field name has a
-  domain and syntax role or is reported by name.
-- [ ] Output: a per-construct blocker histogram in `family-admission`, which
-  replaces guesswork in the x86 work order. Record it in the evidence log.
+  x86-64: 31,496 operands over 90 lookup functions (`MASK1` 3,863, `XMM_R3`
+  1,568, ...), 76 `oc2` widths, visibility DEFAULT 29,452 / SUPPRESSED 1,436
+  / IMPLICIT 600; spaces evex 6,775, legacy 1,956, vex 1,664, xop 176.
+- [x] Map each to a construct (`Isa_construct`): register class by lookup
+  prefix, `mem:<oc2>`, `imm:<oc2>`, visible implicit registers, and encoding
+  constructs (space/map, VL, W1, opmask, zeroing, broadcast/rounding/SAE,
+  VSIB, is4, REX2, APX EVEX/NDD/NF/SCC, branch displacement, lock).
+  SUPPRESSED operands are side effects and need no syntax.
+- [x] "Known" is measured, not listed: the union of constructs of records
+  that normalize today. A record with no normalizer rule is blocked by its
+  first unknown construct, or `no-rule:known-constructs`.
+- [x] RISC-V: one construct per `variable_fields` name plus `len16`;
+  unknown fields are reported by name.
+- [x] Per-construct histogram (`needed`, `sole`) in `family-admission`;
+  repo test checks construct blockers cover exactly the rule-less records.
+- Deferred by decision: operand-driven *generic normalization* (per-iform
+  arms only as overrides) lands with the table encoders (INF-05R/INF-05X),
+  since a generic normal form is only useful with a generic encoder and
+  generated cases. No normalizer output changed here.
+
+Headline (2026-09-25): records without a normalizer rule that need only
+known constructs — RV32 290/331, RV64 309/341, x86-32 1,739/6,842, x86-64
+1,777/9,524. Top x86-64 constructs by sole-missing records: `evex-map2`
+341, `evex-vl128` 250, `evex-vl256` 222, `vex-w1` 196, `reg:mmx` 182,
+`evex-map5` 141, `evex-map3` 107, `is4` 84, `mem:vv` 83, `mem:zd` 69,
+`evex-map6` 68, `lock` 57, `branch-displacement` 48. APX (`evex-map4`
+2,318 needed) is never sole-missing: it needs map4 + APX EVEX together.
+Note: the admitted zmm subset's records carry `MASK1`, so `evex-opmask`
+counts as known; masking is an obligation on already-credited records.
 
 ### INF-03 — generated cases
 
@@ -238,3 +259,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | Phase-2 baseline | `make tools-isa-residual-ledger` and `family-admission` at `f4b93e4`: counts in the baseline table; ledger owns all blocked records |
 | 2026-09-25 | GAS capability probe | `x86_64-linux-gnu-as` 2.44 accepts APX (r16, `{nf}`, NDD), EVEX mask/zeroing/broadcast, AVX10.2 `vminmaxps`, AMX `tdpbssd`, FMA, VSIB, XOP, MMX, 3DNow `femms`, `fadds 4(%rsp)`. RISC-V 2.44/2.43.1 accept Zfh, Zfa, Q, Zabha, Zacas, Zawrs, Zimop, Zcb, Zcmp, Zcmt, Zcmop, Zfbfmin, H, Zicbom, Zicfiss, Ssctr; reject Zalasr, Zilsd (RV32), `mnret` (Smrnmi) |
 | 2026-09-25 | INF-01 | Credit read from corpora; `family-admission` and `residual-ledger` byte-identical to `f4b93e4`; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
+| 2026-09-25 | INF-02 | Construct-keyed blockers and histogram in `family-admission`; counts unchanged; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |

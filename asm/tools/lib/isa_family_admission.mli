@@ -9,7 +9,9 @@
     form with positive cases none of which earns credit remains
     [Gas_generatable]. All other successfully normalized forms are
     [Normalized_only]. A normalization diagnostic is preserved as its specific
-    [Blocked] rule. Credit is derived from the corpora, never restated. *)
+    [Blocked] rule, except that the normalizers' catch-all "no rule" diagnostic
+    is refined into the record's first unknown construct ({!Isa_construct}).
+    Credit is derived from the corpora, never restated. *)
 
 type state =
   | Normalized_only
@@ -27,7 +29,20 @@ type tally = {
 }
 
 type family = { name : string; total : int; tally : tally }
-type summary = { total : int; families : family list }
+
+type construct_count = {
+  construct : string;  (** {!Isa_construct.to_string} *)
+  needed : int;  (** records without a normalizer rule that need this construct *)
+  sole : int;  (** of those, records for which it is the only unknown construct *)
+}
+
+type summary = {
+  total : int;
+  families : family list;
+  unruled : int;  (** records the normalizer has no rule for *)
+  known_only : int;  (** of those, records whose every construct is already known *)
+  constructs : construct_count list;  (** most records unblocked first *)
+}
 
 val summarize : Repo.t -> source:string -> Target.t -> (summary, Tool_error.t) Err.t
 (** Read one checked-in export and classify every record. [source] is
