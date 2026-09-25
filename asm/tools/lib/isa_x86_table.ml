@@ -111,6 +111,9 @@ let parse_pattern pattern =
             | "REP=3" -> Some { p with rep = 3 }
             (* no constraint on the encoding: a 0x66 is tolerated, REX2 is APX's *)
             | "REFINING66()" -> Some { p with refining66 = true }
+            (* TZCNT=1/LZCNT=1 select the F3 form from bsf/bsr, which REP=3 already states;
+               REP!=3 is the absence of that prefix *)
+            | "TZCNT=1" | "LZCNT=1" | "REP!=3" -> Some p
             | "IGNORE66()" | "NOREX2=1" | "REX2=0" | "SIMM8()" | "SRM[rrr]" | "LOCK=0"
             | "IMMUNE66()" | "SIMMz()" | "UIMM16()" ->
                 Some p
@@ -188,6 +191,8 @@ let mem_bits = function
    has bits = -1 and a [z] immediate bytes = 0 until {!expand} fixes the operand size. *)
 let operand_of (o : R.x86_operand) =
   if o.visibility = "SUPPRESSED" then Some None
+    (* the broadcast element marker of a VEX broadcast: not an operand *)
+  else if o.op_name = "BCAST" && o.lookupfn_name = None then Some None
     (* EVEX's optional write mask: absent means k0, the unmasked form this rule admits *)
   else if o.lookupfn_name = Some "MASK1" then Some None
   else if o.visibility = "IMPLICIT" then
@@ -303,8 +308,7 @@ let not_in_32bit_mode (rec_ : R.t) =
   | _ -> false
 
 (* The integer shapes the rule spells: one operand size throughout (so a single suffix names
-   it), no mixed-width moves, and no condition-code families whose AT&T spelling carries no
-   suffix. *)
+   it) and no mixed-width moves. *)
 let gpr_ok operands ~iclass =
   let classes =
     List.sort_uniq compare
@@ -312,6 +316,10 @@ let gpr_ok operands ~iclass =
          (function
            | Reg { cls = (Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv) as c; _ } -> Some c
            | Mem { bits = -1 } | Fixed_reg "?ax" -> Some Gprv
+           | Mem { bits = 8 } -> Some Gpr8
+           | Mem { bits = 16 } -> Some Gpr16
+           | Mem { bits = 32 } -> Some Gpr32
+           | Mem { bits = 64 } -> Some Gpr64
            | Fixed_reg "al" -> Some Gpr8
            | _ -> None)
          operands)
@@ -320,8 +328,6 @@ let gpr_ok operands ~iclass =
   && (not (List.mem iclass [ "MOVZX"; "MOVSX"; "MOVSXD"; "BSWAP" ]))
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
   && (not (iclass = "NOP" && List.length operands > 1))
-  && (not (starts_with ~prefix:"SET" iclass))
-  && (not (starts_with ~prefix:"CMOV" iclass))
   && List.for_all (function Reg { field = Vvvv | Is4; _ } -> false | _ -> true) operands
 
 (* The concrete rows of a spec: a width-variable integer form becomes its 16-, 32- and 64-bit
@@ -343,15 +349,16 @@ let expand spec =
          && spec.isa_set.[1] >= '0'
          && spec.isa_set.[1] <= '9'
     in
-    (* GNU as rejects a size suffix on most newer integer instructions; a register operand
-       states the size there *)
+    (* GNU as rejects a size suffix on most newer integer instructions: a register operand or
+       the instruction itself states the size there. invlpg's byte operand is an address, and
+       invlpgb is another instruction. *)
     let has_gpr_reg =
       List.exists
         (function Reg { cls = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv; _ } -> true | _ -> false)
         spec.operands
     in
     let suffix w =
-      if (not classic) && has_gpr_reg then ""
+      if ((not classic) && (has_gpr_reg || not variable)) || spec.iform = "INVLPG_MEMb" then ""
       else match w with 8 -> "b" | 16 -> "w" | 32 -> "l" | _ -> "q"
     in
     if not variable then
@@ -440,11 +447,6 @@ let spec_of_record (rec_ : R.t) =
           else
             let xed_order = List.filter_map Fun.id (List.filter_map Fun.id ops) in
             let has_mem = List.exists (function Mem _ -> true | _ -> false) xed_order in
-            let has_gpr =
-              List.exists
-                (function Reg { cls = Gpr8 | Gpr16 | Gpr32 | Gpr64; _ } -> true | _ -> false)
-                xed_order
-            in
             let prefix =
               match p.vex_prefix with
               | Some 1 -> Some 0x66
@@ -455,8 +457,6 @@ let spec_of_record (rec_ : R.t) =
             in
             match prefix with
             | None -> None
-            (* a GPR beside memory makes the AT&T spelling width-ambiguous (vcvtsi2sdl/q) *)
-            | Some _ when has_mem && has_gpr -> None
             | Some _ when p.memory = Some true <> has_mem -> None
             | Some prefix ->
                 Some

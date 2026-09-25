@@ -23,9 +23,6 @@ let rows =
           "AVX512BW_128N";
           "AVX512BW_256";
           "AVX512BW_512";
-          "AVX512CD_128";
-          "AVX512CD_256";
-          "AVX512CD_512";
           "AVX512DQ_128";
           "AVX512DQ_128N";
           "AVX512DQ_256";
@@ -83,7 +80,6 @@ let rows =
       families =
         [
           "AVX";
-          "AVX2";
           "AVX2GATHER";
           "AVX_IFMA";
           "AVX_NE_CONVERT";
@@ -112,18 +108,7 @@ let rows =
       id = "RES-X86-LEGACY-SIMD";
       source = "xed_resolved";
       families =
-        [
-          "3DNOW";
-          "ACE_1";
-          "PENTIUMMMX";
-          "SSE";
-          "SSE2";
-          "SSE4";
-          "SSE42";
-          "SSE4a";
-          "SSEMXCSR";
-          "SSE_PREFETCH";
-        ];
+        [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE4"; "SSE42"; "SSE4a"; "SSE_PREFETCH" ];
       capability =
         "Legacy MMX/SSE/3DNow remainders: 3DNow's suffix-opcode encoding (0F 0F ... op), \
          GPR-with-memory spellings that need a width suffix, implicit operands, and store-form \
@@ -158,14 +143,11 @@ let rows =
       source = "xed_resolved";
       families =
         [
-          "BMI1";
-          "BMI2";
           "CLDEMOTE";
           "CLFLUSHOPT";
           "CLFSH";
           "CLWB";
           "CLZERO";
-          "CMOV";
           "CMPXCHG16B";
           "FAT_NOP";
           "I186";
@@ -177,7 +159,6 @@ let rows =
           "I86";
           "LAHF";
           "LONGMODE";
-          "LZCNT";
           "PAUSE";
           "PENTIUMREAL";
           "PPRO";
@@ -192,9 +173,12 @@ let rows =
         ];
       capability =
         "Integer, string, stack, flag, bit-manipulation and data-movement instructions outside the \
-         admitted ALU space: mode-dependent operand sizes, implicit-operand and string forms, \
-         segment registers, BMI/LZCNT/POPCNT, atomics (CMPXCHG16B), and cache/prefetch hints.";
-      evidence = "family-admission: most of I86 and all of I386, CMOV and BMI2 are unhandled";
+         generated rows: DF64/FORCE64 stack forms, implicit-operand and string forms, LOCK/REP, \
+         segment registers, mixed-width moves, atomics (CMPXCHG16B), and cache/prefetch hints.";
+      evidence =
+        "family-admission: CMOVcc, SETcc, BMI1/BMI2/LZCNT and single-width I86/I386 forms are \
+         promoted through DEC-X86-TABLE rows; the rest of I86/I386/I186 is stack, string and \
+         implicit-operand forms";
       task = "GEN-05-X86-INT";
       reopening_gate =
         "implicit-operand syntax and address-size/segment recipes exist and each family has a GAS \
@@ -277,7 +261,6 @@ let rows =
           "AMD";
           "AMD_INVLPGB";
           "CET";
-          "CMPCCXADD";
           "ENQCMD";
           "FRED";
           "FXSAVE";
