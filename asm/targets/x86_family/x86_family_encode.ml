@@ -2113,7 +2113,7 @@ module Instruction = struct
           match r.space with
           | X86_table_row.Evex -> "{evex} " ^ r.mnemonic
           | Vex -> "{vex} " ^ r.mnemonic
-          | Legacy -> r.mnemonic
+          | Legacy | Xop -> r.mnemonic
         else
           match (dest r, dest q) with
           | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> "{load} " ^ r.mnemonic
@@ -8712,6 +8712,16 @@ module Make (M : MODE) = struct
                         ((if r.osz then "\x66" else "")
                         ^ (if r.prefix <> 0 then byte r.prefix else "")
                         ^ rex ^ escape ^ byte opcode ^ tail)
+                | T.Xop ->
+                    (* 8F RXB.mmmmm W.vvvv.L.pp, always the three-byte form *)
+                    if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
+                    else
+                      let v = lnot (Option.value !vvvv ~default:0) land 15 in
+                      Some
+                        ("\x8f"
+                        ^ byte (((1 - rr) lsl 7) lor ((1 - x) lsl 6) lor ((1 - b) lsl 5) lor r.map)
+                        ^ byte ((w lsl 7) lor (v lsl 3) lor (l lsl 2))
+                        ^ byte opcode ^ tail)
                 | T.Vex ->
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
                     else
@@ -8838,6 +8848,21 @@ module Make (M : MODE) = struct
                   lnot (b1 lsr 3) land 15,
                   (b1 lsr 2) land 1,
                   b1 land 3 ) )
+      (* XOP: 8F with a map of 8 or more (POP's ModR/M.reg is 0, so its low five bits are below
+         8) *)
+      | Some 0x8f, Some b1, Some b2
+        when rex = 0 && b1 land 31 >= 8 && (M.rex_allowed || b1 land 0xc0 = 0xc0) ->
+          Some
+            ( k + 3,
+              `Xop
+                ( 1 - ((b1 lsr 7) land 1),
+                  1 - ((b1 lsr 6) land 1),
+                  1 - ((b1 lsr 5) land 1),
+                  b1 land 31,
+                  (b2 lsr 7) land 1,
+                  lnot (b2 lsr 3) land 15,
+                  (b2 lsr 2) land 1,
+                  b2 land 3 ) )
       | Some 0xc4, Some b1, Some b2 when rex = 0 && (M.rex_allowed || b1 land 0xc0 = 0xc0) ->
           Some
             ( k + 3,
@@ -8885,6 +8910,7 @@ module Make (M : MODE) = struct
                   0,
                   0 )
             | `Vex (rr, xx, bb, map, w, vvvv, l, pp), T.Vex
+            | `Xop (rr, xx, bb, map, w, vvvv, l, pp), T.Xop
             | `Evex (rr, xx, bb, map, w, vvvv, l, pp), T.Evex ->
                 let want = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
                 ( map = r.map && pp = want && (not osz) && rep = 0

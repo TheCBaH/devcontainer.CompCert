@@ -16,7 +16,7 @@ type spec = {
   iform : string;
   isa_set : string;
   mnemonic : string;
-  space : [ `Legacy | `Vex | `Evex ];
+  space : [ `Legacy | `Vex | `Evex | `Xop ];
   map : int;
   opcode : int;
   prefix : int;
@@ -47,6 +47,7 @@ let after ~prefix s = String.sub s (String.length prefix) (String.length s - Str
 type pattern = {
   vex : bool;
   evex : bool;
+  xop : bool;  (** VEXVALID=3 *)
   esize : int;  (** ESIZE_n_BITS() *)
   nelem : string;  (** NELEM_x(), the EVEX tuple type *)
   vex_prefix : int option;
@@ -79,6 +80,7 @@ let parse_pattern pattern =
             match t with
             | "VEXVALID=1" -> Some { p with vex = true }
             | "VEXVALID=2" -> Some { p with evex = true }
+            | "VEXVALID=3" -> Some { p with xop = true }
             | "VL=2" -> Some { p with vl = 2 }
             (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
             | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
@@ -128,7 +130,7 @@ let parse_pattern pattern =
             (* a string op's segment override is its default without a prefix *)
             | "OVERRIDE_SEG0()" | "OVERRIDE_SEG1()" -> Some p
             | "IGNORE66()" | "NOREX2=1" | "REX2=0" | "SIMM8()" | "SRM[rrr]" | "LOCK=0"
-            | "IMMUNE66()" | "SIMMz()" | "UIMM16()" ->
+            | "IMMUNE66()" | "SIMMz()" | "UIMM16()" | "UIMM32()" ->
                 Some p
             | _ when starts_with ~prefix:"VEX_PREFIX=" t ->
                 Option.map
@@ -142,6 +144,7 @@ let parse_pattern pattern =
        {
          vex = false;
          evex = false;
+         xop = false;
          esize = 0;
          nelem = "";
          vex_prefix = None;
@@ -168,6 +171,8 @@ let class_of_lookup lookup =
       ("ZMM_", (Zmm : rclass));
       ("XMM_", Xmm);
       ("YMM_", Ymm);
+      (* y: 32 or 64 bits by VEX.W, expanded like GPRv *)
+      ("VGPRy_", Gprv);
       ("VGPR32_", Gpr32);
       ("VGPR64_", Gpr64);
       ("GPR32_", Gpr32);
@@ -228,6 +233,10 @@ let operand_of (o : R.x86_operand) =
         Some (Some (Imm { bytes = 0 }))
     | "imm_const", _ when starts_with ~prefix:"IMM0" o.op_name && o.oc2 = Some "w" ->
         Some (Some (Imm { bytes = 2 }))
+    | "imm_const", _ when starts_with ~prefix:"IMM0" o.op_name && o.oc2 = Some "d" ->
+        Some (Some (Imm { bytes = 4 }))
+    | "imm_const", _ when starts_with ~prefix:"MEM0" o.op_name && o.oc2 = Some "y" ->
+        Some (Some (Mem { bits = -1 }))
     | "nt_lookup_fn", Some lookup ->
         Option.map (fun (cls, field) -> Some (Reg { cls; field })) (class_of_lookup lookup)
     | "imm_const", _ when starts_with ~prefix:"MEM0" o.op_name ->
@@ -447,7 +456,8 @@ let expand spec =
             mnemonic = spec.mnemonic ^ suffix width;
             operands;
             osz = width = 16;
-            w = (if width = 64 then 1 else spec.w);
+            (* VEX.W is the operand size of a y-width form *)
+            w = (if width = 64 then 1 else if spec.space <> `Legacy then 0 else spec.w);
             mode = (if width = 64 then 64 else spec.mode);
             sized = false;
           })
@@ -483,10 +493,12 @@ let disp8_scale p =
 
 let spec_of_record (rec_ : R.t) =
   match (rec_.encoding, rec_.provenance) with
-  | ( R.X86_encoding { space = ("vex" | "evex") as space; opcode_map; opcode; pattern; operands },
+  | ( R.X86_encoding
+        { space = ("vex" | "evex" | "xop") as space; opcode_map; opcode; pattern; operands },
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match (parse_pattern pattern, int_of_string_opt opcode) with
-      | Some p, Some opcode when (if space = "vex" then p.vex else p.evex) && p.modrm -> (
+      | Some p, Some opcode
+        when (match space with "vex" -> p.vex | "evex" -> p.evex | _ -> p.xop) && p.modrm -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
           else
@@ -514,6 +526,11 @@ let spec_of_record (rec_ : R.t) =
                   | (Reg { cls = Gpr32 | Gpr64; _ } as gpr) :: tail -> imms @ (gpr :: rc :: tail)
                   | _ -> imms @ (rc :: rest))
             in
+            let variable =
+              List.exists
+                (function Reg { cls = Gprv; _ } | Mem { bits = -1 } -> true | _ -> false)
+                xed_order
+            in
             match prefix with
             | None -> None
             | Some _ when p.memory = Some true <> has_mem -> None
@@ -527,7 +544,7 @@ let spec_of_record (rec_ : R.t) =
                     iform;
                     isa_set;
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
-                    space = (if space = "vex" then `Vex else `Evex);
+                    space = (match space with "vex" -> `Vex | "evex" -> `Evex | _ -> `Xop);
                     map = opcode_map;
                     opcode;
                     prefix;
@@ -539,9 +556,10 @@ let spec_of_record (rec_ : R.t) =
                     operands = att;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = (if space = "evex" then disp8_scale p else 1);
-                    sized = false;
+                    (* a y-width GPR form is a 32-bit (W0) and a 64-bit (W1) row *)
+                    sized = variable;
                     no_acc = [];
-                    widths = [];
+                    widths = (match p.rexw with 0 -> [ 32 ] | 1 -> [ 64 ] | _ -> [ 32; 64 ]);
                   })
       | _ -> None)
   | ( R.X86_encoding { space = "legacy"; opcode_map; opcode; pattern; operands },
@@ -774,7 +792,12 @@ let form ~requirement (rec_ : R.t) spec =
     encoding =
       X86_encoding
         {
-          space = (match spec.space with `Vex -> "vex" | `Evex -> "evex" | `Legacy -> "legacy");
+          space =
+            (match spec.space with
+            | `Vex -> "vex"
+            | `Evex -> "evex"
+            | `Xop -> "xop"
+            | `Legacy -> "legacy");
           opcode_map = spec.map;
           opcode = Printf.sprintf "0x%02X" spec.opcode;
           pattern = (match rec_.encoding with R.X86_encoding { pattern; _ } -> pattern | _ -> "");
@@ -832,7 +855,8 @@ let twin_primaries specs =
           List.exists (function Reg { field = Is4; _ } -> true | _ -> false) s.operands
         in
         (* GNU as's choice among same-spelled forms, in order: an is4 form takes VEX.W = 1
-           (last source in ModR/M.rm) unless it also carries an immediate (vpermil2ps: W = 0);
+           (last source in ModR/M.rm) unless it also carries an immediate (vpermil2ps: W = 0) or
+           is XOP (vpcmov: W = 0);
            a register move puts its destination in ModR/M.reg (the load opcode); otherwise
            the W0 / W-ignored form. *)
         let has_imm s = List.exists (function Imm _ -> true | _ -> false) s.operands in
@@ -857,7 +881,7 @@ let twin_primaries specs =
           ( (* GNU picks VEX for a spelling both could encode, but EVEX over the VEX-only AVX
                VNNI/IFMA/NE-CONVERT sets *)
             (if List.mem s.isa_set evex_preferred then false else s.space <> `Evex),
-            (if is4 s then if has_imm s then s.w <> 1 else s.w = 1 else true),
+            (if is4 s then if has_imm s || s.space = `Xop then s.w <> 1 else s.w = 1 else true),
             short s,
             (if integer s then dest_in_rm s else dest_in_reg s),
             s.opcode = 0x1f,
@@ -895,7 +919,7 @@ let pseudo_prefix ~(primary : spec) (s : spec) =
   let dest x = match List.rev x.operands with Reg { field; _ } :: _ -> Some field | _ -> None in
   if s.iform = primary.iform then None
   else if s.space <> primary.space then
-    match s.space with `Evex -> Some "evex" | `Vex -> Some "vex" | `Legacy -> None
+    match s.space with `Evex -> Some "evex" | `Vex -> Some "vex" | `Legacy | `Xop -> None
   else
     match (dest s, dest primary) with
     | Some Modrm_reg, Some Modrm_rm -> Some "load"

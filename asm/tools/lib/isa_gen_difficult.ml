@@ -7105,7 +7105,20 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
   let width_tag (r : Isa_x86_table.spec) =
     if List.length rows = 1 then ""
     else
-      (* the operand size: a register's width if there is one, else the memory operand's *)
+      (* the operand size: a register's width if there is one, else the memory operand's -
+         looking only where the unexpanded form is width-variable, if it says *)
+      let variable =
+        List.map
+          (function
+            | Isa_x86_table.Reg { cls = Gprv; _ } | Mem { bits = -1 } | Fixed_reg "?ax" -> true
+            | _ -> false)
+          spec.operands
+      in
+      let operands =
+        if List.length variable = List.length r.operands && List.mem true variable then
+          List.concat (List.map2 (fun v o -> if v then [ o ] else []) variable r.operands)
+        else r.operands
+      in
       let reg_bits =
         List.find_map
           (function
@@ -7117,7 +7130,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
             | Fixed_reg "eax" -> Some 32
             | Fixed_reg "rax" -> Some 64
             | _ -> None)
-          r.operands
+          operands
       in
       let bits =
         match reg_bits with
@@ -7125,7 +7138,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
         | None ->
             List.find_map
               (function Isa_x86_table.Mem { bits } when bits > 0 -> Some bits | _ -> None)
-              r.operands
+              operands
       in
       Printf.sprintf "-w%d" (Option.value bits ~default:0)
   in

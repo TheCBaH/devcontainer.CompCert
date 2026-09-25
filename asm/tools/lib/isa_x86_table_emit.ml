@@ -69,7 +69,7 @@ let render_row (s : Isa_x86_table.spec) =
     \      source = %S;\n\
     \    };\n"
     s.mnemonic
-    (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Legacy -> "Legacy")
+    (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Xop -> "Xop" | `Legacy -> "Legacy")
     s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit
     (String.concat "; " (List.map render_operand s.operands))
     s.mode

@@ -53,15 +53,15 @@ let rows =
       source = "xed_resolved";
       families = [ "AVX"; "AVX2GATHER"; "FMA4"; "XOP" ];
       capability =
-        "VEX/XOP forms the generated x86 table does not yet cover: VSIB gathers, the XOP encoding \
-         space, VZEROUPPER/ALL (no ModR/M), and same-spelled twins no pseudo-prefix separates \
-         (FMA4's W0 register form, which shares its iform with the W1 one).";
+        "VEX/XOP forms the generated x86 table does not yet cover: VSIB gathers, VZEROUPPER/ALL \
+         (no ModR/M), and same-spelled twins no pseudo-prefix separates (the FMA4/XOP is4 register \
+         forms of the other VEX.W, which share an iform with GNU's choice).";
       evidence =
         "family-admission: most AVX/AVX2/FMA/F16C/VAES/GFNI/VNNI-INT forms are promoted through \
-         DEC-X86-TABLE rows, AVX-VNNI/IFMA/NE-CONVERT through {vex}; the remainder is gathers, XOP \
-         and FMA4's W0 twins";
+         DEC-X86-TABLE rows, AVX-VNNI/IFMA/NE-CONVERT through {vex}, XOP/TBM/LWP through XOP rows; \
+         the remainder is gathers and the FMA4/XOP W twins";
       task = "GEN-05-X86-VEX";
-      reopening_gate = "VSIB addressing and XOP rows exist";
+      reopening_gate = "VSIB addressing exists";
     };
     {
       id = "RES-X86-LEGACY-SIMD";
@@ -121,7 +121,6 @@ let rows =
           "PREFETCH_NOP";
           "RDTSCP";
           "RDWRFSGS";
-          "TBM";
         ];
       capability =
         "Integer, string, stack, flag, bit-manipulation and data-movement instructions outside the \
@@ -221,7 +220,6 @@ let rows =
           "INVPCID";
           "KEYLOCKER_WIDE";
           "LKGS";
-          "LWP";
           "MCOMMIT";
           "MONITOR";
           "MONITORX";
@@ -229,7 +227,6 @@ let rows =
           "MOVRS";
           "MPX";
           "MSRLIST";
-          "MSR_IMM";
           "PBNDKB";
           "PCONFIG";
           "PKU";

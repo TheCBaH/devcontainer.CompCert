@@ -21,7 +21,7 @@ type operand =
       (** EVEX embedded rounding ([{rn-sae}]: EVEX.b with the mode in L'L) or, [sae_only],
           [{sae}] (EVEX.b, L'L = 0) *)
 
-type space = Legacy | Vex | Evex
+type space = Legacy | Vex | Evex | Xop  (** XOP: 8F, the VEX three-byte layout, maps 8-10 *)
 
 type row = {
   mnemonic : string;  (** the AT&T spelling *)

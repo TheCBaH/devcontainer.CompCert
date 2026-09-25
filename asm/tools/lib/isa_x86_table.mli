@@ -25,7 +25,7 @@ type spec = {
   iform : string;
   isa_set : string;
   mnemonic : string;  (** AT&T *)
-  space : [ `Legacy | `Vex | `Evex ];
+  space : [ `Legacy | `Vex | `Evex | `Xop ];
   map : int;
   opcode : int;
   prefix : int;
