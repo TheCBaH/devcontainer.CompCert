@@ -110,6 +110,20 @@ let all =
            prefixed ISA extension `zicfiss' (riscv64-linux-gnu-as 2.44 accepts it)";
       };
     ]
+  (* MPX: GNU as 2.44 removed it *)
+  @ List.map
+      (fun target ->
+        {
+          source = "xed_resolved";
+          target;
+          extension = "MPX";
+          native_name = None;
+          reason = "gas-lacks-mpx";
+          probe =
+            "x86_64-linux-gnu-as / i686-linux-gnu-as 2.44: `bndmk' is not supported on `x86_64' / \
+             `i386'";
+        })
+      [ Target.X86_32; Target.X86_64 ]
   (* XED's ACE_1 tile/zmm operations: GNU as 2.44 has none of them (tilemovcol, the top ops) and
      only the zmm-destination tilemovrow *)
   @ List.map

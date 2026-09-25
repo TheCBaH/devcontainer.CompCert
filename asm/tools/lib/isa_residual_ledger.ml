@@ -171,7 +171,6 @@ let rows =
           "MONITORX";
           "MOVDIR64B";
           "MOVRS";
-          "MPX";
           "RTM";
           "SNP";
           "SVM";
