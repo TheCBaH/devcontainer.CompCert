@@ -176,6 +176,12 @@ module Make (P : PROFILE) = struct
       | And
       | Mul
       | Remu
+      | Mulh
+      | Mulhsu
+      | Mulhu
+      | Div
+      | Divu
+      | Rem
       | Sh1add
       | Sh2add
       | Sh3add
@@ -297,6 +303,10 @@ module Make (P : PROFILE) = struct
       | Srlw
       | Sraw
       | Mulw
+      | Divw
+      | Divuw
+      | Remw
+      | Remuw
       | Addi
       | C_addi
       | C_and
@@ -352,6 +362,14 @@ module Make (P : PROFILE) = struct
       | Bgeu
       | Bgtu
       | Bleu
+      | Bgt
+      | Ble
+      | Beqz
+      | Bnez
+      | Bgez
+      | Bltz
+      | Blez
+      | Bgtz
       | Lui
       | Auipc
       | Jal
@@ -371,6 +389,8 @@ module Make (P : PROFILE) = struct
       | Unimp
       | Fence_i
       | Fence
+      | Fence_tso
+      | Pause
       | Fld
       | Flw
       | Fsd
@@ -880,6 +900,12 @@ module Make (P : PROFILE) = struct
       | And -> "and"
       | Mul -> "mul"
       | Remu -> "remu"
+      | Mulh -> "mulh"
+      | Mulhsu -> "mulhsu"
+      | Mulhu -> "mulhu"
+      | Div -> "div"
+      | Divu -> "divu"
+      | Rem -> "rem"
       | Sh1add -> "sh1add"
       | Sh2add -> "sh2add"
       | Sh3add -> "sh3add"
@@ -1001,6 +1027,10 @@ module Make (P : PROFILE) = struct
       | Srlw -> "srlw"
       | Sraw -> "sraw"
       | Mulw -> "mulw"
+      | Divw -> "divw"
+      | Divuw -> "divuw"
+      | Remw -> "remw"
+      | Remuw -> "remuw"
       | Addi -> "addi"
       | C_addi -> "c.addi"
       | C_and -> "c.and"
@@ -1056,6 +1086,14 @@ module Make (P : PROFILE) = struct
       | Bgeu -> "bgeu"
       | Bgtu -> "bgtu"
       | Bleu -> "bleu"
+      | Bgt -> "bgt"
+      | Ble -> "ble"
+      | Beqz -> "beqz"
+      | Bnez -> "bnez"
+      | Bgez -> "bgez"
+      | Bltz -> "bltz"
+      | Blez -> "blez"
+      | Bgtz -> "bgtz"
       | Lui -> "lui"
       | Auipc -> "auipc"
       | Jal -> "jal"
@@ -1075,6 +1113,8 @@ module Make (P : PROFILE) = struct
       | Unimp -> "unimp"
       | Fence_i -> "fence.i"
       | Fence -> "fence"
+      | Fence_tso -> "fence.tso"
+      | Pause -> "pause"
       | Fld -> "fld"
       | Flw -> "flw"
       | Fsd -> "fsd"
@@ -1585,6 +1625,12 @@ module Make (P : PROFILE) = struct
         And;
         Mul;
         Remu;
+        Mulh;
+        Mulhsu;
+        Mulhu;
+        Div;
+        Divu;
+        Rem;
         Sh1add;
         Sh2add;
         Sh3add;
@@ -1706,6 +1752,10 @@ module Make (P : PROFILE) = struct
         Srlw;
         Sraw;
         Mulw;
+        Divw;
+        Divuw;
+        Remw;
+        Remuw;
         Addi;
         C_addi;
         C_and;
@@ -1761,6 +1811,14 @@ module Make (P : PROFILE) = struct
         Bgeu;
         Bgtu;
         Bleu;
+        Bgt;
+        Ble;
+        Beqz;
+        Bnez;
+        Bgez;
+        Bltz;
+        Blez;
+        Bgtz;
         Lui;
         Auipc;
         Jal;
@@ -1780,6 +1838,8 @@ module Make (P : PROFILE) = struct
         Unimp;
         Fence_i;
         Fence;
+        Fence_tso;
+        Pause;
         Fld;
         Flw;
         Fsd;
@@ -2285,6 +2345,8 @@ module Make (P : PROFILE) = struct
     let deprecated_mnemonic_aliases =
       [
         ("vpopc.m", "vcpop.m");
+        ("scall", "ecall");
+        ("sbreak", "ebreak");
         ("vmandnot.mm", "vmandn.mm");
         ("vmornot.mm", "vmorn.mm");
         ("vfredsum.vs", "vfredusum.vs");
@@ -2785,7 +2847,9 @@ module Make (P : PROFILE) = struct
     | Sra -> Some (0x33, 5, 0x20)
     | Or -> Some (0x33, 6, 0x00)
     | And -> Some (0x33, 7, 0x00)
-    | (Mul | Remu | Mulw) as op -> m_desc op
+    | (Mul | Remu | Mulh | Mulhsu | Mulhu | Div | Divu | Rem | Mulw | Divw | Divuw | Remw | Remuw)
+      as op ->
+        m_desc op
     | Sh1add -> Some (0x33, 2, 0x10)
     | Sh2add -> Some (0x33, 4, 0x10)
     | Sh3add -> Some (0x33, 6, 0x10)
@@ -4608,10 +4672,28 @@ module Make (P : PROFILE) = struct
     in
     go [] ops
 
+  (* An (i,o,r,w) fence flag set: a non-empty subsequence of "iorw", as a
+     4-bit field with i at bit 3. *)
+  let fence_set s =
+    let rec go acc pos k =
+      if k = String.length s then if acc = 0 then None else Some acc
+      else
+        match String.index_from_opt "iorw" pos s.[k] with
+        | Some j -> go (acc lor (1 lsl (3 - j))) (j + 1) (k + 1)
+        | None -> None
+    in
+    go 0 0 0
+
+  let fence_set_name v =
+    String.concat "" (List.filteri (fun j _ -> v land (1 lsl (3 - j)) <> 0) [ "i"; "o"; "r"; "w" ])
+
   let lower_instruction_ungated state i =
     let opn = Opcode.name i.Instruction.op in
     match (i.op, i.ops) with
-    | (Opcode.Mul | Remu | Mulw), _ when xlen <> 64 && m_rv64_only i.Instruction.op ->
+    | ( ( Opcode.Mul | Remu | Mulh | Mulhsu | Mulhu | Div | Divu | Rem | Mulw | Divw | Divuw | Remw
+        | Remuw ),
+        _ )
+      when xlen <> 64 && m_rv64_only i.Instruction.op ->
         Error (diag ~pos:__POS__ (`Rv64_only opn))
     | ( ( Opcode.Addw | Subw | Sllw | Srlw | Sraw | Sh1adduw | Sh2adduw | Sh3adduw | Clzw | Ctzw
         | Cpopw | Packw | Rolw | Rorw | Sha512sum0 | Sha512sum1 | Sha512sig0 | Sha512sig1 | Aes64ds
@@ -6251,6 +6333,34 @@ module Make (P : PROFILE) = struct
         | Some ra, Some rb, Some target, Some funct3 ->
             Ok [ Lowered.B { name = real_name; funct3; rs1 = rb; rs2 = ra; target } ]
         | _ -> wrong opn)
+    | (Opcode.Bgt | Ble), [ a; b; target ] -> (
+        (* The signed siblings of [bgtu]/[bleu]: [blt]/[bge] with the register
+           operands swapped. Checked against real riscv64-linux-gnu-as:
+           `bgt a0, a1, L` -> `blt a1, a0, L`; `ble a0, a1, L` -> `bge a1, a0, L`. *)
+        let real_op, real_name = if i.op = Bgt then (Opcode.Blt, "blt") else (Opcode.Bge, "bge") in
+        match (xreg a, xreg b, expr_of target, branch_desc real_op) with
+        | Some ra, Some rb, Some target, Some funct3 ->
+            Ok [ Lowered.B { name = real_name; funct3; rs1 = rb; rs2 = ra; target } ]
+        | _ -> wrong opn)
+    | (Opcode.Beqz | Bnez | Bgez | Bltz | Blez | Bgtz), [ a; target ] -> (
+        (* Compare-with-x0 pseudos. [beqz]/[bnez]/[bgez]/[bltz] put the register in
+           rs1 and x0 in rs2; [blez]/[bgtz] are [bge x0, rs]/[blt x0, rs]. Checked
+           against real riscv64-linux-gnu-as: `beqz a0` -> `beq a0,zero`, `blez a0`
+           -> `bge zero,a0`, `bgtz a0` -> `blt zero,a0`. *)
+        let real_op, real_name, reg_in_rs1 =
+          match i.op with
+          | Beqz -> (Opcode.Beq, "beq", true)
+          | Bnez -> (Opcode.Bne, "bne", true)
+          | Bgez -> (Opcode.Bge, "bge", true)
+          | Bltz -> (Opcode.Blt, "blt", true)
+          | Blez -> (Opcode.Bge, "bge", false)
+          | _ -> (Opcode.Blt, "blt", false)
+        in
+        match (xreg a, expr_of target, branch_desc real_op) with
+        | Some r, Some target, Some funct3 ->
+            let rs1, rs2 = if reg_in_rs1 then (r, 0) else (0, r) in
+            Ok [ Lowered.B { name = real_name; funct3; rs1; rs2; target } ]
+        | _ -> wrong opn)
     | ((Opcode.Lui | Auipc) as op), [ a; imm ] -> (
         match (xreg a, expr_of imm) with
         | Some rd, Some imm ->
@@ -6616,23 +6726,32 @@ module Make (P : PROFILE) = struct
     | Opcode.Ebreak, [] -> Ok [ Lowered.Fixed { name = "ebreak"; word = 0x00100073L } ]
     | Opcode.Unimp, [] -> Ok [ Lowered.Fixed { name = "unimp"; word = 0xc0001073L } ]
     | Opcode.Fence_i, [] -> Ok [ Lowered.Fixed { name = "fence.i"; word = 0x0000100fL } ]
+    | Opcode.Fence, [] ->
+        (* Bare [fence] is GNU as's [fence iorw,iorw]: `0ff0000f`. *)
+        Ok [ Lowered.Fixed { name = "fence"; word = 0x0ff0000fL } ]
     | ( Opcode.Fence,
-        ([] | [ Operand.Sym (Asm_core.Expr.Symbol "rw"); Operand.Sym (Asm_core.Expr.Symbol "w") ]) )
-      ->
-        (* [fence rw,w] - a memory barrier, opcode 0x0f/funct3 0 with no ModR/M-like
-           register fields ([rd]/[rs1] both fixed zero): [imm[11:0]] splits into a
-           4-bit [pred]/[succ] pair, each an (i,o,r,w) flag set, at bits 27:24/23:20.
-           Only this one predecessor/successor spelling is evidenced
-           (asm/helpers/riscv.c's own release-store fence, via
-           `__sync_synchronize`-style codegen), so - matching this project's own
-           narrow-scope precedent for a single-spelling fixed word ([fucomp],
-           [fence.i] above) - any other combination is a diagnostic rather than a
-           silently-computed one; the bare no-operand form is decode's own
-           round-trip spelling ({!Lowered.Fixed}'s [pp] prints no operand list, the
-           same convention [ret]/[ecall] already use). Checked against real
-           riscv64-linux-gnu-as/objdump: `fence rw,w` -> `0310000f`
-           (pred = 0b0011 = r|w, succ = 0b0001 = w). *)
-        Ok [ Lowered.Fixed { name = "fence"; word = 0x0310000fL } ]
+        [ Operand.Sym (Asm_core.Expr.Symbol pred); Operand.Sym (Asm_core.Expr.Symbol succ) ] ) -> (
+        (* [fence pred,succ]: opcode 0x0f/funct3 0 with rd = rs1 = x0 and fm = 0;
+           [pred]/[succ] are (i,o,r,w) flag sets at bits 27:24/23:20, each a
+           non-empty subset of "iorw" spelled in that order. Checked against real
+           riscv64-linux-gnu-as/objdump: `fence rw,w` -> `0310000f`, bare
+           [fence] -> `0ff0000f`. *)
+        match (fence_set pred, fence_set succ) with
+        | Some p, Some q ->
+            let word = Int64.of_int ((p lsl 24) lor (q lsl 20) lor 0x0f) in
+            let name =
+              if p = 0xf && q = 0xf then "fence" else Printf.sprintf "fence %s,%s" pred succ
+            in
+            Ok [ Lowered.Fixed { name; word } ]
+        | _ -> wrong opn)
+    | Opcode.Fence_tso, [] ->
+        (* [fence.tso]: fm = 1000, pred = succ = rw. Checked against real
+           riscv64-linux-gnu-as: `8330000f`. *)
+        Ok [ Lowered.Fixed { name = "fence.tso"; word = 0x8330000fL } ]
+    | Opcode.Pause, [] ->
+        (* Zihintpause [pause]: [fence w,0]. Checked against real
+           riscv64-linux-gnu-as (-march=..._zihintpause): `0100000f`. *)
+        Ok [ Lowered.Fixed { name = "pause"; word = 0x0100000fL } ]
     | _ -> wrong opn
 
   let lower_instruction state i =
@@ -7248,48 +7367,57 @@ module Make (P : PROFILE) = struct
   let op_exn s = Option.get (Opcode.of_mnemonic s)
   let instruction op ops = { Instruction.op; ops }
 
+  (* The M component's rows decode from the same table they encode from. *)
+  let m_name opcode f3 f7 =
+    List.find_map
+      (fun (f : Riscv_ext_m.form) ->
+        if f.opcode = opcode && f.funct3 = f3 && f.funct7 = f7 && ((not f.rv64_only) || xlen = 64)
+        then Some f.mnemonic
+        else None)
+      Riscv_ext_m.forms
+
   let r_name opcode f3 f7 =
-    match (opcode, f3, f7) with
-    | 0x33, 0, 0 -> Some "add"
-    | 0x33, 0, 0x20 -> Some "sub"
-    | 0x33, 1, 0 -> Some "sll"
-    | 0x33, 2, 0 -> Some "slt"
-    | 0x33, 3, 0 -> Some "sltu"
-    | 0x33, 4, 0 -> Some "xor"
-    | 0x33, 5, 0 -> Some "srl"
-    | 0x33, 5, 0x20 -> Some "sra"
-    | 0x33, 6, 0 -> Some "or"
-    | 0x33, 7, 0 -> Some "and"
-    | 0x33, 0, 1 -> Some "mul"
-    | 0x33, 7, 1 -> Some "remu"
-    | 0x33, 2, 0x10 -> Some "sh1add"
-    | 0x33, 4, 0x10 -> Some "sh2add"
-    | 0x33, 6, 0x10 -> Some "sh3add"
-    | 0x33, 4, 0x05 -> Some "min"
-    | 0x33, 5, 0x05 -> Some "minu"
-    | 0x33, 6, 0x05 -> Some "max"
-    | 0x33, 7, 0x05 -> Some "maxu"
-    | 0x33, 7, 0x20 -> Some "andn"
-    | 0x33, 6, 0x20 -> Some "orn"
-    | 0x33, 4, 0x20 -> Some "xnor"
-    | 0x33, 1, 0x30 -> Some "rol"
-    | 0x33, 5, 0x30 -> Some "ror"
-    | 0x3b, 2, 0x10 -> Some "sh1add.uw"
-    | 0x3b, 4, 0x10 -> Some "sh2add.uw"
-    | 0x3b, 6, 0x10 -> Some "sh3add.uw"
-    | 0x3b, 0, 0 -> Some "addw"
-    | 0x3b, 0, 0x20 -> Some "subw"
-    | 0x3b, 1, 0 -> Some "sllw"
-    | 0x3b, 5, 0 -> Some "srlw"
-    | 0x3b, 5, 0x20 -> Some "sraw"
-    | 0x3b, 0, 1 -> Some "mulw"
-    | 0x33, 4, 0x04 -> Some "pack"
-    | 0x33, 7, 0x04 -> Some "packh"
-    | 0x3b, 4, 0x04 -> Some "packw"
-    | 0x3b, 1, 0x30 -> Some "rolw"
-    | 0x3b, 5, 0x30 -> Some "rorw"
-    | 0x57, 7, 0x40 -> Some "vsetvl"
-    | _ -> None
+    match m_name opcode f3 f7 with
+    | Some _ as m -> m
+    | None -> (
+        match (opcode, f3, f7) with
+        | 0x33, 0, 0 -> Some "add"
+        | 0x33, 0, 0x20 -> Some "sub"
+        | 0x33, 1, 0 -> Some "sll"
+        | 0x33, 2, 0 -> Some "slt"
+        | 0x33, 3, 0 -> Some "sltu"
+        | 0x33, 4, 0 -> Some "xor"
+        | 0x33, 5, 0 -> Some "srl"
+        | 0x33, 5, 0x20 -> Some "sra"
+        | 0x33, 6, 0 -> Some "or"
+        | 0x33, 7, 0 -> Some "and"
+        | 0x33, 2, 0x10 -> Some "sh1add"
+        | 0x33, 4, 0x10 -> Some "sh2add"
+        | 0x33, 6, 0x10 -> Some "sh3add"
+        | 0x33, 4, 0x05 -> Some "min"
+        | 0x33, 5, 0x05 -> Some "minu"
+        | 0x33, 6, 0x05 -> Some "max"
+        | 0x33, 7, 0x05 -> Some "maxu"
+        | 0x33, 7, 0x20 -> Some "andn"
+        | 0x33, 6, 0x20 -> Some "orn"
+        | 0x33, 4, 0x20 -> Some "xnor"
+        | 0x33, 1, 0x30 -> Some "rol"
+        | 0x33, 5, 0x30 -> Some "ror"
+        | 0x3b, 2, 0x10 -> Some "sh1add.uw"
+        | 0x3b, 4, 0x10 -> Some "sh2add.uw"
+        | 0x3b, 6, 0x10 -> Some "sh3add.uw"
+        | 0x3b, 0, 0 -> Some "addw"
+        | 0x3b, 0, 0x20 -> Some "subw"
+        | 0x3b, 1, 0 -> Some "sllw"
+        | 0x3b, 5, 0 -> Some "srlw"
+        | 0x3b, 5, 0x20 -> Some "sraw"
+        | 0x33, 4, 0x04 -> Some "pack"
+        | 0x33, 7, 0x04 -> Some "packh"
+        | 0x3b, 4, 0x04 -> Some "packw"
+        | 0x3b, 1, 0x30 -> Some "rolw"
+        | 0x3b, 5, 0x30 -> Some "rorw"
+        | 0x57, 7, 0x40 -> Some "vsetvl"
+        | _ -> None)
 
   (* OP-FP (opcode [0x53]): unlike every integer R-type above, several of these
      mnemonics also need [rs2] to disambiguate (a convert or move fixes its second
@@ -7701,7 +7829,20 @@ module Make (P : PROFILE) = struct
             | 0x73 when Int64.equal w 0x00100073L -> Some (instruction Opcode.Ebreak [], "ebreak")
             | 0x73 when Int64.equal w 0xc0001073L -> Some (instruction Opcode.Unimp [], "unimp")
             | 0x0f when Int64.equal w 0x0000100fL -> Some (instruction Opcode.Fence_i [], "fence.i")
-            | 0x0f when Int64.equal w 0x0310000fL -> Some (instruction Opcode.Fence [], "fence")
+            | 0x0f when Int64.equal w 0x8330000fL ->
+                Some (instruction Opcode.Fence_tso [], "fence.tso")
+            | 0x0f when Int64.equal w 0x0ff0000fL -> Some (instruction Opcode.Fence [], "fence")
+            | 0x0f when Int64.equal w 0x0100000fL -> Some (instruction Opcode.Pause [], "pause")
+            | 0x0f
+              when Int64.logand w 0xf00fffffL = 0x0000000fL
+                   && bits w 24 4 <> 0L
+                   && bits w 20 4 <> 0L ->
+                let p = fence_set_name (Int64.to_int (bits w 24 4))
+                and q = fence_set_name (Int64.to_int (bits w 20 4)) in
+                Some
+                  ( instruction Opcode.Fence
+                      [ Operand.Sym (Asm_core.Expr.Symbol p); Operand.Sym (Asm_core.Expr.Symbol q) ],
+                    Printf.sprintf "fence %s,%s" p q )
             | 0x2f when f7 land 0x3 = 0 -> (
                 (* Zaamo, bare-mnemonic spelling only (aq=rl=0 - see
                    {!amo3_desc}); aq/rl set is left undecoded rather than

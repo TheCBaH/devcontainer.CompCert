@@ -73,28 +73,32 @@ let%expect_test "RISC-V M: the implemented mnemonics on both profiles" =
     -- riscv64: mulw x5, x6, x7
     40000000  bb 02 73 02  mulw x5, x6, x7  [riscv64.mulw] |}]
 
-let%expect_test "RISC-V M: mnemonics beyond the implemented subset are rejected" =
+let%expect_test "RISC-V M: the division and high-multiply forms assemble and decode" =
   List.iter
     (fun m -> one "riscv64" (m ^ " x5, x6, x7"))
-    [ "div"; "divu"; "rem"; "mulh"; "mulhu"; "mulhsu"; "divw"; "remw" ];
+    [ "div"; "divu"; "rem"; "mulh"; "mulhu"; "mulhsu"; "divw"; "divuw"; "remw"; "remuw" ];
   [%expect
     {|
     -- riscv64: div x5, x6, x7
-    riscv64.simplify: unknown instruction div
+    40000000  b3 42 73 02  div x5, x6, x7  [riscv64.div]
     -- riscv64: divu x5, x6, x7
-    riscv64.simplify: unknown instruction divu
+    40000000  b3 52 73 02  divu x5, x6, x7  [riscv64.divu]
     -- riscv64: rem x5, x6, x7
-    riscv64.simplify: unknown instruction rem
+    40000000  b3 62 73 02  rem x5, x6, x7  [riscv64.rem]
     -- riscv64: mulh x5, x6, x7
-    riscv64.simplify: unknown instruction mulh
+    40000000  b3 12 73 02  mulh x5, x6, x7  [riscv64.mulh]
     -- riscv64: mulhu x5, x6, x7
-    riscv64.simplify: unknown instruction mulhu
+    40000000  b3 32 73 02  mulhu x5, x6, x7  [riscv64.mulhu]
     -- riscv64: mulhsu x5, x6, x7
-    riscv64.simplify: unknown instruction mulhsu
+    40000000  b3 22 73 02  mulhsu x5, x6, x7  [riscv64.mulhsu]
     -- riscv64: divw x5, x6, x7
-    riscv64.simplify: unknown instruction divw
+    40000000  bb 42 73 02  divw x5, x6, x7  [riscv64.divw]
+    -- riscv64: divuw x5, x6, x7
+    40000000  bb 52 73 02  divuw x5, x6, x7  [riscv64.divuw]
     -- riscv64: remw x5, x6, x7
-    riscv64.simplify: unknown instruction remw |}]
+    40000000  bb 62 73 02  remw x5, x6, x7  [riscv64.remw]
+    -- riscv64: remuw x5, x6, x7
+    40000000  bb 72 73 02  remuw x5, x6, x7  [riscv64.remuw] |}]
 
 let%expect_test "RISC-V M: operand misuse" =
   one "riscv64" "mul x5, x6";
@@ -249,8 +253,8 @@ let%expect_test "component descriptors are structurally clean in every profile" 
   report "x86_64" X86_64_encode.components;
   [%expect
     {|
-    riscv32: riscv.zmmul feature=zmmul forms=2; riscv.m feature=m forms=1
-    riscv64: riscv.zmmul feature=zmmul forms=2; riscv.m feature=m forms=1
+    riscv32: riscv.zmmul feature=zmmul forms=5; riscv.m feature=m forms=8
+    riscv64: riscv.zmmul feature=zmmul forms=5; riscv.m feature=m forms=8
     x86_32: x86.x87 feature=x87 forms=13
     x86_64: x86.x87 feature=x87 forms=13 |}]
 
@@ -351,7 +355,46 @@ let%expect_test "M descriptors predict the assembled instruction word" =
   [%expect
     {|
     riscv32 mul: matches
+    riscv32 mulh: matches
+    riscv32 mulhsu: matches
+    riscv32 mulhu: matches
+    riscv32 div: matches
+    riscv32 divu: matches
+    riscv32 rem: matches
     riscv32 remu: matches
     riscv64 mul: matches
     riscv64 mulw: matches
-    riscv64 remu: matches |}]
+    riscv64 mulh: matches
+    riscv64 mulhsu: matches
+    riscv64 mulhu: matches
+    riscv64 div: matches
+    riscv64 divu: matches
+    riscv64 rem: matches
+    riscv64 remu: matches
+    riscv64 divw: matches
+    riscv64 divuw: matches
+    riscv64 remw: matches
+    riscv64 remuw: matches |}]
+
+(* The fence family against real riscv64-linux-gnu-as 2.44: bare [fence] is [fence iorw,iorw]
+   (0ff0000f), not [fence rw,w] (0310000f); [fence.tso] is 8330000f and Zihintpause's [pause]
+   0100000f. *)
+let%expect_test "RISC-V fence spellings match GNU as" =
+  List.iter (one "riscv64")
+    [ "fence"; "fence rw,w"; "fence r,rw"; "fence iorw,o"; "fence.tso"; "pause"; "fence rx,w" ];
+  [%expect
+    {|
+    -- riscv64: fence
+    40000000  0f 00 f0 0f  fence  [riscv64.fence]
+    -- riscv64: fence rw,w
+    40000000  0f 00 10 03  fence rw, w  [riscv64.fence rw,w]
+    -- riscv64: fence r,rw
+    40000000  0f 00 30 02  fence r, rw  [riscv64.fence r,rw]
+    -- riscv64: fence iorw,o
+    40000000  0f 00 40 0f  fence iorw, o  [riscv64.fence iorw,o]
+    -- riscv64: fence.tso
+    40000000  0f 00 30 83  fence.tso  [riscv64.fence.tso]
+    -- riscv64: pause
+    40000000  0f 00 00 01  pause  [riscv64.pause]
+    -- riscv64: fence rx,w
+    riscv64.lower: no fence form takes these operands |}]

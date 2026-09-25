@@ -4964,15 +4964,14 @@ let test_fcvt_l_s () =
   check_one "fcvt.s.l" "riscv:f" fcvt_s_l_json;
   check_one "fcvt.s.lu" "riscv:f" fcvt_s_lu_json
 
-let lui_json =
-  (* A mnemonic outside both the frozen pilot set and the
-     R-type/I-type allowlists (lui is U-type: a single 20-bit immediate, no
-     rs1/rs2) - exercises Isa_norm_riscv.normalize's default dispatch case,
-     not a different decode path. *)
-  {|{"encoding":{"fields":[{"lsb":12,"name":"rd","width":5},{"lsb":0,"name":"imm20","width":20}],"kind":"fixed_bits","mask":"0x7f","value":"0x37","width_bits":32},"kind":"instruction-form","native_name":"lui","origin":{"line":1,"path":"extensions/rv_i"},"provenance":{"extension":"rv_i"},"record_id":"riscv-opcodes:rv_i:lui@L1","snapshot":"riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396","source":"riscv_opcodes","unresolved":[]}|}
+let hfence_json =
+  (* A mnemonic with no normalizer rule (the hypervisor fence) - exercises
+     Isa_norm_riscv.normalize's default dispatch case, not a different decode
+     path. *)
+  {|{"encoding":{"fields":[{"lsb":15,"name":"rs1","width":5},{"lsb":20,"name":"rs2","width":5}],"kind":"fixed_bits","mask":"0xfe007fff","value":"0x22000073","width_bits":32},"kind":"instruction-form","native_name":"hfence.vvma","origin":{"line":1,"path":"extensions/rv_h"},"provenance":{"extension":"rv_h"},"record_id":"riscv-opcodes:rv_h:hfence.vvma@L1","snapshot":"riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396","source":"riscv_opcodes","unresolved":[]}|}
 
 let test_unhandled_mnemonic () =
-  let rec_ = decode_or_fail "lui" lui_json in
+  let rec_ = decode_or_fail "hfence.vvma" hfence_json in
   match Isa_norm_riscv.normalize rec_ with
   | Error { rule = "unhandled-native-name"; _ } ->
       check "unhandled mnemonic reports, not fabricates" true

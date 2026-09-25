@@ -37,10 +37,11 @@ x86 ledger worked down in the plan section 6 order.
 | INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | investigating | INF-02 | Write the decision record |
 | INF-05X | x86 form-row encoder (DEC-X86-TABLE) | investigating | INF-02 | Write the decision record |
 | INF-06 | Feature on every table row; retrofit admitted forms | not-started | INF-05* | — |
-| DEC-X86-MODE16 | 16-bit-only forms in the `x86_32` export | not-started | — | Count them; decide `.code16` vs out of scope |
-| FREE-01 | Cases for normalized-only / GAS-generatable records | ready | — | 30 RISC-V + 11 x86 records |
+| DEC-X86-MODE16 | 16-bit-only forms in the `x86_32` export | not-started | — | Count them; decide `.code16` vs out of scope. Also covers REX.W/GPR64 records the `x86_32` export carries (e.g. `CVTSI2SD_XMMsd_GPR64q`), which 32-bit mode cannot encode |
+| DEC-X86-SUFFIX | Size-suffix inference for x86 mnemonics | needs owner decision | — | GAS infers the operand size from a register operand (`add $1000000, %ecx`); ours rejects unsuffixed mnemonics by design (`test_targets.ml` "x86 refuses to guess an operand size"). Blocks the pilot's ADD_GPRv_IMMz / MOV_GPRv_GPRv_89 / MOV_GPRv_IMMz (x86-64) credit |
+| FREE-01 | Cases for normalized-only / GAS-generatable records | done (RISC-V); x86 blocked | DEC-X86-SUFFIX, DEC-X86-MODE16 | x86 residue needs the two decisions below |
 | FREE-02 | Credit x86 forms already encoded for CompCert | ready | INF-02 helps | Enumerate encoder `Opcode`s without a normalized form |
-| GEN-05-RV-BASE | RISC-V base-integer remainder | ready | — | Loads/stores and branches first (shapes exist for `sw`/`beq`) |
+| GEN-05-RV-BASE | RISC-V base-integer remainder | done except `fence` | — | `fence` needs a flag-set operand domain in `Isa_norm_model` |
 | GEN-05-RV-ZBA | `add.uw`, `slli.uw`, `zext.w` | ready | — | — |
 | GEN-05-RV-FP | fcsr pseudos, `fmv.x.d`/`fmv.d.x`, Zfh/Zfhmin, Q, Zfa, Zfbfmin | ready | INF-05R helps | fcsr pseudos and `fmv.*.d` first |
 | GEN-05-RV-MISC | Zimop, Zicbo, Zicfiss/Zicfilp, Zihintntl, Zifencei, Zicntr; Zilsd | not-started | INF-05R | — |
@@ -177,9 +178,16 @@ forms stay hand-written (fixups, relaxation, selection, compressed subsets).
 
 ### FREE-01 / FREE-02 — credit what already works
 
-- [ ] FREE-01: passing cases for `rv_i` (13), `rv_m` (7), `rv64_i` (5),
-  `rv64_m` (5) normalized-only records, x86's 5 GAS-generatable I86 records
-  and 6 SSE/SSE2 normalized-only records.
+- [x] FREE-01 RISC-V: cases for all 30 normalized-only records (`rv_i` 13,
+  `rv_m` 7, `rv64_i` 5, `rv64_m` 5). The M division/high-multiply forms were
+  never actually implemented (only `mul`/`mulw`/`remu` were); `Riscv_ext_m`
+  now lists all RV32M/RV64M forms and the decoder reads the same table.
+- [ ] FREE-01 x86: the 6 SSE/SSE2 normalized-only records are 64-bit-only
+  (REX.W / GPR64) forms in the `x86_32` export → DEC-X86-MODE16. Of the 5
+  GAS-generatable I86 records, ADD_GPRv_GPRv_03 and MOV_GPRv_GPRv_8B need
+  GAS's `{load}` pseudo-prefix (not parsed by ours), MOV_GPRv_IMMz on
+  x86-32 has no GAS spelling without one, and the rest need
+  DEC-X86-SUFFIX.
 - [ ] FREE-02: list x86 encoder `Opcode`s (e.g. `Mov`, `Lea`, `Push`, `Pop`,
   `Call`, `Jmp`, `Ret`, `Imul`, `Mul`, `Div`, `Neg`, `Not`, `Shl`/`Shr`/
   `Sar`/`Ror`/`Rcr`/`Shld`, `Setcc`, `Cmov`, `Movzx`, `Movsx`, `Dec`, `Ud2`,
@@ -278,3 +286,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | INF-01 | Credit read from corpora; `family-admission` and `residual-ledger` byte-identical to `f4b93e4`; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
 | 2026-09-25 | INF-02 | Construct-keyed blockers and histogram in `family-admission`; counts unchanged; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
 | 2026-09-25 | INF-04 | difficult regen 12m22s → 6.3 s full / 2.9 s incremental, output identical; `family-records` listing added; `tools-test`, `tools-integration`, `tools-boundary`, `asm-isa-difficult-check`, `asm-fmt-check` pass |
+| 2026-09-25 | FREE-01 (RISC-V) + GEN-05-RV-BASE | Promoted RV32 734→796, RV64 783→858; blocked RV32 335→293, RV64 341→296; normalized-only 20/30→0; round-trip 3,635→3,722; difficult corpus 3,375→3,582 cases, all pass. GAS 2.44/2.43.1 probes: branch pseudos, `scall`/`sbreak`, `fence.tso`, `pause` (needs `zihintpause`). Fixed: bare `fence` encoded as `fence rw,w`; now `fence iorw,iorw` with general pred/succ sets. Shadow guard: `rv32_zilsd` `ld`/`sd` stay blocked. `asm-ci`, `asm-js-portable`, `asm-purity`, tools suites pass |

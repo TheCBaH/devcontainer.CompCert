@@ -2947,6 +2947,17 @@ val c_sdsp_entries : entry list
 (** [c.sdsp ra,264(sp)]/[c.sdsp zero,264(sp)]/[c.sdsp t6,504(sp)], RV64
     only. *)
 
+val base_entries : entry list
+(** RV32I/RV64I and M forms already normalized and encoded but never named by
+    a committed case: three-GPR R-type operations (word forms RV64-only) and
+    the I-type ALU immediates at both signed 12-bit endpoints. *)
+
+val rv_base_int_entries : entry list
+(** GEN-05-RV-BASE: loads/stores at both imm12 endpoints, branches, jumps
+    and their pseudos to a forward and a backward label, [lui]/[auipc] at both
+    ends of their range, shifts at the top of their shamt range, and the
+    operand-less system forms ([pause] under [zihintpause]). *)
+
 val c_beqz_entries : entry list
 (** [c.beqz s0,1f]/[c.beqz a5,1b] on both profiles - the CB-format
     compressed conditional branch, forward and backward label references

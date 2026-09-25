@@ -6100,6 +6100,215 @@ let c_beqz_bnez_entries ~mnemonic targets =
 let c_beqz_entries = c_beqz_bnez_entries ~mnemonic:"c.beqz" both_riscv
 let c_bnez_entries = c_beqz_bnez_entries ~mnemonic:"c.bnez" both_riscv
 
+(* RV32I/RV64I and M base-ISA forms the normalizer and encoder already
+   handled but no committed case named (FREE-01): plain three-GPR R-type
+   operations, and I-type immediates at both signed 12-bit endpoints (sltiu's
+   immediate is sign-extended too, so its range is the same). Word forms are
+   RV64-only. Baseline [-march=rv32im]/[rv64im], no [c], so GAS cannot
+   compress anything. *)
+let base_r_type_entry ~mnemonic target =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:three-gpr:%s" mnemonic (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "three-gpr-operands" ];
+    operands = [ ("rd", "a0"); ("rs1", "a1"); ("rs2", "a2") ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let base_i_type_entry ~mnemonic ~endpoint ~imm target =
+  {
+    form_id = "riscv:" ^ mnemonic;
+    target;
+    lookup_key = mnemonic;
+    case_id = Printf.sprintf "riscv:%s:imm12-%s:%s" mnemonic endpoint (Target.to_string target);
+    rule_ids = [ "canonical-spelling"; "boundary-imm12-" ^ endpoint ];
+    operands = [ ("rd", "a0"); ("rs1", "a1"); ("imm", imm) ];
+    lines_before = [];
+    lines_after = [];
+    configuration = Isa_gen_case_build.configuration_for target;
+  }
+
+let base_i_type_entries ~mnemonic targets =
+  List.concat_map
+    (fun target ->
+      [
+        base_i_type_entry ~mnemonic ~endpoint:"max" ~imm:"2047" target;
+        base_i_type_entry ~mnemonic ~endpoint:"min" ~imm:"-2048" target;
+      ])
+    targets
+
+let base_entries =
+  List.concat_map
+    (fun mnemonic -> List.map (base_r_type_entry ~mnemonic) both_riscv)
+    [
+      "and";
+      "or";
+      "xor";
+      "sll";
+      "srl";
+      "sra";
+      "slt";
+      "sltu";
+      "mulh";
+      "mulhsu";
+      "mulhu";
+      "div";
+      "divu";
+      "rem";
+      "remu";
+    ]
+  @ List.map
+      (fun mnemonic -> base_r_type_entry ~mnemonic Target.Riscv64)
+      [ "sllw"; "srlw"; "sraw"; "subw"; "mulw"; "divw"; "divuw"; "remw"; "remuw" ]
+  @ List.concat_map
+      (fun mnemonic -> base_i_type_entries ~mnemonic both_riscv)
+      [ "andi"; "ori"; "xori"; "slti"; "sltiu" ]
+  @ base_i_type_entries ~mnemonic:"addiw" [ Target.Riscv64 ]
+
+(* GEN-05-RV-BASE: loads/stores at both imm12 endpoints, branches and jumps
+   to a label at a controlled distance (the beq recipe: forward over one
+   filler, backward over one), upper immediates at their range ends, shifts
+   at the top of their shamt range, and the operand-less system forms. *)
+let rv_base_entry ?(lookup_key = "") ?(configuration = []) ~form_id ~variant ~operands
+    ?(lines_before = []) ?(lines_after = []) target =
+  let mnemonic = String.sub form_id 6 (String.length form_id - 6) in
+  let mnemonic =
+    match String.index_opt mnemonic ':' with Some i -> String.sub mnemonic 0 i | None -> mnemonic
+  in
+  {
+    form_id;
+    target;
+    lookup_key = (if lookup_key = "" then mnemonic else lookup_key);
+    case_id = Printf.sprintf "%s:%s:%s" form_id variant (Target.to_string target);
+    rule_ids = [ variant ];
+    operands;
+    lines_before;
+    lines_after;
+    configuration =
+      (if configuration = [] then Isa_gen_case_build.configuration_for target else configuration);
+  }
+
+let rv_label_entries ~form_id ~operands targets =
+  List.concat_map
+    (fun target ->
+      [
+        rv_base_entry ~form_id ~variant:"branch-forward-label" ~operands:(operands "1f")
+          ~lines_after:[ "nop"; "1:" ] target;
+        rv_base_entry ~form_id ~variant:"branch-backward-label" ~operands:(operands "1b")
+          ~lines_before:[ "1:"; "nop" ] target;
+      ])
+    targets
+
+let rv_mem_entries ~form_id targets =
+  List.concat_map
+    (fun target ->
+      List.map
+        (fun (variant, offset) ->
+          rv_base_entry ~form_id ~variant
+            ~operands:[ ("value", "a0"); ("base", "a1"); ("offset", offset) ]
+            target)
+        [ ("boundary-max-positive-offset", "2047"); ("boundary-min-negative-offset", "-2048") ])
+    targets
+
+let rv64_only = [ Target.Riscv64 ]
+
+let rv_base_int_entries =
+  List.concat_map
+    (fun m -> rv_mem_entries ~form_id:("riscv:" ^ m) both_riscv)
+    [ "lb"; "lh"; "lw"; "lbu"; "lhu"; "sb"; "sh" ]
+  @ List.concat_map
+      (fun m -> rv_mem_entries ~form_id:("riscv:" ^ m) rv64_only)
+      [ "lwu"; "ld"; "sd" ]
+  @ List.concat_map
+      (fun m ->
+        rv_label_entries ~form_id:("riscv:" ^ m)
+          ~operands:(fun l -> [ ("lhs", "a0"); ("rhs", "a1"); ("offset", l) ])
+          both_riscv)
+      [ "bne"; "blt"; "bge"; "bltu"; "bgeu"; "bgt"; "ble"; "bgtu"; "bleu" ]
+  @ List.concat_map
+      (fun m ->
+        rv_label_entries ~form_id:("riscv:" ^ m)
+          ~operands:(fun l -> [ ("src", "a0"); ("offset", l) ])
+          both_riscv)
+      [ "beqz"; "bnez"; "bgez"; "bltz"; "blez"; "bgtz" ]
+  @ rv_label_entries ~form_id:"riscv:jal"
+      ~operands:(fun l -> [ ("link", "a0"); ("offset", l) ])
+      both_riscv
+  @ rv_label_entries ~form_id:"riscv:jal:implicit-ra"
+      ~operands:(fun l -> [ ("offset", l) ])
+      both_riscv
+  @ rv_label_entries ~form_id:"riscv:j" ~operands:(fun l -> [ ("offset", l) ]) both_riscv
+  @ List.concat_map
+      (fun target ->
+        [
+          rv_base_entry ~form_id:"riscv:jalr" ~variant:"boundary-max-positive-offset"
+            ~operands:[ ("link", "a0"); ("base", "a1"); ("offset", "2047") ]
+            target;
+          rv_base_entry ~form_id:"riscv:jalr" ~variant:"boundary-min-negative-offset"
+            ~operands:[ ("link", "a0"); ("base", "a1"); ("offset", "-2048") ]
+            target;
+          rv_base_entry ~form_id:"riscv:jalr:implicit-ra" ~variant:"register-target"
+            ~operands:[ ("base", "a1") ]
+            target;
+          rv_base_entry ~form_id:"riscv:jr" ~variant:"register-target"
+            ~operands:[ ("base", "a1") ]
+            target;
+        ]
+        @ List.concat_map
+            (fun m ->
+              [
+                rv_base_entry ~form_id:("riscv:" ^ m) ~variant:"boundary-zero-immediate"
+                  ~operands:[ ("rd", "a0"); ("imm", "0") ]
+                  target;
+                rv_base_entry ~form_id:("riscv:" ^ m) ~variant:"boundary-max-immediate"
+                  ~operands:[ ("rd", "a0"); ("imm", "0xfffff") ]
+                  target;
+              ])
+            [ "lui"; "auipc" ]
+        @ List.map
+            (fun m ->
+              rv_base_entry ~form_id:("riscv:" ^ m) ~variant:"no-operands" ~operands:[] target)
+            [ "ecall"; "ebreak"; "scall"; "sbreak"; "fence.tso" ]
+        @ [
+            rv_base_entry ~form_id:"riscv:pause" ~variant:"no-operands" ~operands:[]
+              ~configuration:
+                (match target with
+                | Target.Riscv32 -> [ "-march=rv32im_zihintpause"; "-mabi=ilp32"; "-mno-relax" ]
+                | _ -> [ "-march=rv64im_zihintpause"; "-mabi=lp64"; "-mno-relax" ])
+              target;
+          ])
+      both_riscv
+  @ List.map
+      (fun (m, key) ->
+        rv_base_entry ~form_id:("riscv:" ^ m) ~lookup_key:key
+          ~variant:(if key = m then "boundary-max-shamt5" else "boundary-max-shamt5-" ^ key)
+          ~operands:[ ("rd", "a0"); ("rs1", "a1"); ("shamt", "31") ]
+          Target.Riscv32)
+      [
+        ("slli", "slli");
+        ("srli", "srli");
+        ("srai", "srai");
+        ("slli", "slli_rv32");
+        ("srli", "srli_rv32");
+        ("srai", "srai_rv32");
+      ]
+  @ List.map
+      (fun m ->
+        rv_base_entry ~form_id:("riscv:" ^ m) ~variant:"boundary-max-shamt6"
+          ~operands:[ ("rd", "a0"); ("rs1", "a1"); ("shamt", "63") ]
+          Target.Riscv64)
+      [ "slli"; "srli"; "srai" ]
+  @ List.map
+      (fun m ->
+        rv_base_entry ~form_id:("riscv:" ^ m) ~variant:"boundary-max-shamt5"
+          ~operands:[ ("rd", "a0"); ("rs1", "a1"); ("shamt", "31") ]
+          Target.Riscv64)
+      [ "slliw"; "srliw"; "sraiw" ]
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -6107,13 +6316,13 @@ let alias_entries =
   @ fmv_s_x_entries
 
 let all =
-  sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries @ x86_alu_rr_entries
-  @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries @ x86_alu_immb_entries
-  @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries @ x86_alu_gpr8_immb_entries
-  @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries @ x86_sse_binop_rr_entries
-  @ x86_sse_binop_rm_entries @ x86_sse_binop_imm_rr_entries @ x86_sse_binop_imm_rm_entries
-  @ x86_xmm_shift_imm_entries @ x86_sse_mov_entries @ x86_cvtsi2f_rr_entries
-  @ x86_cvtsi2f_rm_entries @ x86_cvtf2i_rr_entries @ x86_cvtf2i_rm_entries
+  base_entries @ rv_base_int_entries @ sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries
+  @ x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries
+  @ x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries
+  @ x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries
+  @ x86_sse_binop_rr_entries @ x86_sse_binop_rm_entries @ x86_sse_binop_imm_rr_entries
+  @ x86_sse_binop_imm_rm_entries @ x86_xmm_shift_imm_entries @ x86_sse_mov_entries
+  @ x86_cvtsi2f_rr_entries @ x86_cvtsi2f_rm_entries @ x86_cvtf2i_rr_entries @ x86_cvtf2i_rm_entries
   @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries @ x86_movd_store_rr_entries
   @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries @ x86_vmovd_load_rm_entries
   @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries @ x86_blendv_entries
