@@ -8606,6 +8606,9 @@ module Make (M : MODE) = struct
           match (!reg_field, !rm) with
           | Some reg, Some rm -> Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ~reg rm)
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
+          (* a fixed ModR/M.reg and no rm operand: register form, rm 0 ([lfence] is 0F AE E8) *)
+          | Some reg, None when r.digit >= 0 ->
+              Some (reg, (String.make 1 (Char.chr (0xc0 lor ((reg land 7) lsl 3))), 0, 0))
           | _ -> None
         in
         let opcode = r.opcode lor (!opcode_low land 7) in
@@ -8836,6 +8839,8 @@ module Make (M : MODE) = struct
                 if uses_modrm && r.digit >= 0 && (mb lsr 3) land 7 <> r.digit then None
                 else if uses_modrm && has_mem && md = 3 then None
                 else if uses_modrm && rm_reg && md <> 3 then None
+                else if uses_modrm && (not has_mem) && (not rm_reg) && mb land 0xc7 <> 0xc0 then
+                  None
                 else
                   (* the memory operand, if any: SIB and displacement *)
                   let mem, k =
@@ -8988,6 +8993,16 @@ module Make (M : MODE) = struct
 
   (* A mnemonic the hand-written forms do not know may be a generated row's. *)
   let simplify_instruction_ungated (s : Surface.t) =
+    (* [rep movsb] reaches here as the mnemonic [rep] with a symbol operand [movsb]: a repeat
+       prefix names the string-op row it is spelled with *)
+    let s =
+      match (s.Surface.mnemonic, s.Surface.ops) with
+      | ( (("rep" | "repe" | "repz" | "repne" | "repnz") as p),
+          [ Operand.Sym (Asm_core.Expr.Symbol op) ] ) ->
+          let p = match p with "repz" -> "repe" | "repnz" -> "repne" | p -> p in
+          { s with mnemonic = p ^ " " ^ op; ops = [] }
+      | _ -> s
+    in
     (* GNU as lets a register operand fix the operand size, and rejects a suffix on most newer
        integer instructions ([rdrand %eax]), so for a mnemonic the hand-written forms do not know
        the register also names the sized row. A hand-written mnemonic keeps requiring its suffix

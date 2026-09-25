@@ -99,6 +99,8 @@ let parse_pattern pattern =
             | "MOD=3" | "MOD[0b11]" -> Some { p with memory = Some false; modrm = true }
             | "MODE=2" -> Some { p with mode64 = true }
             | "MODE!=2" -> Some { p with not64 = true }
+            (* 32-bit mode only; MODE=0 (16-bit mode) is DEC-X86-MODE16's *)
+            | "MODE=1" -> Some { p with not64 = true }
             | "SRM!=0" -> Some { p with srm_nonzero = true }
             | "VL=0" -> Some { p with vl = 0 }
             | "VL=1" -> Some { p with vl = 1 }
@@ -114,6 +116,8 @@ let parse_pattern pattern =
             (* TZCNT=1/LZCNT=1 select the F3 form from bsf/bsr, which REP=3 already states;
                REP!=3 is the absence of that prefix *)
             | "TZCNT=1" | "LZCNT=1" | "REP!=3" -> Some p
+            (* a string op's segment override is its default without a prefix *)
+            | "OVERRIDE_SEG0()" | "OVERRIDE_SEG1()" -> Some p
             | "IGNORE66()" | "NOREX2=1" | "REX2=0" | "SIMM8()" | "SRM[rrr]" | "LOCK=0"
             | "IMMUNE66()" | "SIMMz()" | "UIMM16()" ->
                 Some p
@@ -309,6 +313,35 @@ let not_in_32bit_mode (rec_ : R.t) =
 
 (* The integer shapes the rule spells: one operand size throughout (so a single suffix names
    it) and no mixed-width moves. *)
+(* The AT&T spelling of an integer iclass. XED's string-op dword forms end in D where AT&T says
+   l (GNU as warns "assuming movsl" and would read movsd as SSE); the 16-bit iret/pushf/popf
+   take w; far return and sysret state their operand size; a REP/REPE/REPNE iclass is the
+   prefix, a space and the string op. *)
+let integer_mnemonic ~rep native =
+  let op n =
+    match n with
+    | "MOVSD" | "CMPSD" | "STOSD" | "LODSD" | "SCASD" | "INSD" | "OUTSD" ->
+        String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
+    | "IRET" | "PUSHF" | "POPF" -> String.lowercase_ascii n ^ "w"
+    | "PUSHA" | "POPA" -> String.lowercase_ascii n ^ "w"
+    | "PUSHAD" | "POPAD" -> String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
+    | "IRETD" | "PUSHFD" | "POPFD" ->
+        String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
+    | "RET_FAR" -> "lretl"
+    | "SYSRET" | "SYSRET_AMD" -> "sysretl"
+    | "SYSRET64" -> "sysretq"
+    | "SYSCALL_AMD" -> "syscall"
+    | _ -> String.lowercase_ascii n
+  in
+  match String.index_opt native '_' with
+  | Some i when List.mem (String.sub native 0 i) [ "REP"; "REPE"; "REPNE" ] ->
+      (* XED also lists an F2-prefixed REP_MOVS/STOS/LODS/INS/OUTS: GNU spells it repne *)
+      (if String.sub native 0 i = "REP" && rep = 2 then "repne"
+       else String.lowercase_ascii (String.sub native 0 i))
+      ^ " "
+      ^ op (String.sub native (i + 1) (String.length native - i - 1))
+  | _ -> op native
+
 let gpr_ok operands ~iclass =
   let classes =
     List.sort_uniq compare
@@ -324,8 +357,10 @@ let gpr_ok operands ~iclass =
            | _ -> None)
          operands)
   in
-  List.length classes = 1
+  (List.length classes = 1 || operands = [])
   && (not (List.mem iclass [ "MOVZX"; "MOVSX"; "MOVSXD"; "BSWAP" ]))
+  (* GNU as keeps bound's Intel operand order in AT&T syntax *)
+  && iclass <> "BOUND"
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
   && (not (iclass = "NOP" && List.length operands > 1))
   && List.for_all (function Reg { field = Vvvv | Is4; _ } -> false | _ -> true) operands
@@ -539,7 +574,7 @@ let spec_of_record (rec_ : R.t) =
                     no_acc = [];
                     widths = [];
                   }
-            | Some _
+            | _
               when (not has_xmm)
                    && ((not p.modrm) || p.memory = Some true = has_mem)
                    && gpr_ok xed_order ~iclass:rec_.native_name ->
@@ -576,12 +611,13 @@ let spec_of_record (rec_ : R.t) =
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
-                    mnemonic = String.lowercase_ascii rec_.native_name;
+                    mnemonic = integer_mnemonic ~rep:p.rep rec_.native_name;
                     space = `Legacy;
                     map = opcode_map;
                     opcode;
                     prefix;
-                    osz = fixed16;
+                    (* a REP prefix with a mandatory 0x66 keeps both: rep movsw is 66 F3 A5 *)
+                    osz = fixed16 || (mandatory66 && p.rep >= 2);
                     w = p.rexw;
                     l = -1;
                     digit;

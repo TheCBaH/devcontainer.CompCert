@@ -7005,7 +7005,7 @@ let table_entries repo =
    low registers with a base+disp8 address in both modes, and on x86-64 a
    high-register variant (xmm8-15, r8-r15, an r9/r10 base+index) that needs
    the REX/VEX extension bits; immediates at 0 and 255. *)
-let x86_table_entries_of target (spec : Isa_x86_table.spec) =
+let x86_table_entries_of ?(alt = false) target (spec : Isa_x86_table.spec) =
   let canonical = Isa_x86_table.canonical spec in
   let reg_name (cls : Isa_x86_table.rclass) num =
     let low8 = [| "ax"; "cx"; "dx"; "bx"; "sp"; "bp"; "si"; "di" |] in
@@ -7067,14 +7067,17 @@ let x86_table_entries_of target (spec : Isa_x86_table.spec) =
            row.operands)
     in
     let operands =
-      if row.mnemonic = canonical.mnemonic then operands
+      if row.mnemonic = canonical.mnemonic && not alt then operands
       else (Isa_gen_render.mnemonic_key, row.mnemonic) :: operands
     in
     {
       form_id = "x86:" ^ spec.iform;
       target;
       lookup_key = spec.iform;
-      case_id = Printf.sprintf "x86:%s:table-%s:%s" spec.iform variant (Target.to_string target);
+      case_id =
+        Printf.sprintf "x86:%s:table-%s%s:%s" spec.iform
+          (if alt then "alt-" else "")
+          variant (Target.to_string target);
       rule_ids =
         [ "table-row"; "table-" ^ variant; "feature:" ^ String.lowercase_ascii spec.isa_set ];
       operands;
@@ -7152,14 +7155,20 @@ let x86_table_entries repo =
     let specs =
       List.filter (fun (s : Isa_x86_table.spec) -> not (Hashtbl.mem secondary s.record_id)) specs
     in
+    (* one case per iform, plus one per further spelling of the same iform (XED lists rep movsw
+       with F2 too: GNU's repne movsw) *)
     let unique =
       List.fold_left
         (fun acc (s : Isa_x86_table.spec) ->
-          if List.exists (fun (t : Isa_x86_table.spec) -> t.iform = s.iform) acc then acc
-          else s :: acc)
+          if
+            List.exists
+              (fun ((t : Isa_x86_table.spec), _) -> t.iform = s.iform && t.mnemonic = s.mnemonic)
+              acc
+          then acc
+          else (s, List.exists (fun ((t : Isa_x86_table.spec), _) -> t.iform = s.iform) acc) :: acc)
         [] specs
     in
-    Ok (List.concat_map (x86_table_entries_of target) (List.rev unique))
+    Ok (List.concat_map (fun (s, alt) -> x86_table_entries_of ~alt target s) (List.rev unique))
   in
   let* x32 = per_target Target.X86_32 in
   let* x64 = per_target Target.X86_64 in

@@ -154,10 +154,8 @@ let rows =
           "I286PROTECTED";
           "I286REAL";
           "I386";
-          "I486";
           "I486REAL";
           "I86";
-          "LAHF";
           "LONGMODE";
           "PAUSE";
           "PENTIUMREAL";
@@ -168,7 +166,6 @@ let rows =
           "PREFETCH_NOP";
           "RDTSCP";
           "RDWRFSGS";
-          "SEP";
           "TBM";
         ];
       capability =
@@ -258,7 +255,6 @@ let rows =
       source = "xed_resolved";
       families =
         [
-          "AMD";
           "AMD_INVLPGB";
           "CET";
           "ENQCMD";
@@ -285,14 +281,12 @@ let rows =
           "PKU";
           "PTWRITE";
           "RDPID";
-          "RDPMC";
           "RDPRU";
           "RTM";
           "SERIALIZE";
           "SGX";
           "SGX_ENCLV";
           "SMAP";
-          "SMX";
           "SNP";
           "SVM";
           "TDX";
