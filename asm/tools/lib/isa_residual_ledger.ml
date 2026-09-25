@@ -23,37 +23,26 @@ let rows =
           "AVX512BW_128N";
           "AVX512BW_256";
           "AVX512BW_512";
-          "AVX512DQ_512";
-          "AVX512DQ_SCALAR";
-          "AVX512ER_512";
-          "AVX512ER_SCALAR";
           "AVX512F_128";
           "AVX512F_128N";
           "AVX512F_256";
           "AVX512F_512";
           "AVX512F_SCALAR";
           "AVX512PF_512";
-          "AVX512_COM_EF_SCALAR";
-          "AVX512_FP16_512";
-          "AVX512_FP16_CONVERT_512";
           "AVX512_FP16_SCALAR";
-          "AVX512_MINMAX_512";
-          "AVX512_MINMAX_SCALAR";
           "AVX512_MOVZXC_128";
           "AVX512_SAT_CVT_512";
-          "AVX512_SAT_CVT_DS_512";
-          "AVX512_SAT_CVT_DS_SCALAR";
         ];
       capability =
         "EVEX forms beyond the generated table's base obligation (unmasked, no zeroing, no \
-         broadcast, registers 0-15, disp8*N): rounding/SAE (BCRC) records, VSIB gathers and \
-         scatters, forms that require a mask (MASKNOT0), and same-spelled EVEX twins no \
-         pseudo-prefix separates. Masking, zeroing, broadcast and registers 16-31 are obligations \
-         on already-promoted records; {evex} twins of VEX forms are promoted.";
+         broadcast, registers 0-15, disp8*N, embedded rounding/SAE): VSIB gathers and scatters, \
+         forms that require a mask (MASKNOT0), and same-spelled EVEX twins no pseudo-prefix \
+         separates. Masking, zeroing, broadcast and registers 16-31 are obligations on \
+         already-promoted records; {evex} twins of VEX forms are promoted.";
       evidence =
         "family-admission: most AVX-512F/BW/DQ/CD/FP16/BF16/VBMI/VNNI/IFMA/BITALG/VPOPCNTDQ and \
-         AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows; the remainder is rounding, \
-         VSIB and mask-register forms";
+         AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows; embedded rounding and {sae} \
+         register forms too; the remainder is VSIB and mask-register forms";
       task = "GEN-05-X86-EVEX";
       reopening_gate =
         "memory operands and opmask decoration are implemented in the encoder and a per-family GAS \

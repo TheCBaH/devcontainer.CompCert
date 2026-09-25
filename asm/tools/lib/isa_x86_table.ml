@@ -9,6 +9,7 @@ type operand =
   | Mem of { bits : int }
   | Imm of { bytes : int }
   | Fixed_reg of string
+  | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
 
 type spec = {
   record_id : string;
@@ -61,6 +62,8 @@ type pattern = {
   not64 : bool;  (** MODE!=2: the form does not exist in 64-bit mode *)
   free_reg : bool;  (** REG[rrr] with no register operand behind it: GNU encodes 0 *)
   srm_nonzero : bool;  (** SRM!=0: the opcode-embedded register is not the accumulator *)
+  bcrc : bool;  (** BCRC=1: EVEX.b set *)
+  round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
 }
 
 let parse_pattern pattern =
@@ -79,6 +82,10 @@ let parse_pattern pattern =
             | "VL=2" -> Some { p with vl = 2 }
             (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
             | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
+            | "BCRC=1" -> Some { p with bcrc = true }
+            | "AVX512_ROUND()" -> Some { p with round = `Rc }
+            | "SAE()" -> Some { p with round = `Sae }
+            | "FIX_ROUND_LEN512()" -> Some { p with vl = 2 }
             (* EVEX.R' = 1 for a GPR in ModR/M.reg: the encoder's constant *)
             | "EVEXR4_ONE()" -> Some p
             (* a scalar form's length field is ignored and encoded as 128 bits *)
@@ -150,6 +157,8 @@ let parse_pattern pattern =
          not64 = false;
          free_reg = false;
          srm_nonzero = false;
+         bcrc = false;
+         round = `None;
        })
     tokens
 
@@ -491,9 +500,26 @@ let spec_of_record (rec_ : R.t) =
               | Some 0 -> Some 0
               | _ -> None
             in
+            (* EVEX.b on a register form is embedded rounding: AT&T writes it after any
+               immediate, before the registers - but after the GPR source of an integer-to-float
+               conversion (GNU as: "misplaced {rn-sae}" before it) *)
+            let att =
+              let ops = List.rev xed_order in
+              match p.round with
+              | `None -> ops
+              | (`Rc | `Sae) as r -> (
+                  let rc = Rounding { sae_only = r = `Sae } in
+                  let imms, rest = List.partition (function Imm _ -> true | _ -> false) ops in
+                  match rest with
+                  | (Reg { cls = Gpr32 | Gpr64; _ } as gpr) :: tail -> imms @ (gpr :: rc :: tail)
+                  | _ -> imms @ (rc :: rest))
+            in
             match prefix with
             | None -> None
             | Some _ when p.memory = Some true <> has_mem -> None
+            (* EVEX.b means rounding only on a register form, and only where the pattern says so *)
+            | Some _ when p.bcrc && (p.round = `None || has_mem) -> None
+            | Some _ when (not p.bcrc) && p.round <> `None -> None
             | Some prefix ->
                 Some
                   {
@@ -507,9 +533,10 @@ let spec_of_record (rec_ : R.t) =
                     prefix;
                     osz = false;
                     w = p.rexw;
-                    l = p.vl;
+                    (* a rounding mode takes L'L's place *)
+                    l = (if p.bcrc then -1 else p.vl);
                     digit = p.digit;
-                    operands = List.rev xed_order;
+                    operands = att;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = (if space = "evex" then disp8_scale p else 1);
                     sized = false;
@@ -654,6 +681,23 @@ let spec_of_record (rec_ : R.t) =
 
 let operand_name i = Printf.sprintf "op%d" i
 
+(* XED lists an EVEX form's embedded-rounding register variant under the plain form's iform; a
+   differential case must name one or the other, so the rounding one is keyed apart. *)
+let rounding_suffix = "#er"
+
+let lookup_key (rec_ : R.t) =
+  match (rec_.provenance, rec_.encoding) with
+  | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } ->
+      let tokens = String.split_on_char ' ' pattern in
+      if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix else iform
+  | R.Xed_provenance { iform = Some iform; _ }, _ -> iform
+  | _ -> ""
+
+let spec_lookup_key spec =
+  if List.exists (function Rounding _ -> true | _ -> false) spec.operands then
+    spec.iform ^ rounding_suffix
+  else spec.iform
+
 (* The row a normalized form and its first case describe: the 32-bit one of a width-variable
    integer form. *)
 let canonical spec =
@@ -687,6 +731,7 @@ let form ~requirement (rec_ : R.t) spec =
            let op_kind =
              match o with
              | Fixed_reg _ -> None
+             | Rounding _ -> Some Rounding_mode
              | Reg { cls; _ } -> Some (Register { class_ = class_ cls; excluded = [] })
              | Mem { bits } ->
                  Some (Memory { width_bits = (if bits <= 0 then None else Some bits) })
@@ -712,6 +757,8 @@ let form ~requirement (rec_ : R.t) spec =
       (fun i o ->
         match o with
         | Reg _ -> Syn_decorated ("%", Syn_operand (operand_name i))
+        (* spelled whole, braces included: {rn-sae} *)
+        | Rounding _ -> Syn_operand (operand_name i)
         | Imm _ -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Mem _ -> Syn_operand (operand_name i)
         (* an implied register is assigned per case: its spelling follows the operand size *)
@@ -764,7 +811,8 @@ let twin_primaries specs =
           | Reg { cls; _ } -> `Reg cls
           | Mem _ -> `Mem
           | Imm { bytes } -> `Imm bytes
-          | Fixed_reg n -> `Fixed n)
+          | Fixed_reg n -> `Fixed n
+          | Rounding _ -> `Rounding)
         spec.operands )
   in
   let groups = Hashtbl.create 64 in
@@ -888,6 +936,7 @@ let accumulator_positions (records : R.t list) spec =
     (* the accumulator forms take a full-size immediate; an imm8 form is not their twin *)
     | Imm { bytes } -> `Imm (bytes = 1)
     | Fixed_reg n -> `Fixed n
+    | Rounding _ -> `Rounding
   in
   (* the accumulator a sibling names, against the register width at the same position *)
   let covers acc width =

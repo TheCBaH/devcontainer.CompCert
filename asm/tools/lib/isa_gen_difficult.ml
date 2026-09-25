@@ -7063,7 +7063,12 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                    | _, true -> "1000000"
                  in
                  [ (Isa_x86_table.operand_name i, v) ]
-             | Fixed_reg name -> [ (Isa_x86_table.operand_name i, name) ])
+             | Fixed_reg name -> [ (Isa_x86_table.operand_name i, name) ]
+             | Rounding { sae_only } ->
+                 [
+                   ( Isa_x86_table.operand_name i,
+                     if sae_only then "{sae}" else if high then "{rz-sae}" else "{rn-sae}" );
+                 ])
            row.operands)
     in
     let operands =
@@ -7077,10 +7082,11 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     {
       form_id = "x86:" ^ spec.iform;
       target;
-      lookup_key = spec.iform;
+      lookup_key = Isa_x86_table.spec_lookup_key spec;
       case_id =
-        Printf.sprintf "x86:%s:table-%s%s:%s" spec.iform
+        Printf.sprintf "x86:%s:table-%s%s%s:%s" spec.iform
           (if alt then "alt-" else "")
+          (if Isa_x86_table.spec_lookup_key spec <> spec.iform then "er-" else "")
           variant (Target.to_string target);
       rule_ids =
         [ "table-row"; "table-" ^ variant; "feature:" ^ String.lowercase_ascii spec.isa_set ];
@@ -7170,10 +7176,18 @@ let x86_table_entries repo =
         (fun acc (s : Isa_x86_table.spec) ->
           if
             List.exists
-              (fun ((t : Isa_x86_table.spec), _) -> t.iform = s.iform && t.mnemonic = s.mnemonic)
+              (fun ((t : Isa_x86_table.spec), _) ->
+                Isa_x86_table.spec_lookup_key t = Isa_x86_table.spec_lookup_key s
+                && t.mnemonic = s.mnemonic)
               acc
           then acc
-          else (s, List.exists (fun ((t : Isa_x86_table.spec), _) -> t.iform = s.iform) acc) :: acc)
+          else
+            ( s,
+              List.exists
+                (fun ((t : Isa_x86_table.spec), _) ->
+                  Isa_x86_table.spec_lookup_key t = Isa_x86_table.spec_lookup_key s)
+                acc )
+            :: acc)
         [] specs
     in
     Ok

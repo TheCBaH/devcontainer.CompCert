@@ -17,6 +17,9 @@ type operand =
   | Mem of { bits : int }  (** a ModR/M memory operand; [bits] is informational *)
   | Imm of { bytes : int }  (** an immediate of 1, 2 or 4 bytes *)
   | Fixed_reg of string  (** a register the spelling names but the encoding implies: [%cl] *)
+  | Rounding of { sae_only : bool }
+      (** EVEX embedded rounding ([{rn-sae}]: EVEX.b with the mode in L'L) or, [sae_only],
+          [{sae}] (EVEX.b, L'L = 0) *)
 
 type space = Legacy | Vex | Evex
 

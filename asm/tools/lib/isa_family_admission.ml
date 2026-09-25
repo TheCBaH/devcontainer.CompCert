@@ -82,7 +82,7 @@ let normalize source rec_ =
 let lookup_key source (rec_ : Isa_source_record.t) =
   match (source, rec_.provenance) with
   | "riscv_opcodes", _ -> rec_.native_name
-  | "xed_resolved", Isa_source_record.Xed_provenance { iform = Some iform; _ } -> iform
+  | "xed_resolved", _ -> Isa_x86_table.lookup_key rec_
   | _ -> ""
 
 (* Support credit is read from the committed differential corpora, never

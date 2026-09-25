@@ -161,6 +161,16 @@ module Operand = struct
     | Imm of Bigint.t
     | Imm_sym of Asm_core.Expr.t
     | Sym of Asm_core.Expr.t
+    | Rc of int
+        (** EVEX embedded rounding: [{rn-sae}] 0, [{rd-sae}] 1, [{ru-sae}] 2, [{rz-sae}] 3; or
+            [{sae}] 4, exceptions suppressed with no rounding override *)
+
+  let rc_name = function
+    | 0 -> "rn-sae"
+    | 1 -> "rd-sae"
+    | 2 -> "ru-sae"
+    | 3 -> "rz-sae"
+    | _ -> "sae"
 
   let pp ppf = function
     | Reg r -> Reg.pp ppf r
@@ -168,6 +178,7 @@ module Operand = struct
     | Imm v -> Fmt.pf ppf "$%a" Bigint.pp v
     | Imm_sym e -> Fmt.pf ppf "$%s" (Asm_core.Expr.to_string e)
     | Sym e -> Fmt.string ppf (Asm_core.Expr.to_string e)
+    | Rc n -> Fmt.pf ppf "{%s}" (rc_name n)
 end
 
 (* {1 The three staged instruction types} *)
@@ -2081,7 +2092,8 @@ module Instruction = struct
           | X86_table_row.Reg { cls; _ } -> `Reg cls
           | Mem _ -> `Mem
           | Imm { bytes } -> `Imm bytes
-          | Fixed_reg n -> `Fixed n)
+          | Fixed_reg n -> `Fixed n
+          | Rounding _ -> `Rounding)
         r.operands
     in
     let dest (r : X86_table_row.row) =
@@ -4229,7 +4241,8 @@ module Make (M : MODE) = struct
                     Lowered.Alu_rm_imm
                       { ext; width = i.Instruction.width; rm = Rm.Mem m; imm = Disp.Const imm };
                   ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ -> bad `Immediate_destination))
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+                bad `Immediate_destination))
     (* [addq $bodies+24, %rax] - gcc's idiom for address arithmetic against a
        symbol's own address rather than through [lea] (M5, asm/docs/corpus.md).
        Register destination only - no fixture evidences a symbolic-immediate
@@ -4381,7 +4394,8 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ -> bad `Immediate_destination)
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+            bad `Immediate_destination)
     (* Group-2 shift/rotate, bare-mnemonic implicit-1 form ([shrq %rax]) - GAS's
        own shorter surface spelling of the explicit [$1, dst] one just below,
        byte-identical either way (M5, asm/docs/corpus.md - gas_frontier.t's
@@ -4396,7 +4410,8 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ -> bad `Immediate_destination)
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+            bad `Immediate_destination)
     (* Group-2 shift/rotate, explicit-count form. A literal count of exactly 1
        still picks {!Lowered.Shift1_rm} - GAS's own shorter, canonical
        encoding (M4's original scope here) - and any other count is
@@ -4428,7 +4443,8 @@ module Make (M : MODE) = struct
                           { ext; width = i.Instruction.width; rm = Rm.Reg r; imm };
                       ])
             | _, Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
-            | _, (Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _) -> bad `Immediate_destination))
+            | _, (Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _) ->
+                bad `Immediate_destination))
     (* Group-2 shift/rotate, count-in-%cl (M5, asm/docs/corpus.md: [sall
        %cl,%eax]). [cl]'s width and number pin it to exactly %cl, not any
        other byte register - GAS accepts no other register here, and this
@@ -4445,7 +4461,8 @@ module Make (M : MODE) = struct
             | Ok () ->
                 Ok [ Lowered.Shift_cl_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ -> bad `Immediate_destination)
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+            bad `Immediate_destination)
     (* [shldl $6,%ecx,%eax] (M5, asm/docs/corpus.md): SHLD's own three-operand
        AT&T form - GAS reverses Intel's [SHLD r/m32, r32, imm8] to put the
        count first and the r/m destination last, exactly the order
@@ -4540,7 +4557,8 @@ module Make (M : MODE) = struct
                     Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Reg r; imm } ])
             | Operand.Mem m ->
                 Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Mem m; imm } ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ -> bad `Immediate_destination))
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+                bad `Immediate_destination))
     | Opcode.Cmov cc, [ Operand.Reg a; Operand.Reg b ] -> (
         match (width_ok a, width_ok b) with
         | Ok (), Ok () ->
@@ -8622,6 +8640,7 @@ module Make (M : MODE) = struct
       let reg_field = ref (if r.digit >= 0 then Some r.digit else None) in
       let rm = ref None and vvvv = ref None and is4 = ref None and imms = ref [] in
       let opcode_low = ref 0 in
+      let rounding = ref None in
       let rex_byte = ref false and ok = ref true in
       List.iter2
         (fun (o : T.operand) op ->
@@ -8635,6 +8654,9 @@ module Make (M : MODE) = struct
               | T.Is4 -> is4 := Some reg.num
               | T.Opcode_low -> opcode_low := reg.num)
           | T.Fixed_reg name, Operand.Reg reg when String.equal reg.name name -> ()
+          | T.Rounding { sae_only = true }, Operand.Rc 4 -> rounding := Some 0
+          | T.Rounding { sae_only = false }, Operand.Rc n when n >= 0 && n <= 3 ->
+              rounding := Some n
           | T.Mem _, Operand.Mem m -> rm := Some (`Mem m)
           | T.Imm { bytes }, Operand.Imm v -> (
               match Bigint.to_int64_opt v with
@@ -8705,8 +8727,10 @@ module Make (M : MODE) = struct
                       in
                       Some (prefix ^ byte opcode ^ tail)
                 | T.Evex ->
-                    (* 62 P0 P1 P2 with k0 (no masking), no zeroing, no broadcast; registers 0-15 *)
+                    (* 62 P0 P1 P2 with k0 (no masking), no zeroing; registers 0-15. EVEX.b with a
+                       register operand is embedded rounding, whose mode replaces L'L. *)
                     let v = Option.value !vvvv ~default:0 in
+                    let b_bit, l = match !rounding with Some rc -> (1, rc) | None -> (0, l) in
                     let pp = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
                     let p0 =
                       ((1 - rr) lsl 7)
@@ -8715,7 +8739,7 @@ module Make (M : MODE) = struct
                       lor (1 lsl 4) lor r.map
                     in
                     let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor (1 lsl 2) lor pp in
-                    let p2 = (l lsl 5) lor (1 lsl 3) in
+                    let p2 = (l lsl 5) lor (b_bit lsl 4) lor (1 lsl 3) in
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
                     else Some ("\x62" ^ byte p0 ^ byte p1 ^ byte p2 ^ byte opcode ^ tail)))
 
@@ -8777,6 +8801,8 @@ module Make (M : MODE) = struct
       | _ -> (k, osz, rep)
     in
     let k, osz, rep = prefixes pos false 0 in
+    (* EVEX.b: embedded rounding for a register form *)
+    let evex_b = ref 0 in
     let k, rex =
       match at k with Some b when M.rex_allowed && b land 0xf0 = 0x40 -> (k + 1, b) | _ -> (k, 0)
     in
@@ -8784,10 +8810,11 @@ module Make (M : MODE) = struct
       match (at k, at (k + 1), at (k + 2)) with
       | Some 0x62, Some p0, Some p1
         when rex = 0 && (M.rex_allowed || p0 land 0xc0 = 0xc0) && p1 land 4 = 4 && k + 3 < n ->
-          (* EVEX: only the unmasked, non-zeroing, non-broadcast form with registers 0-15 *)
+          (* EVEX: only the unmasked, non-zeroing form with registers 0-15 *)
           let p2 = Char.code bytes.[k + 3] in
-          if p0 land 0x10 = 0 || p2 land 0x08 = 0 || p2 land 0x97 <> 0 then None
-          else
+          if p0 land 0x10 = 0 || p2 land 0x08 = 0 || p2 land 0x87 <> 0 then None
+          else (
+            evex_b := (p2 lsr 4) land 1;
             Some
               ( k + 4,
                 `Evex
@@ -8798,7 +8825,7 @@ module Make (M : MODE) = struct
                     (p1 lsr 7) land 1,
                     lnot (p1 lsr 3) land 15,
                     (p2 lsr 5) land 3,
-                    p1 land 3 ) )
+                    p1 land 3 ) ))
       | Some 0xc5, Some b1, _ when rex = 0 && (M.rex_allowed || b1 land 0xc0 = 0xc0) ->
           Some
             ( k + 2,
@@ -8876,7 +8903,17 @@ module Make (M : MODE) = struct
             | _ -> (false, 0, 0, 0, 0, 0, 0)
           in
           ignore w;
-          ignore l;
+          (* a rounding row is exactly the EVEX.b register form *)
+          let rounding_row =
+            List.exists (function T.Rounding _ -> true | _ -> false) r.operands
+          in
+          let header_ok =
+            header_ok
+            && (match r.space with T.Evex -> !evex_b = 1 = rounding_row | _ -> true)
+            && List.for_all
+                 (function T.Rounding { sae_only = true } -> l = 0 | _ -> true)
+                 r.operands
+          in
           let low =
             List.exists
               (function T.Reg { field = T.Opcode_low; _ } -> true | _ -> false)
@@ -8994,6 +9031,7 @@ module Make (M : MODE) = struct
                                   failed := true;
                                 if (cls = T.Mmx || cls = T.Kmask) && num >= 8 then failed := true;
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
+                            | T.Rounding { sae_only } -> Operand.Rc (if sae_only then 4 else l)
                             | T.Fixed_reg name -> (
                                 match find_reg name with
                                 | Some reg -> Operand.Reg reg

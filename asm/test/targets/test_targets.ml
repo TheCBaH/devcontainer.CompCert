@@ -1596,16 +1596,22 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
      \tvpdpbusd %xmm1, %xmm2, %xmm3\n\
      \t{store} movaps %xmm1, %xmm2\n\
      \t{load} addl %eax, %ebx\n\
-     \trep movsw\n";
+     \trep movsw\n\
+     \tvaddps {rn-sae}, %zmm1, %zmm2, %zmm3\n\
+     \tvcmpps $1, {sae}, %zmm1, %zmm2, %k1\n\
+     \tvcvtsi2ss %eax, {rz-sae}, %xmm1, %xmm2\n";
   attempt "x86_64" "\t.text\n\t{vex3} vaddps %xmm1, %xmm2, %xmm3\n";
   [%expect
     {|
-    40000000  62 f1 6c 08 58 d9  {evex} vaddps %xmm1, %xmm2, %xmm3   [x86_64.vaddps]
-    40000006  c4 e2 69 50 d9     {vex} vpdpbusd %xmm1, %xmm2, %xmm3  [x86_64.vpdpbusd]
-    4000000b  62 f2 6d 08 50 d9  vpdpbusd %xmm1, %xmm2, %xmm3        [x86_64.vpdpbusd]
-    40000011  0f 29 ca           {store} movaps %xmm1, %xmm2         [x86_64.movaps]
-    40000014  03 d8              addl %eax, %ebx                     [x86_64.alu-r-rm.asz-absent.opsz-absent.rex-absent.reg]
-    40000016  66 f3 a5           rep movsw                           [x86_64.rep movsw]
+    40000000  62 f1 6c 08 58 d9     {evex} vaddps %xmm1, %xmm2, %xmm3       [x86_64.vaddps]
+    40000006  c4 e2 69 50 d9        {vex} vpdpbusd %xmm1, %xmm2, %xmm3      [x86_64.vpdpbusd]
+    4000000b  62 f2 6d 08 50 d9     vpdpbusd %xmm1, %xmm2, %xmm3            [x86_64.vpdpbusd]
+    40000011  0f 29 ca              {store} movaps %xmm1, %xmm2             [x86_64.movaps]
+    40000014  03 d8                 addl %eax, %ebx                         [x86_64.alu-r-rm.asz-absent.opsz-absent.rex-absent.reg]
+    40000016  66 f3 a5              rep movsw                               [x86_64.rep movsw]
+    40000019  62 f1 6c 18 58 d9     vaddps {rn-sae}, %zmm1, %zmm2, %zmm3    [x86_64.vaddps]
+    4000001f  62 f1 6c 18 c2 c9 01  vcmpps $1, {sae}, %zmm1, %zmm2, %k1     [x86_64.vcmpps]
+    40000026  62 f1 76 78 2a d0     vcvtsi2ss %eax, {rz-sae}, %xmm1, %xmm2  [x86_64.vcvtsi2ss]
     x86.simplify: unknown instruction {vex3} vaddps |}]
 
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling

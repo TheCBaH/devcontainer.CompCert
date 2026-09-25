@@ -253,6 +253,11 @@ module Make (M : MODE) = struct
             | Error _ -> Ok (Operand.Imm_sym e)))
     (* %reg *)
     | [ Token.Register n ] -> Result.map (fun r -> Operand.Reg r) (reg_named n)
+    (* EVEX embedded rounding / suppress-all-exceptions: {rn-sae} ... {rz-sae}, {sae} *)
+    | [ Token.Lbrace; Token.Ident "sae"; Token.Rbrace ] -> Ok (Operand.Rc 4)
+    | [ Token.Lbrace; Token.Ident r; Token.Minus; Token.Ident "sae"; Token.Rbrace ]
+      when List.mem r [ "rn"; "rd"; "ru"; "rz" ] ->
+        Ok (Operand.Rc (match r with "rn" -> 0 | "rd" -> 1 | "ru" -> 2 | _ -> 3))
     (* %st(n), the x87 stack-relative register form ([n] a literal 0-7) - a
        shape [find_reg] can never see, since the lexer splits the parens off
        the identifier the same way it does for any other memory operand (M5

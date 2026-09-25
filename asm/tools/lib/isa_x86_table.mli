@@ -18,6 +18,7 @@ type operand =
   | Mem of { bits : int }
   | Imm of { bytes : int }  (** [bytes = 0]: a [z] immediate, 2 or 4 by operand size *)
   | Fixed_reg of string  (** spelled, implied by the encoding: [%cl] *)
+  | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
 
 type spec = {
   record_id : string;
@@ -54,6 +55,12 @@ val form :
     immediates with [$], memory as given. *)
 
 val operand_name : int -> string
+
+val lookup_key : Isa_source_record.t -> string
+(** The iform, told apart for an EVEX embedded-rounding register variant (which XED lists under
+    the plain form's iform) by a [#er] suffix. *)
+
+val spec_lookup_key : spec -> string
 
 val twins : spec list -> (string, string) Hashtbl.t
 (** Records whose spelling and operand shape repeat an earlier spec's: record id to the earlier

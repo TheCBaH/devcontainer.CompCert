@@ -8,9 +8,9 @@ let specs repo target =
   Ok
     (List.filter_map
        (fun rec_ ->
-         match Isa_norm_xed.normalize_hand_written rec_ with
-         | Error { Isa_norm_model.rule = "unhandled-iform"; _ } -> Isa_x86_table.spec_of_record rec_
-         | _ -> None)
+         if Isa_norm_xed.table_owned (Isa_norm_xed.normalize_hand_written rec_) then
+           Isa_x86_table.spec_of_record rec_
+         else None)
        records)
 
 (* Every table-expressible record of one export, including those the hand-written rules own:
@@ -47,6 +47,7 @@ let render_operand : Isa_x86_table.operand -> string = function
   | Mem { bits } -> Printf.sprintf "Mem { bits = %d }" bits
   | Imm { bytes } -> Printf.sprintf "Imm { bytes = %d }" bytes
   | Fixed_reg name -> Printf.sprintf "Fixed_reg %S" name
+  | Rounding { sae_only } -> Printf.sprintf "Rounding { sae_only = %b }" sae_only
 
 let render_row (s : Isa_x86_table.spec) =
   Printf.sprintf
