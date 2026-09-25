@@ -86,6 +86,15 @@ module Reg = struct
   let extended_regs width suffix =
     List.init 8 (fun i -> { name = Printf.sprintf "r%d%s" (i + 8) suffix; num = i + 8; width })
 
+  (* APX's r16-r31 at every width (r16, r16d, r16w, r16b): x86-64 only, reached only by
+     generated rows (REX2 for legacy maps 0 and 1, EVEX elsewhere) *)
+  let apx_gprs =
+    List.concat_map
+      (fun (width, suffix) ->
+        List.init 16 (fun i ->
+            { name = Printf.sprintf "r%d%s" (i + 16) suffix; num = i + 16; width }))
+      [ (64, ""); (32, "d"); (16, "w"); (8, "b") ]
+
   (* Lookup by spelling over a mode's own register set. The set is a [MODE]
      field rather than a constant here, because [%rax] exists in 64-bit mode
      and does not exist in 32-bit mode, and a shared table would have to be
@@ -8705,20 +8714,27 @@ module Make (M : MODE) = struct
       let rm = ref None and vvvv = ref None and is4 = ref None and imms = ref [] in
       let opcode_low = ref 0 in
       let rounding = ref None and vsib = ref None in
+      let rm_gpr = ref false in
       let rex_byte = ref false and ok = ref true in
+      let gpr (cls : T.rclass) = cls = T.Gpr8 || cls = T.Gpr16 || cls = T.Gpr32 || cls = T.Gpr64 in
       List.iter2
         (fun (o : T.operand) op ->
           match (o, op) with
-          (* registers 16-31 exist only in EVEX's reg, rm and vvvv fields *)
+          (* registers 16-31 exist only in EVEX's reg, rm and vvvv fields, and APX's r16-r31
+             also in REX2's reg, rm and opcode-register fields of legacy maps 0 and 1 *)
           | T.Reg { cls; field }, Operand.Reg reg
             when table_reg_ok cls reg
                  && (reg.num < 16
                     || r.space = T.Evex
-                       && (field = T.Modrm_reg || field = T.Modrm_rm || field = T.Vvvv)) -> (
+                       && (field = T.Modrm_reg || field = T.Modrm_rm || field = T.Vvvv)
+                    || r.space = T.Legacy && r.map <= 1 && gpr cls
+                       && (field = T.Modrm_reg || field = T.Modrm_rm || field = T.Opcode_low)) -> (
               if byte_reg_needs_rex reg then rex_byte := true;
               match field with
               | T.Modrm_reg -> reg_field := Some reg.num
-              | T.Modrm_rm -> rm := Some (`Reg reg.num)
+              | T.Modrm_rm ->
+                  rm_gpr := gpr cls;
+                  rm := Some (`Reg reg.num)
               | T.Vvvv -> vvvv := Some reg.num
               | T.Is4 -> is4 := Some reg.num
               | T.Opcode_low -> opcode_low := reg.num)
@@ -8759,6 +8775,19 @@ module Make (M : MODE) = struct
         | None -> None
         | Some (reg, (modrm_bytes, x, b)) -> (
             let rr = (reg lsr 3) land 1 in
+            (* APX's register bit 4: R4 for ModR/M.reg, B4 for a GPR rm, a base or an
+               opcode register, X4 for a GPR index (EVEX's X stays a vector rm's bit 4) *)
+            let bit4 (reg : Reg.t option) =
+              match reg with Some r -> (r.num lsr 4) land 1 | None -> 0
+            in
+            let r4 = (reg lsr 4) land 1 in
+            let b4, x4 =
+              match !rm with
+              | Some (`Mem (m : Mem.t)) -> (bit4 m.base, if !vsib = None then bit4 m.index else 0)
+              | Some (`Reg n) when !rm_gpr -> ((n lsr 4) land 1, 0)
+              | _ -> ((!opcode_low lsr 4) land 1, 0)
+            in
+            let x = if !rm_gpr then 0 else x in
             let w = max 0 r.w and l = max 0 r.l in
             (* an is4 register shares its byte with a 4-bit immediate (vpermil2ps) *)
             let tail =
@@ -8776,6 +8805,19 @@ module Make (M : MODE) = struct
             | None -> None
             | Some tail -> (
                 match r.space with
+                | T.Legacy when r4 = 1 || x4 = 1 || b4 = 1 ->
+                    (* REX2: D5, then M0 R4 X4 B4 W R3 X3 B3, for maps 0 and 1 only; M0 stands
+                       for the 0F escape *)
+                    if (not M.rex_allowed) || r.map > 1 || r.no_rex2 then None
+                    else
+                      let payload =
+                        (r.map lsl 7) lor (r4 lsl 6) lor (x4 lsl 5) lor (b4 lsl 4) lor (w lsl 3)
+                        lor (rr lsl 2) lor (x lsl 1) lor b
+                      in
+                      Some
+                        ((if r.osz then "\x66" else "")
+                        ^ (if r.prefix <> 0 then byte r.prefix else "")
+                        ^ "\xd5" ^ byte payload ^ byte opcode ^ tail)
                 | T.Legacy ->
                     let need_rex = w = 1 || rr = 1 || x = 1 || b = 1 || !rex_byte in
                     if need_rex && not M.rex_allowed then None
@@ -8798,6 +8840,7 @@ module Make (M : MODE) = struct
                         ((if r.osz then "\x66" else "")
                         ^ (if r.prefix <> 0 then byte r.prefix else "")
                         ^ rex ^ escape ^ body)
+                | (T.Xop | T.Vex) when r4 = 1 || x4 = 1 || b4 = 1 -> None
                 | T.Xop ->
                     (* 8F RXB.mmmmm W.vvvv.L.pp, always the three-byte form *)
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
@@ -8842,9 +8885,9 @@ module Make (M : MODE) = struct
                       lor ((1 - x) lsl 6)
                       lor ((1 - b) lsl 5)
                       lor ((1 - r') lsl 4)
-                      lor r.map
+                      lor (b4 lsl 3) lor r.map
                     in
-                    let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor (1 lsl 2) lor pp in
+                    let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor ((1 - x4) lsl 2) lor pp in
                     let aaa, z =
                       match opmask with
                       | Some (k, zero) -> (k, if zero then 1 else 0)
@@ -8917,6 +8960,9 @@ module Make (M : MODE) = struct
   (* Decoding: prefixes (0x66, F2/F3, REX), then VEX or a legacy escape, then the opcode; every
      row with that space, map and opcode is tried in table order. *)
   let table_decode bytes pos =
+    let gpr_class (cls : T.rclass) =
+      cls = T.Gpr8 || cls = T.Gpr16 || cls = T.Gpr32 || cls = T.Gpr64
+    in
     let n = String.length bytes in
     let at k = if k < n then Some (Char.code bytes.[k]) else None in
     let rec prefixes k osz rep =
@@ -8931,17 +8977,31 @@ module Make (M : MODE) = struct
     let evex_b = ref 0 and evex_aaa = ref 0 and evex_z = ref 0 in
     (* EVEX.R' and EVEX.V' (register bit 4), as 1 when set *)
     let evex_r4 = ref 0 and evex_v4 = ref 0 in
-    let k, rex =
-      match at k with Some b when M.rex_allowed && b land 0xf0 = 0x40 -> (k + 1, b) | _ -> (k, 0)
+    (* APX's B4 and X4 (EVEX or REX2), as 1 when set; R4 shares evex_r4 *)
+    let apx_b4 = ref 0 and apx_x4 = ref 0 in
+    let k, rex, rex2_map =
+      match (at k, at (k + 1)) with
+      | Some b, _ when M.rex_allowed && b land 0xf0 = 0x40 -> (k + 1, b, None)
+      (* REX2: D5, then M0 R4 X4 B4 W R3 X3 B3 *)
+      | Some 0xd5, Some p when M.rex_allowed ->
+          evex_r4 := (p lsr 6) land 1;
+          apx_x4 := (p lsr 5) land 1;
+          apx_b4 := (p lsr 4) land 1;
+          (k + 2, 0x40 lor (p land 0x0f), Some ((p lsr 7) land 1))
+      | _ -> (k, 0, None)
     in
     let vex =
       match (at k, at (k + 1), at (k + 2)) with
       | Some 0x62, Some p0, Some p1
-        when rex = 0 && (M.rex_allowed || p0 land 0xc0 = 0xc0) && p1 land 4 = 4 && k + 3 < n ->
+        when rex = 0
+             && (M.rex_allowed || (p0 land 0xc0 = 0xc0 && p1 land 4 = 4 && p0 land 8 = 0))
+             && k + 3 < n ->
           (* EVEX with registers 0-15 *)
           let p2 = Char.code bytes.[k + 3] in
           if (not M.rex_allowed) && (p0 land 0x10 = 0 || p2 land 0x08 = 0) then None
           else (
+            apx_b4 := (p0 lsr 3) land 1;
+            apx_x4 := 1 - ((p1 lsr 2) land 1);
             evex_r4 := 1 - ((p0 lsr 4) land 1);
             evex_v4 := 1 - ((p2 lsr 3) land 1);
             evex_b := (p2 lsr 4) land 1;
@@ -9003,12 +9063,15 @@ module Make (M : MODE) = struct
       match vex with
       | Some (k, v) -> (v, k)
       | None -> (
-          match (at k, at (k + 1)) with
-          | Some 0x0f, Some 0x38 -> (`Legacy 2, k + 2)
-          | Some 0x0f, Some 0x3a -> (`Legacy 3, k + 2)
-          | Some 0x0f, Some 0x0f -> (`Legacy 4, k + 2)
-          | Some 0x0f, _ -> (`Legacy 1, k + 1)
-          | _ -> (`Legacy 0, k))
+          match rex2_map with
+          | Some map -> (`Legacy map, k)
+          | None -> (
+              match (at k, at (k + 1)) with
+              | Some 0x0f, Some 0x38 -> (`Legacy 2, k + 2)
+              | Some 0x0f, Some 0x3a -> (`Legacy 3, k + 2)
+              | Some 0x0f, Some 0x0f -> (`Legacy 4, k + 2)
+              | Some 0x0f, _ -> (`Legacy 1, k + 1)
+              | _ -> (`Legacy 0, k)))
     in
     (* 3DNow!'s opcode byte comes last: read it per row, after the operands *)
     match match space with `Legacy 4 -> Some (-1) | _ -> at k with
@@ -9018,6 +9081,7 @@ module Make (M : MODE) = struct
         let try_row i (r : T.row) =
           let header_ok, rr, xx, bb, w, vvvv, l =
             match (space, r.space) with
+            | `Legacy _, T.Legacy when r.no_rex2 && rex2_map <> None -> (false, 0, 0, 0, 0, 0, 0)
             | `Legacy map, T.Legacy ->
                 let prefix_ok =
                   match r.prefix with
@@ -9082,6 +9146,15 @@ module Make (M : MODE) = struct
             && List.for_all
                  (function T.Rounding { sae_only = true } -> l = 0 | _ -> true)
                  r.operands
+            (* B4 and X4 must name something: a GPR rm or opcode register, a base, an index *)
+            && (!apx_b4 = 0
+               || List.exists
+                    (function
+                      | T.Reg { cls; field = T.Modrm_rm | T.Opcode_low } -> gpr_class cls
+                      | T.Mem _ | T.Vsib _ -> true
+                      | _ -> false)
+                    r.operands)
+            && (!apx_x4 = 0 || List.exists (function T.Mem _ -> true | _ -> false) r.operands)
           in
           let low =
             List.exists
@@ -9121,7 +9194,7 @@ module Make (M : MODE) = struct
             | Some mb -> (
                 let evex = r.space = T.Evex in
                 let md = mb lsr 6
-                and reg = (mb lsr 3) land 7 lor (rr lsl 3) lor if evex then !evex_r4 lsl 4 else 0
+                and reg = (mb lsr 3) land 7 lor (rr lsl 3) lor (!evex_r4 lsl 4)
                 and rmf = mb land 7 in
                 let k = if uses_modrm then k + 1 else k in
                 if uses_modrm && r.digit >= 0 && (mb lsr 3) land 7 <> r.digit then None
@@ -9162,8 +9235,10 @@ module Make (M : MODE) = struct
                         | None -> (None, k)
                         | Some sb -> (
                             let sc = sb lsr 6
-                            and ix = (sb lsr 3) land 7 lor (xx lsl 3)
-                            and bs = sb land 7 lor (bb lsl 3) in
+                            and ix =
+                              (sb lsr 3) land 7 lor (xx lsl 3)
+                              lor if vsib = None then !apx_x4 lsl 4 else 0
+                            and bs = sb land 7 lor (bb lsl 3) lor (!apx_b4 lsl 4) in
                             if bs land 7 = 5 && md = 0 then (None, k)
                             else
                               match disp (k + 1) md with
@@ -9195,7 +9270,8 @@ module Make (M : MODE) = struct
                             ( Some
                                 (Some
                                    {
-                                     Mem.base = Some (regat (rmf lor (bb lsl 3)));
+                                     Mem.base =
+                                       Some (regat (rmf lor (bb lsl 3) lor (!apx_b4 lsl 4)));
                                      index = None;
                                      scale = 1;
                                      disp = Disp.Const d;
@@ -9215,10 +9291,14 @@ module Make (M : MODE) = struct
                                   match field with
                                   | T.Modrm_reg -> reg
                                   | T.Modrm_rm ->
-                                      rmf lor (bb lsl 3) lor if evex then xx lsl 4 else 0
+                                      rmf lor (bb lsl 3)
+                                      lor
+                                      if gpr_class cls then !apx_b4 lsl 4
+                                      else if evex then xx lsl 4
+                                      else 0
                                   | T.Vvvv -> vvvv lor if evex then !evex_v4 lsl 4 else 0
                                   | T.Is4 -> ( match at (n - 1) with _ -> 0)
-                                  | T.Opcode_low -> opcode land 7 lor (bb lsl 3)
+                                  | T.Opcode_low -> opcode land 7 lor (bb lsl 3) lor (!apx_b4 lsl 4)
                                 in
                                 if cls = T.Gpr8 && num >= 4 && num < 8 && rex = 0 then
                                   failed := true;
@@ -9369,16 +9449,19 @@ module Make (M : MODE) = struct
         let rec upper = function
           | Operand.Reg (r : Reg.t) -> r.num >= 16
           | Operand.Masked { op; _ } -> upper op
-          | Operand.Mem { Mem.index = Some (i : Reg.t); _ } -> i.num >= 16
+          | Operand.Mem { Mem.base; index; _ } ->
+              List.exists
+                (fun (r : Reg.t) -> r.num >= 16)
+                (Option.to_list base @ Option.to_list index)
           | _ -> false
         in
         let vector_index =
           List.exists
             (function
-              | Operand.Mem { Mem.index = Some (i : Reg.t); _ } ->
-                  not (List.mem i.width [ 16; 32; 64 ])
-              | Operand.Masked { op = Operand.Mem { Mem.index = Some (i : Reg.t); _ }; _ } ->
-                  not (List.mem i.width [ 16; 32; 64 ])
+              | Operand.Mem { Mem.index = Some (i : Reg.t); _ } as op ->
+                  (not (List.mem i.width [ 16; 32; 64 ])) || upper op
+              | Operand.Masked { op = Operand.Mem { Mem.index = Some (i : Reg.t); _ } as op; _ } ->
+                  (not (List.mem i.width [ 16; 32; 64 ])) || upper op
               | op -> upper op)
             s.Surface.ops
         in

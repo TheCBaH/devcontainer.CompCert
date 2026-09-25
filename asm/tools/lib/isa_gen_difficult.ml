@@ -7025,7 +7025,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     | Gpr8 -> if num < 4 then String.make 1 low8.(num).[0] ^ "l" else Printf.sprintf "r%db" num
   in
   let stack = match target with Target.X86_32 -> "esp" | _ -> "rsp" in
-  let entry ?(masked = false) (row : Isa_x86_table.spec) variant ~high =
+  let entry ?(masked = false) ?(egpr = false) (row : Isa_x86_table.spec) variant ~high =
     let n = List.length row.operands in
     let is4 =
       List.exists
@@ -7052,7 +7052,11 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                    ( Isa_x86_table.operand_name i,
                      reg_name cls (if high then 8 + n - 1 - i else n - 1 - i) );
                  ]
+             (* APX's r16-r31 *)
+             | Reg { cls = (Gpr8 | Gpr16 | Gpr32 | Gpr64) as cls; _ } when egpr ->
+                 [ (Isa_x86_table.operand_name i, reg_name cls (16 + n - 1 - i)) ]
              | Reg { cls; _ } -> [ (Isa_x86_table.operand_name i, reg_name cls num) ]
+             | Mem _ when egpr -> [ (Isa_x86_table.operand_name i, "16(%r25,%r26,4)") ]
              | Mem _ ->
                  [
                    ( Isa_x86_table.operand_name i,
@@ -7191,9 +7195,22 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       (match target with
       | Target.X86_64 -> [ entry r ("regs-high" ^ width_tag r) ~high:true ]
       | _ -> [])
+      @ (if r.mask = 1 || r.mask = 2 then
+           [ entry ~masked:true r ("mask-low" ^ width_tag r) ~high:false ]
+         else [])
       @
-      if r.mask = 1 || r.mask = 2 then
-        [ entry ~masked:true r ("mask-low" ^ width_tag r) ~high:false ]
+      (* APX's r16-r31: through REX2 in legacy maps 0 and 1, through EVEX *)
+      let gpr_reg =
+        List.exists
+          (function
+            | Isa_x86_table.Reg { cls = Gpr8 | Gpr16 | Gpr32 | Gpr64; _ } -> true | _ -> false)
+          r.operands
+      and mem = List.exists (function Isa_x86_table.Mem _ -> true | _ -> false) r.operands in
+      if
+        target = Target.X86_64
+        && ((r.space = `Legacy && r.map <= 1 && (not r.no_rex2) && (gpr_reg || mem))
+           || (r.space = `Evex && gpr_reg))
+      then [ entry ~egpr:true r ("regs-egpr" ^ width_tag r) ~high:true ]
       else [])
     rows
 

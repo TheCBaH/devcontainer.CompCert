@@ -1612,7 +1612,12 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
      \tccmpz {dfv=of,cf} %eax, %ebx\n\
      \tlock addw $1, (%rax)\n\
      \tlock cmpxchg16b (%rax)\n\
-     \tpavgusb 16(%rsp), %mm3\n";
+     \tpavgusb 16(%rsp), %mm3\n\
+     \taddl %r17d, %r18d, %r19d\n\
+     \taddl (%r20,%r21,4), %r22d, %r23d\n\
+     \tmovq (%r16), %r17\n\
+     \tpushq %r20\n\
+     \tmovzbl %r17b, %eax\n";
   attempt "x86_64" "\t.text\n\t{vex3} vaddps %xmm1, %xmm2, %xmm3\n";
   [%expect
     {|
@@ -1638,6 +1643,11 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
     40000073  66 f0 83 00 01                       lock addw $1, (%rax)                       [x86_64.lock addw]
     40000078  f0 48 0f c7 08                       lock cmpxchg16b (%rax)                     [x86_64.lock cmpxchg16b]
     4000007d  0f 0f 5c 24 10 bf                    pavgusb 16(%rsp), %mm3                     [x86_64.pavgusb]
+    40000083  62 ec 64 10 01 ca                    addl %r17d, %r18d, %r19d                   [x86_64.addl]
+    40000089  62 ec 40 10 03 34 ac                 addl (%r20,%r21,4), %r22d, %r23d           [x86_64.addl]
+    40000090  d5 58 8b 08                          movq (%r16), %r17                          [x86_64.movq]
+    40000094  d5 10 54                             pushq %r20                                 [x86_64.pushq]
+    40000097  d5 90 b6 c1                          movzbl %r17b, %eax                         [x86_64.movzbl]
     x86.simplify: unknown instruction {vex3} vaddps |}]
 
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling

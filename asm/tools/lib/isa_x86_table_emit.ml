@@ -76,6 +76,7 @@ let render_row (s : Isa_x86_table.spec) =
     \      evex_p2 = 0x%02x;\n\
     \      mask = %d;\n\
     \      pseudo = %S;\n\
+    \      no_rex2 = %b;\n\
     \      no_acc = [ %s ];\n\
     \      feature = %S;\n\
     \      source = %S;\n\
@@ -84,7 +85,7 @@ let render_row (s : Isa_x86_table.spec) =
     (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Xop -> "Xop" | `Legacy -> "Legacy")
     s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit s.rm
     (String.concat "; " (List.map render_operand s.operands))
-    s.mode s.evex_p2 s.mask s.pseudo
+    s.mode s.evex_p2 s.mask s.pseudo s.no_rex2
     (String.concat "; " (List.map string_of_int s.no_acc))
     (String.lowercase_ascii s.isa_set)
     s.iform

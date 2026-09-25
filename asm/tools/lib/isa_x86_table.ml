@@ -37,6 +37,7 @@ type spec = {
   suffix_isa : string;
   pseudo : string;
   df64 : bool;  (** DF64(): 64-bit operand size by default in 64-bit mode, no REX.W *)
+  no_rex2 : bool;  (** NOREX2=1: no REX2 prefix, so no r16-r31 *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** the operand sizes a width-variable (GPRv) form takes *)
 }
@@ -79,6 +80,7 @@ type pattern = {
   nf : bool;  (** APX NF=1: flags untouched *)
   df64 : bool;  (** DF64() *)
   lock : bool;  (** LOCK=1: the F0 prefix *)
+  norex2 : bool;  (** NOREX2=1 *)
   scc : int;  (** APX CCMP/CTEST (EVAPX_SCC()): the condition, in P2's low nibble; else -1 *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
@@ -167,8 +169,9 @@ let parse_pattern pattern =
             | "TZCNT=1" | "LZCNT=1" | "REP!=3" -> Some p
             (* a string op's segment override is its default without a prefix *)
             | "OVERRIDE_SEG0()" | "OVERRIDE_SEG1()" -> Some p
-            | "IGNORE66()" | "NOREX2=1" | "REX2=0" | "SIMM8()" | "SRM[rrr]" | "LOCK=0"
-            | "IMMUNE66()" | "SIMMz()" | "UIMM16()" | "UIMM32()" ->
+            | "NOREX2=1" -> Some { p with norex2 = true }
+            | "IGNORE66()" | "REX2=0" | "SIMM8()" | "SRM[rrr]" | "LOCK=0" | "IMMUNE66()" | "SIMMz()"
+            | "UIMM16()" | "UIMM32()" ->
                 Some p
             | _ when starts_with ~prefix:"VEX_PREFIX=" t ->
                 Option.map
@@ -206,6 +209,7 @@ let parse_pattern pattern =
          scc = -1;
          df64 = false;
          lock = false;
+         norex2 = false;
          vsib = None;
          round = `None;
        })
@@ -664,6 +668,7 @@ let x87_spec (rec_ : R.t) ~iform ~isa_set ~opcode_map ~opcode ~pattern ~operands
             suffix_isa = isa_set;
             pseudo = "";
             df64 = false;
+            no_rex2 = p.norex2;
             mnemonic =
               (* GNU's AT&T x87 quirk: with %st(i) the destination, fsub and fsubr (fdiv and
                  fdivr) trade spellings *)
@@ -784,6 +789,7 @@ let spec_of_record (rec_ : R.t) =
                     suffix_isa = (if apx then "" else isa_set);
                     (* CFCMOV's NF bit selects its store form, spelled plainly *)
                     df64 = p.df64;
+                    no_rex2 = p.norex2;
                     pseudo =
                       (if p.nf && p.scc < 0 && not (starts_with ~prefix:"CFCMOV" rec_.native_name)
                        then "nf"
@@ -882,6 +888,7 @@ let spec_of_record (rec_ : R.t) =
                     isa_set;
                     suffix_isa = isa_set;
                     df64 = p.df64;
+                    no_rex2 = p.norex2;
                     pseudo = "";
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = `Legacy;
@@ -949,6 +956,7 @@ let spec_of_record (rec_ : R.t) =
                     isa_set;
                     suffix_isa = isa_set;
                     df64 = p.df64;
+                    no_rex2 = p.norex2;
                     pseudo = "";
                     mnemonic =
                       (if movx rec_.native_name then

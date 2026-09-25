@@ -52,6 +52,7 @@ type row = {
   pseudo : string;
       (** the pseudo-prefix that alone reaches this row: [nf], or [evex] for an APX promotion of
           a legacy instruction (GNU encodes the plain spelling as the legacy one); or empty *)
+  no_rex2 : bool;  (** no REX2 prefix, so no r16-r31 (XED's NOREX2: xsave, ...) *)
   no_acc : int list;
       (** operand positions that must not be the accumulator: GNU as encodes that spelling with
           an accumulator-specific form ([xchg %ebx, %eax] is 0x93) *)

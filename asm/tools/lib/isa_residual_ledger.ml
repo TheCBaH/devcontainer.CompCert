@@ -141,14 +141,14 @@ let rows =
           "APX_F_POPCNT_N3";
         ];
       capability =
-        "Intel APX beyond the EVEX map-4 promotions and CCMP/CTEST: REX2 and r16-r31, and \
-         promotions GNU spells differently from XED (setzu/imulzu, CFCMOV's store form); \
-         same-iform direction twins GNU never emits.";
+        "Intel APX beyond the EVEX map-4 promotions, CCMP/CTEST and r16-r31: the REX2-only forms \
+         (push/pop with PPX, jmpabs), and promotions GNU spells differently from XED \
+         (setzu/imulzu, CFCMOV's store form); same-iform direction twins GNU never emits.";
       evidence =
         "family-admission: the APX_F map-4 promotions of legacy instructions (plain {evex}, NDD, \
          {nf}, $1 shifts) and CCMP/CTEST with {dfv=} are promoted; REX2 and the rest remain";
       task = "GEN-05-X86-APX";
-      reopening_gate = "the encoder models REX2 and the extended GPRs r16-r31";
+      reopening_gate = "the table models REX2-only encodings (PPX hints, jmpabs)";
     };
     {
       id = "RES-X86-AMX";
