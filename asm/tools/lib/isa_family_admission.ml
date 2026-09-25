@@ -144,25 +144,31 @@ let credit_of ~source ~target (records : Isa_source_record.t list)
   credit
 
 let state_of ~source ~target credit ~known (rec_ : Isa_source_record.t) normalized =
-  match
-    Isa_oracle_unavailable.find_record ~source target ~extension:(family_of rec_)
-      ~native_name:rec_.native_name
-  with
-  | Some u -> Oracle_unavailable u.reason
-  | None -> (
-      match normalized with
-      | Error (diagnostic : Isa_norm_model.diagnostic) ->
-          if Isa_construct.is_catch_all diagnostic.rule then
-            Blocked (Isa_construct.blocker known rec_)
-          else Blocked diagnostic.rule
-      | Ok (form : Isa_norm_model.form) -> (
-          let k = (form.form_id, lookup_key source rec_) in
-          if Hashtbl.mem credit.promoted k then Promoted_support
-          else if Hashtbl.mem credit.attempted k then Gas_generatable
-          else
-            match Isa_oracle_unavailable.find ~source target ~extension:(family_of rec_) with
-            | Some u -> Oracle_unavailable u.reason
-            | None -> Normalized_only))
+  let extension = family_of rec_ in
+  let unavailable () =
+    match
+      Isa_oracle_unavailable.find_record ~source target ~extension ~native_name:rec_.native_name
+    with
+    | Some _ as u -> u
+    | None -> Isa_oracle_unavailable.find ~source target ~extension
+  in
+  match normalized with
+  | Ok (form : Isa_norm_model.form)
+    when Hashtbl.mem credit.promoted (form.form_id, lookup_key source rec_) ->
+      Promoted_support
+  | _ -> (
+      match unavailable () with
+      | Some u -> Oracle_unavailable u.reason
+      | None -> (
+          match normalized with
+          | Error (diagnostic : Isa_norm_model.diagnostic) ->
+              if Isa_construct.is_catch_all diagnostic.rule then
+                Blocked (Isa_construct.blocker known rec_)
+              else Blocked diagnostic.rule
+          | Ok (form : Isa_norm_model.form) ->
+              if Hashtbl.mem credit.attempted (form.form_id, lookup_key source rec_) then
+                Gas_generatable
+              else Normalized_only))
 
 (* Per missing construct over the catch-all-blocked records: how many need it,
    and how many need nothing else (admitting it alone would unblock them). *)

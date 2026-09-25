@@ -6869,6 +6869,11 @@ let table_entries_of target (spec : Isa_riscv_table.spec) =
            | Mem_i _ | Mem_s _ ->
                [ ("base", "a1"); ("offset", if edge = `High then "2047" else "-2048") ]
            | Fli _ -> [ ("constant", if edge = `High then "0.5" else "min") ]
+           | Gpr_pair { field; _ } -> [ (field, List.nth [ "a0"; "a2"; "a4"; "a6" ] i) ]
+           | Mem_zero _ -> [ ("base", "a1") ]
+           | Mem_hi _ -> [ ("base", "a1"); ("offset", if edge = `High then "2016" else "-2048") ]
+           | Fence_set { field; _ } ->
+               [ (field, if edge = `High then "iorw" else if field = "pred" then "rw" else "w") ]
            | Fixed_gpr _ | Rm _ | Tied _ | Keyword _ -> [])
          spec.operands)
   in
@@ -6878,6 +6883,10 @@ let table_entries_of target (spec : Isa_riscv_table.spec) =
     else if
       List.exists (function Isa_riscv_table.Mem_i _ | Mem_s _ -> true | _ -> false) spec.operands
     then [ ("offset-min", `Low); ("offset-max", `High) ]
+    else if List.exists (function Isa_riscv_table.Mem_hi _ -> true | _ -> false) spec.operands
+    then [ ("offset-min", `Low); ("offset-max", `High) ]
+    else if List.exists (function Isa_riscv_table.Fence_set _ -> true | _ -> false) spec.operands
+    then [ ("sets-narrow", `Low); ("sets-full", `High) ]
     else if List.exists (function Isa_riscv_table.Fli _ -> true | _ -> false) spec.operands then
       [ ("constant-name", `Low); ("constant-value", `High) ]
     else [ ("registers", `Low) ]
@@ -6906,6 +6915,9 @@ let table_entries repo =
     in
     let available (spec : Isa_riscv_table.spec) =
       Isa_oracle_unavailable.find ~source:"riscv_opcodes" target ~extension:spec.extension = None
+      && Isa_oracle_unavailable.find_record ~source:"riscv_opcodes" target ~extension:spec.extension
+           ~native_name:spec.native_name
+         = None
     in
     (* One case per distinct native name: an import repeats its record in
        another extension file with the same form. *)

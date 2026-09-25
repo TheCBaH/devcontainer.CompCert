@@ -23,6 +23,13 @@ type operand =
   | Fli of { lsb : int }
       (** Zfa's [fli.*] constant, spelled by name or value, encoded as its
           5-bit index into {!fli_constants} *)
+  | Mem_zero of { base : int }  (** [(base)] or [0(base)]: an address with no offset field *)
+  | Mem_hi of { base : int }
+      (** [imm12(base)] whose offset is a multiple of 32, stored as bits 11:5 in 31:25
+          (Zicbop's prefetch hints) *)
+  | Gpr_pair of { lsb : int; below : int }
+      (** an integer register that names an even/odd pair when XLEN is below [below]
+          (Zacas's [amocas.d] on RV32, [amocas.q] on RV64), so must then be even *)
   | Mem_s of { base : int }
       (** [imm12(base)] with the signed offset split into bits 31:25 and 11:7 *)
 

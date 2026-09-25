@@ -22,19 +22,66 @@ let template ~target ~native_name ~spellings =
         spellings;
   }
 
+let gas_lacks ~target ~extension ~reason ~probe =
+  { source = "riscv_opcodes"; target; extension; native_name = None; reason; probe }
+
+let both f = List.map f [ Target.Riscv32; Target.Riscv64 ]
+
 let all =
-  [
-    {
-      source = "riscv_opcodes";
-      target = Target.Riscv32;
-      extension = "rv_zicfiss";
-      native_name = None;
-      reason = "gas-lacks-zicfiss";
-      probe =
-        "riscv32-linux-gnu-as 2.43.1 (crosstool-NG 1.27.0), -march=rv32im_zimop_zicfiss: unknown \
-         prefixed ISA extension `zicfiss' (riscv64-linux-gnu-as 2.44 accepts it)";
-    };
-  ]
+  both (fun target ->
+      gas_lacks ~target ~extension:"rv_zalasr" ~reason:"gas-lacks-zalasr"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1 and riscv64-linux-gnu-as 2.44: unknown extension `zalasr'")
+  @ both (fun target ->
+      gas_lacks ~target ~extension:"rv_smrnmi" ~reason:"gas-lacks-smrnmi"
+        ~probe:
+          "riscv64-linux-gnu-as 2.44, -march=rv64im_smrnmi: unrecognized opcode `mnret'; \
+           riscv32-linux-gnu-as 2.43.1: unknown prefixed ISA extension `smrnmi'")
+  @ [
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv_ssctr" ~reason:"gas-lacks-ssctr"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32im_ssctr: unknown prefixed ISA extension \
+           `ssctr' (riscv64-linux-gnu-as 2.44 accepts sctrclr)";
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv32_zilsd" ~reason:"gas-lacks-zilsd"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32im_zilsd: unknown prefixed ISA extension `zilsd'";
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv_zicfilp" ~reason:"gas-lacks-zicfilp"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32im_zicfilp: unknown prefixed ISA extension \
+           `zicfilp' (riscv64-linux-gnu-as 2.44 accepts lpad)";
+      {
+        source = "riscv_opcodes";
+        target = Target.Riscv64;
+        extension = "rv_zicfiss";
+        native_name = Some "ssamoswap.w";
+        reason = "gas-lacks-ssamoswap";
+        probe =
+          "riscv64-linux-gnu-as 2.44, -march=rv64ima_zicfiss: unrecognized opcode `ssamoswap.w \
+           a0,a2,(a1)'";
+      };
+      {
+        source = "riscv_opcodes";
+        target = Target.Riscv64;
+        extension = "rv_zicfiss";
+        native_name = Some "ssamoswap.d";
+        reason = "gas-lacks-ssamoswap";
+        probe =
+          "riscv64-linux-gnu-as 2.44, -march=rv64ima_zicfiss: unrecognized opcode `ssamoswap.d \
+           a0,a2,(a1)'";
+      };
+    ]
+  @ [
+      {
+        source = "riscv_opcodes";
+        target = Target.Riscv32;
+        extension = "rv_zicfiss";
+        native_name = None;
+        reason = "gas-lacks-zicfiss";
+        probe =
+          "riscv32-linux-gnu-as 2.43.1 (crosstool-NG 1.27.0), -march=rv32im_zimop_zicfiss: unknown \
+           prefixed ISA extension `zicfiss' (riscv64-linux-gnu-as 2.44 accepts it)";
+      };
+    ]
   @ List.concat_map
       (fun target ->
         [

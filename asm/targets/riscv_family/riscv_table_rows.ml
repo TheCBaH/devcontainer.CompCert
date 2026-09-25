@@ -7,6 +7,87 @@ open Riscv_table_row
 let rows : row array =
   [|
     {
+      mnemonic = "sret";
+      mask = 0xffffffffL;
+      match_ = 0x10200073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "s";
+      source = "rv_s/sret";
+    };
+    {
+      mnemonic = "dret";
+      mask = 0xffffffffL;
+      match_ = 0x7b200073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "sdext";
+      source = "rv_sdext/dret";
+    };
+    {
+      mnemonic = "sctrclr";
+      mask = 0xffffffffL;
+      match_ = 0x10400073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "ssctr";
+      source = "rv_ssctr/sctrclr";
+    };
+    {
+      mnemonic = "sfence.inval.ir";
+      mask = 0xffffffffL;
+      match_ = 0x18100073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "svinval";
+      source = "rv_svinval/sfence.inval.ir";
+    };
+    {
+      mnemonic = "sfence.w.inval";
+      mask = 0xffffffffL;
+      match_ = 0x18000073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "svinval";
+      source = "rv_svinval/sfence.w.inval";
+    };
+    {
+      mnemonic = "mret";
+      mask = 0xffffffffL;
+      match_ = 0x30200073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "system";
+      source = "rv_system/mret";
+    };
+    {
+      mnemonic = "wfi";
+      mask = 0xffffffffL;
+      match_ = 0x10500073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "system";
+      source = "rv_system/wfi";
+    };
+    {
+      mnemonic = "wrs.nto";
+      mask = 0xffffffffL;
+      match_ = 0xd00073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zawrs";
+      source = "rv_zawrs/wrs.nto";
+    };
+    {
+      mnemonic = "wrs.sto";
+      mask = 0xffffffffL;
+      match_ = 0x1d00073L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zawrs";
+      source = "rv_zawrs/wrs.sto";
+    };
+    {
       mnemonic = "sspopchk";
       mask = 0xffffffffL;
       match_ = 0xcdc0c073L;
@@ -43,6 +124,42 @@ let rows : row array =
       source = "rv_zicfiss/sspush.x5";
     };
     {
+      mnemonic = "ntl.all";
+      mask = 0xffffffffL;
+      match_ = 0x500033L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_zihintntl/ntl.all";
+    };
+    {
+      mnemonic = "ntl.p1";
+      mask = 0xffffffffL;
+      match_ = 0x200033L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_zihintntl/ntl.p1";
+    };
+    {
+      mnemonic = "ntl.pall";
+      mask = 0xffffffffL;
+      match_ = 0x300033L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_zihintntl/ntl.pall";
+    };
+    {
+      mnemonic = "ntl.s1";
+      mask = 0xffffffffL;
+      match_ = 0x400033L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_zihintntl/ntl.s1";
+    };
+    {
       mnemonic = "frcsr";
       mask = 0xfffff07fL;
       match_ = 0x302073L;
@@ -70,6 +187,42 @@ let rows : row array =
       source = "rv_f/frrm";
     };
     {
+      mnemonic = "cbo.clean";
+      mask = 0xfff07fffL;
+      match_ = 0x10200fL;
+      operands = [ Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicbom";
+      source = "rv_zicbo/cbo.clean";
+    };
+    {
+      mnemonic = "cbo.flush";
+      mask = 0xfff07fffL;
+      match_ = 0x20200fL;
+      operands = [ Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicbom";
+      source = "rv_zicbo/cbo.flush";
+    };
+    {
+      mnemonic = "cbo.inval";
+      mask = 0xfff07fffL;
+      match_ = 0x200fL;
+      operands = [ Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicbom";
+      source = "rv_zicbo/cbo.inval";
+    };
+    {
+      mnemonic = "cbo.zero";
+      mask = 0xfff07fffL;
+      match_ = 0x40200fL;
+      operands = [ Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicboz";
+      source = "rv_zicbo/cbo.zero";
+    };
+    {
       mnemonic = "ssrdp";
       mask = 0xfffff07fL;
       match_ = 0xcdc04073L;
@@ -79,6 +232,60 @@ let rows : row array =
       source = "rv_zicfiss/ssrdp";
     };
     {
+      mnemonic = "rdcycle";
+      mask = 0xfffff07fL;
+      match_ = 0xc0002073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 0;
+      feature = "zicntr";
+      source = "rv_zicntr/rdcycle";
+    };
+    {
+      mnemonic = "rdinstret";
+      mask = 0xfffff07fL;
+      match_ = 0xc0202073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 0;
+      feature = "zicntr";
+      source = "rv_zicntr/rdinstret";
+    };
+    {
+      mnemonic = "rdtime";
+      mask = 0xfffff07fL;
+      match_ = 0xc0102073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 0;
+      feature = "zicntr";
+      source = "rv_zicntr/rdtime";
+    };
+    {
+      mnemonic = "rdcycleh";
+      mask = 0xfffff07fL;
+      match_ = 0xc8002073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 32;
+      feature = "zicntr";
+      source = "rv32_zicntr/rdcycleh";
+    };
+    {
+      mnemonic = "rdinstreth";
+      mask = 0xfffff07fL;
+      match_ = 0xc8202073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 32;
+      feature = "zicntr";
+      source = "rv32_zicntr/rdinstreth";
+    };
+    {
+      mnemonic = "rdtimeh";
+      mask = 0xfffff07fL;
+      match_ = 0xc8102073L;
+      operands = [ Gpr { lsb = 7; nonzero = false } ];
+      xlen = 32;
+      feature = "zicntr";
+      source = "rv32_zicntr/rdtimeh";
+    };
+    {
       mnemonic = "fmv.d.x";
       mask = 0xfff0707fL;
       match_ = 0xf2000053L;
@@ -86,6 +293,33 @@ let rows : row array =
       xlen = 64;
       feature = "d";
       source = "rv64_d/fmv.d.x";
+    };
+    {
+      mnemonic = "hlv.d";
+      mask = 0xfff0707fL;
+      match_ = 0x6c004073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "h";
+      source = "rv64_h/hlv.d";
+    };
+    {
+      mnemonic = "hlv.wu";
+      mask = 0xfff0707fL;
+      match_ = 0x68104073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "h";
+      source = "rv64_h/hlv.wu";
+    };
+    {
+      mnemonic = "hsv.d";
+      mask = 0xfe007fffL;
+      match_ = 0x6e004073L;
+      operands = [ Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "h";
+      source = "rv64_h/hsv.d";
     };
     {
       mnemonic = "fmvh.x.q";
@@ -178,6 +412,114 @@ let rows : row array =
       source = "rv_f_zfa/fli.s";
     };
     {
+      mnemonic = "hfence.gvma";
+      mask = 0xfe007fffL;
+      match_ = 0x62000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hfence.gvma";
+    };
+    {
+      mnemonic = "hfence.vvma";
+      mask = 0xfe007fffL;
+      match_ = 0x22000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hfence.vvma";
+    };
+    {
+      mnemonic = "hlv.b";
+      mask = 0xfff0707fL;
+      match_ = 0x60004073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlv.b";
+    };
+    {
+      mnemonic = "hlv.bu";
+      mask = 0xfff0707fL;
+      match_ = 0x60104073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlv.bu";
+    };
+    {
+      mnemonic = "hlv.h";
+      mask = 0xfff0707fL;
+      match_ = 0x64004073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlv.h";
+    };
+    {
+      mnemonic = "hlv.hu";
+      mask = 0xfff0707fL;
+      match_ = 0x64104073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlv.hu";
+    };
+    {
+      mnemonic = "hlv.w";
+      mask = 0xfff0707fL;
+      match_ = 0x68004073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlv.w";
+    };
+    {
+      mnemonic = "hlvx.hu";
+      mask = 0xfff0707fL;
+      match_ = 0x64304073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlvx.hu";
+    };
+    {
+      mnemonic = "hlvx.wu";
+      mask = 0xfff0707fL;
+      match_ = 0x68304073L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hlvx.wu";
+    };
+    {
+      mnemonic = "hsv.b";
+      mask = 0xfe007fffL;
+      match_ = 0x62004073L;
+      operands = [ Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hsv.b";
+    };
+    {
+      mnemonic = "hsv.h";
+      mask = 0xfe007fffL;
+      match_ = 0x66004073L;
+      operands = [ Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hsv.h";
+    };
+    {
+      mnemonic = "hsv.w";
+      mask = 0xfe007fffL;
+      match_ = 0x6a004073L;
+      operands = [ Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "h";
+      source = "rv_h/hsv.w";
+    };
+    {
       mnemonic = "fclass.q";
       mask = 0xfff0707fL;
       match_ = 0xe6001053L;
@@ -194,6 +536,42 @@ let rows : row array =
       xlen = 0;
       feature = "zfa";
       source = "rv_q_zfa/fli.q";
+    };
+    {
+      mnemonic = "sfence.vma";
+      mask = 0xfe007fffL;
+      match_ = 0x12000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "s";
+      source = "rv_s/sfence.vma";
+    };
+    {
+      mnemonic = "sinval.vma";
+      mask = 0xfe007fffL;
+      match_ = 0x16000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "svinval";
+      source = "rv_svinval/sinval.vma";
+    };
+    {
+      mnemonic = "hinval.gvma";
+      mask = 0xfe007fffL;
+      match_ = 0x66000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "svinval";
+      source = "rv_svinval_h/hinval.gvma";
+    };
+    {
+      mnemonic = "hinval.vvma";
+      mask = 0xfe007fffL;
+      match_ = 0x26000073L;
+      operands = [ Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 0;
+      feature = "svinval";
+      source = "rv_svinval_h/hinval.vvma";
     };
     {
       mnemonic = "fclass.h";
@@ -527,6 +905,33 @@ let rows : row array =
       xlen = 32;
       feature = "zfa";
       source = "rv32_d_zfa/fmvh.x.d";
+    };
+    {
+      mnemonic = "prefetch.i";
+      mask = 0x1f07fffL;
+      match_ = 0x6013L;
+      operands = [ Mem_hi { base = 15 } ];
+      xlen = 0;
+      feature = "zicbop";
+      source = "rv_zicbo/prefetch.i";
+    };
+    {
+      mnemonic = "prefetch.r";
+      mask = 0x1f07fffL;
+      match_ = 0x106013L;
+      operands = [ Mem_hi { base = 15 } ];
+      xlen = 0;
+      feature = "zicbop";
+      source = "rv_zicbo/prefetch.r";
+    };
+    {
+      mnemonic = "prefetch.w";
+      mask = 0x1f07fffL;
+      match_ = 0x306013L;
+      operands = [ Mem_hi { base = 15 } ];
+      xlen = 0;
+      feature = "zicbop";
+      source = "rv_zicbo/prefetch.w";
     };
     {
       mnemonic = "fcvt.l.q";
@@ -934,6 +1339,42 @@ let rows : row array =
       source = "rv64_q_zfa/fmvp.q.x";
     };
     {
+      mnemonic = "amocas.q";
+      mask = 0xfe00707fL;
+      match_ = 0x2800402fL;
+      operands = [ Gpr_pair { lsb = 7; below = 128 }; Gpr_pair { lsb = 20; below = 128 }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "zacas";
+      source = "rv64_zacas/amocas.q";
+    };
+    {
+      mnemonic = "amocas.q.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2c00402fL;
+      operands = [ Gpr_pair { lsb = 7; below = 128 }; Gpr_pair { lsb = 20; below = 128 }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "zacas";
+      source = "rv64_zacas/amocas.q";
+    };
+    {
+      mnemonic = "amocas.q.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2a00402fL;
+      operands = [ Gpr_pair { lsb = 7; below = 128 }; Gpr_pair { lsb = 20; below = 128 }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "zacas";
+      source = "rv64_zacas/amocas.q";
+    };
+    {
+      mnemonic = "amocas.q.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2e00402fL;
+      operands = [ Gpr_pair { lsb = 7; below = 128 }; Gpr_pair { lsb = 20; below = 128 }; Mem_zero { base = 15 } ];
+      xlen = 64;
+      feature = "zacas";
+      source = "rv64_zacas/amocas.q";
+    };
+    {
       mnemonic = "add.uw";
       mask = 0xfe00707fL;
       match_ = 0x800003bL;
@@ -1123,6 +1564,798 @@ let rows : row array =
       source = "rv_q_zfa/fminm.q";
     };
     {
+      mnemonic = "amoadd.b";
+      mask = 0xfe00707fL;
+      match_ = 0x2fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.b";
+    };
+    {
+      mnemonic = "amoadd.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.b";
+    };
+    {
+      mnemonic = "amoadd.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.b";
+    };
+    {
+      mnemonic = "amoadd.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.b";
+    };
+    {
+      mnemonic = "amoadd.h";
+      mask = 0xfe00707fL;
+      match_ = 0x102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.h";
+    };
+    {
+      mnemonic = "amoadd.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.h";
+    };
+    {
+      mnemonic = "amoadd.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.h";
+    };
+    {
+      mnemonic = "amoadd.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoadd.h";
+    };
+    {
+      mnemonic = "amoand.b";
+      mask = 0xfe00707fL;
+      match_ = 0x6000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.b";
+    };
+    {
+      mnemonic = "amoand.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x6400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.b";
+    };
+    {
+      mnemonic = "amoand.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x6200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.b";
+    };
+    {
+      mnemonic = "amoand.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x6600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.b";
+    };
+    {
+      mnemonic = "amoand.h";
+      mask = 0xfe00707fL;
+      match_ = 0x6000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.h";
+    };
+    {
+      mnemonic = "amoand.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x6400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.h";
+    };
+    {
+      mnemonic = "amoand.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x6200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.h";
+    };
+    {
+      mnemonic = "amoand.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x6600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoand.h";
+    };
+    {
+      mnemonic = "amomax.b";
+      mask = 0xfe00707fL;
+      match_ = 0xa000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.b";
+    };
+    {
+      mnemonic = "amomax.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xa400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.b";
+    };
+    {
+      mnemonic = "amomax.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xa200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.b";
+    };
+    {
+      mnemonic = "amomax.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xa600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.b";
+    };
+    {
+      mnemonic = "amomax.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.h";
+    };
+    {
+      mnemonic = "amomax.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xa400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.h";
+    };
+    {
+      mnemonic = "amomax.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xa200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.h";
+    };
+    {
+      mnemonic = "amomax.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xa600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomax.h";
+    };
+    {
+      mnemonic = "amomaxu.b";
+      mask = 0xfe00707fL;
+      match_ = 0xe000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.b";
+    };
+    {
+      mnemonic = "amomaxu.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xe400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.b";
+    };
+    {
+      mnemonic = "amomaxu.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xe200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.b";
+    };
+    {
+      mnemonic = "amomaxu.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xe600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.b";
+    };
+    {
+      mnemonic = "amomaxu.h";
+      mask = 0xfe00707fL;
+      match_ = 0xe000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.h";
+    };
+    {
+      mnemonic = "amomaxu.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xe400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.h";
+    };
+    {
+      mnemonic = "amomaxu.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xe200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.h";
+    };
+    {
+      mnemonic = "amomaxu.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xe600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomaxu.h";
+    };
+    {
+      mnemonic = "amomin.b";
+      mask = 0xfe00707fL;
+      match_ = 0x8000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.b";
+    };
+    {
+      mnemonic = "amomin.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x8400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.b";
+    };
+    {
+      mnemonic = "amomin.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x8200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.b";
+    };
+    {
+      mnemonic = "amomin.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x8600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.b";
+    };
+    {
+      mnemonic = "amomin.h";
+      mask = 0xfe00707fL;
+      match_ = 0x8000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.h";
+    };
+    {
+      mnemonic = "amomin.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x8400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.h";
+    };
+    {
+      mnemonic = "amomin.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x8200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.h";
+    };
+    {
+      mnemonic = "amomin.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x8600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amomin.h";
+    };
+    {
+      mnemonic = "amominu.b";
+      mask = 0xfe00707fL;
+      match_ = 0xc000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.b";
+    };
+    {
+      mnemonic = "amominu.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xc400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.b";
+    };
+    {
+      mnemonic = "amominu.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xc200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.b";
+    };
+    {
+      mnemonic = "amominu.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xc600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.b";
+    };
+    {
+      mnemonic = "amominu.h";
+      mask = 0xfe00707fL;
+      match_ = 0xc000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.h";
+    };
+    {
+      mnemonic = "amominu.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xc400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.h";
+    };
+    {
+      mnemonic = "amominu.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xc200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.h";
+    };
+    {
+      mnemonic = "amominu.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xc600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amominu.h";
+    };
+    {
+      mnemonic = "amoor.b";
+      mask = 0xfe00707fL;
+      match_ = 0x4000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.b";
+    };
+    {
+      mnemonic = "amoor.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x4400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.b";
+    };
+    {
+      mnemonic = "amoor.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x4200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.b";
+    };
+    {
+      mnemonic = "amoor.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x4600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.b";
+    };
+    {
+      mnemonic = "amoor.h";
+      mask = 0xfe00707fL;
+      match_ = 0x4000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.h";
+    };
+    {
+      mnemonic = "amoor.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x4400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.h";
+    };
+    {
+      mnemonic = "amoor.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x4200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.h";
+    };
+    {
+      mnemonic = "amoor.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x4600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoor.h";
+    };
+    {
+      mnemonic = "amoswap.b";
+      mask = 0xfe00707fL;
+      match_ = 0x800002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.b";
+    };
+    {
+      mnemonic = "amoswap.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xc00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.b";
+    };
+    {
+      mnemonic = "amoswap.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xa00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.b";
+    };
+    {
+      mnemonic = "amoswap.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xe00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.b";
+    };
+    {
+      mnemonic = "amoswap.h";
+      mask = 0xfe00707fL;
+      match_ = 0x800102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.h";
+    };
+    {
+      mnemonic = "amoswap.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0xc00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.h";
+    };
+    {
+      mnemonic = "amoswap.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0xa00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.h";
+    };
+    {
+      mnemonic = "amoswap.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0xe00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoswap.h";
+    };
+    {
+      mnemonic = "amoxor.b";
+      mask = 0xfe00707fL;
+      match_ = 0x2000002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.b";
+    };
+    {
+      mnemonic = "amoxor.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2400002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.b";
+    };
+    {
+      mnemonic = "amoxor.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2200002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.b";
+    };
+    {
+      mnemonic = "amoxor.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2600002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.b";
+    };
+    {
+      mnemonic = "amoxor.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2000102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.h";
+    };
+    {
+      mnemonic = "amoxor.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2400102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.h";
+    };
+    {
+      mnemonic = "amoxor.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2200102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.h";
+    };
+    {
+      mnemonic = "amoxor.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2600102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zabha";
+      source = "rv_zabha/amoxor.h";
+    };
+    {
+      mnemonic = "amocas.b";
+      mask = 0xfe00707fL;
+      match_ = 0x2800002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.b";
+    };
+    {
+      mnemonic = "amocas.b.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2c00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.b";
+    };
+    {
+      mnemonic = "amocas.b.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2a00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.b";
+    };
+    {
+      mnemonic = "amocas.b.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2e00002fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.b";
+    };
+    {
+      mnemonic = "amocas.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2800102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.h";
+    };
+    {
+      mnemonic = "amocas.h.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2c00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.h";
+    };
+    {
+      mnemonic = "amocas.h.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2a00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.h";
+    };
+    {
+      mnemonic = "amocas.h.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2e00102fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zabha_zacas/amocas.h";
+    };
+    {
+      mnemonic = "amocas.d";
+      mask = 0xfe00707fL;
+      match_ = 0x2800302fL;
+      operands = [ Gpr_pair { lsb = 7; below = 64 }; Gpr_pair { lsb = 20; below = 64 }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.d";
+    };
+    {
+      mnemonic = "amocas.d.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2c00302fL;
+      operands = [ Gpr_pair { lsb = 7; below = 64 }; Gpr_pair { lsb = 20; below = 64 }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.d";
+    };
+    {
+      mnemonic = "amocas.d.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2a00302fL;
+      operands = [ Gpr_pair { lsb = 7; below = 64 }; Gpr_pair { lsb = 20; below = 64 }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.d";
+    };
+    {
+      mnemonic = "amocas.d.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2e00302fL;
+      operands = [ Gpr_pair { lsb = 7; below = 64 }; Gpr_pair { lsb = 20; below = 64 }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.d";
+    };
+    {
+      mnemonic = "amocas.w";
+      mask = 0xfe00707fL;
+      match_ = 0x2800202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.w";
+    };
+    {
+      mnemonic = "amocas.w.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x2c00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.w";
+    };
+    {
+      mnemonic = "amocas.w.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x2a00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.w";
+    };
+    {
+      mnemonic = "amocas.w.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x2e00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zacas";
+      source = "rv_zacas/amocas.w";
+    };
+    {
       mnemonic = "feq.h";
       mask = 0xfe00707fL;
       match_ = 0xa4002053L;
@@ -1229,6 +2462,78 @@ let rows : row array =
       xlen = 0;
       feature = "zfa";
       source = "rv_zfh_zfa/fminm.h";
+    };
+    {
+      mnemonic = "ssamoswap.d";
+      mask = 0xfe00707fL;
+      match_ = 0x4800302fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.d";
+    };
+    {
+      mnemonic = "ssamoswap.d.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x4c00302fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.d";
+    };
+    {
+      mnemonic = "ssamoswap.d.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x4a00302fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.d";
+    };
+    {
+      mnemonic = "ssamoswap.d.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x4e00302fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.d";
+    };
+    {
+      mnemonic = "ssamoswap.w";
+      mask = 0xfe00707fL;
+      match_ = 0x4800202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.w";
+    };
+    {
+      mnemonic = "ssamoswap.w.aq";
+      mask = 0xfe00707fL;
+      match_ = 0x4c00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.w";
+    };
+    {
+      mnemonic = "ssamoswap.w.rl";
+      mask = 0xfe00707fL;
+      match_ = 0x4a00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.w";
+    };
+    {
+      mnemonic = "ssamoswap.w.aqrl";
+      mask = 0xfe00707fL;
+      match_ = 0x4e00202fL;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Gpr { lsb = 20; nonzero = false }; Mem_zero { base = 15 } ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_zicfiss/ssamoswap.w";
     };
     {
       mnemonic = "mop.rr.0";
@@ -1391,6 +2696,15 @@ let rows : row array =
       xlen = 0;
       feature = "zfh";
       source = "rv_zfh/fsub.h";
+    };
+    {
+      mnemonic = "lpad";
+      mask = 0xfffL;
+      match_ = 0x17L;
+      operands = [ Uimm { lsb = 12; width = 20 } ];
+      xlen = 0;
+      feature = "zicfilp";
+      source = "rv_zicfilp/lpad";
     };
     {
       mnemonic = "flq";

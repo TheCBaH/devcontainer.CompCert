@@ -12,6 +12,10 @@ type operand =
   | Mem_s of { base : int }
   | Keyword of string
   | Fli of { lsb : int }
+  | Mem_zero of { base : int }
+  | Mem_hi of { base : int }
+  | Gpr_pair of { field : string; lsb : int; below : int }
+  | Fence_set of { field : string; lsb : int }
 
 type spec = {
   record_id : string;
@@ -25,6 +29,7 @@ type spec = {
   xlen : int;
   feature : string;
   isa : string;
+  ordering : bool;
 }
 
 (* The families admitted through the table: extension file, admitted native
@@ -54,6 +59,35 @@ let allowlist =
     ("rv_q_zfa", None, "zfa", "imfdq_zfa");
     ("rv64_q_zfa", None, "zfa", "imfdq_zfa");
     ("rv_zfh_zfa", None, "zfa", "imf_zfh_zfa");
+    ("rv_zabha", None, "zabha", "ima_zabha");
+    ("rv_zabha_zacas", None, "zacas", "ima_zabha_zacas");
+    ("rv_zacas", None, "zacas", "ima_zacas");
+    ("rv64_zacas", None, "zacas", "ima_zacas");
+    ("rv_zawrs", None, "zawrs", "im_zawrs");
+    ("rv_h", None, "h", "im_h");
+    ("rv64_h", None, "h", "im_h");
+    ("rv_s", None, "s", "im");
+    ("rv_system", None, "system", "im");
+    ("rv_svinval", None, "svinval", "im_svinval");
+    ("rv_svinval_h", None, "svinval", "im_h_svinval");
+    ("rv_sdext", None, "sdext", "im");
+    ("rv_ssctr", None, "ssctr", "im_ssctr");
+    ("rv_zihintntl", None, "zihintntl", "im_zihintntl");
+    ("rv_zicntr", None, "zicntr", "im_zicntr");
+    ("rv32_zicntr", None, "zicntr", "im_zicntr");
+    ("rv_zicfilp", None, "zicfilp", "im_zicfilp");
+    ("rv_zicbo", None, "zicbom", "im_zicbom");
+    ("rv_zifencei", None, "zifencei", "im_zifencei");
+    ("rv_i", Some [ "fence" ], "i", "im");
+  ]
+
+(* Zicbo's file holds three extensions, each with its own -march name. *)
+let isa_overrides =
+  [
+    ("cbo.zero", ("zicboz", "im_zicboz"));
+    ("prefetch.i", ("zicbop", "im_zicbop"));
+    ("prefetch.r", ("zicbop", "im_zicbop"));
+    ("prefetch.w", ("zicbop", "im_zicbop"));
   ]
 
 let starts_with ~prefix s =
@@ -70,7 +104,7 @@ let keywords = [ ("fcvtmod.w.d", "rtz") ]
 (* Admitted by the table rule (normalized forms and cases) but already
    encoded by the hand-written RISC-V encoder, so no row is emitted: a row
    would be shadowed by the hand-written mnemonic. *)
-let hand_encoded = [ "fmv.x.d" ]
+let hand_encoded = [ "fmv.x.d"; "fence.i"; "fence" ]
 let emits_row spec = not (List.mem spec.native_name hand_encoded)
 
 let popcount_hex h =
@@ -94,12 +128,27 @@ let split_fixed_register native_name =
 
 let fcsr_pseudos = [ "frcsr"; "frflags"; "frrm"; "fscsr"; "fsflags"; "fsflagsi"; "fsrm"; "fsrmi" ]
 
-let fp_file extension =
-  List.exists
-    (fun (e, _, _, _) -> e = extension)
-    (List.filter
-       (fun (e, _, _, _) -> not (List.mem e [ "rv_zimop"; "rv_zicfiss"; "rv64_zba" ]))
-       allowlist)
+let fp_files =
+  [
+    "rv_f";
+    "rv64_d";
+    "rv_q";
+    "rv64_q";
+    "rv_zfh";
+    "rv64_zfh";
+    "rv_zfhmin";
+    "rv_d_zfhmin";
+    "rv_q_zfhmin";
+    "rv_zfbfmin";
+    "rv_f_zfa";
+    "rv_d_zfa";
+    "rv32_d_zfa";
+    "rv_q_zfa";
+    "rv64_q_zfa";
+    "rv_zfh_zfa";
+  ]
+
+let fp_file extension = List.mem extension fp_files
 
 (* Register class of a register field. Integer and fcsr-access forms use
    GPRs throughout; in the floating-point files every register field is an
@@ -179,12 +228,39 @@ let operands_of ~extension ~mnemonic (fields : R.field list) variable_fields =
         | "rd_n0" -> Some (Gpr { field = name; lsb = f.lsb; nonzero = true })
         | "rs2=rs1" -> Some (Tied { lsb = f.lsb })
         | "rm" -> Some (Rm { lsb = f.lsb; default = default_rm mnemonic })
-        | "shamtd" | "shamtw" | "zimm5" ->
+        | "shamtd" | "shamtw" | "zimm5" | "imm20" ->
             Some (Uimm { field = name; lsb = f.lsb; width = f.width })
         | _ -> None)
   in
   let all l = if List.mem None l then None else Some (List.filter_map Fun.id l) in
+  let lsb name = Option.map (fun (f : R.field) -> f.lsb) (field_of fields name) in
+  let gpr name = Option.map (fun l -> Gpr { field = name; lsb = l; nonzero = false }) (lsb name) in
+  let with_base base ops =
+    match lsb base with Some b -> all (ops @ [ Some (Mem_zero { base = b }) ]) | None -> None
+  in
+  let prefixed p = starts_with ~prefix:p mnemonic in
   match variable_fields with
+  | [ "rd"; "rs1"; "rs2"; "aq"; "rl" ] ->
+      (* an AMO: [rd, rs2, (rs1)], with the ordering as a mnemonic suffix;
+         Zacas's double-width forms take even/odd register pairs *)
+      let reg name =
+        match (mnemonic, lsb name) with
+        | "amocas.d", Some l -> Some (Gpr_pair { field = name; lsb = l; below = 64 })
+        | "amocas.q", Some l -> Some (Gpr_pair { field = name; lsb = l; below = 128 })
+        | _ -> gpr name
+      in
+      with_base "rs1" [ reg "rd"; reg "rs2" ]
+  | [ "rd"; "rs1" ] when prefixed "hlv" -> with_base "rs1" [ gpr "rd" ]
+  | [ "rs1"; "rs2" ] when prefixed "hsv" -> with_base "rs1" [ gpr "rs2" ]
+  | [ "rs1" ] when prefixed "cbo." -> with_base "rs1" []
+  | [ "rs1"; "imm12hi" ] when prefixed "prefetch." ->
+      Option.map (fun b -> [ Mem_hi { base = b } ]) (lsb "rs1")
+  | [ "imm12"; "rs1"; "rd" ] when mnemonic = "fence.i" -> Some []
+  | [ "fm"; "pred"; "succ"; "rs1"; "rd" ] when mnemonic = "fence" -> (
+      match (lsb "pred", lsb "succ") with
+      | Some p, Some q ->
+          Some [ Fence_set { field = "pred"; lsb = p }; Fence_set { field = "succ"; lsb = q } ]
+      | _ -> None)
   | [ "rd"; "rs1"; "imm12" ] when fp_file extension -> (
       (* an FP load: [rd, imm12(rs1)] *)
       match (field_of fields "rd", field_of fields "rs1") with
@@ -235,8 +311,15 @@ let spec_of_record (rec_ : R.t) =
                     match_ = value;
                     operands;
                     xlen;
-                    feature;
-                    isa;
+                    feature =
+                      (match List.assoc_opt rec_.native_name isa_overrides with
+                      | Some (f, _) -> f
+                      | None -> feature);
+                    isa =
+                      (match List.assoc_opt rec_.native_name isa_overrides with
+                      | Some (_, i) -> i
+                      | None -> isa);
+                    ordering = List.mem "aq" variable_fields && List.mem "rl" variable_fields;
                   }))
   | _ -> None
 
@@ -306,11 +389,56 @@ let form ~requirement (rec_ : R.t) spec =
             explicit = true;
           };
         ]
+    | Gpr_pair { field; _ } -> [ reg_op ~class_:Riscv_gpr ~excluded:[] field ]
+    | Mem_zero _ -> [ reg_op ~class_:Riscv_gpr ~excluded:[] "base" ]
+    | Mem_hi _ ->
+        [
+          reg_op ~class_:Riscv_gpr ~excluded:[] "base";
+          {
+            op_name = "offset";
+            op_kind =
+              Immediate
+                {
+                  width_bits = 12;
+                  signed = true;
+                  implicit_low_zero_bits = 5;
+                  nonzero = false;
+                  runs =
+                    [
+                      {
+                        field_name = "imm12hi";
+                        field_hi = 6;
+                        field_lo = 0;
+                        dest_hi = 11;
+                        dest_lo = 5;
+                      };
+                    ];
+                };
+            role = In;
+            explicit = true;
+          };
+        ]
+    | Fence_set { field; _ } ->
+        [
+          {
+            op_name = field;
+            op_kind =
+              imm_kind ~width:4 ~signed:false
+                [ { field_name = field; field_hi = 3; field_lo = 0; dest_hi = 3; dest_lo = 0 } ];
+            role = In;
+            explicit = true;
+          };
+        ]
     | Fixed_gpr _ | Tied _ | Keyword _ -> []
   in
   let syntax_token = function
     | Gpr { field; _ } | Fpr { field; _ } | Uimm { field; _ } -> Some (Syn_operand field)
     | Fli _ -> Some (Syn_operand "constant")
+    | Gpr_pair { field; _ } | Fence_set { field; _ } -> Some (Syn_operand field)
+    | Mem_zero _ -> Some (Syn_group [ Syn_literal "("; Syn_operand "base"; Syn_literal ")" ])
+    | Mem_hi _ ->
+        Some
+          (Syn_group [ Syn_operand "offset"; Syn_literal "("; Syn_operand "base"; Syn_literal ")" ])
     | Fixed_gpr n -> Some (Syn_literal (Printf.sprintf "x%d" n))
     | Keyword k -> Some (Syn_literal k)
     | Mem_i _ | Mem_s _ ->
@@ -388,6 +516,10 @@ let render_operand = function
   | Mem_s { base } -> Printf.sprintf "Mem_s { base = %d }" base
   | Keyword k -> Printf.sprintf "Keyword %S" k
   | Fli { lsb } -> Printf.sprintf "Fli { lsb = %d }" lsb
+  | Mem_zero { base } -> Printf.sprintf "Mem_zero { base = %d }" base
+  | Mem_hi { base } -> Printf.sprintf "Mem_hi { base = %d }" base
+  | Gpr_pair { lsb; below; _ } -> Printf.sprintf "Gpr_pair { lsb = %d; below = %d }" lsb below
+  | Fence_set _ -> invalid_arg "Isa_riscv_table: fence rows are hand-encoded, never emitted"
 
 let render_row (spec, xlen) =
   Printf.sprintf
@@ -419,6 +551,22 @@ let emit repo =
     List.map (fun s -> (s, if List.exists (same s) rv32 then 0 else 64)) rv64
     @ List.filter_map (fun s -> if List.exists (same s) rv64 then None else Some (s, 32)) rv32
     |> List.filter (fun (s, _) -> emits_row s)
+    (* an AMO's aq/rl bits are spelled as a mnemonic suffix: one row each *)
+    |> List.concat_map (fun (s, x) ->
+        if not s.ordering then [ (s, x) ]
+        else
+          let bits = 0x6000000L in
+          let hex v = Printf.sprintf "0x%Lx" v in
+          List.map
+            (fun (suffix, set) ->
+              ( {
+                  s with
+                  mnemonic = s.mnemonic ^ suffix;
+                  mask = hex (Int64.logor (Int64.of_string s.mask) bits);
+                  match_ = hex (Int64.logor (Int64.of_string s.match_) set);
+                },
+                x ))
+            [ ("", 0L); (".aq", 0x4000000L); (".rl", 0x2000000L); (".aqrl", bits) ])
     (* one row per distinct encoding: an import repeats its record in
        another extension file *)
     |> List.fold_left

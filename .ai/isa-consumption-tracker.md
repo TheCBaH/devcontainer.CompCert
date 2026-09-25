@@ -41,12 +41,12 @@ x86 ledger worked down in the plan section 6 order.
 | DEC-X86-SUFFIX | Size-suffix inference for x86 mnemonics | needs owner decision | — | GAS infers the operand size from a register operand (`add $1000000, %ecx`); ours rejects unsuffixed mnemonics by design (`test_targets.ml` "x86 refuses to guess an operand size"). Blocks the pilot's ADD_GPRv_IMMz / MOV_GPRv_GPRv_89 / MOV_GPRv_IMMz (x86-64) credit |
 | FREE-01 | Cases for normalized-only / GAS-generatable records | done (RISC-V); x86 blocked | DEC-X86-SUFFIX, DEC-X86-MODE16 | x86 residue needs the two decisions below |
 | FREE-02 | Credit x86 forms already encoded for CompCert | ready | INF-02 helps | Enumerate encoder `Opcode`s without a normalized form |
-| GEN-05-RV-BASE | RISC-V base-integer remainder | done except `fence` | — | `fence` needs a flag-set operand domain in `Isa_norm_model` |
+| GEN-05-RV-BASE | RISC-V base-integer remainder | done | — | `fence` admitted via the table rule (hand-encoded); ledger row deleted |
 | GEN-05-RV-ZBA | `add.uw`, `slli.uw`, `zext.w` | done | — | ledger row deleted |
 | GEN-05-RV-FP | Zfh/Zfhmin, Q, Zfa, Zfbfmin | done | — | ledger row deleted; explicit-`rm` spellings are encoded/decoded but not yet a case obligation (syntax model has no optional operand) |
-| GEN-05-RV-MISC | Zicbo, Zicfilp, `ssamoswap`, Zihintntl, Zifencei, Zicntr; Zilsd | implementing | INF-05R | Zimop and Zicfiss (RV64) done via the table |
-| GEN-05-RV-ATOMIC | Zabha, Zacas, Zawrs; Zalasr | not-started | — | — |
-| GEN-05-RV-PRIV | H, S, system, Svinval, Sdext, Ssctr; Smrnmi | not-started | INF-05R | Revise ledger gate (section "Ledger corrections") |
+| GEN-05-RV-MISC | Zimop, Zicbo, Zicfiss/Zicfilp, Zihintntl, Zifencei, Zicntr; Zilsd | done | — | oracle-unavailable residue recorded with probes; ledger row deleted |
+| GEN-05-RV-ATOMIC | Zabha, Zacas, Zawrs; Zalasr | done | — | Zalasr oracle-unavailable; ledger row deleted |
+| GEN-05-RV-PRIV | H, S, system, Svinval, Sdext, Ssctr; Smrnmi | done | — | admitted as ordinary features (no privilege predicate); Smrnmi and RV32 Ssctr oracle-unavailable; ledger row deleted |
 | GEN-05-RV-C | Compressed remainder and Zc* sub-extensions | implementing | — | `c.li`/`c.lui`/`c.addi16sp`/`c.addi4spn`/`c.andi`/shifts/`c.addiw`/`c.nop`/`c.j` |
 | GEN-05-X86-INT | Legacy integer, string, BMI/LZCNT/POPCNT/ADX/MOVBE, CMOV | not-started | INF-05X, FREE-02 | — |
 | GEN-05-X86-X87 | Full x87 | not-started | FREE-02 | — |
@@ -261,14 +261,15 @@ lands with its own small family, positive and negative cases.
 
 ## Ledger corrections to make with the relevant slice
 
-- `RES-RV-PRIV`: the reopening gate asks for a privilege-mode requirement
-  predicate. Assembly does not depend on privilege mode (GAS encodes `hfence.*`,
-  `sret`, `sfence.vma` under `-march` alone), so the gate should require only
-  per-extension feature mappings and probes.
+- [x] `RES-RV-PRIV`: closed without a privilege predicate — the forms are
+  ordinary `-march` features (H, Svinval, Ssctr) or need none (`sret`, `mret`,
+  `wfi`, `dret`, `sfence.vma`), as GAS 2.44/2.43.1 showed.
 - `RES-X86-SYSTEM`: same reasoning; privileged forms are oracle-unavailable
   only where GAS rejects them, not because they are privileged.
-- Record `oracle-unavailable` with probe evidence for Zalasr, Zilsd and
-  Smrnmi rather than leaving them blocked.
+- [x] `oracle-unavailable` with probe evidence (`Isa_oracle_unavailable`):
+  Zalasr, Smrnmi (both profiles), `ssamoswap.w/.d` (GAS 2.44 has no such
+  opcode), and on RV32 (GAS 2.43.1) Zicfiss, Zicfilp, Ssctr and Zilsd; plus
+  the `mop.r.N`/`mop.rr.N` templates, which are not mnemonics.
 
 ## Lessons from phase 1 to apply on every slice
 
@@ -314,3 +315,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | FREE-01 (RISC-V) + GEN-05-RV-BASE | Promoted RV32 734→796, RV64 783→858; blocked RV32 335→293, RV64 341→296; normalized-only 20/30→0; round-trip 3,635→3,722; difficult corpus 3,375→3,582 cases, all pass. GAS 2.44/2.43.1 probes: branch pseudos, `scall`/`sbreak`, `fence.tso`, `pause` (needs `zihintpause`). Fixed: bare `fence` encoded as `fence rw,w`; now `fence iorw,iorw` with general pred/succ sets. Shadow guard: `rv32_zilsd` `ld`/`sd` stay blocked. `asm-ci`, `asm-js-portable`, `asm-purity`, tools suites pass |
 | 2026-09-25 | INF-05R + GEN-05-RV-ZBA + fcsr/`fmv.*.d` + Zimop + Zicfiss | 58 generated rows (`isa-table riscv-emit`, checked by repo test); promoted RV32 796→844, RV64 858→916; blocked RV32 293→238, RV64 296→236; oracle-unavailable RV32 7 (Zicfiss ×5: RV32 GAS 2.43.1 lacks `zicfiss`; `mop.r.N`/`mop.rr.N` templates), RV64 2 (templates). Row collision/priority test caught `zext.w` decoding as `add.uw` (fixed: rows ordered by mask specificity) and `fmv.x.d` already hand-encoded (normalize-only). Fixed a latent double count of oracle-unavailable records as blocked. `asm-ci`, `asm-js-portable`, Melange runtest, `asm-purity`, tools suites pass |
 | 2026-09-25 | GEN-05-RV-FP (table) | Table rule widened: rounding mode with GNU default (dyn, rne for exact widening conversions — confirmed by GAS on every generated case), tied `rs2=rs1`, `imm(base)` loads/stores, `fcvtmod.w.d ..., rtz` keyword, Zfa `fli.*` constants (name or value, incl. hex floats; parser passes the text through). 162+4 rows. Promoted RV32 844→943, RV64 916→1023; blocked RV32 238→139, RV64 236→129. RES-RV-FP closed. All gates pass incl. Melange runtest |
+| 2026-09-25 | GEN-05-RV-ATOMIC/PRIV/MISC + `fence` (table) | Rule widened: AMO `rd, rs2, (rs1)` with `.aq`/`.rl`/`.aqrl` rows, Zacas even/odd pairs, `hlv`/`hsv`, `cbo.* (rs1)`, `prefetch.* imm(rs1)` (offset multiple of 32), `lpad`, `fence` pred/succ (hand-encoded). 312 rows. Promoted RV32 943→1008, RV64 1023→1091; blocked RV32 139→59, RV64 129→50 — all compressed (`RES-RV-COMPRESSED`); oracle-unavailable RV32 22, RV64 13. Rows that are HINTs of base instructions (`ntl.*`, `prefetch.*`, `lpad`) decode as the base form by design (pinned). Suffix/pair rows pinned to GAS bytes in `test_components.ml`. All gates pass |

@@ -22,6 +22,11 @@ type operand =
   | Mem_s of { base : int }  (** [imm12(base)], offset split into 31:25 and 11:7 *)
   | Keyword of string  (** a word the spelling requires but the encoding fixes *)
   | Fli of { lsb : int }  (** Zfa's fli constant, spelled by name or value, encoded as its index *)
+  | Mem_zero of { base : int }  (** [(base)]: an address with no offset field *)
+  | Mem_hi of { base : int }  (** [imm12(base)], offset a multiple of 32 in bits 31:25 *)
+  | Gpr_pair of { field : string; lsb : int; below : int }
+      (** an even/odd register pair when XLEN is below [below] *)
+  | Fence_set of { field : string; lsb : int }  (** [fence]'s i/o/r/w set (hand-encoded) *)
 
 type spec = {
   record_id : string;
@@ -35,6 +40,7 @@ type spec = {
   xlen : int;  (** 0 unless the extension file is [rv32_*]/[rv64_*] *)
   feature : string;  (** the enabling extension, e.g. ["zimop"], ["zba"], ["f"] *)
   isa : string;  (** the [-march] ISA string after [rv32]/[rv64], e.g. ["imf_zfh"] *)
+  ordering : bool;  (** aq/rl fields, spelled as [.aq]/[.rl]/[.aqrl] mnemonic suffixes *)
 }
 
 val spec_of_record : Isa_source_record.t -> spec option

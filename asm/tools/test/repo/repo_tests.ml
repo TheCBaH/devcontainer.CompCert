@@ -185,8 +185,8 @@ let test_isa_norm_accounting repo =
           (s.normalized = normalized)
     | Error e -> check (Format.asprintf "%a" (Err.Error.pp Tool_error.pp) e) false
   in
-  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:948;
-  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:1023;
+  expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:1017;
+  expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:1093;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1033;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:1035
 
@@ -1052,10 +1052,10 @@ let test_isa_family_admission repo =
      fixup already exercises rather than adding anything container-width-specific. No shadow
      record under either profile's export (checked directly, the same way the rv32_zclsd
      scare above was caught). Moves 2 records per profile from blocked to promoted-support. *)
-  expect ~oracle_unavailable:7 ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized_only:0
-    ~gas_generatable:0 ~promoted_support:943 ~blocked:139;
-  expect ~oracle_unavailable:2 ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized_only:0
-    ~gas_generatable:0 ~promoted_support:1023 ~blocked:129;
+  expect ~oracle_unavailable:22 ~source:"riscv_opcodes" Target.Riscv32 ~total:1089
+    ~normalized_only:0 ~gas_generatable:0 ~promoted_support:1008 ~blocked:59;
+  expect ~oracle_unavailable:13 ~source:"riscv_opcodes" Target.Riscv64 ~total:1154
+    ~normalized_only:0 ~gas_generatable:0 ~promoted_support:1091 ~blocked:50;
   expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:6 ~gas_generatable:5
     ~promoted_support:1022 ~blocked:6854;
   expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
@@ -1113,9 +1113,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 4039)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 4178)"
        !roundtrip_count)
-    (!roundtrip_count = 4039)
+    (!roundtrip_count = 4178)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

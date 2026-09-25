@@ -15,23 +15,6 @@ type row = {
 let rows =
   [
     {
-      id = "RES-RV-BASE-INT";
-      source = "riscv_opcodes";
-      families = [ "rv_i" ];
-      capability =
-        "fence's pred/succ operands: (i,o,r,w) flag sets have no normalized operand domain yet. \
-         The encoder accepts every pred/succ spelling (and bare fence as iorw,iorw); the other \
-         base-integer forms - loads/stores, branches and their pseudos, jal/jalr/j/jr, lui/auipc, \
-         shifts, ecall/ebreak/scall/sbreak, fence.tso and pause - are promoted.";
-      evidence =
-        "family-admission: rv_i's only blocked record is fence (unknown-operand:field:fm); GNU as \
-         2.44 encodes bare fence as 0ff0000f and fence rw,w as 0310000f, both matched";
-      task = "GEN-05-RV-BASE";
-      reopening_gate =
-        "a fence-set operand domain (non-empty subsequence of iorw) exists in Isa_norm_model and \
-         fence has a case per profile";
-    };
-    {
       id = "RES-RV-COMPRESSED";
       source = "riscv_opcodes";
       families =
@@ -71,74 +54,6 @@ let rows =
          Riscv_gpr_c) and c.* cases assemble under -march=..._c/_zca with --features/rvc scope \
          recorded (done for the CA-format and CR-format register-register classes; still open for \
          every other compressed form)";
-    };
-    {
-      id = "RES-RV-ATOMIC-SYNC";
-      source = "riscv_opcodes";
-      families = [ "rv_zabha"; "rv_zabha_zacas"; "rv_zacas"; "rv64_zacas"; "rv_zalasr"; "rv_zawrs" ];
-      capability =
-        "Sub-word atomics (Zabha), compare-and-swap (Zacas), load-acquire/store-release (Zalasr) \
-         and wait-on-reservation (Zawrs): the ordering-suffix and address-only operand shapes.";
-      evidence =
-        "family-admission: rv_zabha and rv_zalasr are entirely unhandled; base A (rv_a) is promoted";
-      task = "GEN-05-RV-ATOMIC";
-      reopening_gate =
-        "the .aq/.rl suffix shape used by base A is reused and each extension has a GAS-version \
-         probe";
-    };
-    {
-      id = "RES-RV-PRIV";
-      source = "riscv_opcodes";
-      families =
-        [
-          "rv_h";
-          "rv64_h";
-          "rv_s";
-          "rv_system";
-          "rv_svinval";
-          "rv_svinval_h";
-          "rv_smrnmi";
-          "rv_sdext";
-          "rv_ssctr";
-        ];
-      capability =
-        "Hypervisor, supervisor, debug and privileged-system instructions: forms whose \
-         availability depends on privilege mode and platform extensions that -march alone does not \
-         select.";
-      evidence =
-        "family-admission: rv_h is entirely unhandled; the normalized requirement type has no \
-         privilege-mode predicate";
-      task = "GEN-05-RV-PRIV";
-      reopening_gate =
-        "a privilege-mode requirement predicate exists in Isa_norm_model and GAS -march spellings \
-         are probed per extension";
-    };
-    {
-      id = "RES-RV-HINT-MISC";
-      source = "riscv_opcodes";
-      families =
-        [
-          "rv_zicbo";
-          "rv_zicfilp";
-          "rv_zicfiss";
-          "rv_zihintntl";
-          "rv_zifencei";
-          "rv_zicntr";
-          "rv32_zicntr";
-          "rv32_zilsd";
-        ];
-      capability =
-        "Cache-block, control-flow-integrity, non-temporal-hint, fence.i, counter-read and \
-         paired-load/store forms: mostly single-mnemonic families that each need a feature-name \
-         mapping and a GAS probe. Zimop is promoted through the generated RISC-V table (its \
-         mop.r.N/mop.rr.N templates are oracle-unavailable: GAS spells only the concrete N), and \
-         so are Zicfiss's sspush/sspopchk/ssrdp on RV64 (RV32 GAS 2.43.1 lacks zicfiss).";
-      evidence =
-        "family-admission: rv_zicbo is unhandled; rv_zicfiss keeps only ssamoswap.w/d (the aq/rl \
-         amo shape)";
-      task = "GEN-05-RV-MISC";
-      reopening_gate =
-        "each family has a feature mapping in Isa_norm_riscv and an installed-GAS probe recorded";
     };
     {
       id = "RES-X86-EVEX";

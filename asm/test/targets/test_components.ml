@@ -403,14 +403,16 @@ let%expect_test "RISC-V fence spellings match GNU as" =
    mnemonic with a hand-written form (the hand-written one would silently win), and the row's
    own word decodes back to that row, not to a hand-written form or an earlier row. Operand fields are filled with distinct
    non-zero values, so a general row is not mistaken for a pseudo that fixes one of them to
-   zero ([add.uw] with rs2 = x0 is [zext.w]). *)
+   zero ([add.uw] with rs2 = x0 is [zext.w]). A HINT row ([ntl.*], [prefetch.*], [lpad]) is a
+   base instruction with rd = x0, which the hand-written decoder claims first by design; those
+   are listed. *)
 let%expect_test
     "generated RISC-V table rows neither collide with nor are shadowed by hand-written forms" =
   let module Rows = Riscv_family_encode.Riscv_table_rows in
   let module Row = Riscv_family_encode.Riscv_table_row in
   let check (type o) target xlen (of_mnemonic : string -> o option) (is_table : o -> int option)
-      (decode_index : string -> int option) =
-    let problems = ref [] in
+      (decode_index : string -> [ `Row of int | `Hand_written | `Nothing ]) =
+    let problems = ref [] and hints = ref [] in
     Array.iteri
       (fun i (r : Row.row) ->
         if r.xlen = 0 || r.xlen = xlen then (
@@ -427,7 +429,10 @@ let%expect_test
                 match o with
                 | Gpr { lsb; _ } | Fpr { lsb } -> (put lsb, v)
                 | Uimm { lsb; _ } | Simm { lsb; _ } | Fli { lsb } -> (put lsb, prev)
-                | Mem_i { base } | Mem_s { base } -> (put base, prev)
+                | Mem_i { base } | Mem_s { base } | Mem_zero { base } | Mem_hi { base } ->
+                    (put base, prev)
+                | Gpr_pair { lsb; _ } ->
+                    (Int64.logor w (Int64.shift_left (Int64.of_int (2 * (k + 1))) lsb), prev)
                 | Tied { lsb } -> (Int64.logor w (Int64.shift_left prev lsb), prev)
                 | Fixed_gpr _ | Rm _ | Keyword _ -> (w, prev))
               (r.match_, 0L)
@@ -438,15 +443,16 @@ let%expect_test
                 Char.chr (Int64.to_int (Int64.shift_right_logical word (8 * k)) land 0xff))
           in
           match decode_index bytes with
-          | Some j when j = i -> ()
-          | Some j ->
+          | `Row j when j = i -> ()
+          | `Row j ->
               problems :=
                 Printf.sprintf "%s: decodes as row %s" r.source Rows.rows.(j).source :: !problems
-          | None ->
-              problems := Printf.sprintf "%s: does not decode as a table row" r.source :: !problems))
+          | `Hand_written -> hints := r.source :: !hints
+          | `Nothing -> problems := Printf.sprintf "%s: does not decode" r.source :: !problems))
       Rows.rows;
-    Printf.printf "%s: %s\n" target
+    Printf.printf "%s: %s\n  decoded as the hand-written form they are a hint of: %s\n" target
       (match !problems with [] -> "ok" | ps -> String.concat "; " (List.rev ps))
+      (String.concat " " (List.rev !hints))
   in
   check "riscv32" 32 Riscv32_encode.Opcode.of_mnemonic
     (function Riscv32_encode.Opcode.Table i -> Some i | _ -> None)
@@ -456,8 +462,9 @@ let%expect_test
           { state = Riscv32_encode.default_state; address = 0L }
           bytes ~pos:0
       with
-      | Ok ({ op = Riscv32_encode.Opcode.Table j; _ }, _, _) -> Some j
-      | _ -> None);
+      | Ok ({ op = Riscv32_encode.Opcode.Table j; _ }, _, _) -> `Row j
+      | Ok _ -> `Hand_written
+      | Error _ -> `Nothing);
   check "riscv64" 64 Riscv64_encode.Opcode.of_mnemonic
     (function Riscv64_encode.Opcode.Table i -> Some i | _ -> None)
     (fun bytes ->
@@ -466,8 +473,43 @@ let%expect_test
           { state = Riscv64_encode.default_state; address = 0L }
           bytes ~pos:0
       with
-      | Ok ({ op = Riscv64_encode.Opcode.Table j; _ }, _, _) -> Some j
-      | _ -> None);
-  [%expect {|
+      | Ok ({ op = Riscv64_encode.Opcode.Table j; _ }, _, _) -> `Row j
+      | Ok _ -> `Hand_written
+      | Error _ -> `Nothing);
+  [%expect
+    {|
     riscv32: ok
-    riscv64: ok |}]
+      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_zicfilp/lpad
+    riscv64: ok
+      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_zicfilp/lpad |}]
+
+(* Table rows the generated differential cases cannot spell yet, pinned to real GNU as 2.44
+   bytes: an AMO's ordering suffixes ([amoadd.b] 0x00c5852f, [.aq] 0x04c5852f, [.rl]
+   0x02c5852f, [.aqrl] 0x06c5852f), and Zacas's register pairs - [amocas.d] on RV32 takes an
+   even rd/rs2 (GNU as: "illegal operands" for a1). *)
+let%expect_test "RISC-V table: AMO ordering suffixes and Zacas register pairs" =
+  List.iter (one "riscv64")
+    [
+      "amoadd.b a0, a2, (a1)";
+      "amoadd.b.aq a0, a2, (a1)";
+      "amoadd.b.rl a0, a2, (a1)";
+      "amoadd.b.aqrl a0, a2, (a1)";
+      "amocas.w.aqrl a0, a2, (a1)";
+    ];
+  List.iter (one "riscv32") [ "amocas.d a0, a2, (a1)"; "amocas.d a1, a2, (a1)" ];
+  [%expect
+    {|
+    -- riscv64: amoadd.b a0, a2, (a1)
+    40000000  2f 85 c5 00  amoadd.b x10, x12, 0(x11)  [riscv64.amoadd.b]
+    -- riscv64: amoadd.b.aq a0, a2, (a1)
+    40000000  2f 85 c5 04  amoadd.b.aq x10, x12, 0(x11)  [riscv64.amoadd.b.aq]
+    -- riscv64: amoadd.b.rl a0, a2, (a1)
+    40000000  2f 85 c5 02  amoadd.b.rl x10, x12, 0(x11)  [riscv64.amoadd.b.rl]
+    -- riscv64: amoadd.b.aqrl a0, a2, (a1)
+    40000000  2f 85 c5 06  amoadd.b.aqrl x10, x12, 0(x11)  [riscv64.amoadd.b.aqrl]
+    -- riscv64: amocas.w.aqrl a0, a2, (a1)
+    40000000  2f a5 c5 2e  amocas.w.aqrl x10, x12, 0(x11)  [riscv64.amocas.w.aqrl]
+    -- riscv32: amocas.d a0, a2, (a1)
+    40000000  2f b5 c5 28  amocas.d x10, x12, 0(x11)  [riscv32.amocas.d]
+    -- riscv32: amocas.d a1, a2, (a1)
+    riscv32.lower: no amocas.d form takes these operands |}]

@@ -4747,6 +4747,28 @@ module Make (P : PROFILE) = struct
         | Operand.Sym (Asm_core.Expr.Symbol text) ->
             Option.bind (Riscv_table_row.fli_index text) (fun i -> place lsb (Int64.of_int i))
         | _ -> None)
+    | Mem_zero { base } -> (
+        match op with
+        | Operand.Mem m -> (
+            match (Reg.x m.base, int64_expr m.offset) with
+            | Some b, Some 0L -> place base (Int64.of_int b)
+            | _ -> None)
+        | _ -> None)
+    | Mem_hi { base } -> (
+        match op with
+        | Operand.Mem m -> (
+            match (Reg.x m.base, int64_expr m.offset) with
+            | Some b, Some v when fits_signed 12 v && Int64.rem v 32L = 0L ->
+                Some
+                  (Int64.logor
+                     (Int64.shift_left (Int64.of_int b) base)
+                     (Int64.shift_left (Int64.logand (Int64.shift_right v 5) 0x7fL) 25))
+            | _ -> None)
+        | _ -> None)
+    | Gpr_pair { lsb; below } -> (
+        match xreg op with
+        | Some n when xlen >= below || n land 1 = 0 -> place lsb (Int64.of_int n)
+        | _ -> None)
     | Mem_i { base } ->
         Option.map
           (fun (b, v) ->
@@ -7672,6 +7694,16 @@ module Make (P : PROFILE) = struct
                   (Asm_core.Expr.Symbol Riscv_table_row.fli_constants.(Int64.to_int (field lsb 5)))))
       | Mem_i { base } ->
           Some (Some (mem (Int64.to_int (field base 5)) (sign_extend 12 (field 20 12))))
+      | Mem_zero { base } -> Some (Some (mem (Int64.to_int (field base 5)) 0L))
+      | Mem_hi { base } ->
+          Some
+            (Some
+               (mem
+                  (Int64.to_int (field base 5))
+                  (sign_extend 12 (Int64.shift_left (field 25 7) 5))))
+      | Gpr_pair { lsb; below } ->
+          let n = Int64.to_int (field lsb 5) in
+          if xlen < below && n land 1 = 1 then None else Some (Some (reg n))
       | Mem_s { base } ->
           let v = Int64.logor (Int64.shift_left (field 25 7) 5) (field 7 5) in
           Some (Some (mem (Int64.to_int (field base 5)) (sign_extend 12 v)))
