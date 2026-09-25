@@ -1586,6 +1586,28 @@ let%expect_test "16-bit ALU forms other than mov are generated rows" =
     accepted
     |}]
 
+(* GNU as's pseudo-prefixes pick among same-spelled encodings; each byte sequence is GNU as
+   2.44's for the same line. *)
+let%expect_test "x86 pseudo-prefixes select the encoding" =
+  disasm "x86_64"
+    "\t.text\n\
+     \t{evex} vaddps %xmm1, %xmm2, %xmm3\n\
+     \t{vex} vpdpbusd %xmm1, %xmm2, %xmm3\n\
+     \tvpdpbusd %xmm1, %xmm2, %xmm3\n\
+     \t{store} movaps %xmm1, %xmm2\n\
+     \t{load} addl %eax, %ebx\n\
+     \trep movsw\n";
+  attempt "x86_64" "\t.text\n\t{vex3} vaddps %xmm1, %xmm2, %xmm3\n";
+  [%expect
+    {|
+    40000000  62 f1 6c 08 58 d9  {evex} vaddps %xmm1, %xmm2, %xmm3   [x86_64.vaddps]
+    40000006  c4 e2 69 50 d9     {vex} vpdpbusd %xmm1, %xmm2, %xmm3  [x86_64.vpdpbusd]
+    4000000b  62 f2 6d 08 50 d9  vpdpbusd %xmm1, %xmm2, %xmm3        [x86_64.vpdpbusd]
+    40000011  0f 29 ca           {store} movaps %xmm1, %xmm2         [x86_64.movaps]
+    40000014  03 d8              addl %eax, %ebx                     [x86_64.alu-r-rm.asz-absent.opsz-absent.rex-absent.reg]
+    40000016  66 f3 a5           rep movsw                           [x86_64.rep movsw]
+    x86.simplify: unknown instruction {vex3} vaddps |}]
+
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling
    CompCert's [test/c/] corpus, not just parsing it}
 

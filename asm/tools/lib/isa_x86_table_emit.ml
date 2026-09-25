@@ -145,7 +145,17 @@ let emit repo =
   let is_secondary (s : Isa_x86_table.spec) =
     Hashtbl.mem secondary s.record_id || Hashtbl.mem secondary32 s.record_id
   in
-  let rows = List.filter (fun s -> not (is_secondary s)) rows @ List.filter is_secondary rows in
+  (* and in preference order, so a pseudo-prefix reaches the form GNU as picks *)
+  let rank = Isa_x86_table.twin_rank x64 and rank32 = Isa_x86_table.twin_rank x32 in
+  let rank_of (s : Isa_x86_table.spec) =
+    match Hashtbl.find_opt rank s.record_id with
+    | Some i -> i
+    | None -> Option.value (Hashtbl.find_opt rank32 s.record_id) ~default:0
+  in
+  let rows =
+    List.filter (fun s -> not (is_secondary s)) rows
+    @ List.stable_sort (fun a b -> compare (rank_of a) (rank_of b)) (List.filter is_secondary rows)
+  in
   Ok
     (String.concat ""
        ([

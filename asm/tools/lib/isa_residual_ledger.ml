@@ -23,9 +23,6 @@ let rows =
           "AVX512BW_128N";
           "AVX512BW_256";
           "AVX512BW_512";
-          "AVX512DQ_128";
-          "AVX512DQ_128N";
-          "AVX512DQ_256";
           "AVX512DQ_512";
           "AVX512DQ_SCALAR";
           "AVX512ER_512";
@@ -40,35 +37,23 @@ let rows =
           "AVX512_FP16_512";
           "AVX512_FP16_CONVERT_512";
           "AVX512_FP16_SCALAR";
-          "AVX512_GFNI_128";
-          "AVX512_GFNI_256";
-          "AVX512_MEDIAX_128";
-          "AVX512_MEDIAX_256";
           "AVX512_MINMAX_512";
           "AVX512_MINMAX_SCALAR";
           "AVX512_MOVZXC_128";
           "AVX512_SAT_CVT_512";
           "AVX512_SAT_CVT_DS_512";
           "AVX512_SAT_CVT_DS_SCALAR";
-          "AVX512_VAES_128";
-          "AVX512_VAES_256";
-          "AVX512_VNNI_INT16_128";
-          "AVX512_VNNI_INT16_256";
-          "AVX512_VNNI_INT8_128";
-          "AVX512_VNNI_INT8_256";
-          "AVX512_VPCLMULQDQ_128";
-          "AVX512_VPCLMULQDQ_256";
         ];
       capability =
         "EVEX forms beyond the generated table's base obligation (unmasked, no zeroing, no \
          broadcast, registers 0-15, disp8*N): rounding/SAE (BCRC) records, VSIB gathers and \
-         scatters, forms that require a mask (MASKNOT0), GPR-with-memory spellings, and the EVEX \
-         xmm/ymm twins of VEX forms (reachable only with {evex}). Masking, zeroing, broadcast and \
-         registers 16-31 are obligations on already-promoted records.";
+         scatters, forms that require a mask (MASKNOT0), and same-spelled EVEX twins no \
+         pseudo-prefix separates. Masking, zeroing, broadcast and registers 16-31 are obligations \
+         on already-promoted records; {evex} twins of VEX forms are promoted.";
       evidence =
         "family-admission: most AVX-512F/BW/DQ/CD/FP16/BF16/VBMI/VNNI/IFMA/BITALG/VPOPCNTDQ and \
          AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows; the remainder is rounding, \
-         VSIB, mask-register and pseudo-prefix-only forms";
+         VSIB and mask-register forms";
       task = "GEN-05-X86-EVEX";
       reopening_gate =
         "memory operands and opmask decoration are implemented in the encoder and a per-family GAS \
@@ -77,50 +62,31 @@ let rows =
     {
       id = "RES-X86-VEX";
       source = "xed_resolved";
-      families =
-        [
-          "AVX";
-          "AVX2GATHER";
-          "AVX_IFMA";
-          "AVX_NE_CONVERT";
-          "AVX_VNNI";
-          "FMA4";
-          "SM4_128";
-          "SM4_256";
-          "XOP";
-        ];
+      families = [ "AVX"; "AVX2GATHER"; "FMA4"; "XOP" ];
       capability =
         "VEX/XOP forms the generated x86 table does not yet cover: VSIB gathers, the XOP encoding \
-         space, VZEROUPPER/ALL (no ModR/M), GPR-with-memory spellings that need a width suffix, \
-         and VEX forms GNU as reaches only through a {vex} pseudo-prefix (AVX-VNNI, AVX-IFMA, \
-         AVX-NE-CONVERT, whose plain spelling is EVEX) or a {load}/{store} one (same-spelled twins \
-         such as FMA4's W0 register form).";
+         space, VZEROUPPER/ALL (no ModR/M), and same-spelled twins no pseudo-prefix separates \
+         (FMA4's W0 register form, which shares its iform with the W1 one).";
       evidence =
         "family-admission: most AVX/AVX2/FMA/F16C/VAES/GFNI/VNNI-INT forms are promoted through \
-         DEC-X86-TABLE rows; the remainder is gathers, XOP, pseudo-prefix-only encodings and a few \
-         unparsed pattern shapes";
+         DEC-X86-TABLE rows, AVX-VNNI/IFMA/NE-CONVERT through {vex}; the remainder is gathers, XOP \
+         and FMA4's W0 twins";
       task = "GEN-05-X86-VEX";
-      reopening_gate =
-        "VSIB addressing and XOP rows exist, and the text parser accepts {vex}/{load}/{store} \
-         pseudo-prefixes";
+      reopening_gate = "VSIB addressing and XOP rows exist";
     };
     {
       id = "RES-X86-LEGACY-SIMD";
       source = "xed_resolved";
-      families =
-        [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE4"; "SSE42"; "SSE4a"; "SSE_PREFETCH" ];
+      families = [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a"; "SSE_PREFETCH" ];
       capability =
         "Legacy MMX/SSE/3DNow remainders: 3DNow's suffix-opcode encoding (0F 0F ... op), \
-         GPR-with-memory spellings that need a width suffix, implicit operands, and store-form \
-         twins reachable only with {store}. xmm and mm SSE/SSE2/SSSE3/SSE4/AES/PCLMUL/SHA/GFNI \
-         forms are promoted through DEC-X86-TABLE rows.";
+         GPR-with-memory spellings that need a width suffix, and implicit operands. xmm and mm \
+         SSE/SSE2/SSSE3/SSE4/AES/PCLMUL/SHA/GFNI forms are promoted through DEC-X86-TABLE rows.";
       evidence =
         "family-admission: SSE, SSE2 and PENTIUMMMX are promoted but for a handful of records; \
          3DNOW is unhandled";
       task = "GEN-05-X86-SIMD";
-      reopening_gate =
-        "the table encodes 3DNow's trailing opcode byte, and the text parser accepts \
-         {load}/{store} pseudo-prefixes";
+      reopening_gate = "the table encodes 3DNow's trailing opcode byte";
     };
     {
       id = "RES-X86-X87";
@@ -190,7 +156,6 @@ let rows =
           "APX_F_ADX";
           "APX_F_ADX_N3";
           "APX_F_AMX";
-          "APX_F_AMX_BASE";
           "APX_F_AMX_MOVRS";
           "APX_F_BMI1";
           "APX_F_BMI1_N3";

@@ -60,6 +60,13 @@ val twins : spec list -> (string, string) Hashtbl.t
     (reachable) iform. Their rows stay for decoding, but they get no case and are reported as
     needing a pseudo-prefix. *)
 
+val twin_rank : spec list -> (string, int) Hashtbl.t
+(** Each twin's position in GNU as's preference order among its same-spelled forms. *)
+
+val reachable_twins : spec list -> (string, string) Hashtbl.t
+(** The twins GNU as reaches with a pseudo-prefix: record id to [evex], [vex], [load] or
+    [store]. A twin sharing its primary's iform is not listed. *)
+
 val not_in_32bit_mode : Isa_source_record.t -> bool
 (** A form the x86-32 export lists but 32-bit mode cannot encode (legacy REX.W, a 64-bit GPR, a
     MODE=2 pattern). *)

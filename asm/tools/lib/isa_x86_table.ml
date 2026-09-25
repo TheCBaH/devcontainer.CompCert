@@ -79,6 +79,8 @@ let parse_pattern pattern =
             | "VL=2" -> Some { p with vl = 2 }
             (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
             | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
+            (* EVEX.R' = 1 for a GPR in ModR/M.reg: the encoder's constant *)
+            | "EVEXR4_ONE()" -> Some p
             (* a scalar form's length field is ignored and encoded as 128 bits *)
             | "FIX_ROUND_LEN128()" -> Some { p with vl = 0 }
             | _ when starts_with ~prefix:"ESIZE_" t && ends_with ~suffix:"_BITS()" t ->
@@ -225,9 +227,9 @@ let operand_of (o : R.x86_operand) =
         Some (Some (Imm { bytes = 1 }))
     | _ -> None
 
-(* VEX forms whose AT&T spelling GNU as resolves to the EVEX twin by default;
-   the VEX encoding needs a {vex} pseudo-prefix this assembler does not parse. *)
-let needs_vex_pseudo_prefix = [ "AVX_VNNI"; "AVX_IFMA"; "AVX_NE_CONVERT" ]
+(* VEX forms whose AT&T spelling GNU as resolves to the EVEX twin by default: the VEX encoding
+   takes a {vex} pseudo-prefix. *)
+let evex_preferred = [ "AVX_VNNI"; "AVX_IFMA"; "AVX_NE_CONVERT" ]
 
 (* The AT&T spelling of an iclass: lower case, XED's 64-bit-operand string
    compares spelled with GNU's [q] suffix, and the narrowing conversions whose
@@ -475,7 +477,6 @@ let spec_of_record (rec_ : R.t) =
   | ( R.X86_encoding { space = ("vex" | "evex") as space; opcode_map; opcode; pattern; operands },
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match (parse_pattern pattern, int_of_string_opt opcode) with
-      | _ when List.mem isa_set needs_vex_pseudo_prefix -> None
       | Some p, Some opcode when (if space = "vex" then p.vex else p.evex) && p.modrm -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
@@ -754,7 +755,7 @@ let form ~requirement (rec_ : R.t) spec =
    and 0x29 register forms, FMA4's W0 and W1 register forms): GNU as reaches
    only one of them from that spelling. The first in export order is the table
    form; each later one maps to it. *)
-let twins specs =
+let twin_primaries specs =
   let specs = List.concat_map expand specs in
   let shape spec =
     ( spec.mnemonic,
@@ -805,25 +806,72 @@ let twins specs =
            SIMD moves list the load form first (0x28 before 0x29); the short 0x40+r form wins
            where it exists; the multi-byte NOP is 0F 1F *)
         let rank s =
-          ( s.space <> `Evex (* GNU picks VEX for a spelling both could encode *),
+          ( (* GNU picks VEX for a spelling both could encode, but EVEX over the VEX-only AVX
+               VNNI/IFMA/NE-CONVERT sets *)
+            (if List.mem s.isa_set evex_preferred then false else s.space <> `Evex),
             (if is4 s then if has_imm s then s.w <> 1 else s.w = 1 else true),
             short s,
             (if integer s then dest_in_rm s else dest_in_reg s),
             s.opcode = 0x1f,
-            s.w <> 1 )
+            s.w <> 1,
+            (* last, the lower opcode: EVEX vmovd is 6E/7E, not XED's F3 7E / 66 D6 aliases *)
+            -((s.map * 256) + s.opcode) )
         in
-        let primary =
-          List.fold_left
-            (fun best s -> if compare (rank s) (rank best) > 0 then s else best)
-            (List.hd group) group
-        in
-        List.iter
-          (fun s ->
-            if s.record_id <> primary.record_id then
-              Hashtbl.replace secondaries s.record_id primary.iform)
-          group)
+        (* best first; a tie keeps the listed order *)
+        let ranked = List.stable_sort (fun a b -> compare (rank b) (rank a)) group in
+        let primary = List.hd ranked in
+        List.iteri
+          (fun i s ->
+            if s.record_id <> primary.record_id && not (Hashtbl.mem secondaries s.record_id) then
+              Hashtbl.replace secondaries s.record_id (s, primary, i))
+          ranked)
     groups;
   secondaries
+
+let twins specs =
+  let t = Hashtbl.create 64 in
+  Hashtbl.iter
+    (fun id (_, (primary : spec), _) -> Hashtbl.replace t id primary.iform)
+    (twin_primaries specs);
+  t
+
+let twin_rank specs =
+  let t = Hashtbl.create 64 in
+  Hashtbl.iter (fun id (_, _, i) -> Hashtbl.replace t id i) (twin_primaries specs);
+  t
+
+(* The pseudo-prefix that makes GNU as pick a twin over its primary: the encoding space, or
+   which ModR/M field holds the destination. Only a twin with its own iform can be told apart
+   from its primary by a case keyed on the iform. *)
+let pseudo_prefix ~(primary : spec) (s : spec) =
+  let dest x = match List.rev x.operands with Reg { field; _ } :: _ -> Some field | _ -> None in
+  if s.iform = primary.iform then None
+  else if s.space <> primary.space then
+    match s.space with `Evex -> Some "evex" | `Vex -> Some "vex" | `Legacy -> None
+  else
+    match (dest s, dest primary) with
+    | Some Modrm_reg, Some Modrm_rm -> Some "load"
+    | Some Modrm_rm, Some Modrm_reg -> Some "store"
+    | _ -> None
+
+(* A pseudo-prefix reaches the best-ranked twin it allows, so of several twins sharing a prefix
+   only that one is reachable. *)
+let reachable_twins specs =
+  let all = twin_primaries specs in
+  let best = Hashtbl.create 64 in
+  Hashtbl.iter
+    (fun _ ((s : spec), (primary : spec), i) ->
+      match pseudo_prefix ~primary s with
+      | Some p -> (
+          let k = (primary.record_id, s.mnemonic, p) in
+          match Hashtbl.find_opt best k with
+          | Some (j, _) when j <= i -> ()
+          | _ -> Hashtbl.replace best k (i, s.record_id))
+      | None -> ())
+    all;
+  let t = Hashtbl.create 64 in
+  Hashtbl.iter (fun (_, _, p) (_, id) -> Hashtbl.replace t id p) best;
+  t
 
 (* The accumulator guard: for each integer spec, the AT&T positions where GNU as would pick an
    accumulator-specific form of the same instruction (a sibling record with an implicit

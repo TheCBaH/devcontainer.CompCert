@@ -105,6 +105,17 @@ statement:
         { mnemonic = (match Token.kind $1 with Token.Ident s -> s | _ -> "");
           operands = $2;
           span = Token.span $1 } }
+  (* A braced pseudo-prefix before a mnemonic ([{evex} vaddps ...], [{load} movl ...]) chooses
+     among encodings of one spelling. It stays part of the mnemonic, [{evex} vaddps], for the
+     target to interpret or reject; no other statement starts with a brace. *)
+  | LBRACE IDENT RBRACE IDENT slices
+    { Statement.Instruction
+        { mnemonic =
+            (match (Token.kind $2, Token.kind $4) with
+             | Token.Ident p, Token.Ident m -> "{" ^ p ^ "} " ^ m
+             | _ -> "");
+          operands = $5;
+          span = Token.span $1 } }
   | IDENT EQUALS expr
     { Statement.Assignment
         { name = (match Token.kind $1 with Token.Ident s -> s | _ -> "");

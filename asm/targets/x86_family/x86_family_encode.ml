@@ -2069,11 +2069,53 @@ module Instruction = struct
      its contract is byte-exact reproduction and not minimal spelling. *)
   let form_suffix i = match i.form with Some r -> "." ^ r | None -> ""
 
+  (* A generated row that is not the first of its spelling and operand shape is reached only
+     through a pseudo-prefix ([{evex} vaddps], [{load} addl]); printing it keeps the text
+     re-assembling to the same bytes. *)
+  let table_spelling i =
+    let rows = X86_table_rows.rows in
+    let r = rows.(i) in
+    let shape (r : X86_table_row.row) =
+      List.map
+        (function
+          | X86_table_row.Reg { cls; _ } -> `Reg cls
+          | Mem _ -> `Mem
+          | Imm { bytes } -> `Imm bytes
+          | Fixed_reg n -> `Fixed n)
+        r.operands
+    in
+    let dest (r : X86_table_row.row) =
+      match List.rev r.operands with X86_table_row.Reg { field; _ } :: _ -> Some field | _ -> None
+    in
+    let rec first j =
+      if j >= i then None
+      else
+        let q = rows.(j) in
+        if String.equal q.mnemonic r.mnemonic && q.mode = r.mode && shape q = shape r then Some q
+        else first (j + 1)
+    in
+    match first 0 with
+    | None -> r.mnemonic
+    | Some q -> (
+        if q.space <> r.space then
+          match r.space with
+          | X86_table_row.Evex -> "{evex} " ^ r.mnemonic
+          | Vex -> "{vex} " ^ r.mnemonic
+          | Legacy -> r.mnemonic
+        else
+          match (dest r, dest q) with
+          | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> "{load} " ^ r.mnemonic
+          | Some X86_table_row.Modrm_rm, Some X86_table_row.Modrm_reg -> "{store} " ^ r.mnemonic
+          | _ -> r.mnemonic)
+
   let pp ppf i =
     match i.ops with
     | [] -> Fmt.string ppf (Opcode.name i.op)
     | ops -> (
         match i.op with
+        (* a generated row's spelling is whole: no width suffix to add *)
+        | Opcode.Table row ->
+            Fmt.pf ppf "%s %a" (table_spelling row) Fmt.(list ~sep:(any ", ") Operand.pp) ops
         (* [pop]/[jmp] take no AT&T size suffix in M1 - their one operand's own
            width is what disambiguates, and [simplify_instruction] only
            recognizes the bare mnemonic. [jmp]'s indirect-target sigil is
@@ -8677,16 +8719,42 @@ module Make (M : MODE) = struct
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
                     else Some ("\x62" ^ byte p0 ^ byte p1 ^ byte p2 ^ byte opcode ^ tail)))
 
-  (* Every applicable row spelled like row [i], in table order; the first whose operands fit. *)
+  (* Row [i] itself if its operands fit (a pseudo-prefix or the decoder chose it), else every
+     applicable row spelled like it, in table order; the first whose operands fit. *)
   let table_encode (x : [ `Row of int ]) ops =
     let (`Row i) = x in
     let mnemonic = table_rows.(i).T.mnemonic in
-    Array.fold_left
-      (fun acc (r : T.row) ->
-        match acc with
-        | Some _ -> acc
-        | None -> if String.equal r.mnemonic mnemonic then table_encode_row r ops else None)
-      None table_rows
+    match table_encode_row table_rows.(i) ops with
+    | Some _ as found -> found
+    | None ->
+        Array.fold_left
+          (fun acc (r : T.row) ->
+            match acc with
+            | Some _ -> acc
+            | None -> if String.equal r.mnemonic mnemonic then table_encode_row r ops else None)
+          None table_rows
+
+  (* GNU as's pseudo-prefixes, each a condition on the row: [{evex}] and [{vex}] the encoding
+     space, [{load}] and [{store}] whether the destination is ModR/M.reg or ModR/M.rm. *)
+  let pseudo_prefix_allows prefix (r : T.row) =
+    let dest_field () =
+      match List.rev r.operands with T.Reg { field; _ } :: _ -> Some field | _ -> None
+    in
+    match prefix with
+    | "evex" -> r.space = T.Evex
+    | "vex" -> r.space = T.Vex
+    | "load" -> dest_field () = Some T.Modrm_reg
+    | "store" -> dest_field () = Some T.Modrm_rm
+    | _ -> false
+
+  (* [{evex} vaddps] -> [Some ("evex", "vaddps")] *)
+  let split_pseudo_prefix m =
+    if String.length m > 0 && m.[0] = '{' then
+      match String.index_opt m '}' with
+      | Some k when k + 1 < String.length m && m.[k + 1] = ' ' ->
+          Some (String.sub m 1 (k - 1), String.sub m (k + 2) (String.length m - k - 2))
+      | _ -> None
+    else None
 
   let table_index mnemonic =
     let rec go i =
@@ -9003,42 +9071,60 @@ module Make (M : MODE) = struct
           { s with mnemonic = p ^ " " ^ op; ops = [] }
       | _ -> s
     in
-    (* GNU as lets a register operand fix the operand size, and rejects a suffix on most newer
+    match split_pseudo_prefix s.Surface.mnemonic with
+    | Some (prefix, m) -> (
+        (* only a generated row can honour a pseudo-prefix: the first of the spelling's rows
+           the prefix allows whose operands fit *)
+        let rec go i =
+          if i >= Array.length table_rows then None
+          else
+            let r = table_rows.(i) in
+            if
+              String.equal r.T.mnemonic m && table_applies r && pseudo_prefix_allows prefix r
+              && table_encode_row r s.Surface.ops <> None
+            then Some i
+            else go (i + 1)
+        in
+        match go 0 with
+        | Some i -> Ok (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
+        | None -> Error (diag ~pos:__POS__ (`Unknown_instruction s.Surface.mnemonic)))
+    | None -> (
+        (* GNU as lets a register operand fix the operand size, and rejects a suffix on most newer
        integer instructions ([rdrand %eax]), so for a mnemonic the hand-written forms do not know
        the register also names the sized row. A hand-written mnemonic keeps requiring its suffix
        (see DEC-X86-SUFFIX). *)
-    let inferred =
-      List.filter_map
-        (function
-          | Operand.Reg (r : Reg.t) when List.mem r.width [ 8; 16; 32; 64 ] ->
-              Some (s.Surface.mnemonic ^ suffix_of_width r.width)
-          | _ -> None)
-        s.Surface.ops
-    in
-    let row spellings =
-      List.find_map
-        (fun m ->
-          match table_index m with
-          | Some i when table_encode (`Row i) s.Surface.ops <> None ->
-              Some (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
-          | _ -> None)
-        spellings
-    in
-    (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
+        let inferred =
+          List.filter_map
+            (function
+              | Operand.Reg (r : Reg.t) when List.mem r.width [ 8; 16; 32; 64 ] ->
+                  Some (s.Surface.mnemonic ^ suffix_of_width r.width)
+              | _ -> None)
+            s.Surface.ops
+        in
+        let row spellings =
+          List.find_map
+            (fun m ->
+              match table_index m with
+              | Some i when table_encode (`Row i) s.Surface.ops <> None ->
+                  Some (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
+              | _ -> None)
+            spellings
+        in
+        (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
        mode), or accept but cannot lower for these operands (a high VEX register), may be a
        generated row's *)
-    match simplify_hand_written s with
-    | Error e as err -> (
-        let spellings =
-          match Target_error.kind (Err.Error.kind e) with
-          | `Unknown_instruction _ -> s.Surface.mnemonic :: inferred
-          | _ -> [ s.Surface.mnemonic ]
-        in
-        match row spellings with Some i -> Ok i | None -> err)
-    | Ok i as ok -> (
-        match lower_hand_written i with
-        | Ok _ -> ok
-        | Error _ -> ( match row [ s.Surface.mnemonic ] with Some t -> Ok t | None -> ok))
+        match simplify_hand_written s with
+        | Error e as err -> (
+            let spellings =
+              match Target_error.kind (Err.Error.kind e) with
+              | `Unknown_instruction _ -> s.Surface.mnemonic :: inferred
+              | _ -> [ s.Surface.mnemonic ]
+            in
+            match row spellings with Some i -> Ok i | None -> err)
+        | Ok i as ok -> (
+            match lower_hand_written i with
+            | Ok _ -> ok
+            | Error _ -> ( match row [ s.Surface.mnemonic ] with Some t -> Ok t | None -> ok)))
 
   (* A hand-written mnemonic can have generated rows for shapes its own forms do not take (a
      ymm [vpslldq]); those are tried when the hand-written lowering declines. *)
