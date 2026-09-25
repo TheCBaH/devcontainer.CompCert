@@ -2118,19 +2118,21 @@ module Instruction = struct
         if String.equal q.mnemonic r.mnemonic && q.mode = r.mode && shape q = shape r then Some q
         else first (j + 1)
     in
-    match first 0 with
-    | None -> r.mnemonic
-    | Some q -> (
-        if q.space <> r.space then
-          match r.space with
-          | X86_table_row.Evex -> "{evex} " ^ r.mnemonic
-          | Vex -> "{vex} " ^ r.mnemonic
-          | Legacy | Xop -> r.mnemonic
-        else
-          match (dest r, dest q) with
-          | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> "{load} " ^ r.mnemonic
-          | Some X86_table_row.Modrm_rm, Some X86_table_row.Modrm_reg -> "{store} " ^ r.mnemonic
-          | _ -> r.mnemonic)
+    if r.pseudo <> "" then "{" ^ r.pseudo ^ "} " ^ r.mnemonic
+    else
+      match first 0 with
+      | None -> r.mnemonic
+      | Some q -> (
+          if q.space <> r.space then
+            match r.space with
+            | X86_table_row.Evex -> "{evex} " ^ r.mnemonic
+            | Vex -> "{vex} " ^ r.mnemonic
+            | Legacy | Xop -> r.mnemonic
+          else
+            match (dest r, dest q) with
+            | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> "{load} " ^ r.mnemonic
+            | Some X86_table_row.Modrm_rm, Some X86_table_row.Modrm_reg -> "{store} " ^ r.mnemonic
+            | _ -> r.mnemonic)
 
   let pp ppf i =
     match i.ops with
@@ -8815,7 +8817,9 @@ module Make (M : MODE) = struct
                       | None -> (0, 0)
                     in
                     let p2 =
-                      (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4) lor ((1 - v') lsl 3) lor aaa
+                      (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4)
+                      lor ((1 - v') lsl 3)
+                      lor aaa lor r.evex_p2
                     in
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1 || r' = 1 || v' = 1) then
                       None
@@ -8833,7 +8837,10 @@ module Make (M : MODE) = struct
           (fun acc (r : T.row) ->
             match acc with
             | Some _ -> acc
-            | None -> if String.equal r.mnemonic mnemonic then table_encode_row r ops else None)
+            | None ->
+                (* a pseudo-prefix-only row is reached only through it *)
+                if String.equal r.mnemonic mnemonic && r.pseudo = "" then table_encode_row r ops
+                else None)
           None table_rows
 
   (* GNU as's pseudo-prefixes, each a condition on the row: [{evex}] and [{vex}] the encoding
@@ -8842,12 +8849,14 @@ module Make (M : MODE) = struct
     let dest_field () =
       match List.rev r.operands with T.Reg { field; _ } :: _ -> Some field | _ -> None
     in
-    match prefix with
-    | "evex" -> r.space = T.Evex
-    | "vex" -> r.space = T.Vex
-    | "load" -> dest_field () = Some T.Modrm_reg
-    | "store" -> dest_field () = Some T.Modrm_rm
-    | _ -> false
+    if r.pseudo <> "" then String.equal r.pseudo prefix
+    else
+      match prefix with
+      | "evex" -> r.space = T.Evex
+      | "vex" -> r.space = T.Vex
+      | "load" -> dest_field () = Some T.Modrm_reg
+      | "store" -> dest_field () = Some T.Modrm_rm
+      | _ -> false
 
   (* [{evex} vaddps] -> [Some ("evex", "vaddps")] *)
   let split_pseudo_prefix m =
@@ -9011,9 +9020,14 @@ module Make (M : MODE) = struct
           in
           let header_ok =
             header_ok
-            && (match r.space with T.Evex -> !evex_b = 1 = rounding_row | _ -> true)
-            (* the opmask the row allows *)
             && (match r.space with
+              | T.Evex when r.map = 4 || r.evex_p2 <> 0 -> true
+              | T.Evex -> !evex_b = 1 = rounding_row
+              | _ -> true)
+            (* the opmask the row allows; an APX row's ND and NF bits sit where EVEX.b and aaa do *)
+            && (match r.space with
+              | T.Evex when r.map = 4 || r.evex_p2 <> 0 ->
+                  (!evex_b lsl 4) lor !evex_aaa = r.evex_p2 && !evex_z = 0
               | T.Evex -> (
                   match r.mask with
                   | 0 -> !evex_aaa = 0 && !evex_z = 0
@@ -9221,7 +9235,7 @@ module Make (M : MODE) = struct
                       in
                       (* an opmask decorates the destination *)
                       let ops =
-                        if r.space = T.Evex && !evex_aaa <> 0 then
+                        if r.space = T.Evex && r.map <> 4 && r.evex_p2 = 0 && !evex_aaa <> 0 then
                           match List.rev ops with
                           | last :: rest ->
                               List.rev

@@ -11,7 +11,8 @@ let specs repo target =
          if Isa_norm_xed.table_owned (Isa_norm_xed.normalize_hand_written rec_) then
            Isa_x86_table.spec_of_record rec_
          else None)
-       records)
+       records
+    |> Isa_x86_table.inherit_suffix_rule records)
 
 (* Every table-expressible record of one export, including those the hand-written rules own:
    twins are decided over all of them, and hand-written forms get rows too, used only when the
@@ -20,7 +21,9 @@ let all_specs repo target =
   let* records =
     Isa_source_record.read_file (Repo.isa_db_export repo ~source:"xed_resolved" target)
   in
-  Ok (List.filter_map Isa_x86_table.spec_of_record records)
+  Ok
+    (List.filter_map Isa_x86_table.spec_of_record records
+    |> Isa_x86_table.inherit_suffix_rule records)
 
 let render_class : Isa_x86_table.rclass -> string = function
   | Gpr8 -> "Gpr8"
@@ -66,7 +69,9 @@ let render_row (s : Isa_x86_table.spec) =
     \      rm = %d;\n\
     \      operands = [ %s ];\n\
     \      mode = %d;\n\
+    \      evex_p2 = 0x%02x;\n\
     \      mask = %d;\n\
+    \      pseudo = %S;\n\
     \      no_acc = [ %s ];\n\
     \      feature = %S;\n\
     \      source = %S;\n\
@@ -75,7 +80,7 @@ let render_row (s : Isa_x86_table.spec) =
     (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Xop -> "Xop" | `Legacy -> "Legacy")
     s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit s.rm
     (String.concat "; " (List.map render_operand s.operands))
-    s.mode s.mask
+    s.mode s.evex_p2 s.mask s.pseudo
     (String.concat "; " (List.map string_of_int s.no_acc))
     (String.lowercase_ascii s.isa_set)
     s.iform

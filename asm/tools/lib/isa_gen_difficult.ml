@@ -7103,7 +7103,10 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       (* a twin GNU as reaches only with a pseudo-prefix *)
       | Some p -> (Isa_gen_render.mnemonic_key, "{" ^ p ^ "} " ^ row.mnemonic) :: operands
       | None ->
-          if row.mnemonic = canonical.mnemonic && not alt then operands
+          (* an APX promotion's spelling follows its legacy instruction, which the normalized
+             form (read from its record alone) cannot know *)
+          if row.mnemonic = canonical.mnemonic && (not alt) && not (row.space = `Evex && row.map = 4)
+          then operands
           else (Isa_gen_render.mnemonic_key, row.mnemonic) :: operands
     in
     {
@@ -7113,7 +7116,8 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       case_id =
         Printf.sprintf "x86:%s:table-%s%s%s:%s" spec.iform
           (if alt then "alt-" else "")
-          (if Isa_x86_table.spec_lookup_key spec <> spec.iform then "er-" else "")
+          (let k = Isa_x86_table.spec_lookup_key spec in
+           if k = spec.iform then "" else String.sub k (String.length spec.iform + 1) 2 ^ "-")
           variant (Target.to_string target);
       rule_ids =
         [ "table-row"; "table-" ^ variant; "feature:" ^ String.lowercase_ascii spec.isa_set ];
@@ -7237,7 +7241,12 @@ let x86_table_entries repo =
     Ok
       (List.concat_map
          (fun ((s : Isa_x86_table.spec), alt) ->
-           x86_table_entries_of ~alt ?prefix:(Hashtbl.find_opt reachable s.record_id) target s)
+           let prefix =
+             match Hashtbl.find_opt reachable s.record_id with
+             | Some p -> Some p
+             | None -> if s.pseudo <> "" then Some s.pseudo else None
+           in
+           x86_table_entries_of ~alt ?prefix target s)
          (List.rev unique))
   in
   let* x32 = per_target Target.X86_32 in

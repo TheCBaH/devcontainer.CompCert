@@ -27,10 +27,13 @@ type spec = {
   digit : int;
   operands : operand list;
   mode : int;
+  evex_p2 : int;  (** APX map 4: ND (0x10) and NF (0x04) *)
   mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
   rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** an integer form spelled with its operand-size suffix, added by {!expand} *)
+  suffix_isa : string;
+  pseudo : string;
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** the operand sizes a width-variable (GPRv) form takes *)
 }
@@ -69,6 +72,8 @@ type pattern = {
   bcrc : bool;  (** BCRC=1: EVEX.b set *)
   nozero : bool;  (** ZEROING=0: no {z} *)
   rm : int;  (** RM[0bxxx]: a fixed ModR/M.rm, or -1 *)
+  nd : bool;  (** APX ND=1: a new data destination in vvvv *)
+  nf : bool;  (** APX NF=1: flags untouched *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
 }
@@ -92,6 +97,10 @@ let parse_pattern pattern =
             | "ZEROING=0" -> Some { p with nozero = true }
             | "UBIT=1" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
             | "BCRC=1" -> Some { p with bcrc = true }
+            (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
+            | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" -> Some p
+            | "ND=1" -> Some { p with nd = true }
+            | "NF=1" -> Some { p with nf = true }
             | "VMODRM_XMM()" | "UISA_VMODRM_XMM()" -> Some { p with vsib = Some Xmm }
             | "VMODRM_YMM()" | "UISA_VMODRM_YMM()" -> Some { p with vsib = Some Ymm }
             | "UISA_VMODRM_ZMM()" -> Some { p with vsib = Some Zmm }
@@ -177,6 +186,8 @@ let parse_pattern pattern =
          bcrc = false;
          nozero = false;
          rm = -1;
+         nd = false;
+         nf = false;
          vsib = None;
          round = `None;
        })
@@ -340,6 +351,34 @@ let att_mnemonic ?(vl = -1) ~iclass operands =
 
 (* A form the x86-32 export lists that 32-bit mode cannot encode: a legacy REX.W, a 64-bit GPR,
    or a 64-bit-mode-only pattern. GNU as rejects each ("bad register name %rax"). *)
+let iclass_of_iform iform =
+  match String.index_opt iform '_' with Some i -> String.sub iform 0 i | None -> iform
+
+let inherit_suffix_rule (records : R.t list) specs =
+  let legacy = Hashtbl.create 256 in
+  List.iter
+    (fun (r : R.t) ->
+      match (r.encoding, r.provenance) with
+      | R.X86_encoding { space = "legacy"; _ }, R.Xed_provenance { isa_set = Some isa; _ }
+        when not (starts_with ~prefix:"APX" isa) ->
+          Hashtbl.replace legacy r.native_name isa
+      | _ -> ())
+    records;
+  List.map
+    (fun s ->
+      if s.space = `Evex && s.map = 4 then
+        match Hashtbl.find_opt legacy (iclass_of_iform s.iform) with
+        | Some isa ->
+            {
+              s with
+              suffix_isa = isa;
+              (* GNU encodes the plain spelling as the legacy instruction *)
+              pseudo = (if s.pseudo = "" && s.evex_p2 = 0 then "evex" else s.pseudo);
+            }
+        | None -> s
+      else s)
+    specs
+
 let not_in_32bit_mode (rec_ : R.t) =
   match rec_.encoding with
   | R.X86_encoding { space; pattern; operands; _ } ->
@@ -415,6 +454,11 @@ let gpr_ok operands ~iclass =
 (* The concrete rows of a spec: a width-variable integer form becomes its 16-, 32- and 64-bit
    rows (0x66 / none / REX.W; a [z] immediate is 2 or 4 bytes), each spelled with its size
    suffix. Any other spec is itself. *)
+(* The ISA sets whose integer mnemonics GNU as spells with a size suffix *)
+let classic_isa isa_set =
+  List.mem isa_set [ "PENTIUMREAL"; "PPRO"; "LONGMODE"; "I486REAL"; "PENTIUMMMX" ]
+  || (String.length isa_set > 1 && isa_set.[0] = 'I' && isa_set.[1] >= '0' && isa_set.[1] <= '9')
+
 let expand spec =
   if not spec.sized then [ spec ]
   else
@@ -424,13 +468,7 @@ let expand spec =
           | Reg { cls = Gprv; _ } | Mem { bits = -1 } | Imm { bytes = 0 } -> true | _ -> false)
         spec.operands
     in
-    let classic =
-      List.mem spec.isa_set [ "PENTIUMREAL"; "PPRO"; "LONGMODE"; "I486REAL"; "PENTIUMMMX" ]
-      || String.length spec.isa_set > 1
-         && spec.isa_set.[0] = 'I'
-         && spec.isa_set.[1] >= '0'
-         && spec.isa_set.[1] <= '9'
-    in
+    let classic = classic_isa spec.suffix_isa in
     (* GNU as rejects a size suffix on most newer integer instructions: a register operand or
        the instruction itself states the size there. invlpg's byte operand is an address, and
        invlpgb is another instruction. *)
@@ -482,7 +520,7 @@ let expand spec =
             spec with
             mnemonic = spec.mnemonic ^ suffix width;
             operands;
-            osz = width = 16;
+            osz = width = 16 && spec.space = `Legacy;
             (* VEX.W is the operand size of a y-width form *)
             w = (if width = 64 then 1 else if spec.space <> `Legacy then 0 else spec.w);
             mode = (if width = 64 then 64 else spec.mode);
@@ -566,18 +604,40 @@ let spec_of_record (rec_ : R.t) =
                 (function Reg { cls = Gprv; _ } | Mem { bits = -1 } -> true | _ -> false)
                 xed_order
             in
+            let apx = space = "evex" && opcode_map = 4 in
+            (* REG[rrr] with no register behind it: GNU encodes 0 *)
+            let digit =
+              if
+                p.digit < 0 && p.free_reg
+                && not
+                     (List.exists
+                        (function Reg { field = Modrm_reg; _ } -> true | _ -> false)
+                        att)
+              then 0
+              else p.digit
+            in
             match prefix with
             | None -> None
             | Some _ when p.memory = Some true <> has_mem -> None
             (* EVEX.b means rounding only on a register form, and only where the pattern says so *)
             | Some _ when p.bcrc && (p.round = `None || has_mem) -> None
             | Some _ when (not p.bcrc) && p.round <> `None -> None
+            (* CFCMOV's NF bit selects its store form, not {nf}; the ZU forms are setzu/imulzu *)
+            | Some _
+              when apx
+                   && ((p.nf && starts_with ~prefix:"CFCMOV" rec_.native_name)
+                      || ends_with ~suffix:"_ZU" iform) ->
+                None
             | Some prefix ->
                 Some
                   {
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
+                    (* an APX promotion's suffix rule and {evex} need are its legacy
+                       instruction's, filled in by inherit_suffix_rule *)
+                    suffix_isa = (if apx then "" else isa_set);
+                    pseudo = (if p.nf then "nf" else "");
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = (match space with "vex" -> `Vex | "evex" -> `Evex | _ -> `Xop);
                     map = opcode_map;
@@ -587,11 +647,12 @@ let spec_of_record (rec_ : R.t) =
                     w = p.rexw;
                     (* a rounding mode takes L'L's place *)
                     l = (if p.bcrc then -1 else p.vl);
-                    digit = p.digit;
+                    digit;
                     rm = (if p.vsib = None then p.rm else -1);
                     operands = att;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = (if space = "evex" then disp8_scale p else 1);
+                    evex_p2 = ((if p.nd then 0x10 else 0) lor if p.nf then 0x04 else 0);
                     mask =
                       (let has l =
                          List.exists (fun (o : R.x86_operand) -> o.lookupfn_name = Some l) operands
@@ -599,10 +660,17 @@ let spec_of_record (rec_ : R.t) =
                        if has "MASKNOT0" then 3
                        else if has "MASK1" then if p.nozero then 2 else 1
                        else 0);
-                    (* a y-width GPR form is a 32-bit (W0) and a 64-bit (W1) row *)
-                    sized = variable;
+                    (* a y-width GPR form is a 32-bit (W0) and a 64-bit (W1) row; an APX map-4 form
+                       is a legacy instruction's EVEX promotion, spelled with its size suffix *)
+                    sized = variable || (space = "evex" && opcode_map = 4);
                     no_acc = [];
-                    widths = (match p.rexw with 0 -> [ 32 ] | 1 -> [ 64 ] | _ -> [ 32; 64 ]);
+                    widths =
+                      (match p.rexw with
+                      | 0 -> [ 32 ]
+                      | 1 -> [ 64 ]
+                      (* APX's 16-bit forms are EVEX.pp = 66 *)
+                      | _ when space = "evex" && opcode_map = 4 && prefix = 0x66 -> [ 16 ]
+                      | _ -> [ 32; 64 ]);
                   })
       | _ -> None)
   | ( R.X86_encoding { space = "legacy"; opcode_map; opcode; pattern; operands },
@@ -647,6 +715,8 @@ let spec_of_record (rec_ : R.t) =
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
+                    suffix_isa = isa_set;
+                    pseudo = "";
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = `Legacy;
                     map = opcode_map;
@@ -660,6 +730,7 @@ let spec_of_record (rec_ : R.t) =
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
+                    evex_p2 = 0;
                     mask = 0;
                     sized = false;
                     no_acc = [];
@@ -702,6 +773,8 @@ let spec_of_record (rec_ : R.t) =
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
+                    suffix_isa = isa_set;
+                    pseudo = "";
                     mnemonic = integer_mnemonic ~rep:p.rep rec_.native_name;
                     space = `Legacy;
                     map = opcode_map;
@@ -716,6 +789,7 @@ let spec_of_record (rec_ : R.t) =
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
+                    evex_p2 = 0;
                     mask = 0;
                     sized = true;
                     no_acc =
@@ -750,17 +824,23 @@ let operand_name i = Printf.sprintf "op%d" i
    differential case must name one or the other, so the rounding one is keyed apart. *)
 let rounding_suffix = "#er"
 
+(* likewise an APX form's {nf} variant *)
+let nf_suffix = "#nf"
+
 let lookup_key (rec_ : R.t) =
   match (rec_.provenance, rec_.encoding) with
   | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } ->
       let tokens = String.split_on_char ' ' pattern in
-      if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix else iform
+      if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix
+      else if List.mem "NF=1" tokens then iform ^ nf_suffix
+      else iform
   | R.Xed_provenance { iform = Some iform; _ }, _ -> iform
   | _ -> ""
 
 let spec_lookup_key spec =
   if List.exists (function Rounding _ -> true | _ -> false) spec.operands then
     spec.iform ^ rounding_suffix
+  else if spec.evex_p2 land 4 <> 0 then spec.iform ^ nf_suffix
   else spec.iform
 
 (* The row a normalized form and its first case describe: the 32-bit one of a width-variable
@@ -930,9 +1010,13 @@ let twin_primaries specs =
           ( (* GNU picks VEX for a spelling both could encode, but EVEX over the VEX-only AVX
                VNNI/IFMA/NE-CONVERT sets *)
             (if List.mem s.isa_set evex_preferred then false else s.space <> `Evex),
+            (* an APX {nf} form only through its pseudo-prefix *)
+            s.evex_p2 land 4 = 0,
             (if is4 s then if has_imm s || s.space = `Xop then s.w <> 1 else s.w = 1 else true),
             short s,
-            (if integer s then dest_in_rm s else dest_in_reg s),
+            (* integer forms take ModR/M.rm as the destination, but movbe loads *)
+            (if integer s && not (starts_with ~prefix:"MOVBE" s.iform) then dest_in_rm s
+             else dest_in_reg s),
             s.opcode = 0x1f,
             s.w <> 1,
             (* last, the lower opcode: EVEX vmovd is 6E/7E, not XED's F3 7E / 66 D6 aliases *)
@@ -966,7 +1050,8 @@ let twin_rank specs =
    from its primary by a case keyed on the iform. *)
 let pseudo_prefix ~(primary : spec) (s : spec) =
   let dest x = match List.rev x.operands with Reg { field; _ } :: _ -> Some field | _ -> None in
-  if s.iform = primary.iform then None
+  if s.pseudo <> "" && primary.pseudo <> s.pseudo then Some s.pseudo
+  else if s.iform = primary.iform then None
   else if s.space <> primary.space then
     match s.space with `Evex -> Some "evex" | `Vex -> Some "vex" | `Legacy | `Xop -> None
   else

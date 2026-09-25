@@ -41,9 +41,15 @@ type row = {
   rm : int;  (** a fixed ModR/M.rm (register form, no rm operand), or -1 *)
   operands : operand list;  (** in AT&T order *)
   mode : int;  (** 0 in both modes; 64 or 32 when only that mode has the form *)
+  evex_p2 : int;
+      (** fixed EVEX P2 bits of an APX map-4 row: ND (0x10, a new destination in vvvv) and NF
+          (0x04, flags untouched: the [{nf}] pseudo-prefix) *)
   mask : int;
       (** EVEX opmask on the destination: 0 none, 1 [{%kN}] or [{%kN}{z}], 2 [{%kN}] only
           (merging), 3 a [{%kN}] other than k0 required (gathers, scatters) *)
+  pseudo : string;
+      (** the pseudo-prefix that alone reaches this row: [nf], or [evex] for an APX promotion of
+          a legacy instruction (GNU encodes the plain spelling as the legacy one); or empty *)
   no_acc : int list;
       (** operand positions that must not be the accumulator: GNU as encodes that spelling with
           an accumulator-specific form ([xchg %ebx, %eax] is 0x93) *)

@@ -36,10 +36,17 @@ type spec = {
   digit : int;
   operands : operand list;  (** AT&T order *)
   mode : int;  (** 0, or 64 for a 64-bit-only form *)
+  evex_p2 : int;  (** APX map 4: ND (0x10) and NF (0x04) *)
   mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
   rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** spelled with an operand-size suffix, added by {!expand} *)
+  suffix_isa : string;
+      (** the ISA set whose suffix convention the spelling follows: the record's own, or for an
+          APX promotion its legacy instruction's ({!inherit_suffix_rule}) *)
+  pseudo : string;
+      (** the pseudo-prefix the row is reached only through: [nf], or [evex] for an APX
+          promotion of a legacy instruction; empty otherwise *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** operand sizes of a width-variable (GPRv) form *)
 }
@@ -61,7 +68,7 @@ val operand_name : int -> string
 
 val lookup_key : Isa_source_record.t -> string
 (** The iform, told apart for an EVEX embedded-rounding register variant (which XED lists under
-    the plain form's iform) by a [#er] suffix. *)
+    the plain form's iform) by a [#er] suffix, an APX [{nf}] variant by [#nf]. *)
 
 val spec_lookup_key : spec -> string
 
@@ -76,6 +83,10 @@ val twin_rank : spec list -> (string, int) Hashtbl.t
 val reachable_twins : spec list -> (string, string) Hashtbl.t
 (** The twins GNU as reaches with a pseudo-prefix: record id to [evex], [vex], [load] or
     [store]. A twin sharing its primary's iform is not listed. *)
+
+val inherit_suffix_rule : Isa_source_record.t list -> spec list -> spec list
+(** APX map-4 promotions take their legacy instruction's suffix convention (the same iclass
+    outside APX) and need [{evex}]; one with no legacy sibling keeps neither. *)
 
 val not_in_32bit_mode : Isa_source_record.t -> bool
 (** A form the x86-32 export lists but 32-bit mode cannot encode (legacy REX.W, a 64-bit GPR, a

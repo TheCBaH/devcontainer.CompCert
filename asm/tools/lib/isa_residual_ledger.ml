@@ -134,44 +134,30 @@ let rows =
       families =
         [
           "APX_F";
-          "APX_F_ADX";
-          "APX_F_ADX_N3";
           "APX_F_AMX";
           "APX_F_AMX_MOVRS";
           "APX_F_BMI1";
           "APX_F_BMI1_N3";
-          "APX_F_BMI2";
-          "APX_F_BMI2_N3";
-          "APX_F_CET";
-          "APX_F_CMPCCXADD";
           "APX_F_ENQCMD";
-          "APX_F_INVPCID";
-          "APX_F_KOPB";
-          "APX_F_KOPD";
-          "APX_F_KOPQ";
-          "APX_F_KOPW";
           "APX_F_LZCNT";
           "APX_F_LZCNT_N3";
           "APX_F_MOVBE";
           "APX_F_MOVDIR64B";
           "APX_F_MOVDIRI";
           "APX_F_MOVRS";
-          "APX_F_MSR_IMM";
           "APX_F_N3";
           "APX_F_POPCNT";
           "APX_F_POPCNT_N3";
-          "APX_F_RAO_INT";
-          "APX_F_USER_MSR";
-          "APX_F_VMX";
         ];
       capability =
-        "Intel APX: REX2 and EVEX map-4 prefixes, r16-r31, new data destination (NDD), no-flags \
-         (NF) and conditional forms.";
-      evidence = "family-admission: every APX_* family is unhandled";
+        "Intel APX beyond the EVEX map-4 promotions: REX2 and r16-r31, conditional compare/test \
+         (CCMP/CTEST: SCC and default-flags operands), the shift/rotate-by-one forms, and \
+         promotions GNU spells differently from XED (setzu/imulzu, CFCMOV's store form).";
+      evidence =
+        "family-admission: the APX_F map-4 promotions of legacy instructions are promoted (plain \
+         {evex}, NDD three-operand and {nf} forms); SCC, by-one shifts and REX2 remain";
       task = "GEN-05-X86-APX";
-      reopening_gate =
-        "the encoder models REX2/extended GPRs and a GAS accepting APX is probed; the capture \
-         already preserves the pattern";
+      reopening_gate = "the encoder models REX2/extended GPRs and CCMP/CTEST's {dfv=} operand";
     };
     {
       id = "RES-X86-AMX";
