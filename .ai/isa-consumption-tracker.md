@@ -27,6 +27,20 @@ Phase-2 goal: blocked → only `oracle-unavailable` residue on RISC-V (**met
 2026-09-25**: RV32 1,057 promoted / 32 oracle-unavailable, RV64 1,140 / 14),
 and the x86 ledger worked down in the plan section 6 order.
 
+Snapshot 2026-09-25 (`f4a5fe3`), dated evidence rather than a live count:
+
+| Profile | Records | Promoted | Oracle-unavailable | Blocked |
+|---|---:|---:|---:|---:|
+| x86-32 | 7,887 | 7,360 | 153 | 369 |
+| x86-64 | 10,571 | 9,738 | 159 | 669 |
+
+What remains blocked on x86 is mostly same-spelled twins GNU as never emits
+(155 on x86-32, ~490 on x86-64: aliases sharing an iform such as `shl /6`,
+the other direction of reg-reg ALU forms, FMA4/XOP W twins), the 16-bit-mode
+records (DEC-X86-MODE16, 66), the five pilot records waiting on
+DEC-X86-SUFFIX, and small families (segment-register moves, far transfers,
+reserved NOPs with no GNU spelling, SVM/SNP implicit-register forms).
+
 ## Status
 
 | ID | Work package | State | Depends on | Next action |
