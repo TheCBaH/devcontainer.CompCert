@@ -3040,3 +3040,12 @@ val build : entry -> Isa_norm_model.form -> (Isa_generated_case.case, string) re
     {!Isa_gen_render.render_source_lines}, and builds the
     {!Isa_generated_case.case} through the same oracle/ours/verdict/corpus
     machinery (reused unmodified) that runs the pilot cases. *)
+
+val table_entries : Repo.t -> (entry list, Tool_error.t) Err.t
+(** Generated cases for every table row ({!Isa_riscv_table}) on each profile
+    that has the record: representative registers, and each unsigned
+    immediate at zero and at its maximum. *)
+
+val entries : Repo.t -> (entry list, Tool_error.t) Err.t
+(** {!all} followed by {!table_entries}: what regeneration and the offline
+    check iterate. *)

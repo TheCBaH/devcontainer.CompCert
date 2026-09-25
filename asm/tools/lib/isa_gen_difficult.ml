@@ -6850,3 +6850,60 @@ let build (entry : entry) (form : Isa_norm_model.form) =
         configuration = entry.configuration;
         negative = false;
       }
+
+(* INF-05R/INF-03: one or two generated cases per table row (DEC-RV-TABLE)
+   and profile - representative registers (a0/a1/a2, fa0/fa1/fa2), and each
+   unsigned immediate at zero and at its maximum - built from the same
+   Isa_riscv_table rule that emits the encoder rows. *)
+let table_entries_of target (spec : Isa_riscv_table.spec) =
+  let gprs = [ "a0"; "a1"; "a2"; "a3" ] and fprs = [ "fa0"; "fa1"; "fa2"; "fa3" ] in
+  let assign ~imm =
+    List.mapi
+      (fun i (o : Isa_riscv_table.operand) ->
+        match o with
+        | Gpr { field; _ } -> Some (field, List.nth gprs i)
+        | Fpr { field; _ } -> Some (field, List.nth fprs i)
+        | Uimm { field; width; _ } ->
+            Some (field, if imm = `Max then string_of_int ((1 lsl width) - 1) else "0")
+        | Fixed_gpr _ -> None)
+      spec.operands
+    |> List.filter_map Fun.id
+  in
+  let has_imm =
+    List.exists (function Isa_riscv_table.Uimm _ -> true | _ -> false) spec.operands
+  in
+  let entry variant imm =
+    {
+      form_id = "riscv:" ^ spec.native_name;
+      target;
+      lookup_key = spec.native_name;
+      case_id =
+        Printf.sprintf "riscv:%s:table-%s:%s" spec.native_name variant (Target.to_string target);
+      rule_ids = [ "table-row"; "table-" ^ variant; "feature:" ^ spec.feature ];
+      operands = assign ~imm;
+      lines_before = [];
+      lines_after = [];
+      configuration = Isa_riscv_table.march target spec;
+    }
+  in
+  if has_imm then [ entry "uimm-zero" `Zero; entry "uimm-max" `Max ]
+  else [ entry "registers" `Zero ]
+
+let table_entries repo =
+  let ( let* ) = Result.bind in
+  let per_target target =
+    let* records =
+      Isa_source_record.read_file (Repo.isa_db_export repo ~source:"riscv_opcodes" target)
+    in
+    let available (spec : Isa_riscv_table.spec) =
+      Isa_oracle_unavailable.find ~source:"riscv_opcodes" target ~extension:spec.extension = None
+    in
+    Ok
+      (List.concat_map (table_entries_of target)
+         (List.filter available (List.filter_map Isa_riscv_table.spec_of_record records)))
+  in
+  let* rv32 = per_target Target.Riscv32 in
+  let* rv64 = per_target Target.Riscv64 in
+  Ok (rv32 @ rv64)
+
+let entries repo = Result.map (fun table -> all @ table) (table_entries repo)

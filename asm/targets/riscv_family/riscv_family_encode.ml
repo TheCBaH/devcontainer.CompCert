@@ -3,6 +3,8 @@ module C = Codec
 
 (* Re-exported: the library's main module hides its siblings otherwise. *)
 module Riscv_ext_m = Riscv_ext_m
+module Riscv_table_row = Riscv_table_row
+module Riscv_table_rows = Riscv_table_rows
 
 module type PROFILE = sig
   val name : string
@@ -880,8 +882,10 @@ module Make (P : PROFILE) = struct
       | Vfncvtbf16_f_f_w
       | Vfwmaccbf16_vv
       | Vfwmaccbf16_vf
+      | Table of int  (** a generated {!Riscv_table_rows} row, by index (DEC-RV-TABLE) *)
 
     let name = function
+      | Table i -> Riscv_table_rows.rows.(i).Riscv_table_row.mnemonic
       | Add -> "add"
       | Sub -> "sub"
       | Sll -> "sll"
@@ -2359,9 +2363,25 @@ module Make (P : PROFILE) = struct
         ("vse1.v", "vsm.v");
       ]
 
+    (* The first generated row spelled [s] for this XLEN; lowering tries every
+       row with that spelling, so the index only names the mnemonic. *)
+    let table_index s =
+      let rows = Riscv_table_rows.rows in
+      let rec go i =
+        if i >= Array.length rows then None
+        else
+          let r = rows.(i) in
+          if String.equal r.Riscv_table_row.mnemonic s && (r.xlen = 0 || r.xlen = xlen) then
+            Some (Table i)
+          else go (i + 1)
+      in
+      go 0
+
     let of_mnemonic s =
       let s = Option.value (List.assoc_opt s deprecated_mnemonic_aliases) ~default:s in
-      List.find_opt (fun op -> String.equal (name op) s) all
+      match List.find_opt (fun op -> String.equal (name op) s) all with
+      | Some _ as op -> op
+      | None -> table_index s
   end
 
   open Opcode
@@ -4687,9 +4707,57 @@ module Make (P : PROFILE) = struct
   let fence_set_name v =
     String.concat "" (List.filteri (fun j _ -> v land (1 lsl (3 - j)) <> 0) [ "i"; "o"; "r"; "w" ])
 
+  (* DEC-RV-TABLE: a generated row's operand, checked against its field and
+     placed at its bit position; [None] when the operand does not fit. *)
+  let table_field op (operand : Riscv_table_row.operand) =
+    let place lsb v = Some (Int64.shift_left v lsb) in
+    let low width v = Int64.logand v (Int64.sub (Int64.shift_left 1L width) 1L) in
+    let value () = Option.bind (expr_of op) int64_expr in
+    match operand with
+    | Gpr { lsb; nonzero } -> (
+        match xreg op with
+        | Some n when (not nonzero) || n <> 0 -> place lsb (Int64.of_int n)
+        | _ -> None)
+    | Fpr { lsb } -> Option.bind (freg op) (fun n -> place lsb (Int64.of_int n))
+    | Uimm { lsb; width } -> (
+        match value () with Some v when fits_unsigned width v -> place lsb v | _ -> None)
+    | Simm { lsb; width } -> (
+        match value () with Some v when fits_signed width v -> place lsb (low width v) | _ -> None)
+    | Fixed_gpr n -> ( match xreg op with Some m when m = n -> Some 0L | _ -> None)
+
+  let table_row_applies (r : Riscv_table_row.row) = r.xlen = 0 || r.xlen = xlen
+
+  (* Every row spelled like row [i] is tried in table order; the first whose
+     operands all fit is the encoding. *)
+  let table_lower i ops =
+    let mnemonic = Riscv_table_rows.rows.(i).Riscv_table_row.mnemonic in
+    let encode_row (r : Riscv_table_row.row) =
+      if List.length r.operands <> List.length ops then None
+      else
+        List.fold_left2
+          (fun acc operand op ->
+            match (acc, table_field op operand) with
+            | Some w, Some f -> Some (Int64.logor w f)
+            | _ -> None)
+          (Some r.match_) r.operands ops
+    in
+    let found =
+      Array.fold_left
+        (fun acc (r : Riscv_table_row.row) ->
+          match acc with
+          | Some _ -> acc
+          | None ->
+              if String.equal r.mnemonic mnemonic && table_row_applies r then encode_row r else None)
+        None Riscv_table_rows.rows
+    in
+    match found with
+    | Some word -> Ok [ Lowered.Fixed { name = mnemonic; word } ]
+    | None -> wrong mnemonic
+
   let lower_instruction_ungated state i =
     let opn = Opcode.name i.Instruction.op in
     match (i.op, i.ops) with
+    | Opcode.Table row, ops -> table_lower row ops
     | ( ( Opcode.Mul | Remu | Mulh | Mulhsu | Mulhu | Div | Divu | Rem | Mulw | Divw | Divuw | Remw
         | Remuw ),
         _ )
@@ -7515,6 +7583,33 @@ module Make (P : PROFILE) = struct
 
   type decode_context = { state : target_state; address : int64 }
 
+  (* DEC-RV-TABLE: tried only after the hand-written decoder finds nothing, so a
+     generated row never shadows a hand-written form. *)
+  let table_decode w =
+    let rows = Riscv_table_rows.rows in
+    let field lsb width = bits w lsb width in
+    let operand (o : Riscv_table_row.operand) =
+      match o with
+      | Gpr { lsb; nonzero } ->
+          let n = Int64.to_int (field lsb 5) in
+          if nonzero && n = 0 then None else Some (reg n)
+      | Fpr { lsb } -> Some (f_operand (Int64.to_int (field lsb 5)))
+      | Uimm { lsb; width } -> Some (imm (field lsb width))
+      | Simm { lsb; width } -> Some (imm (sign_extend width (field lsb width)))
+      | Fixed_gpr n -> Some (reg n)
+    in
+    let rec go i =
+      if i >= Array.length rows then None
+      else
+        let r = rows.(i) in
+        if table_row_applies r && Int64.equal (Int64.logand w r.mask) r.match_ then
+          let ops = List.map operand r.operands in
+          if List.mem None ops then go (i + 1)
+          else Some (instruction (Opcode.Table i) (List.filter_map Fun.id ops), r.mnemonic)
+        else go (i + 1)
+    in
+    go 0
+
   let decode_ungated ctx bytes ~pos =
     if String.length bytes - pos < 2 then Error (diag ~pos:__POS__ `Decode_short)
     else if Char.code bytes.[pos] land 3 <> 3 then
@@ -7881,7 +7976,10 @@ module Make (P : PROFILE) = struct
             | _ -> None)
       in
       match result with
-      | None -> Error (diag ~pos:__POS__ `Decode_no_match)
+      | None -> (
+          match table_decode w with
+          | Some (i, f) -> Ok (i, f, 4)
+          | None -> Error (diag ~pos:__POS__ `Decode_no_match))
       | Some (i, f) -> Ok (i, f, 4)
 
   (* Strict decoding: a word that is a disabled component's instruction is refused rather than

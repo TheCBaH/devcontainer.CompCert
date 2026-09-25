@@ -77,9 +77,7 @@ let rows =
       source = "riscv_opcodes";
       families =
         [
-          "rv_f";
           "rv_q";
-          "rv64_d";
           "rv64_q";
           "rv_zfh";
           "rv64_zfh";
@@ -95,13 +93,11 @@ let rows =
           "rv_q_zfhmin";
         ];
       capability =
-        "Floating-point leftovers: fcsr access pseudo-ops (frcsr, frflags, frrm, fscsr, fsflags, \
-         fsflagsi, fsrm, fsrmi), quad and half precision, bfloat16 conversion, and Zfa. Scalar \
-         single/double arithmetic is already promoted; so is the sign-injection/move alias class \
-         (fabs.s, fabs.d, fneg.s, fneg.d, fmv.s, fmv.d, fmv.x.s, fmv.s.x) - rv_d's own pseudo-ops \
-         were entirely that class, so it no longer names a blocked family here.";
-      evidence =
-        "family-admission: rv_f's fcsr pseudo-ops, and all of rv_q and rv_zfh, are unhandled";
+        "Floating-point leftovers: quad and half precision, bfloat16 conversion, and Zfa. Scalar \
+         single/double arithmetic, the sign-injection/move aliases, the fcsr access pseudo-ops and \
+         RV64 fmv.x.d/fmv.d.x are promoted (the last two through the generated RISC-V table), so \
+         rv_f and rv64_d no longer name blocked families here.";
+      evidence = "family-admission: all of rv_q and rv_zfh, and the Zfa files, are unhandled";
       task = "GEN-05-RV-FP";
       reopening_gate =
         "each precision has an FP-register operand class and rounding-mode recipe verified against \
@@ -153,7 +149,6 @@ let rows =
       source = "riscv_opcodes";
       families =
         [
-          "rv_zimop";
           "rv_zicbo";
           "rv_zicfilp";
           "rv_zicfiss";
@@ -164,28 +159,17 @@ let rows =
           "rv32_zilsd";
         ];
       capability =
-        "May-be-operation, cache-block, control-flow-integrity, non-temporal-hint, fence.i, \
-         counter-read and paired-load/store forms: mostly single-mnemonic families that each need \
-         a feature-name mapping and a GAS probe.";
-      evidence = "family-admission: rv_zimop, rv_zicbo and rv_zicfiss are entirely unhandled";
+        "Cache-block, control-flow-integrity, non-temporal-hint, fence.i, counter-read and \
+         paired-load/store forms: mostly single-mnemonic families that each need a feature-name \
+         mapping and a GAS probe. Zimop is promoted through the generated RISC-V table (its \
+         mop.r.N/mop.rr.N templates are oracle-unavailable: GAS spells only the concrete N), and \
+         so are Zicfiss's sspush/sspopchk/ssrdp on RV64 (RV32 GAS 2.43.1 lacks zicfiss).";
+      evidence =
+        "family-admission: rv_zicbo is unhandled; rv_zicfiss keeps only ssamoswap.w/d (the aq/rl \
+         amo shape)";
       task = "GEN-05-RV-MISC";
       reopening_gate =
         "each family has a feature mapping in Isa_norm_riscv and an installed-GAS probe recorded";
-    };
-    {
-      id = "RES-RV-ZBA-UW";
-      source = "riscv_opcodes";
-      families = [ "rv64_zba" ];
-      capability =
-        "Zba word-operand leftovers (add.uw, slli.uw, zext.w): the shift-amount and unsigned-word \
-         operand shapes on RV64.";
-      evidence =
-        "family-admission: add.uw, slli.uw and zext.w are unhandled; sh1add.uw/sh2add.uw/sh3add.uw \
-         are promoted";
-      task = "GEN-05-RV-ZBA";
-      reopening_gate =
-        "add.uw uses the R-type shape, slli.uw the 6-bit shamt shape, zext.w the two-GPR pseudo \
-         shape";
     };
     {
       id = "RES-X86-EVEX";

@@ -34,7 +34,7 @@ x86 ledger worked down in the plan section 6 order.
 | INF-02 | Operand-vocabulary normalization, construct-keyed blockers | done | — | Generic operand-driven normalization moves into INF-05R/INF-05X |
 | INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
 | INF-04 | Batched, sharded, incremental GAS regeneration | done | — | — |
-| INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | investigating | INF-02 | Write the decision record |
+| INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | done (first landing); extend per family | INF-02 | Widen the field-domain rule (split immediates, rm, aq/rl, csr) as families need it |
 | INF-05X | x86 form-row encoder (DEC-X86-TABLE) | investigating | INF-02 | Write the decision record |
 | INF-06 | Feature on every table row; retrofit admitted forms | not-started | INF-05* | — |
 | DEC-X86-MODE16 | 16-bit-only forms in the `x86_32` export | not-started | — | Count them; decide `.code16` vs out of scope. Also covers REX.W/GPR64 records the `x86_32` export carries (e.g. `CVTSI2SD_XMMsd_GPR64q`), which 32-bit mode cannot encode |
@@ -42,9 +42,9 @@ x86 ledger worked down in the plan section 6 order.
 | FREE-01 | Cases for normalized-only / GAS-generatable records | done (RISC-V); x86 blocked | DEC-X86-SUFFIX, DEC-X86-MODE16 | x86 residue needs the two decisions below |
 | FREE-02 | Credit x86 forms already encoded for CompCert | ready | INF-02 helps | Enumerate encoder `Opcode`s without a normalized form |
 | GEN-05-RV-BASE | RISC-V base-integer remainder | done except `fence` | — | `fence` needs a flag-set operand domain in `Isa_norm_model` |
-| GEN-05-RV-ZBA | `add.uw`, `slli.uw`, `zext.w` | ready | — | — |
-| GEN-05-RV-FP | fcsr pseudos, `fmv.x.d`/`fmv.d.x`, Zfh/Zfhmin, Q, Zfa, Zfbfmin | ready | INF-05R helps | fcsr pseudos and `fmv.*.d` first |
-| GEN-05-RV-MISC | Zimop, Zicbo, Zicfiss/Zicfilp, Zihintntl, Zifencei, Zicntr; Zilsd | not-started | INF-05R | — |
+| GEN-05-RV-ZBA | `add.uw`, `slli.uw`, `zext.w` | done | — | ledger row deleted |
+| GEN-05-RV-FP | Zfh/Zfhmin, Q, Zfa, Zfbfmin | ready | INF-05R | fcsr pseudos and `fmv.*.d` done via the table; next add FP files with an `rm` domain to the table |
+| GEN-05-RV-MISC | Zicbo, Zicfilp, `ssamoswap`, Zihintntl, Zifencei, Zicntr; Zilsd | implementing | INF-05R | Zimop and Zicfiss (RV64) done via the table |
 | GEN-05-RV-ATOMIC | Zabha, Zacas, Zawrs; Zalasr | not-started | — | — |
 | GEN-05-RV-PRIV | H, S, system, Svinval, Sdext, Ssctr; Smrnmi | not-started | INF-05R | Revise ledger gate (section "Ledger corrections") |
 | GEN-05-RV-C | Compressed remainder and Zc* sub-extensions | implementing | — | `c.li`/`c.lui`/`c.addi16sp`/`c.addi4spn`/`c.andi`/shifts/`c.addiw`/`c.nop`/`c.j` |
@@ -161,8 +161,33 @@ reviewed, ARM/js_of_ocaml/Melange compile limits for large tables, decode
 priority and collision testing against hand-written alternatives, and which
 forms stay hand-written (fixups, relaxation, selection, compressed subsets).
 
-- [ ] DEC-RV-TABLE recorded; RISC-V table encoder/decoder lands with one
-  family (suggest Zimop: 42 records, GPR-only) and no byte changes elsewhere.
+**DEC-RV-TABLE (2026-09-25, decided).** Alternatives: (a) keep one `Opcode`
+constructor plus encode/decode arms per mnemonic — ~10 lines in four places
+per form; (b) a hand-maintained table — cheaper, but restates the capture by
+hand and drifts; (c) **a generated, checked-in table — chosen.**
+- `compcert_tools isa-table riscv-emit` derives rows from the committed
+  riscv-opcodes export and writes `asm/targets/riscv_family/riscv_table_rows.ml`;
+  a toolchain-free check (repo test) fails when the file differs from a fresh
+  emission, so review happens on the generated diff.
+- Row: mnemonic, mask, match, operands in GNU syntax order (GPR/FPR register
+  field at an lsb, optional non-zero; unsigned/signed contiguous immediate;
+  a spelled-but-fixed register such as `sspopchk x1`), XLEN, feature, source
+  record. Only contiguous fields: split immediates, fixups, relaxation,
+  compressed register subsets and vector forms stay hand-written.
+- Field domains and GPR/FPR classes are a reviewed OCaml rule in the tools
+  (`Isa_riscv_table`), shared by the emitter, the normalizer and the case
+  generator; a family enters the table only through an explicit allowlist.
+- Oracle independence: rows come from riscv-opcodes, expected bytes from GAS
+  cases generated per row (representative registers, immediate endpoints).
+- Priority: hand-written `Opcode`s win on mnemonic and on decode; rows are
+  tried after the hand-written decoder fails. Tests: no row mnemonic is a
+  hand-written mnemonic, and every row's match word decodes back to its row.
+- Portability: rows are one array literal of records with `int64` literals
+  (no large `match`), valid for js_of_ocaml/Melange and the ARM 4.14 backend.
+
+- [x] DEC-RV-TABLE recorded; RISC-V table encoder/decoder landed with Zimop,
+  Zicfiss (RV64), the Zba word leftovers, the fcsr pseudos and
+  `fmv.d.x`/`fmv.x.d`; no byte changes elsewhere (asm-ci, js, Melange pass).
 - [ ] DEC-X86-TABLE recorded; x86 row encoder lands with one legacy family,
   then one VEX family, with no byte changes elsewhere.
 - [ ] Both: `make asm-js-portable`, `make asm-purity`, all six target
@@ -287,3 +312,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | INF-02 | Construct-keyed blockers and histogram in `family-admission`; counts unchanged; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
 | 2026-09-25 | INF-04 | difficult regen 12m22s → 6.3 s full / 2.9 s incremental, output identical; `family-records` listing added; `tools-test`, `tools-integration`, `tools-boundary`, `asm-isa-difficult-check`, `asm-fmt-check` pass |
 | 2026-09-25 | FREE-01 (RISC-V) + GEN-05-RV-BASE | Promoted RV32 734→796, RV64 783→858; blocked RV32 335→293, RV64 341→296; normalized-only 20/30→0; round-trip 3,635→3,722; difficult corpus 3,375→3,582 cases, all pass. GAS 2.44/2.43.1 probes: branch pseudos, `scall`/`sbreak`, `fence.tso`, `pause` (needs `zihintpause`). Fixed: bare `fence` encoded as `fence rw,w`; now `fence iorw,iorw` with general pred/succ sets. Shadow guard: `rv32_zilsd` `ld`/`sd` stay blocked. `asm-ci`, `asm-js-portable`, `asm-purity`, tools suites pass |
+| 2026-09-25 | INF-05R + GEN-05-RV-ZBA + fcsr/`fmv.*.d` + Zimop + Zicfiss | 58 generated rows (`isa-table riscv-emit`, checked by repo test); promoted RV32 796→844, RV64 858→916; blocked RV32 293→238, RV64 296→236; oracle-unavailable RV32 7 (Zicfiss ×5: RV32 GAS 2.43.1 lacks `zicfiss`; `mop.r.N`/`mop.rr.N` templates), RV64 2 (templates). Row collision/priority test caught `zext.w` decoding as `add.uw` (fixed: rows ordered by mask specificity) and `fmv.x.d` already hand-encoded (normalize-only). Fixed a latent double count of oracle-unavailable records as blocked. `asm-ci`, `asm-js-portable`, Melange runtest, `asm-purity`, tools suites pass |

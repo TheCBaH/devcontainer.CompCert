@@ -398,3 +398,72 @@ let%expect_test "RISC-V fence spellings match GNU as" =
     40000000  0f 00 00 01  pause  [riscv64.pause]
     -- riscv64: fence rx,w
     riscv64.lower: no fence form takes these operands |}]
+
+(* DEC-RV-TABLE priority and collision rules for the generated rows: a row never shares a
+   mnemonic with a hand-written form (the hand-written one would silently win), and the row's
+   own word decodes back to that row, not to a hand-written form or an earlier row. Operand fields are filled with distinct
+   non-zero values, so a general row is not mistaken for a pseudo that fixes one of them to
+   zero ([add.uw] with rs2 = x0 is [zext.w]). *)
+let%expect_test
+    "generated RISC-V table rows neither collide with nor are shadowed by hand-written forms" =
+  let module Rows = Riscv_family_encode.Riscv_table_rows in
+  let module Row = Riscv_family_encode.Riscv_table_row in
+  let check (type o) target xlen (of_mnemonic : string -> o option) (is_table : o -> int option)
+      (decode_index : string -> int option) =
+    let problems = ref [] in
+    Array.iteri
+      (fun i (r : Row.row) ->
+        if r.xlen = 0 || r.xlen = xlen then (
+          (match Option.bind (of_mnemonic r.mnemonic) is_table with
+          | Some _ -> ()
+          | None ->
+              problems :=
+                Printf.sprintf "%s: shadowed by a hand-written form" r.mnemonic :: !problems);
+          let word =
+            List.fold_left
+              (fun w (k, (o : Row.operand)) ->
+                let put lsb = Int64.logor w (Int64.shift_left (Int64.of_int (k + 1)) lsb) in
+                match o with
+                | Gpr { lsb; _ } | Fpr { lsb } | Uimm { lsb; _ } | Simm { lsb; _ } -> put lsb
+                | Fixed_gpr _ -> w)
+              r.match_
+              (List.mapi (fun k o -> (k, o)) r.operands)
+          in
+          let bytes =
+            String.init 4 (fun k ->
+                Char.chr (Int64.to_int (Int64.shift_right_logical word (8 * k)) land 0xff))
+          in
+          match decode_index bytes with
+          | Some j when j = i -> ()
+          | Some j ->
+              problems :=
+                Printf.sprintf "%s: decodes as row %s" r.source Rows.rows.(j).source :: !problems
+          | None ->
+              problems := Printf.sprintf "%s: does not decode as a table row" r.source :: !problems))
+      Rows.rows;
+    Printf.printf "%s: %s\n" target
+      (match !problems with [] -> "ok" | ps -> String.concat "; " (List.rev ps))
+  in
+  check "riscv32" 32 Riscv32_encode.Opcode.of_mnemonic
+    (function Riscv32_encode.Opcode.Table i -> Some i | _ -> None)
+    (fun bytes ->
+      match
+        Riscv32_encode.decode_ungated
+          { state = Riscv32_encode.default_state; address = 0L }
+          bytes ~pos:0
+      with
+      | Ok ({ op = Riscv32_encode.Opcode.Table j; _ }, _, _) -> Some j
+      | _ -> None);
+  check "riscv64" 64 Riscv64_encode.Opcode.of_mnemonic
+    (function Riscv64_encode.Opcode.Table i -> Some i | _ -> None)
+    (fun bytes ->
+      match
+        Riscv64_encode.decode_ungated
+          { state = Riscv64_encode.default_state; address = 0L }
+          bytes ~pos:0
+      with
+      | Ok ({ op = Riscv64_encode.Opcode.Table j; _ }, _, _) -> Some j
+      | _ -> None);
+  [%expect {|
+    riscv32: ok
+    riscv64: ok |}]

@@ -5888,7 +5888,7 @@ let no_operand_form ?alias_of ~mnemonic rec_ =
         };
       ]
 
-let normalize (rec_ : R.t) =
+let normalize_hand_written (rec_ : R.t) =
   match rec_.native_name with
   | "sw" -> sw_form rec_
   | "beq" -> beq_form rec_
@@ -6323,3 +6323,15 @@ let normalize (rec_ : R.t) =
             fadd.s/fsub.s/fmul.s/fdiv.s/fadd.d/fsub.d/fmul.d/fdiv.d) plus the R-type/I-type \
             integer allowlists; %s is not one of them"
            other)
+
+(* Table-driven records (DEC-RV-TABLE) share one rule with the generated
+   encoder rows; see Isa_riscv_table. *)
+let table_form (rec_ : R.t) (spec : Isa_riscv_table.spec) =
+  let feature = Req_feature ("riscv:" ^ spec.feature) in
+  let requirement = if spec.xlen = 0 then feature else Req_all [ feature; Req_xlen spec.xlen ] in
+  Ok (Isa_riscv_table.form ~requirement rec_ spec)
+
+let normalize (rec_ : R.t) =
+  match Isa_riscv_table.spec_of_record rec_ with
+  | Some spec -> table_form rec_ spec
+  | None -> normalize_hand_written rec_
