@@ -1,7 +1,7 @@
 module R = Isa_source_record
 open Isa_norm_model
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask | St
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -596,6 +596,93 @@ let disp8_scale p =
   | "MOVDDUP" -> if p.vl = 0 then 8 else vector
   | _ -> 1
 
+(* x87 (DEC-X86-TABLE): a stack register st(i) in ModR/M.rm, the implied %st spelled only
+   beside another stack register of an arithmetic or conditional-move form, and a memory
+   operand whose XED type gives GNU's suffix: s/l/t for 32/64/80-bit reals, s/l/ll for
+   16/32/64-bit integers. The 14- and 94-byte (16-bit) environment images are left out. *)
+let x87_spec (rec_ : R.t) ~iform ~isa_set ~opcode_map ~opcode ~pattern ~operands =
+  let unspelled_st0 =
+    [
+      "FLD"; "FST"; "FSTP"; "FXCH"; "FCOM"; "FCOMP"; "FUCOM"; "FUCOMP"; "FFREE"; "FFREEP"; "FSTPNCE";
+    ]
+  in
+  let has_x87 = List.exists (fun (o : R.x86_operand) -> o.lookupfn_name = Some "X87") operands in
+  let suffix = ref "" and ok = ref true in
+  let convert (o : R.x86_operand) =
+    if o.visibility = "SUPPRESSED" then None
+    else if o.lookupfn_name = Some "X87" then Some (Reg { cls = St; field = Modrm_rm })
+    else if o.visibility = "IMPLICIT" then (
+      match o.bits with
+      | Some "XED_REG_ST0" when has_x87 && not (List.mem rec_.native_name unspelled_st0) ->
+          Some (Fixed_reg "st")
+      | Some "XED_REG_ST0" -> None
+      | Some "XED_REG_AX" -> Some (Fixed_reg "ax")
+      | _ ->
+          ok := false;
+          None)
+    else if starts_with ~prefix:"MEM0" o.op_name then (
+      let integer = starts_with ~prefix:"FI" rec_.native_name in
+      (match o.oc2 with
+      | Some "mem32real" -> suffix := "s"
+      | Some "m64real" -> suffix := "l"
+      | Some "mem80real" -> suffix := "t"
+      | Some "mem16int" when integer -> suffix := "s"
+      | Some "mem32int" when integer -> suffix := "l"
+      | Some "m64int" when integer -> suffix := "ll"
+      | Some ("mem80dec" | "mem16" | "mem28" | "mem108") -> ()
+      | _ -> ok := false);
+      Some (Mem { bits = 0 }))
+    else (
+      ok := false;
+      None)
+  in
+  let xed_order = List.filter_map convert operands in
+  match (parse_pattern pattern, int_of_string_opt opcode) with
+  | Some p, Some opcode when !ok && opcode_map = 0 && p.rexw <> 1 && p.osz <> 1 ->
+      let has_mem = List.exists (function Mem _ -> true | _ -> false) xed_order in
+      if p.memory = Some true <> has_mem then None
+      else
+        Some
+          {
+            record_id = rec_.record_id;
+            iform;
+            isa_set;
+            suffix_isa = isa_set;
+            pseudo = "";
+            df64 = false;
+            mnemonic =
+              (* GNU's AT&T x87 quirk: with %st(i) the destination, fsub and fsubr (fdiv and
+                 fdivr) trade spellings *)
+              (let m = integer_mnemonic ~rep:(-1) rec_.native_name in
+               if
+                 ends_with ~suffix:"_X87_ST0" iform
+                 && (starts_with ~prefix:"fsub" m || starts_with ~prefix:"fdiv" m)
+               then
+                 let stem = String.sub m 0 4 and rest = String.sub m 4 (String.length m - 4) in
+                 if starts_with ~prefix:"r" rest then stem ^ after ~prefix:"r" rest
+                 else stem ^ "r" ^ rest
+               else m)
+              ^ !suffix;
+            space = `Legacy;
+            map = 0;
+            opcode;
+            prefix = 0;
+            osz = false;
+            w = -1;
+            l = -1;
+            digit = p.digit;
+            rm = p.rm;
+            operands = List.rev xed_order;
+            mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
+            disp8n = 1;
+            evex_p2 = 0;
+            mask = 0;
+            sized = false;
+            no_acc = [];
+            widths = [];
+          }
+  | _ -> None
+
 let spec_of_record (rec_ : R.t) =
   match (rec_.encoding, rec_.provenance) with
   | ( R.X86_encoding
@@ -729,6 +816,14 @@ let spec_of_record (rec_ : R.t) =
                       | _ -> [ 32; 64 ]);
                   })
       | _ -> None)
+  | ( R.X86_encoding { space = "legacy"; opcode_map; opcode; pattern; operands },
+      R.Xed_provenance
+        {
+          iform = Some iform;
+          isa_set = Some (("X87" | "FCMOV" | "FCOMI" | "SSE3X87") as isa_set);
+          _;
+        } ) ->
+      x87_spec rec_ ~iform ~isa_set ~opcode_map ~opcode ~pattern ~operands
   | ( R.X86_encoding { space = "legacy"; opcode_map; opcode; pattern; operands },
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match
@@ -941,6 +1036,7 @@ let form ~requirement (rec_ : R.t) spec =
     | Xmm -> X86_xmm
     | Ymm -> X86_ymm
     | Zmm -> X86_zmm
+    | St -> X87_st
     | Mmx -> X86_mmx
     | Kmask -> X86_kmask
     | Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv -> X86_gpr

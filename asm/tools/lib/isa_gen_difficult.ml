@@ -7015,6 +7015,8 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     | Zmm -> Printf.sprintf "zmm%d" num
     (* eight of each, so no high variant *)
     | Mmx -> Printf.sprintf "mm%d" (num land 7)
+    (* never st(0) beside the implied %st: GNU would take the other direction's form *)
+    | St -> Printf.sprintf "st(%d)" (if num land 7 = 0 then 7 else num land 7)
     | Kmask -> Printf.sprintf "k%d" (num land 7)
     | Gpr32 | Gprv -> if num < 8 then "e" ^ low8.(num) else Printf.sprintf "r%dd" num
     | Gpr64 -> if num < 8 then "r" ^ low8.(num) else Printf.sprintf "r%d" num

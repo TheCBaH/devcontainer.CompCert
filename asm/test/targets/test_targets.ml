@@ -2357,14 +2357,12 @@ let%expect_test "fucomp is a bare, fixed-encoding compare-and-pop" =
    almabench.c's %st(1)). [find_reg] can never see this shape: the lexer
    splits the parens off the identifier the same way it does for any memory
    operand, so it is synthesized directly from the [n] literal
-   (x86_family.ml) rather than looked up. Parse-only: [fld] (register-only,
-   no size suffix - distinct from [fldl]'s own memory-only, double-precision
-   mnemonic above) is still not in the M1 instruction table, so the pipeline
-   fails one stage earlier still, at simplify's mnemonic lookup, before the
-   operand is ever consulted. *)
+   (x86_family.ml) rather than looked up. [fld] (register-only, no size suffix - distinct
+   from [fldl]'s own memory-only, double-precision mnemonic above) is a generated x87 row
+   (DEC-X86-TABLE). *)
 let%expect_test "%st(n) parses as a register operand" =
   attempt "x86_32" "\t.text\n\t.globl f\nf:\n\tfld %st(1)\n\tret\n";
-  [%expect {| x86.simplify: unknown instruction fld |}]
+  [%expect {| accepted |}]
 
 (* [leal sym, %reg] - a bare symbol used as [lea]'s source, the highest-signal
    single gap in the whole gcc corpus (12 `test/c/` recurrences: string-literal

@@ -75,18 +75,15 @@ let rows =
     {
       id = "RES-X86-X87";
       source = "xed_resolved";
-      families = [ "FCMOV"; "FCOMI"; "SSE3X87"; "X87" ];
+      families = [ "X87" ];
       capability =
-        "x87 beyond the thirteen implemented forms: real32/64/80 and int16/32/64 memory widths \
-         (fadds/fsubs also lack a register-indirect operand), stack-register forms in both \
-         directions, popping and reversed arithmetic, comparison and control forms, FCMOV/FCOMI.";
+        "x87 forms the generated table does not take: the 16-bit (14- and 94-byte) environment \
+         images and same-iform stack-register twins GNU never emits.";
       evidence =
-        "family-admission: all but one X87 record is unhandled; fadds 4(%esp) is rejected \
-         (test_components transcript) while GNU as accepts it";
+        "family-admission: X87/FCMOV/FCOMI are promoted through DEC-X86-TABLE rows (st(i) in \
+         ModR/M.rm, real/int memory suffixes, GNU's fsub/fdiv AT&T swap); a handful remain";
       task = "GEN-05-X86-X87";
-      reopening_gate =
-        "the x87 component grows its memory-width table and both stack directions are recipes with \
-         GAS spelling probes";
+      reopening_gate = "a GAS spelling for the remaining forms is probed";
     };
     {
       id = "RES-X86-BASE-INT";

@@ -133,6 +133,7 @@ let x86_gas_lacks =
     (* undocumented one-byte opcodes GNU as has no mnemonic for *)
     "udb";
     "salc";
+    "fstpnce";
     "vcvtbf42hf8";
     "vcvtbf62hf8";
     "vcvtbf82bf4s";
