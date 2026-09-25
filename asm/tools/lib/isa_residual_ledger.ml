@@ -15,47 +15,6 @@ type row = {
 let rows =
   [
     {
-      id = "RES-RV-COMPRESSED";
-      source = "riscv_opcodes";
-      families =
-        [
-          "rv_c";
-          "rv32_c";
-          "rv64_c";
-          "rv_c_d";
-          "rv32_c_f";
-          "rv_c_zicfiss";
-          "rv_c_zihintntl";
-          "rv_zcb";
-          "rv64_zcb";
-          "rv_zcmp";
-          "rv_zcmt";
-          "rv_zcmop";
-          "rv32_zclsd";
-        ];
-      capability =
-        "Compressed (16-bit) form recipes: the register subsets, nonzero and split-immediate \
-         constraints, and an explicit .option rvc policy so baseline tests never compress \
-         opportunistically.";
-      evidence =
-        "family-admission credits c.addi, the CA-format register-register class (c.and/c.or/ \
-         c.xor/c.sub on both profiles, c.addw/c.subw RV64-only), and the CR-format \
-         register-register cluster (c.jr/c.jalr/c.mv/c.add/c.ebreak, full 0..31 GPR space, no \
-         compressed-register-subset restriction) in this group; a compressed-register-subset \
-         operand domain (Riscv_gpr_c, x8..x15) now exists in the normalizer for the CA class, and \
-         the CR cluster's own x0 rules (reserved for c.jr/c.jalr's rs1, a documented HINT for \
-         c.mv/c.add's rd) are modeled directly on the plain gpr domain - but every other \
-         compressed form (loads/stores, branches, li/lui, addi16sp/4spn, andi/srli/srai, the \
-         *w/RV64-only siblings, and every rv_c_d/rv32_c_f/rv_zcb/rv_zcmp/... sub-extension) \
-         remains blocked; width derivation is already per record (CAP-01)";
-      task = "GEN-05-RV-C";
-      reopening_gate =
-        "a compressed-register-subset operand domain exists in the normalizer (done - see \
-         Riscv_gpr_c) and c.* cases assemble under -march=..._c/_zca with --features/rvc scope \
-         recorded (done for the CA-format and CR-format register-register classes; still open for \
-         every other compressed form)";
-    };
-    {
       id = "RES-X86-EVEX";
       source = "xed_resolved";
       families =

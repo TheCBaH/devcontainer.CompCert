@@ -331,6 +331,8 @@ module Make (P : PROFILE) = struct
       | C_ldsp
       | C_sdsp
       | C_beqz
+      | C_j
+      | C_jal
       | C_bnez
       | Slti
       | Sltiu
@@ -1057,6 +1059,8 @@ module Make (P : PROFILE) = struct
       | C_ldsp -> "c.ldsp"
       | C_sdsp -> "c.sdsp"
       | C_beqz -> "c.beqz"
+      | C_j -> "c.j"
+      | C_jal -> "c.jal"
       | C_bnez -> "c.bnez"
       | Slti -> "slti"
       | Sltiu -> "sltiu"
@@ -1782,6 +1786,8 @@ module Make (P : PROFILE) = struct
         C_ldsp;
         C_sdsp;
         C_beqz;
+        C_j;
+        C_jal;
         C_bnez;
         Slti;
         Sltiu;
@@ -2540,6 +2546,8 @@ module Make (P : PROFILE) = struct
       | J of { rd : int; target : Asm_core.Expr.t }
       | Pair of { name : string; rd : int; tmp : int; target : Asm_core.Expr.t; kind : pair_kind }
       | Fixed of { name : string; word : int64 }
+      | Fixed_half of { name : string; word : int64 }
+          (** a 16-bit compressed word with no fixup: a generated table row *)
       | Caddi of { rd : int; imm : Asm_core.Expr.t }
       | Cr2 of { name : string; funct6 : int; funct2 : int; rd_rs1 : int; rs2 : int }
           (** the CA-format compressed register-register ops ([c.and]/[c.or]/[c.xor]/[c.sub]/
@@ -2567,6 +2575,9 @@ module Make (P : PROFILE) = struct
       | Css of { name : string; funct3 : int; rs2 : int; imm : Asm_core.Expr.t }
           (** CSS-format compressed SP-relative stores ([c.swsp]/[c.sdsp]): the store-side
               sibling of {!Clsp}, same fixed-[x2]-base story. *)
+      | Cj of { name : string; funct3 : int; target : Asm_core.Expr.t }
+          (** CJ-format compressed jumps ([c.j], RV32's [c.jal]): a 12-bit signed, 2-byte-aligned
+              PC-relative target resolved via a {!fixup_kind.Jump12c} fixup. *)
       | Cb of { name : string; funct3 : int; rs1 : int; target : Asm_core.Expr.t }
           (** CB-format compressed conditional branches ([c.beqz]/[c.bnez]): [rs1] is a real
               register number (8..15) for the compressed 3-bit field, like {!Cl}. [target] is a
@@ -2650,6 +2661,7 @@ module Make (P : PROFILE) = struct
           Fmt.pf ppf "%s f%d, %a, x%d" x.name x.rd pp_expr x.target x.tmp
       | Pair x -> Fmt.pf ppf "%s x%d, %a" x.name x.rd pp_expr x.target
       | Fixed x -> Fmt.string ppf x.name
+      | Fixed_half x -> Fmt.string ppf x.name
       | Caddi x -> Fmt.pf ppf "c.addi x%d, %a" x.rd pp_expr x.imm
       | Cr2 x -> Fmt.pf ppf "%s x%d, x%d" x.name x.rd_rs1 x.rs2
       | Cr x when x.name = "c.ebreak" -> Fmt.string ppf x.name
@@ -2660,6 +2672,7 @@ module Make (P : PROFILE) = struct
       | Clsp x -> Fmt.pf ppf "%s x%d, %a(x2)" x.name x.rd pp_expr x.imm
       | Css x -> Fmt.pf ppf "%s x%d, %a(x2)" x.name x.rs2 pp_expr x.imm
       | Cb x -> Fmt.pf ppf "%s x%d, %a" x.name x.rs1 pp_expr x.target
+      | Cj x -> Fmt.pf ppf "%s %a" x.name pp_expr x.target
 
     let equal (a : t) b = a = b
   end
@@ -2669,6 +2682,7 @@ module Make (P : PROFILE) = struct
     | Abs64
     | Branch13
     | Branch9c
+    | Jump12c
     | Jal21
     | Pcrel_hi20
     | Pcrel_lo12_i
@@ -2684,6 +2698,7 @@ module Make (P : PROFILE) = struct
     | Abs64 -> "abs64"
     | Branch13 -> "pcrel-b13"
     | Branch9c -> "pcrel-b9c"
+    | Jump12c -> "pcrel-j12c"
     | Jal21 -> "pcrel-j21"
     | Pcrel_hi20 -> "pcrel-hi20"
     | Pcrel_lo12_i -> "pcrel-lo12-i"
@@ -2699,13 +2714,13 @@ module Make (P : PROFILE) = struct
   let fixup_family = function
     | Abs32 -> "abs32"
     | Abs64 -> "abs64"
-    | Branch13 | Branch9c | Jal21 -> "pcrel-branch"
+    | Branch13 | Branch9c | Jump12c | Jal21 -> "pcrel-branch"
     | Pcrel_hi20 | Pcrel_lo12_i | Pcrel_lo12_s -> "pcrel-address"
     | Call_hi20 | Call_lo12_i -> "pcrel-call"
     | Abs_hi20 | Abs_lo12_i | Abs_lo12_s -> "absolute-address"
 
   let fixup_role = function
-    | Branch13 | Branch9c | Jal21 -> Asm_core.Lowered_ast.Branch
+    | Branch13 | Branch9c | Jump12c | Jal21 -> Asm_core.Lowered_ast.Branch
     | Call_hi20 | Call_lo12_i -> Asm_core.Lowered_ast.Call
     | _ -> Asm_core.Lowered_ast.Data_address
 
@@ -4709,7 +4724,21 @@ module Make (P : PROFILE) = struct
 
   (* DEC-RV-TABLE: a generated row's operand, checked against its field and
      placed at its bit position; [None] when the operand does not fit. *)
-  let table_field ~prev op (operand : Riscv_table_row.operand) =
+  (* A scattered immediate: range, alignment and non-zero checks, then each
+     value bit to its instruction bit. *)
+  let table_scatter (sc : Riscv_table_row.scatter) v =
+    let aligned = Int64.rem v (Int64.shift_left 1L sc.scale) = 0L in
+    let in_range = if sc.signed then fits_signed sc.width v else fits_unsigned sc.width v in
+    if (not aligned) || (not in_range) || (sc.nonzero && v = 0L) then None
+    else
+      Some
+        (List.fold_left
+           (fun acc (ibit, vbit) ->
+             Int64.logor acc
+               (Int64.shift_left (Int64.logand (Int64.shift_right_logical v vbit) 1L) ibit))
+           0L sc.bits)
+
+  let table_field ?(acc = 0L) ~prev op (operand : Riscv_table_row.operand) =
     let place lsb v = Some (Int64.shift_left v lsb) in
     let low width v = Int64.logand v (Int64.sub (Int64.shift_left 1L width) 1L) in
     let value () = Option.bind (expr_of op) int64_expr in
@@ -4769,6 +4798,68 @@ module Make (P : PROFILE) = struct
         match xreg op with
         | Some n when xlen >= below || n land 1 = 0 -> place lsb (Int64.of_int n)
         | _ -> None)
+    | Creg { lsb } -> (
+        match xreg op with
+        | Some n when n >= 8 && n <= 15 -> place lsb (Int64.of_int (n - 8))
+        | _ -> None)
+    | Cfreg { lsb } -> (
+        match freg op with
+        | Some n when n >= 8 && n <= 15 -> place lsb (Int64.of_int (n - 8))
+        | _ -> None)
+    | Gpr_except { lsb; except } -> (
+        match xreg op with
+        | Some n when not (List.mem n except) -> place lsb (Int64.of_int n)
+        | _ -> None)
+    | Scatter sc -> Option.bind (value ()) (table_scatter sc)
+    | Cmem { base; offset } -> (
+        match op with
+        | Operand.Mem m -> (
+            match (Reg.x m.base, int64_expr m.offset) with
+            | Some b, Some v when b >= 8 && b <= 15 ->
+                Option.map
+                  (fun f -> Int64.logor f (Int64.shift_left (Int64.of_int (b - 8)) base))
+                  (table_scatter offset v)
+            | _ -> None)
+        | _ -> None)
+    | Spmem { offset } -> (
+        match op with
+        | Operand.Mem m -> (
+            match (Reg.x m.base, int64_expr m.offset) with
+            | Some 2, Some v -> table_scatter offset v
+            | _ -> None)
+        | _ -> None)
+    | Cui { hi; lo } -> (
+        match value () with
+        | Some v when (v >= 1L && v <= 31L) || (v >= 0xfffe0L && v <= 0xfffffL) ->
+            Some
+              (Int64.logor
+                 (Int64.shift_left (Int64.logand (Int64.shift_right v 5) 1L) hi)
+                 (Int64.shift_left (Int64.logand v 0x1fL) lo))
+        | _ -> None)
+    | Sreg { lsb } ->
+        Option.bind (xreg op) (fun n ->
+            Option.bind (Riscv_table_row.sreg_code n) (fun c -> place lsb (Int64.of_int c)))
+    | Rlist { lsb } -> (
+        match op with
+        | Operand.Sym (Asm_core.Expr.Symbol text) ->
+            let compact = String.concat "" (String.split_on_char ' ' text) in
+            Option.bind (Riscv_table_row.rlist_code compact) (fun c -> place lsb (Int64.of_int c))
+        | _ -> None)
+    | Stack_adj { rlist; spimm; push } -> (
+        let code = Int64.to_int (Int64.logand (Int64.shift_right_logical acc rlist) 0xfL) in
+        let base = Riscv_table_row.rlist_base ~xlen code in
+        match value () with
+        | Some v ->
+            let magnitude = Int64.to_int (if push then Int64.neg v else v) in
+            let extra = magnitude - base in
+            if extra >= 0 && extra <= 48 && extra mod 16 = 0 then
+              place spimm (Int64.of_int (extra / 16))
+            else None
+        | None -> None)
+    | Uimm_min { lsb; width; min } -> (
+        match value () with
+        | Some v when fits_unsigned width v && Int64.to_int v >= min -> place lsb v
+        | _ -> None)
     | Mem_i { base } ->
         Option.map
           (fun (b, v) ->
@@ -4815,7 +4906,7 @@ module Make (P : PROFILE) = struct
                 | None -> None)
             | [ Riscv_table_row.Rm _ ], [] -> Some acc
             | o :: rest, op :: ops -> (
-                match table_field ~prev op o with
+                match table_field ~acc ~prev op o with
                 | Some f -> go (Int64.logor acc f) (table_reg op) rest ops
                 | None -> None)
             | _ -> None
@@ -4832,12 +4923,18 @@ module Make (P : PROFILE) = struct
         None Riscv_table_rows.rows
     in
     match found with
+    | Some word when Int64.logand word 3L <> 3L ->
+        Ok [ Lowered.Fixed_half { name = mnemonic; word } ]
     | Some word -> Ok [ Lowered.Fixed { name = mnemonic; word } ]
     | None -> wrong mnemonic
 
   let lower_instruction_ungated state i =
     let opn = Opcode.name i.Instruction.op in
     match (i.op, i.ops) with
+    | Opcode.Table row, _
+      when Int64.logand Riscv_table_rows.rows.(row).Riscv_table_row.match_ 3L <> 3L && not state.rvc
+      ->
+        Error (diag ~pos:__POS__ (`Compressed_disabled opn))
     | Opcode.Table row, ops -> table_lower row ops
     | ( ( Opcode.Mul | Remu | Mulh | Mulhsu | Mulhu | Div | Divu | Rem | Mulw | Divw | Divuw | Remw
         | Remuw ),
@@ -4861,7 +4958,7 @@ module Make (P : PROFILE) = struct
         Error (diag ~pos:__POS__ (`Rv32_only opn))
     | ( ( Opcode.C_addi | C_and | C_or | C_xor | C_sub | C_addw | C_subw | C_jr | C_jalr | C_mv
         | C_add | C_ebreak | C_lw | C_sw | C_lwsp | C_swsp | C_ld | C_sd | C_ldsp | C_sdsp | C_beqz
-        | C_bnez ),
+        | C_j | C_jal | C_bnez ),
         _ )
       when not state.rvc ->
         Error (diag ~pos:__POS__ (`Compressed_disabled opn))
@@ -4912,6 +5009,14 @@ module Make (P : PROFILE) = struct
             let funct3 = if i.Instruction.op = Opcode.C_swsp then 6 else 7 in
             Ok [ Lowered.Css { name = opn; funct3; rs2; imm = m.offset } ]
         | _ -> wrong opn)
+    | Opcode.C_jal, _ when xlen <> 32 -> Error (diag ~pos:__POS__ (`Rv32_only opn))
+    | (Opcode.C_j | C_jal), [ target ] -> (
+        (* CJ format: quadrant 01, funct3 101 ([c.j]) or 001 ([c.jal], RV32 only - RV64 reuses
+           the encoding for [c.addiw]). *)
+        match expr_of target with
+        | Some target ->
+            Ok [ Lowered.Cj { name = opn; funct3 = (if i.op = Opcode.C_j then 5 else 1); target } ]
+        | None -> wrong opn)
     | (Opcode.C_beqz | C_bnez), [ a; target ] -> (
         match (xreg a, expr_of target) with
         | Some rs1, Some target when rs1 >= 8 && rs1 <= 15 ->
@@ -7231,6 +7336,20 @@ module Make (P : PROFILE) = struct
       { bit_offset = 12; bit_width = 1; value_lsb = 8 };
     ]
 
+  (* c.j/c.jal's CJ-format offset, imm[11|4|9:8|10|6|7|3:1|5] in bits 12..2 (RISC-V ISA manual;
+     checked against real riscv32-linux-gnu-as: `c.j` +4 -> 0xa011, -2 -> 0xbffd). *)
+  let cj_slices =
+    [
+      { Asm_core.Lowered_ast.bit_offset = 12; bit_width = 1; value_lsb = 11 };
+      { bit_offset = 11; bit_width = 1; value_lsb = 4 };
+      { bit_offset = 9; bit_width = 2; value_lsb = 8 };
+      { bit_offset = 8; bit_width = 1; value_lsb = 10 };
+      { bit_offset = 7; bit_width = 1; value_lsb = 6 };
+      { bit_offset = 6; bit_width = 1; value_lsb = 7 };
+      { bit_offset = 3; bit_width = 3; value_lsb = 1 };
+      { bit_offset = 2; bit_width = 1; value_lsb = 5 };
+    ]
+
   let u_slices = [ { Asm_core.Lowered_ast.bit_offset = 12; bit_width = 20; value_lsb = 0 } ]
   let form bytes form fixups = { Asm_core.Lowered_ast.bytes; form; fixups }
   let bad_encode kind = Error (diag ~pos:__POS__ kind)
@@ -7299,6 +7418,16 @@ module Make (P : PROFILE) = struct
             Ok (`Fixed (form (bytes_of_half word) x.name []))
         | Some _ -> bad_encode (`Immediate_range x.name)
         | None -> bad_encode (`Immediate_range (x.name ^ " " ^ Asm_core.Expr.to_string x.imm)))
+    | Lowered.Cj x ->
+        let fx =
+          mk_fixup ~kind:Jump12c ~name:"target" ~slices:cj_slices ~byte_offset:0 ~container:2
+            ~range:(Asm_core.Lowered_ast.Signed 12) ~value:x.target ~pairing:Unpaired
+        in
+        Ok
+          (`Fixed
+             (form
+                (bytes_of_half (Int64.logor 0x1L (Int64.shift_left (Int64.of_int x.funct3) 13)))
+                x.name [ fx ]))
     | Lowered.Cb x ->
         let fx =
           mk_fixup ~kind:Branch9c ~name:"target" ~slices:cb_slices ~byte_offset:0 ~container:2
@@ -7472,6 +7601,7 @@ module Make (P : PROFILE) = struct
         in
         Ok (`Fixed (form (bytes_of_word hiword ^ bytes_of_word lowword) x.name [ hi; lo ]))
     | Fixed x -> fixed x.word x.name
+    | Fixed_half x -> Ok (`Fixed (form (bytes_of_half x.word) x.name []))
 
   (* The mnemonic of a lowered form that belongs to a component. Only [R] carries a component
      today: M's forms all lower to it. *)
@@ -7666,9 +7796,18 @@ module Make (P : PROFILE) = struct
 
   (* DEC-RV-TABLE: tried only after the hand-written decoder finds nothing, so a
      generated row never shadows a hand-written form. *)
-  let table_decode w =
+  let table_decode ?(half = false) w =
     let rows = Riscv_table_rows.rows in
     let field lsb width = bits w lsb width in
+    let unscatter (sc : Riscv_table_row.scatter) =
+      let v =
+        List.fold_left
+          (fun acc (ibit, vbit) -> Int64.logor acc (Int64.shift_left (field ibit 1) vbit))
+          0L sc.bits
+      in
+      let v = if sc.signed then sign_extend sc.width v else v in
+      if sc.nonzero && v = 0L then None else Some v
+    in
     let operand (o : Riscv_table_row.operand) =
       match o with
       | Gpr { lsb; nonzero } ->
@@ -7704,6 +7843,34 @@ module Make (P : PROFILE) = struct
       | Gpr_pair { lsb; below } ->
           let n = Int64.to_int (field lsb 5) in
           if xlen < below && n land 1 = 1 then None else Some (Some (reg n))
+      | Creg { lsb } -> Some (Some (reg (8 + Int64.to_int (field lsb 3))))
+      | Cfreg { lsb } -> Some (Some (f_operand (8 + Int64.to_int (field lsb 3))))
+      | Gpr_except { lsb; except } ->
+          let n = Int64.to_int (field lsb 5) in
+          if List.mem n except then None else Some (Some (reg n))
+      | Scatter sc -> Option.map (fun v -> Some (imm v)) (unscatter sc)
+      | Cmem { base; offset } ->
+          Option.map (fun v -> Some (mem (8 + Int64.to_int (field base 3)) v)) (unscatter offset)
+      | Spmem { offset } -> Option.map (fun v -> Some (mem 2 v)) (unscatter offset)
+      | Cui { hi; lo } ->
+          let v6 = Int64.logor (Int64.shift_left (field hi 1) 5) (field lo 5) in
+          if v6 = 0L then None
+          else Some (Some (imm (if v6 >= 32L then Int64.logor 0xfffc0L v6 else v6)))
+      | Sreg { lsb } ->
+          Some (Some (reg (Riscv_table_row.sreg_register (Int64.to_int (field lsb 3)))))
+      | Rlist { lsb } ->
+          Option.map
+            (fun t -> Some (Operand.Sym (Asm_core.Expr.Symbol t)))
+            (Riscv_table_row.rlist_text (Int64.to_int (field lsb 4)))
+      | Stack_adj { rlist; spimm; push } ->
+          let code = Int64.to_int (field rlist 4) in
+          if code < 4 then None
+          else
+            let v = Riscv_table_row.rlist_base ~xlen code + (16 * Int64.to_int (field spimm 2)) in
+            Some (Some (imm (Int64.of_int (if push then -v else v))))
+      | Uimm_min { lsb; width; min } ->
+          let v = field lsb width in
+          if Int64.to_int v < min then None else Some (Some (imm v))
       | Mem_s { base } ->
           let v = Int64.logor (Int64.shift_left (field 25 7) 5) (field 7 5) in
           Some (Some (mem (Int64.to_int (field base 5)) (sign_extend 12 v)))
@@ -7725,7 +7892,12 @@ module Make (P : PROFILE) = struct
       if i >= Array.length rows then None
       else
         let r = rows.(i) in
-        if table_row_applies r && Int64.equal (Int64.logand w r.mask) r.match_ && tied_ok r then
+        if
+          table_row_applies r
+          && Int64.logand r.match_ 3L <> 3L = half
+          && Int64.equal (Int64.logand w r.mask) r.match_
+          && tied_ok r
+        then
           let ops = List.map operand r.operands in
           if List.mem None ops then go (i + 1)
           else
@@ -7736,7 +7908,7 @@ module Make (P : PROFILE) = struct
     in
     go 0
 
-  let decode_ungated ctx bytes ~pos =
+  let decode_hand_written ctx bytes ~pos =
     if String.length bytes - pos < 2 then Error (diag ~pos:__POS__ `Decode_short)
     else if Char.code bytes.[pos] land 3 <> 3 then
       let half = read_half bytes pos in
@@ -7786,6 +7958,21 @@ module Make (P : PROFILE) = struct
                       (Int64.shift_left (bits half 11 1) 4)
                       (Int64.shift_left (bits half 12 1) 5)))))
       in
+      let c_j_offset () =
+        let b pos = bits half pos 1 in
+        sign_extend 12
+          (List.fold_left Int64.logor 0L
+             [
+               Int64.shift_left (b 12) 11;
+               Int64.shift_left (b 11) 4;
+               Int64.shift_left (bits half 9 2) 8;
+               Int64.shift_left (b 8) 10;
+               Int64.shift_left (b 7) 6;
+               Int64.shift_left (b 6) 7;
+               Int64.shift_left (bits half 3 3) 1;
+               Int64.shift_left (b 2) 5;
+             ])
+      in
       let c_beqz_bnez_offset () =
         sign_extend 9
           (Int64.logor
@@ -7805,6 +7992,10 @@ module Make (P : PROFILE) = struct
           match ca_name (funct6, funct2) with
           | Some n -> Ok (instruction (op_exn n) [ reg rd_rs1_c; reg rs2_c ], n, 2)
           | None -> Error (diag ~pos:__POS__ `Decode_no_match))
+      | 1, 5, _, _ ->
+          Ok (instruction Opcode.C_j [ sym (Int64.add ctx.address (c_j_offset ())) ], "c.j", 2)
+      | 1, 1, _, _ when xlen = 32 ->
+          Ok (instruction Opcode.C_jal [ sym (Int64.add ctx.address (c_j_offset ())) ], "c.jal", 2)
       | 1, 6, _, _ ->
           Ok
             ( instruction Opcode.C_beqz
@@ -7853,7 +8044,10 @@ module Make (P : PROFILE) = struct
             ( instruction Opcode.C_sdsp [ reg rs2_full; mem 2 (c_swsp_sdsp_offset ~hi3_shift:8) ],
               "c.sdsp",
               2 )
-      | _ -> Error (diag ~pos:__POS__ `Decode_no_match)
+      | _ -> (
+          match table_decode ~half:true half with
+          | Some (i, f) -> Ok (i, f, 2)
+          | None -> Error (diag ~pos:__POS__ `Decode_no_match))
     else if String.length bytes - pos < 4 then Error (diag ~pos:__POS__ `Decode_short)
     else
       let w = read_word bytes pos in
@@ -8108,6 +8302,20 @@ module Make (P : PROFILE) = struct
           | None -> Error (diag ~pos:__POS__ `Decode_no_match))
       | Some (i, f) -> Ok (i, f, 4)
 
+  (* Generated rows are tried whenever the hand-written decoder declines a word, whichever of its
+     arms declined it. *)
+  let decode_ungated ctx bytes ~pos =
+    match decode_hand_written ctx bytes ~pos with
+    | Ok _ as ok -> ok
+    | Error _ as e -> (
+        if String.length bytes - pos < 2 then e
+        else if Char.code bytes.[pos] land 3 <> 3 then
+          match table_decode ~half:true (read_half bytes pos) with
+          | Some (i, f) -> Ok (i, f, 2)
+          | None -> e
+        else if String.length bytes - pos < 4 then e
+        else match table_decode (read_word bytes pos) with Some (i, f) -> Ok (i, f, 4) | None -> e)
+
   (* Strict decoding: a word that is a disabled component's instruction is refused rather than
      printed as if it were assemblable under this configuration. *)
   let decode ctx bytes ~pos =
@@ -8220,6 +8428,7 @@ module Make (P : PROFILE) = struct
     | Abs64 -> Ok target
     | Branch13 -> aligned "branch" 13
     | Branch9c -> aligned "branch-c" 9
+    | Jump12c -> aligned "jump-c" 12
     | Jal21 -> aligned "jal" 21
     | Pcrel_hi20 | Call_hi20 ->
         if fits_signed 32 d then Ok (hi d) else Error (diag ~pos:__POS__ (`Immediate_range "auipc"))

@@ -23,8 +23,9 @@ requires the acceptance evidence in plan section 8.
 | x86-32 | 7,887 | 1,022 | 6,854 |
 | x86-64 | 10,571 | 1,030 | 9,536 |
 
-Phase-2 goal: blocked → only `oracle-unavailable` residue on RISC-V, and the
-x86 ledger worked down in the plan section 6 order.
+Phase-2 goal: blocked → only `oracle-unavailable` residue on RISC-V (**met
+2026-09-25**: RV32 1,057 promoted / 32 oracle-unavailable, RV64 1,140 / 14),
+and the x86 ledger worked down in the plan section 6 order.
 
 ## Status
 
@@ -47,7 +48,7 @@ x86 ledger worked down in the plan section 6 order.
 | GEN-05-RV-MISC | Zimop, Zicbo, Zicfiss/Zicfilp, Zihintntl, Zifencei, Zicntr; Zilsd | done | — | oracle-unavailable residue recorded with probes; ledger row deleted |
 | GEN-05-RV-ATOMIC | Zabha, Zacas, Zawrs; Zalasr | done | — | Zalasr oracle-unavailable; ledger row deleted |
 | GEN-05-RV-PRIV | H, S, system, Svinval, Sdext, Ssctr; Smrnmi | done | — | admitted as ordinary features (no privilege predicate); Smrnmi and RV32 Ssctr oracle-unavailable; ledger row deleted |
-| GEN-05-RV-C | Compressed remainder and Zc* sub-extensions | implementing | — | `c.li`/`c.lui`/`c.addi16sp`/`c.addi4spn`/`c.andi`/shifts/`c.addiw`/`c.nop`/`c.j` |
+| GEN-05-RV-C | Compressed remainder and Zc* sub-extensions | done | — | ledger row deleted; RISC-V has no blocked records |
 | GEN-05-X86-INT | Legacy integer, string, BMI/LZCNT/POPCNT/ADX/MOVBE, CMOV | not-started | INF-05X, FREE-02 | — |
 | GEN-05-X86-X87 | Full x87 | not-started | FREE-02 | — |
 | GEN-05-X86-SIMD | MMX, SSE*/SSE4.2/SSE4a remainders, AES/PCLMUL/SHA/GFNI, 3DNow | not-started | INF-05X | — |
@@ -316,3 +317,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | INF-05R + GEN-05-RV-ZBA + fcsr/`fmv.*.d` + Zimop + Zicfiss | 58 generated rows (`isa-table riscv-emit`, checked by repo test); promoted RV32 796→844, RV64 858→916; blocked RV32 293→238, RV64 296→236; oracle-unavailable RV32 7 (Zicfiss ×5: RV32 GAS 2.43.1 lacks `zicfiss`; `mop.r.N`/`mop.rr.N` templates), RV64 2 (templates). Row collision/priority test caught `zext.w` decoding as `add.uw` (fixed: rows ordered by mask specificity) and `fmv.x.d` already hand-encoded (normalize-only). Fixed a latent double count of oracle-unavailable records as blocked. `asm-ci`, `asm-js-portable`, Melange runtest, `asm-purity`, tools suites pass |
 | 2026-09-25 | GEN-05-RV-FP (table) | Table rule widened: rounding mode with GNU default (dyn, rne for exact widening conversions — confirmed by GAS on every generated case), tied `rs2=rs1`, `imm(base)` loads/stores, `fcvtmod.w.d ..., rtz` keyword, Zfa `fli.*` constants (name or value, incl. hex floats; parser passes the text through). 162+4 rows. Promoted RV32 844→943, RV64 916→1023; blocked RV32 238→139, RV64 236→129. RES-RV-FP closed. All gates pass incl. Melange runtest |
 | 2026-09-25 | GEN-05-RV-ATOMIC/PRIV/MISC + `fence` (table) | Rule widened: AMO `rd, rs2, (rs1)` with `.aq`/`.rl`/`.aqrl` rows, Zacas even/odd pairs, `hlv`/`hsv`, `cbo.* (rs1)`, `prefetch.* imm(rs1)` (offset multiple of 32), `lpad`, `fence` pred/succ (hand-encoded). 312 rows. Promoted RV32 943→1008, RV64 1023→1091; blocked RV32 139→59, RV64 129→50 — all compressed (`RES-RV-COMPRESSED`); oracle-unavailable RV32 22, RV64 13. Rows that are HINTs of base instructions (`ntl.*`, `prefetch.*`, `lpad`) decode as the base form by design (pinned). Suffix/pair rows pinned to GAS bytes in `test_components.ml`. All gates pass |
+| 2026-09-25 | GEN-05-RV-C — RISC-V complete | Table rule gains 16-bit rows (compressed x8–x15/f8–f15 registers, scattered/scaled immediates from a reviewed per-field layout, `off(rs1')`/`off(sp)`, `c.lui`'s upper immediate, Zcmp s-registers, register lists and XLEN-dependent stack adjustments, `cm.jalt`'s bounded index); the hand-written encoder gains `c.j`/`c.jal` with a CJ-format `Jump12c` fixup. 391 rows. Promoted RV32 1008→1057, RV64 1091→1140; **blocked 0 on both profiles**; oracle-unavailable RV32 32, RV64 14 (Zclsd, RV32 Zcmt, RV32 `cm.mva01s/mvsa01`, RV32 compressed Zicfiss, `c.mop.N` template, plus the earlier set). All gates pass |

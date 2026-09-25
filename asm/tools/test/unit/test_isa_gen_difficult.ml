@@ -1180,6 +1180,7 @@ let test_counts () =
     (List.length Isa_gen_difficult.all
     = List.length Isa_gen_difficult.base_entries
       + List.length Isa_gen_difficult.rv_base_int_entries
+      + List.length Isa_gen_difficult.c_jump_entries
       + List.length Isa_gen_difficult.sw_entries
       + List.length Isa_gen_difficult.beq_entries
       + List.length Isa_gen_difficult.c_addi_entries

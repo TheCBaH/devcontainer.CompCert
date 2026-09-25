@@ -137,13 +137,22 @@ module Make (P : PROFILE) = struct
      expression, so it reaches the encoder as its source text. *)
   let parse_operands ~mnemonic slices =
     let fli = String.length mnemonic > 4 && String.sub mnemonic 0 4 = "fli." in
+    (* Zcmp's [cm.push {ra, s0-s1}, -32]: the braced list contains commas, so
+       every slice but the last is the list, passed on as its text *)
+    let rlist = String.length mnemonic > 4 && String.sub mnemonic 0 4 = "cm.p" in
     let rec go acc = function
       | [] -> Ok (List.rev acc)
       | s :: rest when fli && acc <> [] ->
           go (Operand.Sym (Asm_core.Expr.Symbol (Asm_syntax.Token.slice_text s)) :: acc) rest
       | s :: rest -> ( match parse_one s with Ok o -> go (o :: acc) rest | Error _ as e -> e)
     in
-    go [] slices
+    match (rlist, List.rev slices) with
+    | true, last :: (_ :: _ as list) -> (
+        let text = String.concat "," (List.rev_map Asm_syntax.Token.slice_text list) in
+        match parse_one last with
+        | Ok adj -> Ok [ Operand.Sym (Asm_core.Expr.Symbol text); adj ]
+        | Error _ as e -> e)
+    | _ -> go [] slices
 
   let handle_directive ~name:directive ~argument state =
     if String.equal directive ".attribute" then (

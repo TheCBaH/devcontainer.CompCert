@@ -6309,6 +6309,35 @@ let rv_base_int_entries =
           Target.Riscv64)
       [ "slliw"; "srliw"; "sraiw" ]
 
+(* c.j (both profiles) and RV32's c.jal: a compressed jump to a label over a
+   c.nop filler in each direction, under .option rvc. *)
+let c_jump_entries =
+  let entry ~mnemonic ~direction target =
+    let forward = direction = "forward" in
+    {
+      form_id = "riscv:" ^ mnemonic;
+      target;
+      lookup_key = mnemonic;
+      case_id = Printf.sprintf "riscv:%s:jump-%s:%s" mnemonic direction (Target.to_string target);
+      rule_ids = [ Printf.sprintf "branch-%s-label" direction ];
+      operands = [ ("offset", if forward then "1f" else "1b") ];
+      lines_before = (if forward then [ ".option rvc" ] else [ ".option rvc"; "1:"; "c.nop" ]);
+      lines_after = (if forward then [ "c.nop"; "1:"; ".option norvc" ] else [ ".option norvc" ]);
+      configuration = c_addi_configuration_for target;
+    }
+  in
+  List.concat_map
+    (fun target ->
+      [
+        entry ~mnemonic:"c.j" ~direction:"forward" target;
+        entry ~mnemonic:"c.j" ~direction:"backward" target;
+      ])
+    both_riscv
+  @ [
+      entry ~mnemonic:"c.jal" ~direction:"forward" Target.Riscv32;
+      entry ~mnemonic:"c.jal" ~direction:"backward" Target.Riscv32;
+    ]
+
 let alias_entries =
   mv_entries @ snez_entries @ neg_entries @ seqz_entries @ sltz_entries @ sgtz_entries
   @ zext_b_entries @ sext_w_entries @ nop_entries @ ret_entries @ fneg_s_entries @ fneg_d_entries
@@ -6316,17 +6345,17 @@ let alias_entries =
   @ fmv_s_x_entries
 
 let all =
-  base_entries @ rv_base_int_entries @ sw_entries @ beq_entries @ c_addi_entries @ x86_mov_entries
-  @ x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries @ x86_alu_immz_entries
-  @ x86_alu_immb_entries @ x86_alu_memv_immb_entries @ x86_alu_memv_immz_entries
-  @ x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries @ x86_alu_al_immb_entries
-  @ x86_sse_binop_rr_entries @ x86_sse_binop_rm_entries @ x86_sse_binop_imm_rr_entries
-  @ x86_sse_binop_imm_rm_entries @ x86_xmm_shift_imm_entries @ x86_sse_mov_entries
-  @ x86_cvtsi2f_rr_entries @ x86_cvtsi2f_rm_entries @ x86_cvtf2i_rr_entries @ x86_cvtf2i_rm_entries
-  @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries @ x86_movd_store_rr_entries
-  @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries @ x86_vmovd_load_rm_entries
-  @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries @ x86_blendv_entries
-  @ x86_pextr_store_mr_entries @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries
+  base_entries @ rv_base_int_entries @ c_jump_entries @ sw_entries @ beq_entries @ c_addi_entries
+  @ x86_mov_entries @ x86_alu_rr_entries @ x86_alu_memv_entries @ x86_alu_memv_gprv_entries
+  @ x86_alu_immz_entries @ x86_alu_immb_entries @ x86_alu_memv_immb_entries
+  @ x86_alu_memv_immz_entries @ x86_alu_gpr8_immb_entries @ x86_alu_memb_immb_entries
+  @ x86_alu_al_immb_entries @ x86_sse_binop_rr_entries @ x86_sse_binop_rm_entries
+  @ x86_sse_binop_imm_rr_entries @ x86_sse_binop_imm_rm_entries @ x86_xmm_shift_imm_entries
+  @ x86_sse_mov_entries @ x86_cvtsi2f_rr_entries @ x86_cvtsi2f_rm_entries @ x86_cvtf2i_rr_entries
+  @ x86_cvtf2i_rm_entries @ x86_movd_load_rr_entries @ x86_movd_load_rm_entries
+  @ x86_movd_store_rr_entries @ x86_movd_store_mr_entries @ x86_vmovd_load_rr_entries
+  @ x86_vmovd_load_rm_entries @ x86_vmovd_store_rr_entries @ x86_vmovd_store_mr_entries
+  @ x86_blendv_entries @ x86_pextr_store_mr_entries @ x86_pinsrw_rr_entries @ x86_pinsrw_rm_entries
   @ x86_pextrw_rr_entries @ x86_vpinsrw_rrr_entries @ x86_vpinsrw_rr_mem_entries
   @ x86_vpextrw_rr_entries @ x86_movmsk_entries @ x86_fadd_entries @ fadd_s_entries @ fsub_s_entries
   @ fmul_s_entries @ fdiv_s_entries @ fadd_d_entries @ fsub_d_entries @ fmul_d_entries
@@ -6855,6 +6884,14 @@ let build (entry : entry) (form : Isa_norm_model.form) =
    and profile - representative registers (a0/a1/a2, fa0/fa1/fa2), and each
    unsigned immediate at zero and at its maximum - built from the same
    Isa_riscv_table rule that emits the encoder rows. *)
+(* The smallest and largest value a scattered immediate admits: aligned to
+   its scale, and never zero when it must not be. *)
+let scatter_value (sc : Isa_riscv_table.scatter) edge =
+  let step = 1 lsl sc.scale in
+  let top = if sc.signed then (1 lsl (sc.width - 1)) - step else (1 lsl sc.width) - step in
+  let bottom = if sc.signed then -(1 lsl (sc.width - 1)) else if sc.nonzero then step else 0 in
+  string_of_int (if edge = `High then top else bottom)
+
 let table_entries_of target (spec : Isa_riscv_table.spec) =
   let gprs = [ "a0"; "a1"; "a2"; "a3" ] and fprs = [ "fa0"; "fa1"; "fa2"; "fa3" ] in
   let assign ~edge =
@@ -6871,6 +6908,24 @@ let table_entries_of target (spec : Isa_riscv_table.spec) =
            | Fli _ -> [ ("constant", if edge = `High then "0.5" else "min") ]
            | Gpr_pair { field; _ } -> [ (field, List.nth [ "a0"; "a2"; "a4"; "a6" ] i) ]
            | Mem_zero _ -> [ ("base", "a1") ]
+           | Creg { field; _ } -> [ (field, List.nth gprs i) ]
+           | Cfreg { field; _ } -> [ (field, List.nth fprs i) ]
+           | Gpr_except { field; _ } -> [ (field, "a0") ]
+           | Scatter sc -> [ ("imm", scatter_value sc edge) ]
+           | Cmem { offset; _ } -> [ ("base", "a1"); ("offset", scatter_value offset edge) ]
+           | Spmem { offset } -> [ ("offset", scatter_value offset edge) ]
+           | Cui _ -> [ ("imm", if edge = `High then "0xfffff" else "1") ]
+           | Sreg { field; _ } ->
+               [ (field, List.nth (if edge = `High then [ "s7"; "s6" ] else [ "s0"; "s1" ]) i) ]
+           | Rlist _ -> [ ("rlist", if edge = `High then "{ra, s0-s11}" else "{ra}") ]
+           | Stack_adj { push; _ } ->
+               let xlen = match target with Target.Riscv32 -> 32 | _ -> 64 in
+               let registers = if edge = `High then 13 else 1 in
+               let base = ((registers * (xlen / 8)) + 15) / 16 * 16 in
+               let v = if edge = `High then base + 48 else base in
+               [ ("stack_adj", string_of_int (if push then -v else v)) ]
+           | Uimm_min { field; width; min; _ } ->
+               [ (field, string_of_int (if edge = `High then (1 lsl width) - 1 else min)) ]
            | Mem_hi _ -> [ ("base", "a1"); ("offset", if edge = `High then "2016" else "-2048") ]
            | Fence_set { field; _ } ->
                [ (field, if edge = `High then "iorw" else if field = "pred" then "rw" else "w") ]
@@ -6885,6 +6940,16 @@ let table_entries_of target (spec : Isa_riscv_table.spec) =
     then [ ("offset-min", `Low); ("offset-max", `High) ]
     else if List.exists (function Isa_riscv_table.Mem_hi _ -> true | _ -> false) spec.operands
     then [ ("offset-min", `Low); ("offset-max", `High) ]
+    else if
+      List.exists
+        (function Isa_riscv_table.Scatter _ | Cmem _ | Spmem _ | Cui _ -> true | _ -> false)
+        spec.operands
+    then [ ("imm-low", `Low); ("imm-high", `High) ]
+    else if
+      List.exists
+        (function Isa_riscv_table.Sreg _ | Rlist _ | Uimm_min _ -> true | _ -> false)
+        spec.operands
+    then [ ("operands-low", `Low); ("operands-high", `High) ]
     else if List.exists (function Isa_riscv_table.Fence_set _ -> true | _ -> false) spec.operands
     then [ ("sets-narrow", `Low); ("sets-full", `High) ]
     else if List.exists (function Isa_riscv_table.Fli _ -> true | _ -> false) spec.operands then
@@ -6901,8 +6966,8 @@ let table_entries_of target (spec : Isa_riscv_table.spec) =
           Printf.sprintf "riscv:%s:table-%s:%s" spec.native_name variant (Target.to_string target);
         rule_ids = [ "table-row"; "table-" ^ variant; "feature:" ^ spec.feature ];
         operands = assign ~edge;
-        lines_before = [];
-        lines_after = [];
+        lines_before = (if spec.width_bits = 16 then [ ".option rvc" ] else []);
+        lines_after = (if spec.width_bits = 16 then [ ".option norvc" ] else []);
         configuration = Isa_riscv_table.march target spec;
       })
     variants

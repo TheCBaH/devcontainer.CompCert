@@ -42,6 +42,34 @@ let all =
         ~probe:
           "riscv32-linux-gnu-as 2.43.1, -march=rv32im_ssctr: unknown prefixed ISA extension \
            `ssctr' (riscv64-linux-gnu-as 2.44 accepts sctrclr)";
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv_zcmt" ~reason:"gas-lacks-zcmt"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32imc_zcmt: unknown prefixed ISA extension `zcmt' \
+           (riscv64-linux-gnu-as 2.44 accepts cm.jalt)";
+      {
+        (gas_lacks ~target:Target.Riscv32 ~extension:"rv_zcmp" ~reason:"gas-lacks-cm-mv"
+           ~probe:
+             "riscv32-linux-gnu-as 2.43.1, -march=rv32imc_zcmp: unrecognized opcode `cm.mva01s \
+              s0,s7' (cm.push/cm.pop are accepted; riscv64-linux-gnu-as 2.44 accepts both)")
+        with
+        native_name = Some "cm.mva01s";
+      };
+      {
+        (gas_lacks ~target:Target.Riscv32 ~extension:"rv_zcmp" ~reason:"gas-lacks-cm-mv"
+           ~probe:
+             "riscv32-linux-gnu-as 2.43.1, -march=rv32imc_zcmp: unrecognized opcode `cm.mvsa01 \
+              s2,s1' (riscv64-linux-gnu-as 2.44 accepts it)")
+        with
+        native_name = Some "cm.mvsa01";
+      };
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv32_zclsd" ~reason:"gas-lacks-zclsd"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32imc_zclsd: unknown prefixed ISA extension \
+           `zclsd' (riscv64-linux-gnu-as 2.44 does not know it either)";
+      gas_lacks ~target:Target.Riscv32 ~extension:"rv_c_zicfiss" ~reason:"gas-lacks-zicfiss"
+        ~probe:
+          "riscv32-linux-gnu-as 2.43.1, -march=rv32imc_zicfiss_zcmop: unknown prefixed ISA \
+           extension `zicfiss'";
       gas_lacks ~target:Target.Riscv32 ~extension:"rv32_zilsd" ~reason:"gas-lacks-zilsd"
         ~probe:
           "riscv32-linux-gnu-as 2.43.1, -march=rv32im_zilsd: unknown prefixed ISA extension `zilsd'";
@@ -87,6 +115,13 @@ let all =
         [
           template ~target ~native_name:"mop.r.N" ~spellings:"mop.r.0..mop.r.31";
           template ~target ~native_name:"mop.rr.N" ~spellings:"mop.rr.0..mop.rr.7";
+          {
+            (template ~target ~native_name:"c.mop.N" ~spellings:"c.mop.1..c.mop.15") with
+            extension = "rv_zcmop";
+            probe =
+              "riscv64-linux-gnu-as 2.44, -march=rv64imc_zcmop: unrecognized opcode `c.mop.n'; the \
+               template's concrete spellings c.mop.1..c.mop.15 are each their own promoted record";
+          };
         ])
       [ Target.Riscv32; Target.Riscv64 ]
 

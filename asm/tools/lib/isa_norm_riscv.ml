@@ -5888,9 +5888,39 @@ let no_operand_form ?alias_of ~mnemonic rec_ =
         };
       ]
 
+(* c.j / RV32 c.jal: CJ-format jumps, imm[11|4|9:8|10|6|7|3:1|5] in the 11-bit
+   c_imm12 field (instruction bits 12..2), 2-byte aligned. *)
+let c_jump_form ~mnemonic rec_ =
+  let bit field_bit value_bit = run "c_imm12" field_bit field_bit value_bit value_bit in
+  base_form ~mnemonic rec_ ~concreteness:Concrete
+    ~operands:
+      [
+        imm_operand ~name:"offset" ~width:12 ~signed:true ~low_zero:1
+          [
+            bit 10 11;
+            bit 9 4;
+            run "c_imm12" 8 7 9 8;
+            bit 6 10;
+            bit 5 6;
+            bit 4 7;
+            run "c_imm12" 3 1 3 1;
+            bit 0 5;
+          ];
+      ]
+    ~syntax:[ Syn_operand "offset" ]
+    ~facts:
+      [
+        { label = Inferred; note = "offset is the CJ-format imm[11|4|9:8|10|6|7|3:1|5] scatter" };
+        {
+          label = Inferred;
+          note = "GAS resolves offset from a label; cases use a controlled label";
+        };
+      ]
+
 let normalize_hand_written (rec_ : R.t) =
   match rec_.native_name with
   | "sw" -> sw_form rec_
+  | ("c.j" | "c.jal") as mnemonic -> c_jump_form ~mnemonic rec_
   | "beq" -> beq_form rec_
   (* rv32_zilsd's register-pair [ld]/[sd] share the native names of RV64I's
      doubleword forms; only the rv64_i records are these shapes. *)

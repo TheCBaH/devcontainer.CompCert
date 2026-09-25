@@ -16,6 +16,19 @@ type operand =
   | Mem_hi of { base : int }
   | Gpr_pair of { field : string; lsb : int; below : int }
   | Fence_set of { field : string; lsb : int }
+  | Creg of { field : string; lsb : int }
+  | Cfreg of { field : string; lsb : int }
+  | Gpr_except of { field : string; lsb : int; except : int list }
+  | Scatter of scatter
+  | Cmem of { base : int; offset : scatter }
+  | Spmem of { offset : scatter }
+  | Cui of { hi : int; lo : int }
+  | Sreg of { field : string; lsb : int }
+  | Rlist of { lsb : int }
+  | Stack_adj of { rlist : int; spimm : int; push : bool }
+  | Uimm_min of { field : string; lsb : int; width : int; min : int }
+
+and scatter = { signed : bool; nonzero : bool; scale : int; width : int; bits : (int * int) list }
 
 type spec = {
   record_id : string;
@@ -79,6 +92,22 @@ let allowlist =
     ("rv_zicbo", None, "zicbom", "im_zicbom");
     ("rv_zifencei", None, "zifencei", "im_zifencei");
     ("rv_i", Some [ "fence" ], "i", "im");
+    (* the rest of rv_c/rv32_c/rv64_c is hand-written (c.addi, CA/CR/CL/CS/CB forms) *)
+    ("rv_c", Some [ "c.addi16sp"; "c.addi4spn"; "c.andi"; "c.li"; "c.lui"; "c.nop" ], "c", "imc");
+    ( "rv32_c",
+      Some [ "c.slli"; "c.srli"; "c.srai"; "c.slli_rv32"; "c.srli_rv32"; "c.srai_rv32" ],
+      "c",
+      "imc" );
+    ("rv64_c", Some [ "c.addiw"; "c.slli"; "c.srli"; "c.srai" ], "c", "imc");
+    ("rv_c_d", None, "c", "imfdc");
+    ("rv32_c_f", None, "c", "imfc");
+    ("rv_zcb", None, "zcb", "imc_zcb");
+    ("rv64_zcb", None, "zcb", "imc_zcb");
+    ("rv_zcmop", None, "zcmop", "imc_zcmop");
+    ("rv_c_zihintntl", None, "zihintntl", "imc_zihintntl");
+    ("rv_c_zicfiss", None, "zicfiss", "imc_zicfiss_zcmop");
+    ("rv_zcmp", None, "zcmp", "imc_zcmp");
+    ("rv_zcmt", None, "zcmt", "imc_zcmt");
   ]
 
 (* Zicbo's file holds three extensions, each with its own -march name. *)
@@ -88,6 +117,37 @@ let isa_overrides =
     ("prefetch.i", ("zicbop", "im_zicbop"));
     ("prefetch.r", ("zicbop", "im_zicbop"));
     ("prefetch.w", ("zicbop", "im_zicbop"));
+    ("c.zext.w", ("zcb", "imc_zba_zcb"));
+    ("c.sext.b", ("zcb", "imc_zbb_zcb"));
+    ("c.sext.h", ("zcb", "imc_zbb_zcb"));
+    ("c.zext.h", ("zcb", "imc_zbb_zcb"));
+  ]
+
+(* The value bits each compressed immediate field holds, from the field's
+   most significant bit down (RISC-V ISA manual, compressed formats; the
+   capture states only the fields' positions). *)
+let c_field_layouts =
+  [
+    ("c_imm6hi", [ 5 ]);
+    ("c_imm6lo", [ 4; 3; 2; 1; 0 ]);
+    ("c_nzuimm6hi", [ 5 ]);
+    ("c_nzuimm6lo", [ 4; 3; 2; 1; 0 ]);
+    ("c_nzuimm5", [ 4; 3; 2; 1; 0 ]);
+    ("c_nzimm10hi", [ 9 ]);
+    ("c_nzimm10lo", [ 4; 6; 8; 7; 5 ]);
+    ("c_nzuimm10", [ 5; 4; 9; 8; 7; 6; 2; 3 ]);
+    ("c_uimm7lo", [ 2; 6 ]);
+    ("c_uimm7hi", [ 5; 4; 3 ]);
+    ("c_uimm8lo", [ 7; 6 ]);
+    ("c_uimm8hi", [ 5; 4; 3 ]);
+    ("c_uimm8sphi", [ 5 ]);
+    ("c_uimm8splo", [ 4; 3; 2; 7; 6 ]);
+    ("c_uimm9sphi", [ 5 ]);
+    ("c_uimm9splo", [ 4; 3; 8; 7; 6 ]);
+    ("c_uimm8sp_s", [ 5; 4; 3; 2; 7; 6 ]);
+    ("c_uimm9sp_s", [ 5; 4; 3; 8; 7; 6 ]);
+    ("c_uimm2", [ 0; 1 ]);
+    ("c_uimm1", [ 1 ]);
   ]
 
 let starts_with ~prefix s =
@@ -239,7 +299,113 @@ let operands_of ~extension ~mnemonic (fields : R.field list) variable_fields =
     match lsb base with Some b -> all (ops @ [ Some (Mem_zero { base = b }) ]) | None -> None
   in
   let prefixed p = starts_with ~prefix:p mnemonic in
+  let compressed_imm names =
+    (* one immediate from all its compressed fields *)
+    let parts =
+      List.map
+        (fun name ->
+          match (field_of fields name, List.assoc_opt name c_field_layouts) with
+          | Some f, Some vbits when List.length vbits = f.width ->
+              Some (List.mapi (fun k vbit -> (f.lsb + f.width - 1 - k, vbit)) vbits)
+          | _ -> None)
+        names
+    in
+    if names = [] || List.mem None parts then None
+    else
+      let bits = List.concat (List.filter_map Fun.id parts) in
+      let vbits = List.map snd bits in
+      let family = List.hd names in
+      let has sub =
+        let n = String.length family and k = String.length sub in
+        let rec go i = i + k <= n && (String.sub family i k = sub || go (i + 1)) in
+        go 0
+      in
+      Some
+        {
+          signed = not (has "uimm");
+          nonzero = has "nz";
+          scale = List.fold_left min max_int vbits;
+          width = List.fold_left max 0 vbits + 1;
+          bits;
+        }
+  in
+  let is_c_imm name = List.mem_assoc name c_field_layouts in
+  let c_reg name =
+    match field_of fields name with
+    | None -> None
+    | Some f -> (
+        let fp = List.mem extension [ "rv_c_d"; "rv32_c_f" ] in
+        match name with
+        | ("rd_p" | "rs2_p") when fp -> Some (Cfreg { field = name; lsb = f.lsb })
+        | "rd_p" | "rs1_p" | "rs2_p" | "rd_rs1_p" -> Some (Creg { field = name; lsb = f.lsb })
+        | "rd_rs1_n0" | "rd_n0" -> Some (Gpr { field = name; lsb = f.lsb; nonzero = true })
+        | ("rd" | "c_rs2") when fp -> Some (Fpr { field = name; lsb = f.lsb })
+        | "rd" | "c_rs2" -> Some (Gpr { field = name; lsb = f.lsb; nonzero = false })
+        | "rd_n2" -> Some (Gpr_except { field = name; lsb = f.lsb; except = [ 0; 2 ] })
+        | _ -> None)
+  in
   match variable_fields with
+  | [ "c_sreg1"; "c_sreg2" ] -> (
+      match (lsb "c_sreg1", lsb "c_sreg2") with
+      | Some a, Some b ->
+          Some [ Sreg { field = "c_sreg1"; lsb = a }; Sreg { field = "c_sreg2"; lsb = b } ]
+      | _ -> None)
+  | [ "c_rlist"; "c_spimm" ] -> (
+      match (lsb "c_rlist", lsb "c_spimm") with
+      | Some r, Some p ->
+          Some
+            [ Rlist { lsb = r }; Stack_adj { rlist = r; spimm = p; push = mnemonic = "cm.push" } ]
+      | _ -> None)
+  | [ "c_index" ] when mnemonic = "cm.jalt" ->
+      (* cm.jalt's table index starts at 32; below is cm.jt *)
+      Option.map
+        (fun (f : R.field) ->
+          [ Uimm_min { field = "c_index"; lsb = f.lsb; width = f.width; min = 32 } ])
+        (field_of fields "c_index")
+  | _ when starts_with ~prefix:"c." mnemonic -> (
+      let regs = List.filter (fun n -> not (is_c_imm n)) variable_fields in
+      let imms = List.filter is_c_imm variable_fields in
+      let sp_relative =
+        List.exists
+          (fun n ->
+            starts_with ~prefix:"c_uimm" n
+            &&
+            let k = String.length n in
+            k > 4
+            && (String.sub n (k - 4) 4 = "splo"
+               || String.sub n (k - 4) 4 = "sp_s"
+               || String.sub n (k - 4) 4 = "sphi"))
+          imms
+      in
+      let memory = List.mem "rs1_p" regs && imms <> [] in
+      match mnemonic with
+      | "c.nop" -> Some []
+      | "c.lui" -> (
+          match (c_reg "rd_n2", lsb "c_nzimm18hi", lsb "c_nzimm18lo") with
+          | Some r, Some hi, Some lo -> Some [ r; Cui { hi; lo } ]
+          | _ -> None)
+      | "c.addi16sp" -> Option.map (fun sc -> [ Fixed_gpr 2; Scatter sc ]) (compressed_imm imms)
+      | "c.addi4spn" -> (
+          match (c_reg "rd_p", compressed_imm imms) with
+          | Some r, Some sc -> Some [ r; Fixed_gpr 2; Scatter sc ]
+          | _ -> None)
+      | _ when memory -> (
+          let value = List.filter (fun n -> n <> "rs1_p") regs in
+          match (List.map c_reg value, lsb "rs1_p", compressed_imm imms) with
+          | [ Some v ], Some base, Some sc -> Some [ v; Cmem { base; offset = sc } ]
+          | _ -> None)
+      | _ when sp_relative -> (
+          match (List.map c_reg regs, compressed_imm imms) with
+          | [ Some v ], Some sc -> Some [ v; Spmem { offset = sc } ]
+          | _ -> None)
+      | _ -> (
+          let reg_ops = List.map c_reg regs in
+          if List.mem None reg_ops then None
+          else
+            let reg_ops = List.filter_map Fun.id reg_ops in
+            match imms with
+            | [] -> Some reg_ops
+            | _ -> Option.map (fun sc -> reg_ops @ [ Scatter sc ]) (compressed_imm imms)))
   | [ "rd"; "rs1"; "rs2"; "aq"; "rl" ] ->
       (* an AMO: [rd, rs2, (rs1)], with the ordering as a mnemonic suffix;
          Zacas's double-width forms take even/odd register pairs *)
@@ -275,7 +441,7 @@ let operands_of ~extension ~mnemonic (fields : R.field list) variable_fields =
 
 let spec_of_record (rec_ : R.t) =
   match (rec_.encoding, rec_.provenance) with
-  | ( R.Fixed_bits { width_bits = 32; mask; value; fields },
+  | ( R.Fixed_bits { width_bits = (16 | 32) as width_bits; mask; value; fields },
       R.Riscv_provenance { extension = Some extension; variable_fields; _ } ) -> (
       match List.find_opt (fun (e, _, _, _) -> e = extension) allowlist with
       | None -> None
@@ -284,6 +450,12 @@ let spec_of_record (rec_ : R.t) =
           if not admitted then None
           else
             let mnemonic, fixed = split_fixed_register rec_.native_name in
+            (* rv32_c's [c.slli_rv32] is spelled [c.slli] *)
+            let mnemonic =
+              if ends_with ~suffix:"_rv32" mnemonic then
+                String.sub mnemonic 0 (String.length mnemonic - 5)
+              else mnemonic
+            in
             match operands_of ~extension ~mnemonic fields variable_fields with
             | None -> None
             | Some operands ->
@@ -306,8 +478,10 @@ let spec_of_record (rec_ : R.t) =
                     native_name = rec_.native_name;
                     mnemonic;
                     extension;
-                    width_bits = 32;
-                    mask;
+                    width_bits;
+                    (* [c.nop]'s immediate fields are not spelled: GNU [c.nop] is the
+                       all-zero one, the rest are c.addi x0 hints *)
+                    mask = (if mnemonic = "c.nop" then "0xffff" else mask);
                     match_ = value;
                     operands;
                     xlen;
@@ -325,6 +499,32 @@ let spec_of_record (rec_ : R.t) =
 
 let imm_kind ~width ~signed runs =
   Immediate { width_bits = width; signed; implicit_low_zero_bits = 0; nonzero = false; runs }
+
+let scatter_op name sc =
+  {
+    op_name = name;
+    op_kind =
+      Immediate
+        {
+          width_bits = sc.width;
+          signed = sc.signed;
+          implicit_low_zero_bits = sc.scale;
+          nonzero = sc.nonzero;
+          runs =
+            List.map
+              (fun (ibit, vbit) ->
+                {
+                  field_name = "instruction";
+                  field_hi = ibit;
+                  field_lo = ibit;
+                  dest_hi = vbit;
+                  dest_lo = vbit;
+                })
+              sc.bits;
+        };
+    role = In;
+    explicit = true;
+  }
 
 let form ~requirement (rec_ : R.t) spec =
   let reg_op ~class_ ~excluded field =
@@ -429,12 +629,97 @@ let form ~requirement (rec_ : R.t) spec =
             explicit = true;
           };
         ]
+    | Creg { field; _ } -> [ reg_op ~class_:Riscv_gpr_c ~excluded:[] field ]
+    | Cfreg { field; _ } -> [ reg_op ~class_:Riscv_fpr ~excluded:[] field ]
+    | Gpr_except { field; except; _ } ->
+        [ reg_op ~class_:Riscv_gpr ~excluded:(List.map (Printf.sprintf "x%d") except) field ]
+    | Scatter sc -> [ scatter_op "imm" sc ]
+    | Cmem { offset; _ } ->
+        [ reg_op ~class_:Riscv_gpr_c ~excluded:[] "base"; scatter_op "offset" offset ]
+    | Spmem { offset } -> [ scatter_op "offset" offset ]
+    | Cui _ ->
+        [
+          {
+            op_name = "imm";
+            op_kind =
+              imm_kind ~width:20 ~signed:false
+                [
+                  {
+                    field_name = "instruction";
+                    field_hi = 12;
+                    field_lo = 12;
+                    dest_hi = 5;
+                    dest_lo = 5;
+                  };
+                  {
+                    field_name = "instruction";
+                    field_hi = 6;
+                    field_lo = 2;
+                    dest_hi = 4;
+                    dest_lo = 0;
+                  };
+                ];
+            role = In;
+            explicit = true;
+          };
+        ]
+    | Sreg { field; _ } -> [ reg_op ~class_:Riscv_gpr ~excluded:[] field ]
+    | Rlist _ ->
+        [
+          {
+            op_name = "rlist";
+            op_kind =
+              imm_kind ~width:4 ~signed:false
+                [ { field_name = "c_rlist"; field_hi = 3; field_lo = 0; dest_hi = 3; dest_lo = 0 } ];
+            role = In;
+            explicit = true;
+          };
+        ]
+    | Stack_adj _ ->
+        [
+          {
+            op_name = "stack_adj";
+            op_kind =
+              imm_kind ~width:2 ~signed:false
+                [ { field_name = "c_spimm"; field_hi = 1; field_lo = 0; dest_hi = 1; dest_lo = 0 } ];
+            role = In;
+            explicit = true;
+          };
+        ]
+    | Uimm_min { field; width; _ } ->
+        [
+          {
+            op_name = field;
+            op_kind =
+              imm_kind ~width ~signed:false
+                [
+                  {
+                    field_name = field;
+                    field_hi = width - 1;
+                    field_lo = 0;
+                    dest_hi = width - 1;
+                    dest_lo = 0;
+                  };
+                ];
+            role = In;
+            explicit = true;
+          };
+        ]
     | Fixed_gpr _ | Tied _ | Keyword _ -> []
   in
   let syntax_token = function
     | Gpr { field; _ } | Fpr { field; _ } | Uimm { field; _ } -> Some (Syn_operand field)
     | Fli _ -> Some (Syn_operand "constant")
     | Gpr_pair { field; _ } | Fence_set { field; _ } -> Some (Syn_operand field)
+    | Creg { field; _ } | Cfreg { field; _ } | Gpr_except { field; _ } -> Some (Syn_operand field)
+    | Scatter _ | Cui _ -> Some (Syn_operand "imm")
+    | Sreg { field; _ } | Uimm_min { field; _ } -> Some (Syn_operand field)
+    | Rlist _ -> Some (Syn_operand "rlist")
+    | Stack_adj _ -> Some (Syn_operand "stack_adj")
+    | Cmem _ ->
+        Some
+          (Syn_group [ Syn_operand "offset"; Syn_literal "("; Syn_operand "base"; Syn_literal ")" ])
+    | Spmem _ -> Some (Syn_group [ Syn_operand "offset"; Syn_literal "(sp)" ])
     | Mem_zero _ -> Some (Syn_group [ Syn_literal "("; Syn_operand "base"; Syn_literal ")" ])
     | Mem_hi _ ->
         Some
@@ -505,6 +790,11 @@ let rows_path repo =
 
 let ( let* ) = Result.bind
 
+let render_scatter sc =
+  Printf.sprintf "{ signed = %b; nonzero = %b; scale = %d; width = %d; bits = [ %s ] }" sc.signed
+    sc.nonzero sc.scale sc.width
+    (String.concat "; " (List.map (fun (i, v) -> Printf.sprintf "(%d, %d)" i v) sc.bits))
+
 let render_operand = function
   | Gpr { lsb; nonzero; _ } -> Printf.sprintf "Gpr { lsb = %d; nonzero = %b }" lsb nonzero
   | Fpr { lsb; _ } -> Printf.sprintf "Fpr { lsb = %d }" lsb
@@ -520,6 +810,22 @@ let render_operand = function
   | Mem_hi { base } -> Printf.sprintf "Mem_hi { base = %d }" base
   | Gpr_pair { lsb; below; _ } -> Printf.sprintf "Gpr_pair { lsb = %d; below = %d }" lsb below
   | Fence_set _ -> invalid_arg "Isa_riscv_table: fence rows are hand-encoded, never emitted"
+  | Creg { lsb; _ } -> Printf.sprintf "Creg { lsb = %d }" lsb
+  | Cfreg { lsb; _ } -> Printf.sprintf "Cfreg { lsb = %d }" lsb
+  | Gpr_except { lsb; except; _ } ->
+      Printf.sprintf "Gpr_except { lsb = %d; except = [ %s ] }" lsb
+        (String.concat "; " (List.map string_of_int except))
+  | Scatter sc -> "Scatter " ^ render_scatter sc
+  | Cmem { base; offset } ->
+      Printf.sprintf "Cmem { base = %d; offset = %s }" base (render_scatter offset)
+  | Spmem { offset } -> Printf.sprintf "Spmem { offset = %s }" (render_scatter offset)
+  | Cui { hi; lo } -> Printf.sprintf "Cui { hi = %d; lo = %d }" hi lo
+  | Sreg { lsb; _ } -> Printf.sprintf "Sreg { lsb = %d }" lsb
+  | Rlist { lsb } -> Printf.sprintf "Rlist { lsb = %d }" lsb
+  | Stack_adj { rlist; spimm; push } ->
+      Printf.sprintf "Stack_adj { rlist = %d; spimm = %d; push = %b }" rlist spimm push
+  | Uimm_min { lsb; width; min; _ } ->
+      Printf.sprintf "Uimm_min { lsb = %d; width = %d; min = %d }" lsb width min
 
 let render_row (spec, xlen) =
   Printf.sprintf

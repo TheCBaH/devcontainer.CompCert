@@ -4964,14 +4964,14 @@ let test_fcvt_l_s () =
   check_one "fcvt.s.l" "riscv:f" fcvt_s_l_json;
   check_one "fcvt.s.lu" "riscv:f" fcvt_s_lu_json
 
-let c_lui_json =
-  (* A mnemonic with no normalizer rule (compressed c.lui) - exercises
-     Isa_norm_riscv.normalize's default dispatch case, not a different decode
-     path. *)
-  {|{"encoding":{"fields":[{"lsb":7,"name":"rd_n2","width":5},{"lsb":12,"name":"c_nzimm18hi","width":1},{"lsb":2,"name":"c_nzimm18lo","width":5}],"kind":"fixed_bits","mask":"0xe003","value":"0x6001","width_bits":16},"kind":"instruction-form","native_name":"c.lui","origin":{"line":1,"path":"extensions/rv_c"},"provenance":{"extension":"rv_c"},"record_id":"riscv-opcodes:rv_c:c.lui@L1","snapshot":"riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396","source":"riscv_opcodes","unresolved":[]}|}
+let unknown_json =
+  (* A synthetic record whose mnemonic no rule claims - exercises
+     Isa_norm_riscv.normalize's default dispatch case. Every real record of the
+     checked-in exports now has a rule, so the record is made up. *)
+  {|{"encoding":{"fields":[{"lsb":7,"name":"rd","width":5}],"kind":"fixed_bits","mask":"0xfffff07f","value":"0x7b","width_bits":32},"kind":"instruction-form","native_name":"x.unknown","origin":{"line":1,"path":"extensions/rv_i"},"provenance":{"extension":"rv_i"},"record_id":"riscv-opcodes:rv_i:x.unknown@L1","snapshot":"riscv_opcodes@7afd3dc8772909d8c94ceeb208467cff93896396","source":"riscv_opcodes","unresolved":[]}|}
 
 let test_unhandled_mnemonic () =
-  let rec_ = decode_or_fail "c.lui" c_lui_json in
+  let rec_ = decode_or_fail "x.unknown" unknown_json in
   match Isa_norm_riscv.normalize rec_ with
   | Error { rule = "unhandled-native-name"; _ } ->
       check "unhandled mnemonic reports, not fabricates" true

@@ -27,6 +27,25 @@ type operand =
   | Gpr_pair of { field : string; lsb : int; below : int }
       (** an even/odd register pair when XLEN is below [below] *)
   | Fence_set of { field : string; lsb : int }  (** [fence]'s i/o/r/w set (hand-encoded) *)
+  | Creg of { field : string; lsb : int }  (** compressed x8..x15 *)
+  | Cfreg of { field : string; lsb : int }  (** compressed f8..f15 *)
+  | Gpr_except of { field : string; lsb : int; except : int list }
+  | Scatter of scatter  (** an immediate spread over the instruction *)
+  | Cmem of { base : int; offset : scatter }  (** [offset(rs1')] *)
+  | Spmem of { offset : scatter }  (** [offset(sp)] *)
+  | Cui of { hi : int; lo : int }  (** [c.lui]'s upper immediate *)
+  | Sreg of { field : string; lsb : int }  (** Zcmp s0..s7 *)
+  | Rlist of { lsb : int }  (** Zcmp register list *)
+  | Stack_adj of { rlist : int; spimm : int; push : bool }  (** Zcmp stack adjustment *)
+  | Uimm_min of { field : string; lsb : int; width : int; min : int }
+
+and scatter = {
+  signed : bool;
+  nonzero : bool;
+  scale : int;  (** implicit low zero bits *)
+  width : int;
+  bits : (int * int) list;  (** (instruction bit, value bit) *)
+}
 
 type spec = {
   record_id : string;

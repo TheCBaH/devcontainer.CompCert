@@ -2958,6 +2958,10 @@ val rv_base_int_entries : entry list
     ends of their range, shifts at the top of their shamt range, and the
     operand-less system forms ([pause] under [zihintpause]). *)
 
+val c_jump_entries : entry list
+(** [c.j] (both profiles) and RV32's [c.jal] to a forward and a backward label
+    over a [c.nop] filler, under [.option rvc]. *)
+
 val c_beqz_entries : entry list
 (** [c.beqz s0,1f]/[c.beqz a5,1b] on both profiles - the CB-format
     compressed conditional branch, forward and backward label references

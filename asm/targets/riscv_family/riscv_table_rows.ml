@@ -2626,6 +2626,141 @@ let rows : row array =
       source = "rv64_zba/slli.uw";
     };
     {
+      mnemonic = "c.nop";
+      mask = 0xffffL;
+      match_ = 0x1L;
+      operands = [  ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.nop";
+    };
+    {
+      mnemonic = "c.sspopchk";
+      mask = 0xffffL;
+      match_ = 0x6281L;
+      operands = [ Fixed_gpr 5 ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_c_zicfiss/c.sspopchk.x5";
+    };
+    {
+      mnemonic = "c.sspush";
+      mask = 0xffffL;
+      match_ = 0x6081L;
+      operands = [ Fixed_gpr 1 ];
+      xlen = 0;
+      feature = "zicfiss";
+      source = "rv_c_zicfiss/c.sspush.x1";
+    };
+    {
+      mnemonic = "c.ntl.all";
+      mask = 0xffffL;
+      match_ = 0x9016L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_c_zihintntl/c.ntl.all";
+    };
+    {
+      mnemonic = "c.ntl.p1";
+      mask = 0xffffL;
+      match_ = 0x900aL;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_c_zihintntl/c.ntl.p1";
+    };
+    {
+      mnemonic = "c.ntl.pall";
+      mask = 0xffffL;
+      match_ = 0x900eL;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_c_zihintntl/c.ntl.pall";
+    };
+    {
+      mnemonic = "c.ntl.s1";
+      mask = 0xffffL;
+      match_ = 0x9012L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zihintntl";
+      source = "rv_c_zihintntl/c.ntl.s1";
+    };
+    {
+      mnemonic = "c.mop.11";
+      mask = 0xffffL;
+      match_ = 0x6581L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.11";
+    };
+    {
+      mnemonic = "c.mop.13";
+      mask = 0xffffL;
+      match_ = 0x6681L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.13";
+    };
+    {
+      mnemonic = "c.mop.15";
+      mask = 0xffffL;
+      match_ = 0x6781L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.15";
+    };
+    {
+      mnemonic = "c.mop.1";
+      mask = 0xffffL;
+      match_ = 0x6081L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.1";
+    };
+    {
+      mnemonic = "c.mop.3";
+      mask = 0xffffL;
+      match_ = 0x6181L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.3";
+    };
+    {
+      mnemonic = "c.mop.5";
+      mask = 0xffffL;
+      match_ = 0x6281L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.5";
+    };
+    {
+      mnemonic = "c.mop.7";
+      mask = 0xffffL;
+      match_ = 0x6381L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.7";
+    };
+    {
+      mnemonic = "c.mop.9";
+      mask = 0xffffL;
+      match_ = 0x6481L;
+      operands = [  ];
+      xlen = 0;
+      feature = "zcmop";
+      source = "rv_zcmop/c.mop.9";
+    };
+    {
       mnemonic = "fadd.q";
       mask = 0xfe00007fL;
       match_ = 0x6000053L;
@@ -2698,6 +2833,60 @@ let rows : row array =
       source = "rv_zfh/fsub.h";
     };
     {
+      mnemonic = "c.zext.w";
+      mask = 0xfc7fL;
+      match_ = 0x9c71L;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 64;
+      feature = "zcb";
+      source = "rv64_zcb/c.zext.w";
+    };
+    {
+      mnemonic = "c.not";
+      mask = 0xfc7fL;
+      match_ = 0x9c75L;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.not";
+    };
+    {
+      mnemonic = "c.sext.b";
+      mask = 0xfc7fL;
+      match_ = 0x9c65L;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.sext.b";
+    };
+    {
+      mnemonic = "c.sext.h";
+      mask = 0xfc7fL;
+      match_ = 0x9c6dL;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.sext.h";
+    };
+    {
+      mnemonic = "c.zext.b";
+      mask = 0xfc7fL;
+      match_ = 0x9c61L;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.zext.b";
+    };
+    {
+      mnemonic = "c.zext.h";
+      mask = 0xfc7fL;
+      match_ = 0x9c69L;
+      operands = [ Creg { lsb = 7 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.zext.h";
+    };
+    {
       mnemonic = "lpad";
       mask = 0xfffL;
       match_ = 0x17L;
@@ -2705,6 +2894,24 @@ let rows : row array =
       xlen = 0;
       feature = "zicfilp";
       source = "rv_zicfilp/lpad";
+    };
+    {
+      mnemonic = "c.sext.w";
+      mask = 0xf07fL;
+      match_ = 0x2001L;
+      operands = [ Gpr { lsb = 7; nonzero = true } ];
+      xlen = 64;
+      feature = "zcb";
+      source = "rv64_zcb/c.sext.w";
+    };
+    {
+      mnemonic = "c.addi16sp";
+      mask = 0xef83L;
+      match_ = 0x6101L;
+      operands = [ Fixed_gpr 2; Scatter { signed = true; nonzero = true; scale = 4; width = 10; bits = [ (12, 9); (6, 4); (5, 6); (4, 8); (3, 7); (2, 5) ] } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.addi16sp";
     };
     {
       mnemonic = "flq";
@@ -2723,6 +2930,69 @@ let rows : row array =
       xlen = 0;
       feature = "q";
       source = "rv_q/fsq";
+    };
+    {
+      mnemonic = "c.mul";
+      mask = 0xfc63L;
+      match_ = 0x9c41L;
+      operands = [ Creg { lsb = 7 }; Creg { lsb = 2 } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.mul";
+    };
+    {
+      mnemonic = "cm.mva01s";
+      mask = 0xfc63L;
+      match_ = 0xac62L;
+      operands = [ Sreg { lsb = 7 }; Sreg { lsb = 2 } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.mva01s";
+    };
+    {
+      mnemonic = "cm.mvsa01";
+      mask = 0xfc63L;
+      match_ = 0xac22L;
+      operands = [ Sreg { lsb = 7 }; Sreg { lsb = 2 } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.mvsa01";
+    };
+    {
+      mnemonic = "cm.pop";
+      mask = 0xff03L;
+      match_ = 0xba02L;
+      operands = [ Rlist { lsb = 4 }; Stack_adj { rlist = 4; spimm = 2; push = false } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.pop";
+    };
+    {
+      mnemonic = "cm.popret";
+      mask = 0xff03L;
+      match_ = 0xbe02L;
+      operands = [ Rlist { lsb = 4 }; Stack_adj { rlist = 4; spimm = 2; push = false } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.popret";
+    };
+    {
+      mnemonic = "cm.popretz";
+      mask = 0xff03L;
+      match_ = 0xbc02L;
+      operands = [ Rlist { lsb = 4 }; Stack_adj { rlist = 4; spimm = 2; push = false } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.popretz";
+    };
+    {
+      mnemonic = "cm.push";
+      mask = 0xff03L;
+      match_ = 0xb802L;
+      operands = [ Rlist { lsb = 4 }; Stack_adj { rlist = 4; spimm = 2; push = true } ];
+      xlen = 0;
+      feature = "zcmp";
+      source = "rv_zcmp/cm.push";
     };
     {
       mnemonic = "flh";
@@ -2779,6 +3049,33 @@ let rows : row array =
       source = "rv_q/fnmsub.q";
     };
     {
+      mnemonic = "c.lh";
+      mask = 0xfc43L;
+      match_ = 0x8440L;
+      operands = [ Creg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 1; width = 2; bits = [ (5, 1) ] } } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.lh";
+    };
+    {
+      mnemonic = "c.lhu";
+      mask = 0xfc43L;
+      match_ = 0x8400L;
+      operands = [ Creg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 1; width = 2; bits = [ (5, 1) ] } } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.lhu";
+    };
+    {
+      mnemonic = "c.sh";
+      mask = 0xfc43L;
+      match_ = 0x8c00L;
+      operands = [ Creg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 1; width = 2; bits = [ (5, 1) ] } } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.sh";
+    };
+    {
       mnemonic = "fmadd.h";
       mask = 0x600007fL;
       match_ = 0x4000043L;
@@ -2813,5 +3110,203 @@ let rows : row array =
       xlen = 0;
       feature = "zfh";
       source = "rv_zfh/fnmsub.h";
+    };
+    {
+      mnemonic = "c.lbu";
+      mask = 0xfc03L;
+      match_ = 0x8000L;
+      operands = [ Creg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 0; width = 2; bits = [ (6, 0); (5, 1) ] } } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.lbu";
+    };
+    {
+      mnemonic = "c.sb";
+      mask = 0xfc03L;
+      match_ = 0x8800L;
+      operands = [ Creg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 0; width = 2; bits = [ (6, 0); (5, 1) ] } } ];
+      xlen = 0;
+      feature = "zcb";
+      source = "rv_zcb/c.sb";
+    };
+    {
+      mnemonic = "cm.jalt";
+      mask = 0xfc03L;
+      match_ = 0xa002L;
+      operands = [ Uimm_min { lsb = 2; width = 8; min = 32 } ];
+      xlen = 0;
+      feature = "zcmt";
+      source = "rv_zcmt/cm.jalt";
+    };
+    {
+      mnemonic = "c.srai";
+      mask = 0xfc03L;
+      match_ = 0x8401L;
+      operands = [ Creg { lsb = 7 }; Scatter { signed = false; nonzero = true; scale = 0; width = 5; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0) ] } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c/c.srai";
+    };
+    {
+      mnemonic = "c.srli";
+      mask = 0xfc03L;
+      match_ = 0x8001L;
+      operands = [ Creg { lsb = 7 }; Scatter { signed = false; nonzero = true; scale = 0; width = 5; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0) ] } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c/c.srli";
+    };
+    {
+      mnemonic = "c.srai";
+      mask = 0xec03L;
+      match_ = 0x8401L;
+      operands = [ Creg { lsb = 7 }; Scatter { signed = false; nonzero = true; scale = 0; width = 6; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0); (12, 5) ] } ];
+      xlen = 64;
+      feature = "c";
+      source = "rv64_c/c.srai";
+    };
+    {
+      mnemonic = "c.srli";
+      mask = 0xec03L;
+      match_ = 0x8001L;
+      operands = [ Creg { lsb = 7 }; Scatter { signed = false; nonzero = true; scale = 0; width = 6; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0); (12, 5) ] } ];
+      xlen = 64;
+      feature = "c";
+      source = "rv64_c/c.srli";
+    };
+    {
+      mnemonic = "c.andi";
+      mask = 0xec03L;
+      match_ = 0x8801L;
+      operands = [ Creg { lsb = 7 }; Scatter { signed = true; nonzero = false; scale = 0; width = 6; bits = [ (12, 5); (6, 4); (5, 3); (4, 2); (3, 1); (2, 0) ] } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.andi";
+    };
+    {
+      mnemonic = "c.slli";
+      mask = 0xf003L;
+      match_ = 0x2L;
+      operands = [ Gpr { lsb = 7; nonzero = true }; Scatter { signed = false; nonzero = true; scale = 0; width = 5; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0) ] } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c/c.slli";
+    };
+    {
+      mnemonic = "c.addiw";
+      mask = 0xe003L;
+      match_ = 0x2001L;
+      operands = [ Gpr { lsb = 7; nonzero = true }; Scatter { signed = true; nonzero = false; scale = 0; width = 6; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0); (12, 5) ] } ];
+      xlen = 64;
+      feature = "c";
+      source = "rv64_c/c.addiw";
+    };
+    {
+      mnemonic = "c.slli";
+      mask = 0xe003L;
+      match_ = 0x2L;
+      operands = [ Gpr { lsb = 7; nonzero = true }; Scatter { signed = false; nonzero = true; scale = 0; width = 6; bits = [ (12, 5); (6, 4); (5, 3); (4, 2); (3, 1); (2, 0) ] } ];
+      xlen = 64;
+      feature = "c";
+      source = "rv64_c/c.slli";
+    };
+    {
+      mnemonic = "c.addi4spn";
+      mask = 0xe003L;
+      match_ = 0x0L;
+      operands = [ Creg { lsb = 2 }; Fixed_gpr 2; Scatter { signed = false; nonzero = true; scale = 2; width = 10; bits = [ (12, 5); (11, 4); (10, 9); (9, 8); (8, 7); (7, 6); (6, 2); (5, 3) ] } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.addi4spn";
+    };
+    {
+      mnemonic = "c.li";
+      mask = 0xe003L;
+      match_ = 0x4001L;
+      operands = [ Gpr { lsb = 7; nonzero = true }; Scatter { signed = true; nonzero = false; scale = 0; width = 6; bits = [ (6, 4); (5, 3); (4, 2); (3, 1); (2, 0); (12, 5) ] } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.li";
+    };
+    {
+      mnemonic = "c.lui";
+      mask = 0xe003L;
+      match_ = 0x6001L;
+      operands = [ Gpr_except { lsb = 7; except = [ 0; 2 ] }; Cui { hi = 12; lo = 2 } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c/c.lui";
+    };
+    {
+      mnemonic = "c.fld";
+      mask = 0xe003L;
+      match_ = 0x2000L;
+      operands = [ Cfreg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 3; width = 8; bits = [ (6, 7); (5, 6); (12, 5); (11, 4); (10, 3) ] } } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c_d/c.fld";
+    };
+    {
+      mnemonic = "c.fldsp";
+      mask = 0xe003L;
+      match_ = 0x2002L;
+      operands = [ Fpr { lsb = 7 }; Spmem { offset = { signed = false; nonzero = false; scale = 3; width = 9; bits = [ (12, 5); (6, 4); (5, 3); (4, 8); (3, 7); (2, 6) ] } } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c_d/c.fldsp";
+    };
+    {
+      mnemonic = "c.fsd";
+      mask = 0xe003L;
+      match_ = 0xa000L;
+      operands = [ Cfreg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 3; width = 8; bits = [ (6, 7); (5, 6); (12, 5); (11, 4); (10, 3) ] } } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c_d/c.fsd";
+    };
+    {
+      mnemonic = "c.fsdsp";
+      mask = 0xe003L;
+      match_ = 0xa002L;
+      operands = [ Fpr { lsb = 2 }; Spmem { offset = { signed = false; nonzero = false; scale = 3; width = 9; bits = [ (12, 5); (11, 4); (10, 3); (9, 8); (8, 7); (7, 6) ] } } ];
+      xlen = 0;
+      feature = "c";
+      source = "rv_c_d/c.fsdsp";
+    };
+    {
+      mnemonic = "c.flw";
+      mask = 0xe003L;
+      match_ = 0x6000L;
+      operands = [ Cfreg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 2; width = 7; bits = [ (6, 2); (5, 6); (12, 5); (11, 4); (10, 3) ] } } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c_f/c.flw";
+    };
+    {
+      mnemonic = "c.flwsp";
+      mask = 0xe003L;
+      match_ = 0x6002L;
+      operands = [ Fpr { lsb = 7 }; Spmem { offset = { signed = false; nonzero = false; scale = 2; width = 8; bits = [ (12, 5); (6, 4); (5, 3); (4, 2); (3, 7); (2, 6) ] } } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c_f/c.flwsp";
+    };
+    {
+      mnemonic = "c.fsw";
+      mask = 0xe003L;
+      match_ = 0xe000L;
+      operands = [ Cfreg { lsb = 2 }; Cmem { base = 7; offset = { signed = false; nonzero = false; scale = 2; width = 7; bits = [ (6, 2); (5, 6); (12, 5); (11, 4); (10, 3) ] } } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c_f/c.fsw";
+    };
+    {
+      mnemonic = "c.fswsp";
+      mask = 0xe003L;
+      match_ = 0xe002L;
+      operands = [ Fpr { lsb = 2 }; Spmem { offset = { signed = false; nonzero = false; scale = 2; width = 8; bits = [ (12, 5); (11, 4); (10, 3); (9, 2); (8, 7); (7, 6) ] } } ];
+      xlen = 32;
+      feature = "c";
+      source = "rv32_c_f/c.fswsp";
     };
   |]

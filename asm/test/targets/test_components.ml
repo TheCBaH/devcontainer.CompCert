@@ -410,9 +410,19 @@ let%expect_test
     "generated RISC-V table rows neither collide with nor are shadowed by hand-written forms" =
   let module Rows = Riscv_family_encode.Riscv_table_rows in
   let module Row = Riscv_family_encode.Riscv_table_row in
+  (* the instruction bit holding a scattered immediate's lowest value bit: a
+     valid, aligned, non-zero value *)
+  let lowest (sc : Row.scatter) =
+    let ibit, _ =
+      List.fold_left
+        (fun (bi, bv) (i, v) -> if v < bv then (i, v) else (bi, bv))
+        (0, max_int) sc.bits
+    in
+    Int64.shift_left 1L ibit
+  in
   let check (type o) target xlen (of_mnemonic : string -> o option) (is_table : o -> int option)
       (decode_index : string -> [ `Row of int | `Hand_written | `Nothing ]) =
-    let problems = ref [] and hints = ref [] in
+    let problems = ref [] and hints = ref [] and aliases = ref [] in
     Array.iteri
       (fun i (r : Row.row) ->
         if r.xlen = 0 || r.xlen = xlen then (
@@ -431,6 +441,16 @@ let%expect_test
                 | Uimm { lsb; _ } | Simm { lsb; _ } | Fli { lsb } -> (put lsb, prev)
                 | Mem_i { base } | Mem_s { base } | Mem_zero { base } | Mem_hi { base } ->
                     (put base, prev)
+                | Creg { lsb } | Cfreg { lsb } -> (put lsb, prev)
+                | Gpr_except { lsb; _ } -> (put lsb, v)
+                | Scatter sc | Spmem { offset = sc } -> (Int64.logor w (lowest sc), prev)
+                | Cmem { base; offset } -> (Int64.logor (put base) (lowest offset), prev)
+                | Cui { lo; _ } -> (Int64.logor w (Int64.shift_left 1L lo), prev)
+                | Sreg { lsb } -> (put lsb, prev)
+                | Rlist { lsb } -> (Int64.logor w (Int64.shift_left 4L lsb), prev)
+                | Stack_adj _ -> (w, prev)
+                | Uimm_min { lsb; min; _ } ->
+                    (Int64.logor w (Int64.shift_left (Int64.of_int min) lsb), prev)
                 | Gpr_pair { lsb; _ } ->
                     (Int64.logor w (Int64.shift_left (Int64.of_int (2 * (k + 1))) lsb), prev)
                 | Tied { lsb } -> (Int64.logor w (Int64.shift_left prev lsb), prev)
@@ -444,15 +464,24 @@ let%expect_test
           in
           match decode_index bytes with
           | `Row j when j = i -> ()
+          | `Row j
+            when Int64.equal Rows.rows.(j).mask r.mask && Int64.equal Rows.rows.(j).match_ r.match_
+            ->
+              aliases := Printf.sprintf "%s=%s" r.source Rows.rows.(j).source :: !aliases
           | `Row j ->
               problems :=
                 Printf.sprintf "%s: decodes as row %s" r.source Rows.rows.(j).source :: !problems
           | `Hand_written -> hints := r.source :: !hints
           | `Nothing -> problems := Printf.sprintf "%s: does not decode" r.source :: !problems))
       Rows.rows;
-    Printf.printf "%s: %s\n  decoded as the hand-written form they are a hint of: %s\n" target
+    Printf.printf
+      "%s: %s\n\
+      \  decoded as the hand-written form they are a hint of: %s\n\
+      \  identical encodings: %s\n"
+      target
       (match !problems with [] -> "ok" | ps -> String.concat "; " (List.rev ps))
       (String.concat " " (List.rev !hints))
+      (String.concat " " (List.rev !aliases))
   in
   check "riscv32" 32 Riscv32_encode.Opcode.of_mnemonic
     (function Riscv32_encode.Opcode.Table i -> Some i | _ -> None)
@@ -479,9 +508,11 @@ let%expect_test
   [%expect
     {|
     riscv32: ok
-      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_zicfilp/lpad
+      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_c_zihintntl/c.ntl.all rv_c_zihintntl/c.ntl.p1 rv_c_zihintntl/c.ntl.pall rv_c_zihintntl/c.ntl.s1 rv_zicfilp/lpad
+      identical encodings: rv_zcmop/c.mop.1=rv_c_zicfiss/c.sspush.x1 rv_zcmop/c.mop.5=rv_c_zicfiss/c.sspopchk.x5
     riscv64: ok
-      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_zicfilp/lpad |}]
+      decoded as the hand-written form they are a hint of: rv_zihintntl/ntl.all rv_zihintntl/ntl.p1 rv_zihintntl/ntl.pall rv_zihintntl/ntl.s1 rv_zicbo/prefetch.i rv_zicbo/prefetch.r rv_zicbo/prefetch.w rv_c_zihintntl/c.ntl.all rv_c_zihintntl/c.ntl.p1 rv_c_zihintntl/c.ntl.pall rv_c_zihintntl/c.ntl.s1 rv_zicfilp/lpad
+      identical encodings: rv_zcmop/c.mop.1=rv_c_zicfiss/c.sspush.x1 rv_zcmop/c.mop.5=rv_c_zicfiss/c.sspopchk.x5 |}]
 
 (* Table rows the generated differential cases cannot spell yet, pinned to real GNU as 2.44
    bytes: an AMO's ordering suffixes ([amoadd.b] 0x00c5852f, [.aq] 0x04c5852f, [.rl]
