@@ -8782,12 +8782,19 @@ module Make (M : MODE) = struct
                         else ""
                       in
                       let escape =
-                        match r.map with 1 -> "\x0f" | 2 -> "\x0f\x38" | 3 -> "\x0f\x3a" | _ -> ""
+                        match r.map with
+                        | 1 -> "\x0f"
+                        | 2 -> "\x0f\x38"
+                        | 3 -> "\x0f\x3a"
+                        | 4 -> "\x0f\x0f"
+                        | _ -> ""
                       in
+                      (* 3DNow! (0F 0F) puts its opcode byte last, after ModR/M and displacement *)
+                      let body = if r.map = 4 then tail ^ byte opcode else byte opcode ^ tail in
                       Some
                         ((if r.osz then "\x66" else "")
                         ^ (if r.prefix <> 0 then byte r.prefix else "")
-                        ^ rex ^ escape ^ byte opcode ^ tail)
+                        ^ rex ^ escape ^ body)
                 | T.Xop ->
                     (* 8F RXB.mmmmm W.vvvv.L.pp, always the three-byte form *)
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
@@ -8996,13 +9003,15 @@ module Make (M : MODE) = struct
           match (at k, at (k + 1)) with
           | Some 0x0f, Some 0x38 -> (`Legacy 2, k + 2)
           | Some 0x0f, Some 0x3a -> (`Legacy 3, k + 2)
+          | Some 0x0f, Some 0x0f -> (`Legacy 4, k + 2)
           | Some 0x0f, _ -> (`Legacy 1, k + 1)
           | _ -> (`Legacy 0, k))
     in
-    match at k with
+    (* 3DNow!'s opcode byte comes last: read it per row, after the operands *)
+    match match space with `Legacy 4 -> Some (-1) | _ -> at k with
     | None -> None
     | Some opcode ->
-        let k = k + 1 in
+        let k = if opcode < 0 then k else k + 1 in
         let try_row i (r : T.row) =
           let header_ok, rr, xx, bb, w, vvvv, l =
             match (space, r.space) with
@@ -9076,7 +9085,11 @@ module Make (M : MODE) = struct
               (function T.Reg { field = T.Opcode_low; _ } -> true | _ -> false)
               r.operands
           in
-          let opcode_ok = if low then opcode land 0xf8 = r.opcode else r.opcode = opcode in
+          let opcode_ok =
+            if opcode < 0 then true
+            else if low then opcode land 0xf8 = r.opcode
+            else r.opcode = opcode
+          in
           if (not header_ok) || (not opcode_ok) || not (table_applies r) then None
           else
             let uses_modrm =
@@ -9278,7 +9291,12 @@ module Make (M : MODE) = struct
                           | [] -> ops
                         else ops
                       in
-                      if !failed then None
+                      let k, failed =
+                        if opcode < 0 then
+                          if at k = Some r.opcode then (k + 1, !failed) else (k, true)
+                        else (k, !failed)
+                      in
+                      if failed then None
                       else Some (Instruction.mk (Opcode.Table i) 0 ops, r.mnemonic, k - pos))
         in
         let rec go i =

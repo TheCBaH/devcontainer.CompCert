@@ -61,16 +61,16 @@ let rows =
     {
       id = "RES-X86-LEGACY-SIMD";
       source = "xed_resolved";
-      families = [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a" ];
+      families = [ "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a" ];
       capability =
-        "Legacy MMX/SSE/3DNow remainders: 3DNow's suffix-opcode encoding (0F 0F ... op), \
-         GPR-with-memory spellings that need a width suffix, and implicit operands. xmm and mm \
-         SSE/SSE2/SSSE3/SSE4/AES/PCLMUL/SHA/GFNI forms are promoted through DEC-X86-TABLE rows.";
+        "Legacy MMX/SSE remainders: GPR-with-memory spellings that need a width suffix, implicit \
+         operands, and same-iform twins GNU never emits. xmm, mm and 3DNow! forms are promoted \
+         through DEC-X86-TABLE rows.";
       evidence =
-        "family-admission: SSE, SSE2 and PENTIUMMMX are promoted but for a handful of records; \
-         3DNOW is unhandled";
+        "family-admission: SSE, SSE2, PENTIUMMMX and 3DNOW are promoted but for a handful of \
+         records";
       task = "GEN-05-X86-SIMD";
-      reopening_gate = "the table encodes 3DNow's trailing opcode byte";
+      reopening_gate = "a GAS spelling for the remaining records is probed";
     };
     {
       id = "RES-X86-X87";

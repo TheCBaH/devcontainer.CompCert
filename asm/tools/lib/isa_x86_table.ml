@@ -842,8 +842,8 @@ let spec_of_record (rec_ : R.t) =
       match
         (parse_pattern pattern, Option.map (opcode_byte ~pattern) (int_of_string_opt opcode))
       with
-      (* map 4 is 3DNow!'s 0F 0F escape with a trailing opcode byte *)
-      | Some p, Some opcode when (not p.vex) && opcode_map <= 3 -> (
+      (* map 4 is 3DNow!'s 0F 0F escape, its opcode byte trailing *)
+      | Some p, Some opcode when (not p.vex) && opcode_map <= 4 -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
           else
