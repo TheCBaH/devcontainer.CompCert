@@ -7131,7 +7131,15 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     let operands =
       match prefix with
       (* a twin GNU as reaches only with a pseudo-prefix *)
-      | Some p -> (Isa_gen_render.mnemonic_key, "{" ^ p ^ "} " ^ row.mnemonic) :: operands
+      | Some p ->
+          ( Isa_gen_render.mnemonic_key,
+            String.concat "" (List.map (fun w -> "{" ^ w ^ "} ") (String.split_on_char ' ' p))
+            ^ row.mnemonic
+            ^
+            if List.mem Isa_x86_table.Dfv row.operands then
+              if high then " {dfv=sf,zf}" else " {dfv=of,cf}"
+            else "" )
+          :: operands
       (* CCMP/CTEST: the default flags follow the mnemonic with no comma *)
       | None when List.mem Isa_x86_table.Dfv row.operands ->
           ( Isa_gen_render.mnemonic_key,
@@ -7152,7 +7160,14 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
         Printf.sprintf "x86:%s:table-%s%s%s:%s" spec.iform
           (if alt then "alt-" else "")
           (let k = Isa_x86_table.spec_lookup_key spec in
-           if k = spec.iform then "" else String.sub k (String.length spec.iform + 1) 2 ^ "-")
+           if k = spec.iform then ""
+           else
+             String.map
+               (fun c -> if c = '#' then '-' else c)
+               (String.sub k
+                  (String.length spec.iform + 1)
+                  (String.length k - String.length spec.iform - 1))
+             ^ "-")
           variant (Target.to_string target);
       rule_ids =
         [ "table-row"; "table-" ^ variant; "feature:" ^ String.lowercase_ascii spec.isa_set ];

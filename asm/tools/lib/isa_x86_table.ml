@@ -1097,19 +1097,26 @@ let nf_suffix = "#nf"
 
 let lookup_key (rec_ : R.t) =
   match (rec_.provenance, rec_.encoding) with
-  | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } ->
+  | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } -> (
       let tokens = String.split_on_char ' ' pattern in
-      if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix
-      else if List.mem "NF=1" tokens && not (List.mem "EVAPX_SCC()" tokens) then iform ^ nf_suffix
-      else iform
+      let key =
+        if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix
+        else if List.mem "NF=1" tokens && not (List.mem "EVAPX_SCC()" tokens) then iform ^ nf_suffix
+        else iform
+      in
+      (* an APX map-4 iform covers both directions of a two-register form (01 and 03) *)
+      match rec_.encoding with
+      | R.X86_encoding { space = "evex"; opcode_map = 4; opcode; _ } -> key ^ "#" ^ opcode
+      | _ -> key)
   | R.Xed_provenance { iform = Some iform; _ }, _ -> iform
   | _ -> ""
 
 let spec_lookup_key spec =
-  if List.exists (function Rounding _ -> true | _ -> false) spec.operands then
-    spec.iform ^ rounding_suffix
-  else if spec.evex_p2 land 4 <> 0 && not (List.mem Dfv spec.operands) then spec.iform ^ nf_suffix
-  else spec.iform
+  (if List.exists (function Rounding _ -> true | _ -> false) spec.operands then
+     spec.iform ^ rounding_suffix
+   else if spec.evex_p2 land 4 <> 0 && not (List.mem Dfv spec.operands) then spec.iform ^ nf_suffix
+   else spec.iform)
+  ^ if spec.space = `Evex && spec.map = 4 then Printf.sprintf "#0x%02X" spec.opcode else ""
 
 (* The row a normalized form and its first case describe: the 32-bit one of a width-variable
    integer form. *)
@@ -1336,16 +1343,30 @@ let twin_rank specs =
    which ModR/M field holds the destination. Only a twin with its own iform can be told apart
    from its primary by a case keyed on the iform. *)
 let pseudo_prefix ~(primary : spec) (s : spec) =
-  let dest x = match List.rev x.operands with Reg { field; _ } :: _ -> Some field | _ -> None in
-  if s.pseudo <> "" && primary.pseudo <> s.pseudo then Some s.pseudo
-  else if s.iform = primary.iform then None
-  else if s.space <> primary.space then
-    match s.space with `Evex -> Some "evex" | `Vex -> Some "vex" | `Legacy | `Xop -> None
+  (* the last ModR/M register: the destination, or an NDD form's second source *)
+  let dest x =
+    List.find_map
+      (function Reg { field = (Modrm_reg | Modrm_rm) as field; _ } -> Some field | _ -> None)
+      (List.rev x.operands)
+  in
+  (* space-separated when several apply ([evex load]): the twin's own pseudo-prefix, then the
+     encoding space or the direction that tells it from its primary; none when a case could
+     not name it apart (the same lookup key) *)
+  (* GNU takes no {load}/{store} on ccmp/ctest's {dfv=} form *)
+  if spec_lookup_key s = spec_lookup_key primary || List.mem Dfv s.operands then None
   else
-    match (dest s, dest primary) with
-    | Some Modrm_reg, Some Modrm_rm -> Some "load"
-    | Some Modrm_rm, Some Modrm_reg -> Some "store"
-    | _ -> None
+    let own = if s.pseudo <> "" then [ s.pseudo ] else [] in
+    let apart =
+      if s.space <> primary.space && s.pseudo = "" then
+        match s.space with `Evex -> [ "evex" ] | `Vex -> [ "vex" ] | `Legacy | `Xop -> []
+      else
+        match (dest s, dest primary) with
+        | Some Modrm_reg, Some Modrm_rm -> [ "load" ]
+        | Some Modrm_rm, Some Modrm_reg -> [ "store" ]
+        | _ -> []
+    in
+    if apart = [] && s.pseudo = primary.pseudo then None
+    else match own @ apart with [] -> None | ps -> Some (String.concat " " ps)
 
 (* A pseudo-prefix reaches the best-ranked twin it allows, so of several twins sharing a prefix
    only that one is reachable. *)

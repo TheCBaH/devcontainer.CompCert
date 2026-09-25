@@ -1623,6 +1623,8 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
      \tnop\n\
      \tint $3\n\
      \tendbr64\n\
+     \t{load} addl %eax, %ebx, %ecx\n\
+     \t{evex} {load} addl %eax, %ebx\n\
      \tloop 1f\n\
      \tjrcxz 1f\n\
      \t1:\n";
@@ -1661,8 +1663,10 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
     400000ab  90                                   .balign 2                                   [padding]
     400000ac  cc                                   int3                                        [x86_64.int3]
     400000ad  f3 0f 1e fa                          endbr64                                     [x86_64.endbr64]
-    400000b1  e2 02                                loop 1073742005                             [x86_64.short-loop.d8]
-    400000b3  e3 00                                jrcxz 1073742005                            [x86_64.short-jrcxz.d8]
+    400000b1  62 f4 74 18 03 d8                    {load} addl %eax, %ebx, %ecx                [x86_64.addl]
+    400000b7  62 f4 7c 08 03 d8                    {evex} {load} addl %eax, %ebx               [x86_64.addl]
+    400000bd  e2 02                                loop 1073742017                             [x86_64.short-loop.d8]
+    400000bf  e3 00                                jrcxz 1073742017                            [x86_64.short-jrcxz.d8]
     x86.simplify: unknown instruction {vex3} vaddps |}]
 
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling

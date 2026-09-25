@@ -2137,30 +2137,44 @@ module Instruction = struct
         r.operands
     in
     let dest (r : X86_table_row.row) =
-      match List.rev r.operands with X86_table_row.Reg { field; _ } :: _ -> Some field | _ -> None
+      List.find_map
+        (function
+          | X86_table_row.Reg { field = (X86_table_row.Modrm_reg | Modrm_rm) as field; _ } ->
+              Some field
+          | _ -> None)
+        (List.rev r.operands)
     in
     let rec first j =
       if j >= i then None
       else
         let q = rows.(j) in
-        if String.equal q.mnemonic r.mnemonic && q.mode = r.mode && shape q = shape r then Some q
+        if
+          String.equal q.mnemonic r.mnemonic
+          && q.mode = r.mode
+          && shape q = shape r
+          && String.equal q.pseudo r.pseudo
+        then Some q
         else first (j + 1)
     in
-    if r.pseudo <> "" then "{" ^ r.pseudo ^ "} " ^ r.mnemonic
-    else
+    (* the row's own pseudo-prefix, then what tells it from the first same-shaped row reached
+       the same way: the encoding space, or the destination's ModR/M field *)
+    let own = if r.pseudo <> "" then [ r.pseudo ] else [] in
+    let apart =
       match first 0 with
-      | None -> r.mnemonic
+      | None -> []
       | Some q -> (
-          if q.space <> r.space then
+          if q.space <> r.space && r.pseudo = "" then
             match r.space with
-            | X86_table_row.Evex -> "{evex} " ^ r.mnemonic
-            | Vex -> "{vex} " ^ r.mnemonic
-            | Legacy | Xop -> r.mnemonic
+            | X86_table_row.Evex -> [ "evex" ]
+            | Vex -> [ "vex" ]
+            | Legacy | Xop -> []
           else
             match (dest r, dest q) with
-            | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> "{load} " ^ r.mnemonic
-            | Some X86_table_row.Modrm_rm, Some X86_table_row.Modrm_reg -> "{store} " ^ r.mnemonic
-            | _ -> r.mnemonic)
+            | Some X86_table_row.Modrm_reg, Some X86_table_row.Modrm_rm -> [ "load" ]
+            | Some X86_table_row.Modrm_rm, Some X86_table_row.Modrm_reg -> [ "store" ]
+            | _ -> [])
+    in
+    String.concat "" (List.map (fun p -> "{" ^ p ^ "} ") (own @ apart)) ^ r.mnemonic
 
   let pp ppf i =
     match i.ops with
@@ -9026,27 +9040,42 @@ module Make (M : MODE) = struct
 
   (* GNU as's pseudo-prefixes, each a condition on the row: [{evex}] and [{vex}] the encoding
      space, [{load}] and [{store}] whether the destination is ModR/M.reg or ModR/M.rm. *)
-  let pseudo_prefix_allows prefix (r : T.row) =
+  (* Every prefix must allow the row, and a row reached only through a pseudo-prefix needs it
+     among them. *)
+  let pseudo_prefix_allows prefixes (r : T.row) =
+    (* the direction {load}/{store} choose: which ModR/M field holds the last ModR/M register
+       (the destination, or an NDD form's second source) *)
     let dest_field () =
-      match List.rev r.operands with T.Reg { field; _ } :: _ -> Some field | _ -> None
+      List.find_map
+        (function
+          | T.Reg { field = (T.Modrm_reg | T.Modrm_rm) as field; _ } -> Some field | _ -> None)
+        (List.rev r.operands)
     in
-    if r.pseudo <> "" then String.equal r.pseudo prefix
-    else
-      match prefix with
-      | "evex" -> r.space = T.Evex
-      | "vex" -> r.space = T.Vex
-      | "load" -> dest_field () = Some T.Modrm_reg
-      | "store" -> dest_field () = Some T.Modrm_rm
-      | _ -> false
+    (r.pseudo = "" || List.mem r.pseudo prefixes)
+    && List.for_all
+         (fun prefix ->
+           String.equal prefix r.pseudo
+           ||
+           match prefix with
+           | "evex" -> r.space = T.Evex
+           | "vex" -> r.space = T.Vex
+           | "load" -> dest_field () = Some T.Modrm_reg
+           | "store" -> dest_field () = Some T.Modrm_rm
+           | _ -> false)
+         prefixes
 
-  (* [{evex} vaddps] -> [Some ("evex", "vaddps")] *)
+  (* [{evex} {load} addl] -> [Some (["evex"; "load"], "addl")] *)
   let split_pseudo_prefix m =
-    if String.length m > 0 && m.[0] = '{' then
-      match String.index_opt m '}' with
-      | Some k when k + 1 < String.length m && m.[k + 1] = ' ' ->
-          Some (String.sub m 1 (k - 1), String.sub m (k + 2) (String.length m - k - 2))
-      | _ -> None
-    else None
+    let rec go acc m =
+      if String.length m > 0 && m.[0] = '{' then
+        match String.index_opt m '}' with
+        | Some k when k + 1 < String.length m && m.[k + 1] = ' ' ->
+            go (String.sub m 1 (k - 1) :: acc) (String.sub m (k + 2) (String.length m - k - 2))
+        | _ -> None
+      else if acc = [] then None
+      else Some (List.rev acc, m)
+    in
+    go [] m
 
   let table_index mnemonic =
     let rec go i =
