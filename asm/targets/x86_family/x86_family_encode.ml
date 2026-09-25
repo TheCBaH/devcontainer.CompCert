@@ -64,6 +64,14 @@ module Reg = struct
 
   (* [mm0]-[mm7] (MMX) and [k0]-[k7] (AVX-512 opmasks), used only by generated table rows; their
      widths are {!X86_table_row.class_width}'s class markers. *)
+  (* [xmm16]-[zmm31]: EVEX's upper sixteen, x86-64 only and used only by generated EVEX rows *)
+  let evex_upper =
+    List.concat_map
+      (fun (prefix, width) ->
+        List.init 16 (fun i ->
+            { name = Printf.sprintf "%s%d" prefix (i + 16); num = i + 16; width }))
+      [ ("xmm", 128); ("ymm", 256); ("zmm", 512) ]
+
   let mm_and_k =
     List.init 8 (fun i ->
         { name = Printf.sprintf "mm%d" i; num = i; width = X86_table_row.class_width Mmx })
@@ -8588,7 +8596,10 @@ module Make (M : MODE) = struct
   let table_modrm ?(n = 1) ?vsib ~reg rm =
     let byte v = String.make 1 (Char.chr v) in
     match rm with
-    | `Reg n -> Some (byte (0xc0 lor ((reg land 7) lsl 3) lor (n land 7)), 0, (n lsr 3) land 1)
+    (* EVEX.X extends a register rm to 16-31; below 16 it is 0 *)
+    | `Reg n ->
+        Some
+          (byte (0xc0 lor ((reg land 7) lsl 3) lor (n land 7)), (n lsr 4) land 1, (n lsr 3) land 1)
     | `Mem (m : Mem.t) -> (
         let addr_ok = function
           | None -> true
@@ -8598,7 +8609,7 @@ module Make (M : MODE) = struct
         let index_ok =
           match (vsib, m.index) with
           | None, index -> addr_ok index
-          | Some w, Some (r : Reg.t) -> r.width = w && r.num >= 0 && r.num < 16
+          | Some w, Some (r : Reg.t) -> r.width = w && r.num >= 0 && r.num < 32
           | Some _, None -> false
         in
         match m.disp with
@@ -8673,7 +8684,12 @@ module Make (M : MODE) = struct
       List.iter2
         (fun (o : T.operand) op ->
           match (o, op) with
-          | T.Reg { cls; field }, Operand.Reg reg when table_reg_ok cls reg -> (
+          (* registers 16-31 exist only in EVEX's reg, rm and vvvv fields *)
+          | T.Reg { cls; field }, Operand.Reg reg
+            when table_reg_ok cls reg
+                 && (reg.num < 16
+                    || r.space = T.Evex
+                       && (field = T.Modrm_reg || field = T.Modrm_rm || field = T.Vvvv)) -> (
               if byte_reg_needs_rex reg then rex_byte := true;
               match field with
               | T.Modrm_reg -> reg_field := Some reg.num
@@ -8774,13 +8790,23 @@ module Make (M : MODE) = struct
                     (* 62 P0 P1 P2 with k0 (no masking), no zeroing; registers 0-15. EVEX.b with a
                        register operand is embedded rounding, whose mode replaces L'L. *)
                     let v = Option.value !vvvv ~default:0 in
+                    (* bit 4 of ModR/M.reg in R', of vvvv or a VSIB index in V' *)
+                    let r' = (reg lsr 4) land 1 in
+                    let v' =
+                      match (!vsib, !rm) with
+                      | Some _, Some (`Mem ({ Mem.index = Some i; _ } : Mem.t)) ->
+                          (i.num lsr 4) land 1
+                      | _ -> (v lsr 4) land 1
+                    in
+                    let v = v land 15 in
                     let b_bit, l = match !rounding with Some rc -> (1, rc) | None -> (0, l) in
                     let pp = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
                     let p0 =
                       ((1 - rr) lsl 7)
                       lor ((1 - x) lsl 6)
                       lor ((1 - b) lsl 5)
-                      lor (1 lsl 4) lor r.map
+                      lor ((1 - r') lsl 4)
+                      lor r.map
                     in
                     let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor (1 lsl 2) lor pp in
                     let aaa, z =
@@ -8788,8 +8814,11 @@ module Make (M : MODE) = struct
                       | Some (k, zero) -> (k, if zero then 1 else 0)
                       | None -> (0, 0)
                     in
-                    let p2 = (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4) lor (1 lsl 3) lor aaa in
-                    if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
+                    let p2 =
+                      (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4) lor ((1 - v') lsl 3) lor aaa
+                    in
+                    if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1 || r' = 1 || v' = 1) then
+                      None
                     else Some ("\x62" ^ byte p0 ^ byte p1 ^ byte p2 ^ byte opcode ^ tail)))
 
   (* Row [i] itself if its operands fit (a pseudo-prefix or the decoder chose it), else every
@@ -8852,6 +8881,8 @@ module Make (M : MODE) = struct
     let k, osz, rep = prefixes pos false 0 in
     (* EVEX.b: embedded rounding for a register form *)
     let evex_b = ref 0 and evex_aaa = ref 0 and evex_z = ref 0 in
+    (* EVEX.R' and EVEX.V' (register bit 4), as 1 when set *)
+    let evex_r4 = ref 0 and evex_v4 = ref 0 in
     let k, rex =
       match at k with Some b when M.rex_allowed && b land 0xf0 = 0x40 -> (k + 1, b) | _ -> (k, 0)
     in
@@ -8861,8 +8892,10 @@ module Make (M : MODE) = struct
         when rex = 0 && (M.rex_allowed || p0 land 0xc0 = 0xc0) && p1 land 4 = 4 && k + 3 < n ->
           (* EVEX with registers 0-15 *)
           let p2 = Char.code bytes.[k + 3] in
-          if p0 land 0x10 = 0 || p2 land 0x08 = 0 then None
+          if (not M.rex_allowed) && (p0 land 0x10 = 0 || p2 land 0x08 = 0) then None
           else (
+            evex_r4 := 1 - ((p0 lsr 4) land 1);
+            evex_v4 := 1 - ((p2 lsr 3) land 1);
             evex_b := (p2 lsr 4) land 1;
             evex_aaa := p2 land 7;
             evex_z := (p2 lsr 7) land 1;
@@ -8960,7 +8993,9 @@ module Make (M : MODE) = struct
                   && (List.exists
                         (function T.Reg { field = T.Vvvv; _ } -> true | _ -> false)
                         r.operands
-                     || vvvv = 0),
+                     || vvvv = 0
+                        && (!evex_v4 = 0
+                           || List.exists (function T.Vsib _ -> true | _ -> false) r.operands)),
                   rr,
                   xx,
                   bb,
@@ -9022,7 +9057,10 @@ module Make (M : MODE) = struct
             match modrm with
             | None -> None
             | Some mb -> (
-                let md = mb lsr 6 and reg = (mb lsr 3) land 7 lor (rr lsl 3) and rmf = mb land 7 in
+                let evex = r.space = T.Evex in
+                let md = mb lsr 6
+                and reg = (mb lsr 3) land 7 lor (rr lsl 3) lor if evex then !evex_r4 lsl 4 else 0
+                and rmf = mb land 7 in
                 let k = if uses_modrm then k + 1 else k in
                 if uses_modrm && r.digit >= 0 && (mb lsr 3) land 7 <> r.digit then None
                 else if uses_modrm && has_mem && md = 3 then None
@@ -9071,7 +9109,10 @@ module Make (M : MODE) = struct
                               | Some (d, k) ->
                                   let index =
                                     match vsib with
-                                    | Some cls -> Some (reg_at ~width:(T.class_width cls) ix)
+                                    | Some cls ->
+                                        Some
+                                          (reg_at ~width:(T.class_width cls)
+                                             (ix lor if evex then !evex_v4 lsl 4 else 0))
                                     | None -> if ix = 4 then None else Some (regat ix)
                                   in
                                   ( Some
@@ -9111,8 +9152,9 @@ module Make (M : MODE) = struct
                                 let num =
                                   match field with
                                   | T.Modrm_reg -> reg
-                                  | T.Modrm_rm -> rmf lor (bb lsl 3)
-                                  | T.Vvvv -> vvvv
+                                  | T.Modrm_rm ->
+                                      rmf lor (bb lsl 3) lor if evex then xx lsl 4 else 0
+                                  | T.Vvvv -> vvvv lor if evex then !evex_v4 lsl 4 else 0
                                   | T.Is4 -> ( match at (n - 1) with _ -> 0)
                                   | T.Opcode_low -> opcode land 7 lor (bb lsl 3)
                                 in
@@ -9250,12 +9292,21 @@ module Make (M : MODE) = struct
         in
         (* a vector index register is a VSIB address, which only a generated row takes: the
            hand-written forms would read its number as a GPR's *)
+        (* so is a register numbered 16-31 (EVEX only) *)
+        let rec upper = function
+          | Operand.Reg (r : Reg.t) -> r.num >= 16
+          | Operand.Masked { op; _ } -> upper op
+          | Operand.Mem { Mem.index = Some (i : Reg.t); _ } -> i.num >= 16
+          | _ -> false
+        in
         let vector_index =
           List.exists
             (function
               | Operand.Mem { Mem.index = Some (i : Reg.t); _ } ->
                   not (List.mem i.width [ 16; 32; 64 ])
-              | _ -> false)
+              | Operand.Masked { op = Operand.Mem { Mem.index = Some (i : Reg.t); _ }; _ } ->
+                  not (List.mem i.width [ 16; 32; 64 ])
+              | op -> upper op)
             s.Surface.ops
         in
         if vector_index then

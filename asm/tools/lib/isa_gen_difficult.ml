@@ -7038,7 +7038,12 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                let k = n - 1 - i in
                if high then 8 + k else [| 1; 2; 3; 6; 7; 5 |].(min k 5)
              in
+             (* an EVEX row's high variant takes 24-31, setting both extension bits *)
+             let evex_high = high && row.space = `Evex in
              match o with
+             | Reg { cls = (Xmm | Ymm | Zmm) as cls; field = Modrm_reg | Modrm_rm | Vvvv }
+               when evex_high ->
+                 [ (Isa_x86_table.operand_name i, reg_name cls (24 + n - 1 - i)) ]
              | Reg { cls = (Xmm | Ymm) as cls; _ } ->
                  [
                    ( Isa_x86_table.operand_name i,
@@ -7069,7 +7074,9 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
              | Vsib { cls } ->
                  [
                    ( Isa_x86_table.operand_name i,
-                     if high then Printf.sprintf "16(%%r9,%%%s,4)" (reg_name cls 13)
+                     if high then
+                       Printf.sprintf "16(%%r9,%%%s,4)"
+                         (reg_name cls (if row.space = `Evex then 29 else 13))
                      else Printf.sprintf "16(%%%s,%%%s,4)" stack (reg_name cls 5) );
                  ]
              | Rounding { sae_only } ->
