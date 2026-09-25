@@ -2105,6 +2105,7 @@ module Instruction = struct
           | Imm { bytes } -> `Imm bytes
           | Fixed_reg n -> `Fixed n
           | Rounding _ -> `Rounding
+          | One -> `One
           | Vsib _ -> `Vsib)
         r.operands
     in
@@ -8700,6 +8701,7 @@ module Make (M : MODE) = struct
               | T.Is4 -> is4 := Some reg.num
               | T.Opcode_low -> opcode_low := reg.num)
           | T.Fixed_reg name, Operand.Reg reg when String.equal reg.name name -> ()
+          | T.One, Operand.Imm v when Bigint.to_int_opt v = Some 1 -> ()
           | T.Rounding { sae_only = true }, Operand.Rc 4 -> rounding := Some 0
           | T.Rounding { sae_only = false }, Operand.Rc n when n >= 0 && n <= 3 ->
               rounding := Some n
@@ -9177,6 +9179,7 @@ module Make (M : MODE) = struct
                                 if (cls = T.Mmx || cls = T.Kmask) && num >= 8 then failed := true;
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
                             | T.Rounding { sae_only } -> Operand.Rc (if sae_only then 4 else l)
+                            | T.One -> Operand.Imm Bigint.one
                             | T.Fixed_reg name -> (
                                 match find_reg name with
                                 | Some reg -> Operand.Reg reg

@@ -52,6 +52,7 @@ let render_operand : Isa_x86_table.operand -> string = function
   | Fixed_reg name -> Printf.sprintf "Fixed_reg %S" name
   | Rounding { sae_only } -> Printf.sprintf "Rounding { sae_only = %b }" sae_only
   | Vsib { cls } -> Printf.sprintf "Vsib { cls = %s }" (render_class cls)
+  | One -> "One"
 
 let render_row (s : Isa_x86_table.spec) =
   Printf.sprintf
@@ -162,8 +163,18 @@ let emit repo =
     | None -> Option.value (Hashtbl.find_opt rank32 s.record_id) ~default:0
   in
   let rows =
-    List.filter (fun s -> not (is_secondary s)) rows
-    @ List.stable_sort (fun a b -> compare (rank_of a) (rank_of b)) (List.filter is_secondary rows)
+    (* a $1 shift takes the D0/D1 form wherever the imm8 one would also fit *)
+    let one_first rows =
+      let one (s : Isa_x86_table.spec) =
+        List.exists (function Isa_x86_table.One -> true | _ -> false) s.operands
+      in
+      List.filter one rows @ List.filter (fun s -> not (one s)) rows
+    in
+    one_first (List.filter (fun s -> not (is_secondary s)) rows)
+    @ one_first
+        (List.stable_sort
+           (fun a b -> compare (rank_of a) (rank_of b))
+           (List.filter is_secondary rows))
   in
   Ok
     (String.concat ""

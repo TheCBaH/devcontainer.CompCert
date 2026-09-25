@@ -9,6 +9,7 @@ type operand =
   | Mem of { bits : int }
   | Imm of { bytes : int }
   | Fixed_reg of string
+  | One  (** the implied count 1 of a shift/rotate D0/D1 form, spelled [$1] *)
   | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
   | Vsib of { cls : rclass }  (** a VSIB address: its index a vector register of [cls] *)
 
@@ -98,7 +99,7 @@ let parse_pattern pattern =
             | "UBIT=1" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
             | "BCRC=1" -> Some { p with bcrc = true }
             (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
-            | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" -> Some p
+            | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" | "ONE()" -> Some p
             | "ND=1" -> Some { p with nd = true }
             | "NF=1" -> Some { p with nf = true }
             | "VMODRM_XMM()" | "UISA_VMODRM_XMM()" -> Some { p with vsib = Some Xmm }
@@ -245,6 +246,7 @@ let operand_of (o : R.x86_operand) =
   else if o.lookupfn_name = Some "MASK1" || o.lookupfn_name = Some "MASKNOT0" then Some None
   else if o.visibility = "IMPLICIT" then
     match (o.op_type, o.bits) with
+    | "imm_const", Some "1" when starts_with ~prefix:"IMM0" o.op_name -> Some (Some One)
     | "nt_lookup_fn", _ when o.lookupfn_name = Some "OrAX" -> Some (Some (Fixed_reg "?ax"))
     | ( "reg",
         Some
@@ -877,6 +879,7 @@ let form ~requirement (rec_ : R.t) spec =
              match o with
              | Fixed_reg _ -> None
              | Rounding _ -> Some Rounding_mode
+             | One -> None
              | Vsib _ -> Some (Memory { width_bits = None })
              | Reg { cls; _ } -> Some (Register { class_ = class_ cls; excluded = [] })
              | Mem { bits } ->
@@ -905,6 +908,7 @@ let form ~requirement (rec_ : R.t) spec =
         | Reg _ -> Syn_decorated ("%", Syn_operand (operand_name i))
         (* spelled whole, braces included: {rn-sae} *)
         | Rounding _ | Vsib _ -> Syn_operand (operand_name i)
+        | One -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Imm _ -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Mem _ -> Syn_operand (operand_name i)
         (* an implied register is assigned per case: its spelling follows the operand size *)
@@ -964,6 +968,7 @@ let twin_primaries specs =
           | Imm { bytes } -> `Imm bytes
           | Fixed_reg n -> `Fixed n
           | Rounding _ -> `Rounding
+          | One -> `One
           | Vsib { cls } -> `Vsib cls)
         spec.operands )
   in
@@ -1020,7 +1025,9 @@ let twin_primaries specs =
             s.opcode = 0x1f,
             s.w <> 1,
             (* last, the lower opcode: EVEX vmovd is 6E/7E, not XED's F3 7E / 66 D6 aliases *)
-            -((s.map * 256) + s.opcode) )
+            -((s.map * 256) + s.opcode),
+            (* and the lower fixed ModR/M.reg: shl is /4, not its /6 alias *)
+            -s.digit )
         in
         (* best first; a tie keeps the listed order *)
         let ranked = List.stable_sort (fun a b -> compare (rank b) (rank a)) group in
@@ -1095,6 +1102,7 @@ let accumulator_positions (records : R.t list) spec =
     | Imm { bytes } -> `Imm (bytes = 1)
     | Fixed_reg n -> `Fixed n
     | Rounding _ -> `Rounding
+    | One -> `One
     | Vsib _ -> `Vsib
   in
   (* the accumulator a sibling names, against the register width at the same position *)

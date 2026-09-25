@@ -151,11 +151,11 @@ let rows =
         ];
       capability =
         "Intel APX beyond the EVEX map-4 promotions: REX2 and r16-r31, conditional compare/test \
-         (CCMP/CTEST: SCC and default-flags operands), the shift/rotate-by-one forms, and \
-         promotions GNU spells differently from XED (setzu/imulzu, CFCMOV's store form).";
+         (CCMP/CTEST: SCC and default-flags operands), and promotions GNU spells differently from \
+         XED (setzu/imulzu, CFCMOV's store form).";
       evidence =
         "family-admission: the APX_F map-4 promotions of legacy instructions are promoted (plain \
-         {evex}, NDD three-operand and {nf} forms); SCC, by-one shifts and REX2 remain";
+         {evex}, NDD three-operand, {nf} and $1-shift forms); SCC and REX2 remain";
       task = "GEN-05-X86-APX";
       reopening_gate = "the encoder models REX2/extended GPRs and CCMP/CTEST's {dfv=} operand";
     };

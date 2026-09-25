@@ -1607,7 +1607,8 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
      \tvpgatherdd 16(%rax,%zmm18,4), %zmm29{%k1}\n\
      \tadcl %eax, %ebx, %ecx\n\
      \t{nf} addq $1000, 16(%rsp), %rdx\n\
-     \t{evex} tzcnt %eax, %ebx\n";
+     \t{evex} tzcnt %eax, %ebx\n\
+     \t{nf} shlb $1, %cl\n";
   attempt "x86_64" "\t.text\n\t{vex3} vaddps %xmm1, %xmm2, %xmm3\n";
   [%expect
     {|
@@ -1628,6 +1629,7 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
     4000004f  62 f4 74 18 11 c3                    adcl %eax, %ebx, %ecx                      [x86_64.adcl]
     40000055  62 f4 ec 1c 81 44 24 10 e8 03 00 00  {nf} addq $1000, 16(%rsp), %rdx            [x86_64.addq]
     40000061  62 f4 7c 08 f4 d8                    {evex} tzcnt %eax, %ebx                    [x86_64.tzcnt]
+    40000067  62 f4 7c 0c d0 e1                    {nf} shlb $1, %cl                          [x86_64.shlb]
     x86.simplify: unknown instruction {vex3} vaddps |}]
 
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling

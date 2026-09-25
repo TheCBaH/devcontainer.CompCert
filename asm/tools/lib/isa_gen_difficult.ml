@@ -7079,6 +7079,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                          (reg_name cls (if row.space = `Evex then 29 else 13))
                      else Printf.sprintf "16(%%%s,%%%s,4)" stack (reg_name cls 5) );
                  ]
+             | One -> [ (Isa_x86_table.operand_name i, "1") ]
              | Rounding { sae_only } ->
                  [
                    ( Isa_x86_table.operand_name i,

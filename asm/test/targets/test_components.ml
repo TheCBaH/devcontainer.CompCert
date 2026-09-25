@@ -579,6 +579,7 @@ let%expect_test "generated x86 table rows round-trip through the decoder" =
                          (reg ~width:(if mode64 then 64 else 32) 3))
                 | Imm _ -> X86_family_encode.Operand.Imm (Foundation.Bigint.of_int 1)
                 | Rounding { sae_only } -> X86_family_encode.Operand.Rc (if sae_only then 4 else 1)
+                | One -> X86_family_encode.Operand.Imm Foundation.Bigint.one
                 | Vsib { cls } ->
                     X86_family_encode.Operand.Mem
                       {
