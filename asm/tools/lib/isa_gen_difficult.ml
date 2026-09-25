@@ -7012,6 +7012,7 @@ let x86_table_entries_of target (spec : Isa_x86_table.spec) =
     match cls with
     | Xmm -> Printf.sprintf "xmm%d" num
     | Ymm -> Printf.sprintf "ymm%d" num
+    | Zmm -> Printf.sprintf "zmm%d" num
     | Gpr32 | Gprv -> if num < 8 then "e" ^ low8.(num) else Printf.sprintf "r%dd" num
     | Gpr64 -> if num < 8 then "r" ^ low8.(num) else Printf.sprintf "r%d" num
     | Gpr16 -> if num < 8 then low8.(num) else Printf.sprintf "r%dw" num
@@ -7126,6 +7127,16 @@ let x86_table_entries repo =
   let per_target target =
     let* specs = Isa_x86_table_emit.specs repo target in
     let* all = Isa_x86_table_emit.all_specs repo target in
+    let specs =
+      List.filter
+        (fun (s : Isa_x86_table.spec) ->
+          Isa_oracle_unavailable.find_record ~source:"xed_resolved" target ~extension:s.isa_set
+            ~native_name:
+              ( String.uppercase_ascii (String.concat "" [ s.iform ]) |> fun i ->
+                match String.index_opt i '_' with Some k -> String.sub i 0 k | None -> i )
+          = None)
+        specs
+    in
     let specs =
       match target with
       | Target.X86_32 ->

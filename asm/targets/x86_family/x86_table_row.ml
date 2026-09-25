@@ -2,7 +2,7 @@
    captured XED export into X86_table_rows by [compcert_tools isa-table
    x86-emit]; nothing here reads the capture at run time. *)
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Xmm | Ymm
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Xmm | Ymm | Zmm
 
 (* Where a register operand is encoded. *)
 type field =
@@ -18,7 +18,7 @@ type operand =
   | Imm of { bytes : int }  (** an immediate of 1, 2 or 4 bytes *)
   | Fixed_reg of string  (** a register the spelling names but the encoding implies: [%cl] *)
 
-type space = Legacy | Vex
+type space = Legacy | Vex | Evex
 
 type row = {
   mnemonic : string;  (** the AT&T spelling *)
@@ -28,7 +28,10 @@ type row = {
   prefix : int;  (** 0, or the mandatory 0x66 / 0xF2 / 0xF3 (VEX.pp) *)
   osz : bool;  (** a 0x66 operand-size prefix (16-bit GPR forms), besides any mandatory one *)
   w : int;  (** REX.W / VEX.W: 0 or 1, or -1 when ignored (encoded as 0) *)
-  l : int;  (** VEX.L: 0 or 1, or -1 when ignored (encoded as 0) *)
+  l : int;  (** VEX.L (0, 1) or EVEX.L'L (0, 1, 2), or -1 when ignored (encoded as 0) *)
+  disp8n : int;
+      (** EVEX's compressed displacement scale N: a displacement that is a multiple of N and
+          fits a byte after dividing is stored as disp8 (1 outside EVEX) *)
   digit : int;  (** a fixed ModR/M.reg value, or -1 *)
   operands : operand list;  (** in AT&T order *)
   mode : int;  (** 0 in both modes; 64 or 32 when only that mode has the form *)
@@ -46,3 +49,4 @@ let class_width = function
   | Gpr64 -> 64
   | Xmm -> 128
   | Ymm -> 256
+  | Zmm -> 512

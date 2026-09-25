@@ -22,13 +22,6 @@ let rows =
           "AVX10_2_BF16_128";
           "AVX10_2_BF16_256";
           "AVX10_2_BF16_512";
-          "AVX10_2_BF16_SCALAR";
-          "AVX10_MOVRS_128";
-          "AVX10_MOVRS_256";
-          "AVX10_MOVRS_512";
-          "AVX10_V2_AUX_128";
-          "AVX10_V2_AUX_256";
-          "AVX10_V2_AUX_512";
           "AVX512BW_128";
           "AVX512BW_128N";
           "AVX512BW_256";
@@ -54,87 +47,47 @@ let rows =
           "AVX512F_KOPW";
           "AVX512F_SCALAR";
           "AVX512PF_512";
-          "AVX512_4FMAPS_512";
-          "AVX512_4FMAPS_SCALAR";
-          "AVX512_4VNNIW_512";
-          "AVX512_BF16_128";
-          "AVX512_BF16_256";
-          "AVX512_BF16_512";
           "AVX512_BITALG_128";
           "AVX512_BITALG_256";
           "AVX512_BITALG_512";
           "AVX512_COM_EF_SCALAR";
           "AVX512_FP16_128";
-          "AVX512_FP16_128N";
           "AVX512_FP16_256";
           "AVX512_FP16_512";
-          "AVX512_FP16_CONVERT_128";
-          "AVX512_FP16_CONVERT_256";
           "AVX512_FP16_CONVERT_512";
           "AVX512_FP16_SCALAR";
-          "AVX512_FP8_CONVERT_128";
-          "AVX512_FP8_CONVERT_256";
-          "AVX512_FP8_CONVERT_512";
           "AVX512_GFNI_128";
           "AVX512_GFNI_256";
-          "AVX512_GFNI_512";
-          "AVX512_IFMA_128";
-          "AVX512_IFMA_256";
-          "AVX512_IFMA_512";
           "AVX512_MEDIAX_128";
           "AVX512_MEDIAX_256";
-          "AVX512_MEDIAX_512";
-          "AVX512_MINMAX_128";
-          "AVX512_MINMAX_256";
           "AVX512_MINMAX_512";
           "AVX512_MINMAX_SCALAR";
           "AVX512_MOVZXC_128";
-          "AVX512_SAT_CVT_128";
-          "AVX512_SAT_CVT_256";
           "AVX512_SAT_CVT_512";
-          "AVX512_SAT_CVT_DS_128";
-          "AVX512_SAT_CVT_DS_256";
           "AVX512_SAT_CVT_DS_512";
           "AVX512_SAT_CVT_DS_SCALAR";
           "AVX512_VAES_128";
           "AVX512_VAES_256";
-          "AVX512_VAES_512";
-          "AVX512_VBMI2_128";
-          "AVX512_VBMI2_256";
-          "AVX512_VBMI2_512";
-          "AVX512_VBMI_128";
-          "AVX512_VBMI_256";
-          "AVX512_VBMI_512";
-          "AVX512_VNNI_128";
-          "AVX512_VNNI_256";
-          "AVX512_VNNI_512";
-          "AVX512_VNNI_FP16_128";
-          "AVX512_VNNI_FP16_256";
-          "AVX512_VNNI_FP16_512";
           "AVX512_VNNI_INT16_128";
           "AVX512_VNNI_INT16_256";
-          "AVX512_VNNI_INT16_512";
           "AVX512_VNNI_INT8_128";
           "AVX512_VNNI_INT8_256";
-          "AVX512_VNNI_INT8_512";
           "AVX512_VP2INTERSECT_128";
           "AVX512_VP2INTERSECT_256";
           "AVX512_VP2INTERSECT_512";
           "AVX512_VPCLMULQDQ_128";
           "AVX512_VPCLMULQDQ_256";
-          "AVX512_VPCLMULQDQ_512";
-          "AVX512_VPOPCNTDQ_128";
-          "AVX512_VPOPCNTDQ_256";
-          "AVX512_VPOPCNTDQ_512";
         ];
       capability =
-        "EVEX (0x62) encoding beyond unmasked 512-bit register-register packed-float: opmask \
-         registers with {%k}/{z}, embedded broadcast and rounding/SAE (the BCRC records), disp8*N \
-         compressed displacements, xmm/ymm/zmm16-31 (R'/V'/X), 128/256-bit EVEX, and the \
-         integer/BW/DQ/FP16/VNNI/IFMA/VBMI/BF16/AVX10 mnemonics.";
+        "EVEX forms beyond the generated table's base obligation (unmasked, no zeroing, no \
+         broadcast, registers 0-15, disp8*N): rounding/SAE (BCRC) records, VSIB gathers and \
+         scatters, forms that require a mask (MASKNOT0), k-register operands, GPR-with-memory \
+         spellings, and the EVEX xmm/ymm twins of VEX forms (reachable only with {evex}). Masking, \
+         zeroing, broadcast and registers 16-31 are obligations on already-promoted records.";
       evidence =
-        "family-admission: only the unmasked 512-bit register-register packed-float subset of \
-         AVX512F_512 is promoted; the BCRC=1 embedded-rounding records are reported as diagnosed";
+        "family-admission: most AVX-512F/BW/DQ/CD/FP16/BF16/VBMI/VNNI/IFMA/BITALG/VPOPCNTDQ and \
+         AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows; the remainder is rounding, \
+         VSIB, mask-register and pseudo-prefix-only forms";
       task = "GEN-05-X86-EVEX";
       reopening_gate =
         "memory operands and opmask decoration are implemented in the encoder and a per-family GAS \
@@ -154,7 +107,6 @@ let rows =
           "FMA4";
           "SM4_128";
           "SM4_256";
-          "SM4_512";
           "XOP";
         ];
       capability =

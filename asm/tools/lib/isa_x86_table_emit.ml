@@ -30,6 +30,7 @@ let render_class : Isa_x86_table.rclass -> string = function
   | Gprv -> invalid_arg "Isa_x86_table_emit: GPRv is expanded before emission"
   | Xmm -> "Xmm"
   | Ymm -> "Ymm"
+  | Zmm -> "Zmm"
 
 let render_field : Isa_x86_table.field -> string = function
   | Modrm_reg -> "Modrm_reg"
@@ -56,6 +57,7 @@ let render_row (s : Isa_x86_table.spec) =
     \      osz = %b;\n\
     \      w = %d;\n\
     \      l = %d;\n\
+    \      disp8n = %d;\n\
     \      digit = %d;\n\
     \      operands = [ %s ];\n\
     \      mode = %d;\n\
@@ -64,8 +66,8 @@ let render_row (s : Isa_x86_table.spec) =
     \      source = %S;\n\
     \    };\n"
     s.mnemonic
-    (match s.space with `Vex -> "Vex" | `Legacy -> "Legacy")
-    s.map s.opcode s.prefix s.osz s.w s.l s.digit
+    (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Legacy -> "Legacy")
+    s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit
     (String.concat "; " (List.map render_operand s.operands))
     s.mode
     (String.concat "; " (List.map string_of_int s.no_acc))

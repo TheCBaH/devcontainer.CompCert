@@ -8511,7 +8511,7 @@ module Make (M : MODE) = struct
 
   (* ModR/M, SIB and displacement for ModR/M.reg [reg] and an rm operand, with the REX.X and
      REX.B bits they need. Memory must be a constant displacement off address-width registers. *)
-  let table_modrm ~reg rm =
+  let table_modrm ?(n = 1) ~reg rm =
     let byte v = String.make 1 (Char.chr v) in
     match rm with
     | `Reg n -> Some (byte (0xc0 lor ((reg land 7) lsl 3) lor (n land 7)), 0, (n lsr 3) land 1)
@@ -8523,7 +8523,17 @@ module Make (M : MODE) = struct
         match m.disp with
         | Disp.Sym _ -> None
         | Disp.Const disp when addr_ok m.base && addr_ok m.index && m.base <> None -> (
-            let form = disp_form_of m in
+            (* EVEX stores disp8 scaled by N (disp8*N); a displacement that is not a multiple
+               of N, or whose quotient does not fit a byte, is a full disp32 *)
+            let form, disp =
+              match disp_form_of m with
+              | D_none -> (D_none, disp)
+              | (D_8 | D_32) as form when n <= 1 -> (form, disp)
+              | _ ->
+                  let q = Int64.div disp (Int64.of_int n) in
+                  if Int64.rem disp (Int64.of_int n) = 0L && fits_s8 q then (D_8, q)
+                  else (D_32, disp)
+            in
             let md = match form with D_none -> 0 | D_8 -> 1 | D_32 -> 2 in
             let disp_bytes =
               match form with D_none -> "" | D_8 -> le_bytes 1 disp | D_32 -> le_bytes 4 disp
@@ -8586,7 +8596,7 @@ module Make (M : MODE) = struct
       else
         let modrm =
           match (!reg_field, !rm) with
-          | Some reg, Some rm -> Option.map (fun m -> (reg, m)) (table_modrm ~reg rm)
+          | Some reg, Some rm -> Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ~reg rm)
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
           | _ -> None
         in
@@ -8640,7 +8650,21 @@ module Make (M : MODE) = struct
                           ^ byte (((1 - rr) lsl 7) lor ((1 - x) lsl 6) lor ((1 - b) lsl 5) lor r.map)
                           ^ byte ((w lsl 7) lor (v lsl 3) lor (l lsl 2) lor pp)
                       in
-                      Some (prefix ^ byte opcode ^ tail)))
+                      Some (prefix ^ byte opcode ^ tail)
+                | T.Evex ->
+                    (* 62 P0 P1 P2 with k0 (no masking), no zeroing, no broadcast; registers 0-15 *)
+                    let v = Option.value !vvvv ~default:0 in
+                    let pp = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
+                    let p0 =
+                      ((1 - rr) lsl 7)
+                      lor ((1 - x) lsl 6)
+                      lor ((1 - b) lsl 5)
+                      lor (1 lsl 4) lor r.map
+                    in
+                    let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor (1 lsl 2) lor pp in
+                    let p2 = (l lsl 5) lor (1 lsl 3) in
+                    if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
+                    else Some ("\x62" ^ byte p0 ^ byte p1 ^ byte p2 ^ byte opcode ^ tail)))
 
   (* Every applicable row spelled like row [i], in table order; the first whose operands fit. *)
   let table_encode (x : [ `Row of int ]) ops =
@@ -8679,6 +8703,23 @@ module Make (M : MODE) = struct
     in
     let vex =
       match (at k, at (k + 1), at (k + 2)) with
+      | Some 0x62, Some p0, Some p1
+        when rex = 0 && (M.rex_allowed || p0 land 0xc0 = 0xc0) && p1 land 4 = 4 && k + 3 < n ->
+          (* EVEX: only the unmasked, non-zeroing, non-broadcast form with registers 0-15 *)
+          let p2 = Char.code bytes.[k + 3] in
+          if p0 land 0x10 = 0 || p2 land 0x08 = 0 || p2 land 0x97 <> 0 then None
+          else
+            Some
+              ( k + 4,
+                `Evex
+                  ( 1 - ((p0 lsr 7) land 1),
+                    1 - ((p0 lsr 6) land 1),
+                    1 - ((p0 lsr 5) land 1),
+                    p0 land 7,
+                    (p1 lsr 7) land 1,
+                    lnot (p1 lsr 3) land 15,
+                    (p2 lsr 5) land 3,
+                    p1 land 3 ) )
       | Some 0xc5, Some b1, _ when rex = 0 && (M.rex_allowed || b1 land 0xc0 = 0xc0) ->
           Some
             ( k + 2,
@@ -8737,7 +8778,8 @@ module Make (M : MODE) = struct
                   w,
                   0,
                   0 )
-            | `Vex (rr, xx, bb, map, w, vvvv, l, pp), T.Vex ->
+            | `Vex (rr, xx, bb, map, w, vvvv, l, pp), T.Vex
+            | `Evex (rr, xx, bb, map, w, vvvv, l, pp), T.Evex ->
                 let want = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
                 ( map = r.map && pp = want && (not osz) && rep = 0
                   && (r.w < 0 || r.w = w)
@@ -8796,7 +8838,10 @@ module Make (M : MODE) = struct
                         match md with
                         | 1 ->
                             Option.map
-                              (fun b -> (Int64.of_int (if b >= 128 then b - 256 else b), k + 1))
+                              (fun b ->
+                                ( Int64.mul (Int64.of_int r.disp8n)
+                                    (Int64.of_int (if b >= 128 then b - 256 else b)),
+                                  k + 1 ))
                               (at k)
                         | 2 ->
                             if k + 4 > n then None

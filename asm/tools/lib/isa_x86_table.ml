@@ -1,7 +1,7 @@
 module R = Isa_source_record
 open Isa_norm_model
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -15,7 +15,7 @@ type spec = {
   iform : string;
   isa_set : string;
   mnemonic : string;
-  space : [ `Legacy | `Vex ];
+  space : [ `Legacy | `Vex | `Evex ];
   map : int;
   opcode : int;
   prefix : int;
@@ -25,6 +25,7 @@ type spec = {
   digit : int;
   operands : operand list;
   mode : int;
+  disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** an integer form spelled with its operand-size suffix, added by {!expand} *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** the operand sizes a width-variable (GPRv) form takes *)
@@ -33,6 +34,10 @@ type spec = {
 let starts_with ~prefix s =
   String.length s >= String.length prefix && String.sub s 0 (String.length prefix) = prefix
 
+let ends_with ~suffix s =
+  let n = String.length s and k = String.length suffix in
+  n >= k && String.sub s (n - k) k = suffix
+
 let after ~prefix s = String.sub s (String.length prefix) (String.length s - String.length prefix)
 
 (* The pattern tokens this rule understands, with what each says. Any other
@@ -40,6 +45,9 @@ let after ~prefix s = String.sub s (String.length prefix) (String.length s - Str
    never be silently dropped. *)
 type pattern = {
   vex : bool;
+  evex : bool;
+  esize : int;  (** ESIZE_n_BITS() *)
+  nelem : string;  (** NELEM_x(), the EVEX tuple type *)
   vex_prefix : int option;
   vl : int;
   rexw : int;
@@ -67,6 +75,18 @@ let parse_pattern pattern =
           else
             match t with
             | "VEXVALID=1" -> Some { p with vex = true }
+            | "VEXVALID=2" -> Some { p with evex = true }
+            | "VL=2" -> Some { p with vl = 2 }
+            (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
+            | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
+            (* a scalar form's length field is ignored and encoded as 128 bits *)
+            | "FIX_ROUND_LEN128()" -> Some { p with vl = 0 }
+            | _ when starts_with ~prefix:"ESIZE_" t && ends_with ~suffix:"_BITS()" t ->
+                Option.map
+                  (fun e -> { p with esize = e })
+                  (int_of_string_opt (String.sub t 6 (String.length t - 13)))
+            | _ when starts_with ~prefix:"NELEM_" t && ends_with ~suffix:"()" t ->
+                Some { p with nelem = String.sub t 6 (String.length t - 8) }
             | "MOD[mm]" | "RM[nnn]" | "REG[rrr]" | "SKIP_OSZ=1" | "MODRM()" | "SE_IMM8()"
             | "UIMM8()" | "VEXDEST3=0b1" | "VEXDEST210=0b111" ->
                 Some
@@ -105,6 +125,9 @@ let parse_pattern pattern =
     (Some
        {
          vex = false;
+         evex = false;
+         esize = 0;
+         nelem = "";
          vex_prefix = None;
          vl = -1;
          rexw = -1;
@@ -124,7 +147,8 @@ let parse_pattern pattern =
 let class_of_lookup lookup =
   let classes =
     [
-      ("XMM_", (Xmm : rclass));
+      ("ZMM_", (Zmm : rclass));
+      ("XMM_", Xmm);
       ("YMM_", Ymm);
       ("VGPR32_", Gpr32);
       ("VGPR64_", Gpr64);
@@ -138,7 +162,10 @@ let class_of_lookup lookup =
   match List.find_opt (fun (p, _) -> starts_with ~prefix:p lookup) classes with
   | None -> None
   | Some (p, cls) -> (
-      match after ~prefix:p lookup with
+      (* the 3 suffix is EVEX's 32-register range of the same field *)
+      let f = after ~prefix:p lookup in
+      let f = if ends_with ~suffix:"3" f then String.sub f 0 (String.length f - 1) else f in
+      match f with
       | "R" -> Some (cls, Modrm_reg)
       | "B" -> Some (cls, Modrm_rm)
       | "N" -> Some (cls, Vvvv)
@@ -159,6 +186,8 @@ let mem_bits = function
    has bits = -1 and a [z] immediate bytes = 0 until {!expand} fixes the operand size. *)
 let operand_of (o : R.x86_operand) =
   if o.visibility = "SUPPRESSED" then Some None
+    (* EVEX's optional write mask: absent means k0, the unmasked form this rule admits *)
+  else if o.lookupfn_name = Some "MASK1" then Some None
   else if o.visibility = "IMPLICIT" then
     match (o.op_type, o.bits) with
     | "nt_lookup_fn", _ when o.lookupfn_name = Some "OrAX" -> Some (Some (Fixed_reg "?ax"))
@@ -192,7 +221,50 @@ let needs_vex_pseudo_prefix = [ "AVX_VNNI"; "AVX_IFMA"; "AVX_NE_CONVERT" ]
 (* The AT&T spelling of an iclass: lower case, XED's 64-bit-operand string
    compares spelled with GNU's [q] suffix, and the narrowing conversions whose
    memory source width AT&T states with an [x]/[y] suffix. *)
-let att_mnemonic ~iclass operands =
+(* A conversion whose destination elements are narrower than its source's: from memory into an
+   xmm register, AT&T states the source width with an x (128), y (256) or z (512) suffix. *)
+let narrowing iclass =
+  let size t =
+    List.assoc_opt t
+      [
+        ("PD", 64);
+        ("QQ", 64);
+        ("UQQ", 64);
+        ("PS", 32);
+        ("DQ", 32);
+        ("UDQ", 32);
+        ("PH", 16);
+        ("PHX", 16);
+        ("BF16", 16);
+        ("W", 16);
+        ("BF8", 8);
+        ("HF8", 8);
+        ("BF8S", 8);
+        ("HF8S", 8);
+        ("DQS", 32);
+        ("UDQS", 32);
+      ]
+  in
+  starts_with ~prefix:"VCVT" iclass
+  &&
+  match String.index_opt iclass '2' with
+  | None -> false
+  | Some i -> (
+      let left = String.sub iclass 0 i
+      and right = String.sub iclass (i + 1) (String.length iclass - i - 1) in
+      let src =
+        List.find_map
+          (fun t -> if ends_with ~suffix:t left then size t else None)
+          [ "UQQ"; "QQ"; "PD"; "PS"; "UDQ"; "DQ"; "PH"; "W" ]
+      in
+      match (src, size right) with Some a, Some b -> a > b | _ -> false)
+
+let mem_to_xmm operands =
+  match List.filter (function Imm _ -> false | _ -> true) operands with
+  | [ Mem _; Reg { cls = Xmm; _ } ] -> true
+  | _ -> false
+
+let att_mnemonic ?(vl = -1) ~iclass operands =
   let lower = String.lowercase_ascii iclass in
   match iclass with
   | "VPCMPESTRI64" | "VPCMPESTRM64" | "PCMPESTRI64" | "PCMPESTRM64" ->
@@ -200,11 +272,8 @@ let att_mnemonic ~iclass operands =
   (* GNU as has no q spelling for these: they are twins of the W-ignored forms *)
   | "VPCMPISTRI64" | "VPCMPISTRM64" | "PCMPISTRI64" | "PCMPISTRM64" ->
       String.sub lower 0 (String.length lower - 2)
-  | "VCVTPD2DQ" | "VCVTTPD2DQ" | "VCVTPD2PS" -> (
-      match List.find_map (function Mem { bits } -> Some bits | _ -> None) operands with
-      | Some 128 -> lower ^ "x"
-      | Some 256 -> lower ^ "y"
-      | _ -> lower)
+  | _ when narrowing iclass && vl >= 0 && mem_to_xmm operands -> (
+      lower ^ match vl with 0 -> "x" | 1 -> "y" | _ -> "z")
   (* XED disambiguates a few iclasses with a suffix GNU does not spell: MOVSD_XMM, PEXTRW_SSE4 *)
   | _ when String.contains lower '_' -> String.sub lower 0 (String.index lower '_')
   | _ -> lower
@@ -332,13 +401,32 @@ let opcode_byte ~pattern opcode =
       if String.length bits = 5 then opcode lsl 3 else opcode
   | _ -> opcode
 
+(* EVEX's disp8*N scale from the tuple type (Intel SDM, "Compressed Displacement"), for the
+   non-broadcast memory form: FULL/FULLMEM the vector, HALF(MEM) half of it, QUARTER(MEM) and
+   EIGHTHMEM a quarter and an eighth, ONE/TUPLE1 one element, TUPLEn n elements, MEM128 16 bytes,
+   MOVDDUP 8 bytes at 128 bits and the vector above. *)
+let disp8_scale p =
+  let vector = 16 lsl max 0 p.vl and element = p.esize / 8 in
+  match p.nelem with
+  | "FULL" | "FULLMEM" -> vector
+  | "HALF" | "HALFMEM" -> vector / 2
+  | "QUARTER" | "QUARTERMEM" -> vector / 4
+  | "EIGHTHMEM" -> vector / 8
+  | "ONE" | "SCALAR" -> max 1 element
+  | "TUPLE2" -> 2 * element
+  | "TUPLE4" -> 4 * element
+  | "TUPLE8" -> 8 * element
+  | "MEM128" | "TUPLE1_4X" -> 16
+  | "MOVDDUP" -> if p.vl = 0 then 8 else vector
+  | _ -> 1
+
 let spec_of_record (rec_ : R.t) =
   match (rec_.encoding, rec_.provenance) with
-  | ( R.X86_encoding { space = "vex"; opcode_map; opcode; pattern; operands },
+  | ( R.X86_encoding { space = ("vex" | "evex") as space; opcode_map; opcode; pattern; operands },
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match (parse_pattern pattern, int_of_string_opt opcode) with
       | _ when List.mem isa_set needs_vex_pseudo_prefix -> None
-      | Some p, Some opcode when p.vex && p.modrm -> (
+      | Some p, Some opcode when (if space = "vex" then p.vex else p.evex) && p.modrm -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
           else
@@ -368,8 +456,8 @@ let spec_of_record (rec_ : R.t) =
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
-                    mnemonic = att_mnemonic ~iclass:rec_.native_name xed_order;
-                    space = `Vex;
+                    mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
+                    space = (if space = "vex" then `Vex else `Evex);
                     map = opcode_map;
                     opcode;
                     prefix;
@@ -379,6 +467,7 @@ let spec_of_record (rec_ : R.t) =
                     digit = p.digit;
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
+                    disp8n = (if space = "evex" then disp8_scale p else 1);
                     sized = false;
                     no_acc = [];
                     widths = [];
@@ -425,7 +514,7 @@ let spec_of_record (rec_ : R.t) =
                     record_id = rec_.record_id;
                     iform;
                     isa_set;
-                    mnemonic = att_mnemonic ~iclass:rec_.native_name xed_order;
+                    mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = `Legacy;
                     map = opcode_map;
                     opcode;
@@ -436,6 +525,7 @@ let spec_of_record (rec_ : R.t) =
                     digit = p.digit;
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
+                    disp8n = 1;
                     sized = false;
                     no_acc = [];
                     widths = [];
@@ -488,6 +578,7 @@ let spec_of_record (rec_ : R.t) =
                     digit;
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
+                    disp8n = 1;
                     sized = true;
                     no_acc =
                       (if p.srm_nonzero then
@@ -538,6 +629,7 @@ let form ~requirement (rec_ : R.t) spec =
   let class_ = function
     | Xmm -> X86_xmm
     | Ymm -> X86_ymm
+    | Zmm -> X86_zmm
     | Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv -> X86_gpr
   in
   let operands =
@@ -587,7 +679,7 @@ let form ~requirement (rec_ : R.t) spec =
     encoding =
       X86_encoding
         {
-          space = (match spec.space with `Vex -> "vex" | `Legacy -> "legacy");
+          space = (match spec.space with `Vex -> "vex" | `Evex -> "evex" | `Legacy -> "legacy");
           opcode_map = spec.map;
           opcode = Printf.sprintf "0x%02X" spec.opcode;
           pattern = (match rec_.encoding with R.X86_encoding { pattern; _ } -> pattern | _ -> "");
@@ -655,7 +747,7 @@ let twins specs =
           match List.rev s.operands with Reg { field = Modrm_rm; _ } :: _ -> true | _ -> false
         in
         let integer s =
-          List.for_all (function Reg { cls = Xmm | Ymm; _ } -> false | _ -> true) s.operands
+          List.for_all (function Reg { cls = Xmm | Ymm | Zmm; _ } -> false | _ -> true) s.operands
         in
         let short s =
           List.exists (function Reg { field = Opcode_low; _ } -> true | _ -> false) s.operands
@@ -664,7 +756,8 @@ let twins specs =
            SIMD moves list the load form first (0x28 before 0x29); the short 0x40+r form wins
            where it exists; the multi-byte NOP is 0F 1F *)
         let rank s =
-          ( (if is4 s then if has_imm s then s.w <> 1 else s.w = 1 else true),
+          ( s.space <> `Evex (* GNU picks VEX for a spelling both could encode *),
+            (if is4 s then if has_imm s then s.w <> 1 else s.w = 1 else true),
             short s,
             (if integer s then dest_in_rm s else dest_in_reg s),
             s.opcode = 0x1f,

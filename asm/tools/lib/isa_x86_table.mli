@@ -10,7 +10,7 @@
     and every visible operand is understood; anything else stays with the
     hand-written forms or blocked. *)
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -24,7 +24,7 @@ type spec = {
   iform : string;
   isa_set : string;
   mnemonic : string;  (** AT&T *)
-  space : [ `Legacy | `Vex ];
+  space : [ `Legacy | `Vex | `Evex ];
   map : int;
   opcode : int;
   prefix : int;
@@ -34,6 +34,7 @@ type spec = {
   digit : int;
   operands : operand list;  (** AT&T order *)
   mode : int;  (** 0, or 64 for a 64-bit-only form *)
+  disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** spelled with an operand-size suffix, added by {!expand} *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** operand sizes of a width-variable (GPRv) form *)
