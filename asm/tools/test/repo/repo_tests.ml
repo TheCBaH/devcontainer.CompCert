@@ -187,8 +187,8 @@ let test_isa_norm_accounting repo =
   in
   expect ~source:"riscv_opcodes" Target.Riscv32 ~total:1089 ~normalized:1071;
   expect ~source:"riscv_opcodes" Target.Riscv64 ~total:1154 ~normalized:1142;
-  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:1988;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:2064
+  expect ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized:2279;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized:2333
 
 (* The family matrix is a second view over the same complete population,
    not a hand-maintained support claim. Pinning its aggregate states makes a
@@ -1069,9 +1069,9 @@ let test_isa_family_admission repo =
   expect ~oracle_unavailable:14 ~source:"riscv_opcodes" Target.Riscv64 ~total:1154
     ~normalized_only:0 ~gas_generatable:0 ~promoted_support:1140 ~blocked:0;
   expect ~oracle_unavailable:22 ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0
-    ~gas_generatable:5 ~promoted_support:1912 ~blocked:5948;
-  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:5
-    ~promoted_support:1987 ~blocked:8579
+    ~gas_generatable:3 ~promoted_support:2155 ~blocked:5707;
+  expect ~source:"xed_resolved" Target.X86_64 ~total:10571 ~normalized_only:0 ~gas_generatable:3
+    ~promoted_support:2219 ~blocked:8349
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports
@@ -1125,9 +1125,9 @@ let test_isa_norm_jsonl_roundtrip repo =
   check_source ~source:"xed_resolved" Target.X86_32;
   check_source ~source:"xed_resolved" Target.X86_64;
   check
-    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 6265)"
+    (Printf.sprintf "isa-norm-jsonl: %d real normalized forms round-tripped (expected 6825)"
        !roundtrip_count)
-    (!roundtrip_count = 6265)
+    (!roundtrip_count = 6825)
 
 (* Exercise the snapshot-update mapping report, Isa_source_snapshot_diff,
    against the real checked-in exports, not just Test_isa_source_snapshot_diff's

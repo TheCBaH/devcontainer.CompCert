@@ -27,6 +27,7 @@ let render_class : Isa_x86_table.rclass -> string = function
   | Gpr16 -> "Gpr16"
   | Gpr32 -> "Gpr32"
   | Gpr64 -> "Gpr64"
+  | Gprv -> invalid_arg "Isa_x86_table_emit: GPRv is expanded before emission"
   | Xmm -> "Xmm"
   | Ymm -> "Ymm"
 
@@ -35,12 +36,14 @@ let render_field : Isa_x86_table.field -> string = function
   | Modrm_rm -> "Modrm_rm"
   | Vvvv -> "Vvvv"
   | Is4 -> "Is4"
+  | Opcode_low -> "Opcode_low"
 
 let render_operand : Isa_x86_table.operand -> string = function
   | Reg { cls; field } ->
       Printf.sprintf "Reg { cls = %s; field = %s }" (render_class cls) (render_field field)
   | Mem { bits } -> Printf.sprintf "Mem { bits = %d }" bits
   | Imm { bytes } -> Printf.sprintf "Imm { bytes = %d }" bytes
+  | Fixed_reg name -> Printf.sprintf "Fixed_reg %S" name
 
 let render_row (s : Isa_x86_table.spec) =
   Printf.sprintf
@@ -56,6 +59,7 @@ let render_row (s : Isa_x86_table.spec) =
     \      digit = %d;\n\
     \      operands = [ %s ];\n\
     \      mode = %d;\n\
+    \      no_acc = [ %s ];\n\
     \      feature = %S;\n\
     \      source = %S;\n\
     \    };\n"
@@ -64,21 +68,56 @@ let render_row (s : Isa_x86_table.spec) =
     s.map s.opcode s.prefix s.osz s.w s.l s.digit
     (String.concat "; " (List.map render_operand s.operands))
     s.mode
+    (String.concat "; " (List.map string_of_int s.no_acc))
     (String.lowercase_ascii s.isa_set)
     s.iform
 
 let emit repo =
   let* x32 = all_specs repo Target.X86_32 in
   let* x64 = all_specs repo Target.X86_64 in
+  let read target =
+    Isa_source_record.read_file (Repo.isa_db_export repo ~source:"xed_resolved" target)
+  in
+  let* records32 = read Target.X86_32 in
+  let* records64 = read Target.X86_64 in
+  let guard records specs =
+    List.map
+      (fun (s : Isa_x86_table.spec) ->
+        {
+          s with
+          no_acc = List.sort_uniq compare (s.no_acc @ Isa_x86_table.accumulator_positions records s);
+        })
+      specs
+  in
+  let x32 = List.concat_map Isa_x86_table.expand x32 |> guard records32 in
+  let x64 = List.concat_map Isa_x86_table.expand x64 |> guard records64 in
+  (* xchg is symmetric: GNU accepts the accumulator on either side of the short form *)
+  let swapped specs =
+    List.concat_map
+      (fun (s : Isa_x86_table.spec) ->
+        if
+          String.length s.iform > 4
+          && String.sub s.iform 0 4 = "XCHG"
+          && List.exists (function Isa_x86_table.Fixed_reg _ -> true | _ -> false) s.operands
+        then [ s; { s with operands = List.rev s.operands } ]
+        else [ s ])
+      specs
+  in
+  let x32 = swapped x32 and x64 = swapped x64 in
   (* a form in both exports serves both modes; one only in the 64-bit export is 64-bit only *)
   let rows =
     List.map
       (fun (s : Isa_x86_table.spec) ->
         if
-          List.exists (fun (t : Isa_x86_table.spec) -> t.iform = s.iform && t.opcode = s.opcode) x32
+          List.exists
+            (fun (t : Isa_x86_table.spec) ->
+              t.iform = s.iform && t.opcode = s.opcode && t.mnemonic = s.mnemonic)
+            x32
         then s
         else { s with mode = 64 })
       x64
+    (* a form only the 32-bit export has (MODE!=2: the short inc/dec) *)
+    @ List.filter (fun (s : Isa_x86_table.spec) -> s.mode = 32) x32
     |> List.fold_left
          (fun acc (s : Isa_x86_table.spec) ->
            if

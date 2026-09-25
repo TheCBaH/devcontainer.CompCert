@@ -10,11 +10,13 @@ type field =
   | Modrm_rm  (** ModR/M.rm with mod = 3 (with REX.B / VEX.B) *)
   | Vvvv  (** VEX.vvvv *)
   | Is4  (** bits 7:4 of a trailing immediate byte *)
+  | Opcode_low  (** the low three bits of the opcode byte (with REX.B): [bswap], [push] *)
 
 type operand =
   | Reg of { cls : rclass; field : field }
   | Mem of { bits : int }  (** a ModR/M memory operand; [bits] is informational *)
   | Imm of { bytes : int }  (** an immediate of 1, 2 or 4 bytes *)
+  | Fixed_reg of string  (** a register the spelling names but the encoding implies: [%cl] *)
 
 type space = Legacy | Vex
 
@@ -29,7 +31,10 @@ type row = {
   l : int;  (** VEX.L: 0 or 1, or -1 when ignored (encoded as 0) *)
   digit : int;  (** a fixed ModR/M.reg value, or -1 *)
   operands : operand list;  (** in AT&T order *)
-  mode : int;  (** 0 in both modes, or 64 when only 64-bit mode has the form *)
+  mode : int;  (** 0 in both modes; 64 or 32 when only that mode has the form *)
+  no_acc : int list;
+      (** operand positions that must not be the accumulator: GNU as encodes that spelling with
+          an accumulator-specific form ([xchg %ebx, %eax] is 0x93) *)
   feature : string;
   source : string;  (** the XED iform *)
 }

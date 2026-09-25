@@ -564,6 +564,15 @@ let%expect_test "generated x86 table rows round-trip through the decoder" =
                 match o with
                 | Reg { cls; _ } ->
                     X86_family_encode.Operand.Reg (reg ~width:(Row.class_width cls) (k + 1))
+                | Fixed_reg name ->
+                    X86_family_encode.Operand.Reg
+                      (match name with
+                      | "cl" -> reg ~width:8 1
+                      | "al" -> reg ~width:8 0
+                      | "ax" -> reg ~width:16 0
+                      | "eax" -> reg ~width:32 0
+                      | "dx" -> reg ~width:16 2
+                      | _ -> reg ~width:64 0)
                 | Mem _ ->
                     X86_family_encode.Operand.Mem
                       (X86_family_encode.Mem.of_base ~disp:(X86_family_encode.Disp.Const 16L)

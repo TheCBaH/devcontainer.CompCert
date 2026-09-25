@@ -224,7 +224,6 @@ let rows =
       source = "xed_resolved";
       families =
         [
-          "ADOX_ADCX";
           "BMI1";
           "BMI2";
           "CLDEMOTE";
@@ -245,17 +244,13 @@ let rows =
           "LAHF";
           "LONGMODE";
           "LZCNT";
-          "MOVBE";
           "PAUSE";
           "PENTIUMREAL";
-          "POPCNT";
           "PPRO";
           "PPRO_UD0_LONG";
           "PPRO_UD0_SHORT";
           "PREFETCHWT1";
           "PREFETCH_NOP";
-          "RDRAND";
-          "RDSEED";
           "RDTSCP";
           "RDWRFSGS";
           "SEP";
@@ -357,7 +352,6 @@ let rows =
           "IBHF";
           "ICACHE_PREFETCH";
           "INVPCID";
-          "KEYLOCKER";
           "KEYLOCKER_WIDE";
           "LKGS";
           "LWP";
@@ -365,7 +359,6 @@ let rows =
           "MONITOR";
           "MONITORX";
           "MOVDIR64B";
-          "MOVDIRI";
           "MOVRS";
           "MPX";
           "MSRLIST";
@@ -374,7 +367,6 @@ let rows =
           "PCONFIG";
           "PKU";
           "PTWRITE";
-          "RAO_INT";
           "RDPID";
           "RDPMC";
           "RDPRU";

@@ -3421,9 +3421,14 @@ module Make (M : MODE) = struct
        one operand's own width disambiguates either way, so the suffix (if
        any) is accepted and ignored rather than validated against
        [M.address_width]. *)
-    | _, "pop" -> Ok (Instruction.mk Opcode.Pop M.address_width s.Surface.ops)
-    | _, "push" -> Ok (Instruction.mk Opcode.Push M.address_width s.Surface.ops)
-    | _, "dec" -> Ok (Instruction.mk Opcode.Dec M.address_width s.Surface.ops)
+    (* only the address width: [decb]/[pushw] are generated rows, not this form *)
+    | _, "pop" when suffix = None || suffix = Some M.address_width ->
+        Ok (Instruction.mk Opcode.Pop M.address_width s.Surface.ops)
+    | _, "push" when suffix = None || suffix = Some M.address_width ->
+        Ok (Instruction.mk Opcode.Push M.address_width s.Surface.ops)
+    (* the codec builds only x86-32's 0x48+r dec; x86-64's FF /1 is a generated row *)
+    | _, "dec" when (not M.rex_allowed) && (suffix = None || suffix = Some M.address_width) ->
+        Ok (Instruction.mk Opcode.Dec M.address_width s.Surface.ops)
     | "jmp", _ -> Ok (Instruction.mk Opcode.Jmp M.address_width s.Surface.ops)
     (* No size suffix, in either mode: a near call is rel32 on x86-32 and on
        x86-64 alike, so there is nothing for a suffix to select. *)
@@ -4264,7 +4269,9 @@ module Make (M : MODE) = struct
        {!Opcode.to_rm_r} above. *)
     | ( ( Opcode.Xor | Opcode.Cmp | Opcode.Sub | Opcode.Add | Opcode.Adc | Opcode.Test | Opcode.Sbb
         | Opcode.Or | Opcode.And ),
-        [ Operand.Reg a; Operand.Reg b ] ) -> (
+        [ Operand.Reg a; Operand.Reg b ] )
+    (* no byte-width opcode is built here: a [b]-suffixed form is a generated row's *)
+      when i.Instruction.width <> 8 -> (
         match (width_ok a, width_ok b) with
         | Ok (), Ok () ->
             Ok
@@ -4285,7 +4292,8 @@ module Make (M : MODE) = struct
        [TEST_GPRv_GPRv] already uses. *)
     | ( ( Opcode.Xor | Opcode.Cmp | Opcode.Sub | Opcode.Add | Opcode.Adc | Opcode.Test | Opcode.Sbb
         | Opcode.Or | Opcode.And ),
-        [ Operand.Reg r; Operand.Mem m ] ) -> (
+        [ Operand.Reg r; Operand.Mem m ] )
+      when i.Instruction.width <> 8 -> (
         match width_ok r with
         | Error e -> Error e
         | Ok () ->
@@ -4302,7 +4310,8 @@ module Make (M : MODE) = struct
        [Xor] here for the same reason they joined {!Opcode.to_r_rm} above. *)
     | ( ( Opcode.Adc | Opcode.Add | Opcode.Xor | Opcode.Sub | Opcode.And | Opcode.Or | Opcode.Sbb
         | Opcode.Cmp ),
-        [ Operand.Mem m; Operand.Reg r ] ) -> (
+        [ Operand.Mem m; Operand.Reg r ] )
+      when i.Instruction.width <> 8 -> (
         match width_ok r with
         | Error e -> Error e
         | Ok () ->
@@ -4471,6 +4480,9 @@ module Make (M : MODE) = struct
         | Error e -> Error e
         | Ok imm -> (
             match dst with
+            (* GNU as encodes an accumulator destination with the short 0xA8/0xA9 form, which
+               is a generated row's, not this one's *)
+            | Operand.Reg r when r.num = 0 -> bad (`No_form "test")
             | Operand.Reg r -> (
                 match width_ok r with
                 | Error e -> Error e
@@ -8478,7 +8490,9 @@ module Make (M : MODE) = struct
   module T = X86_table_row
 
   let table_rows = X86_table_rows.rows
-  let table_applies (r : T.row) = r.mode = 0 || (r.mode = 64 && M.rex_allowed)
+
+  let table_applies (r : T.row) =
+    r.mode = 0 || (r.mode = 64 && M.rex_allowed) || (r.mode = 32 && not M.rex_allowed)
 
   let table_reg_ok (cls : T.rclass) (r : Reg.t) =
     r.width = T.class_width cls && r.num >= 0 && (M.rex_allowed || r.num < 8)
@@ -8537,10 +8551,17 @@ module Make (M : MODE) = struct
         | Disp.Const _ -> None)
 
   let table_encode_row (r : T.row) ops =
+    let accumulator k =
+      match List.nth_opt ops k with
+      | Some (Operand.Reg (reg : Reg.t)) -> reg.num = 0 && List.mem reg.width [ 8; 16; 32; 64 ]
+      | _ -> false
+    in
     if (not (table_applies r)) || List.length ops <> List.length r.operands then None
+    else if List.exists accumulator r.no_acc then None
     else
       let reg_field = ref (if r.digit >= 0 then Some r.digit else None) in
       let rm = ref None and vvvv = ref None and is4 = ref None and imms = ref [] in
+      let opcode_low = ref 0 in
       let rex_byte = ref false and ok = ref true in
       List.iter2
         (fun (o : T.operand) op ->
@@ -8551,7 +8572,9 @@ module Make (M : MODE) = struct
               | T.Modrm_reg -> reg_field := Some reg.num
               | T.Modrm_rm -> rm := Some (`Reg reg.num)
               | T.Vvvv -> vvvv := Some reg.num
-              | T.Is4 -> is4 := Some reg.num)
+              | T.Is4 -> is4 := Some reg.num
+              | T.Opcode_low -> opcode_low := reg.num)
+          | T.Fixed_reg name, Operand.Reg reg when String.equal reg.name name -> ()
           | T.Mem _, Operand.Mem m -> rm := Some (`Mem m)
           | T.Imm { bytes }, Operand.Imm v -> (
               match Bigint.to_int64_opt v with
@@ -8564,9 +8587,10 @@ module Make (M : MODE) = struct
         let modrm =
           match (!reg_field, !rm) with
           | Some reg, Some rm -> Option.map (fun m -> (reg, m)) (table_modrm ~reg rm)
-          | None, None -> Some (0, ("", 0, 0))
+          | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
           | _ -> None
         in
+        let opcode = r.opcode lor (!opcode_low land 7) in
         match modrm with
         | None -> None
         | Some (reg, (modrm_bytes, x, b)) -> (
@@ -8602,7 +8626,7 @@ module Make (M : MODE) = struct
                       Some
                         ((if r.osz then "\x66" else "")
                         ^ (if r.prefix <> 0 then byte r.prefix else "")
-                        ^ rex ^ escape ^ byte r.opcode ^ tail)
+                        ^ rex ^ escape ^ byte opcode ^ tail)
                 | T.Vex ->
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
                     else
@@ -8616,7 +8640,7 @@ module Make (M : MODE) = struct
                           ^ byte (((1 - rr) lsl 7) lor ((1 - x) lsl 6) lor ((1 - b) lsl 5) lor r.map)
                           ^ byte ((w lsl 7) lor (v lsl 3) lor (l lsl 2) lor pp)
                       in
-                      Some (prefix ^ byte r.opcode ^ tail)))
+                      Some (prefix ^ byte opcode ^ tail)))
 
   (* Every applicable row spelled like row [i], in table order; the first whose operands fit. *)
   let table_encode (x : [ `Row of int ]) ops =
@@ -8732,7 +8756,13 @@ module Make (M : MODE) = struct
           in
           ignore w;
           ignore l;
-          if (not header_ok) || r.opcode <> opcode || not (table_applies r) then None
+          let low =
+            List.exists
+              (function T.Reg { field = T.Opcode_low; _ } -> true | _ -> false)
+              r.operands
+          in
+          let opcode_ok = if low then opcode land 0xf8 = r.opcode else r.opcode = opcode in
+          if (not header_ok) || (not opcode_ok) || not (table_applies r) then None
           else
             let uses_modrm =
               r.digit >= 0
@@ -8832,10 +8862,17 @@ module Make (M : MODE) = struct
                                   | T.Modrm_rm -> rmf lor (bb lsl 3)
                                   | T.Vvvv -> vvvv
                                   | T.Is4 -> ( match at (n - 1) with _ -> 0)
+                                  | T.Opcode_low -> opcode land 7 lor (bb lsl 3)
                                 in
                                 if cls = T.Gpr8 && num >= 4 && num < 8 && rex = 0 then
                                   failed := true;
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
+                            | T.Fixed_reg name -> (
+                                match find_reg name with
+                                | Some reg -> Operand.Reg reg
+                                | None ->
+                                    failed := true;
+                                    Operand.Imm Bigint.zero)
                             | T.Mem _ -> (
                                 match mem with
                                 | Some m -> Operand.Mem m
@@ -8897,21 +8934,42 @@ module Make (M : MODE) = struct
 
   (* A mnemonic the hand-written forms do not know may be a generated row's. *)
   let simplify_instruction_ungated (s : Surface.t) =
-    let row () =
-      match table_index s.Surface.mnemonic with
-      | Some i when table_encode (`Row i) s.Surface.ops <> None ->
-          Some (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
-      | _ -> None
+    (* GNU as lets a register operand fix the operand size, and rejects a suffix on most newer
+       integer instructions ([rdrand %eax]), so for a mnemonic the hand-written forms do not know
+       the register also names the sized row. A hand-written mnemonic keeps requiring its suffix
+       (see DEC-X86-SUFFIX). *)
+    let inferred =
+      List.filter_map
+        (function
+          | Operand.Reg (r : Reg.t) when List.mem r.width [ 8; 16; 32; 64 ] ->
+              Some (s.Surface.mnemonic ^ suffix_of_width r.width)
+          | _ -> None)
+        s.Surface.ops
+    in
+    let row spellings =
+      List.find_map
+        (fun m ->
+          match table_index m with
+          | Some i when table_encode (`Row i) s.Surface.ops <> None ->
+              Some (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
+          | _ -> None)
+        spellings
     in
     (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
        mode), or accept but cannot lower for these operands (a high VEX register), may be a
        generated row's *)
     match simplify_hand_written s with
-    | Error _ as err -> ( match row () with Some i -> Ok i | None -> err)
+    | Error e as err -> (
+        let spellings =
+          match Target_error.kind (Err.Error.kind e) with
+          | `Unknown_instruction _ -> s.Surface.mnemonic :: inferred
+          | _ -> [ s.Surface.mnemonic ]
+        in
+        match row spellings with Some i -> Ok i | None -> err)
     | Ok i as ok -> (
         match lower_hand_written i with
         | Ok _ -> ok
-        | Error _ -> ( match row () with Some t -> Ok t | None -> ok))
+        | Error _ -> ( match row [ s.Surface.mnemonic ] with Some t -> Ok t | None -> ok))
 
   (* A hand-written mnemonic can have generated rows for shapes its own forms do not take (a
      ymm [vpslldq]); those are tried when the hand-written lowering declines. *)
