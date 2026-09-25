@@ -1414,7 +1414,8 @@ let accumulator_positions (records : R.t list) spec =
            else List.map (fun (i, _, _) -> i) acc)
        siblings)
 
-(* Relative near branches (jcc and jmp with rel8 or rel32, call rel32): the displacement is a
+(* Relative near branches (jcc and jmp with rel8 or rel32, call rel32, and the rel8-only
+   loop/loope/loopne/jecxz/jrcxz/jcxz): the displacement is a
    signed immediate GNU as resolves from a label, and the assembler's relaxation picks the
    width, so a case places its label at a distance only that width reaches. *)
 let branch (rec_ : R.t) =
@@ -1426,7 +1427,9 @@ let branch (rec_ : R.t) =
         && n.[0] = 'J'
         && not (List.mem n [ "JMP"; "JMP_FAR"; "JCXZ"; "JECXZ"; "JRCXZ"; "JMPABS" ])
       in
+      let rel8_only = List.mem n [ "LOOP"; "LOOPE"; "LOOPNE"; "JCXZ"; "JECXZ"; "JRCXZ" ] in
       match List.find_opt (fun (o : R.x86_operand) -> o.op_name = "RELBR") operands with
+      | Some o when rel8_only && o.oc2 = Some "b" -> Some (String.lowercase_ascii n, 8)
       | Some o when conditional || n = "JMP" || n = "CALL_NEAR" -> (
           let mnemonic = if n = "CALL_NEAR" then "call" else String.lowercase_ascii n in
           match o.oc2 with

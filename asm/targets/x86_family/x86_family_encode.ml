@@ -318,6 +318,7 @@ module Opcode = struct
     | Imul
     | Cmov of Cc.t
     | Jcc of Cc.t
+    | Short_branch of string  (** a rel8-only branch: loop, loope, loopne, jecxz, jrcxz, jcxz *)
     | Ud2
     | Pop
     | Jmp
@@ -1527,6 +1528,7 @@ module Opcode = struct
     | Imul -> "imul"
     | Cmov c -> "cmov" ^ Cc.name c
     | Jcc c -> "j" ^ Cc.name c
+    | Short_branch m -> m
     | Ud2 -> "ud2"
     | Pop -> "pop"
     | Jmp -> "jmp"
@@ -2210,6 +2212,8 @@ module Instruction = struct
             Fmt.pf ppf "j%s%s %a" (Cc.name c) (form_suffix i)
               Fmt.(list ~sep:(any ", ") Operand.pp)
               ops
+        (* one rung, so no pin to spell *)
+        | Opcode.Short_branch m -> Fmt.pf ppf "%s %a" m Fmt.(list ~sep:(any ", ") Operand.pp) ops
         (* No size suffix: a near call is rel32 in both modes, so there is
            nothing for one to select, and GNU as writes none either. *)
         | Opcode.Call -> Fmt.pf ppf "call %a" Fmt.(list ~sep:(any ", ") Operand.pp) ops
@@ -2391,6 +2395,10 @@ module Lowered = struct
     | Jcc_rel of { cc : Cc.t; target : Asm_core.Lowered_ast.branch }
         (** The two relaxing forms: [eb/e9] and [7x/0f 8x]. Unlike [call] these really do have two
             rungs, which is the whole reason {!Codec.Relax} exists. *)
+    | Short_rel of { mnemonic : string; target : Asm_core.Lowered_ast.branch }
+        (** a rel8-only branch ([e2] loop, [e1] loope, [e0] loopne, [e3] jecxz/jrcxz, with
+            0x67 where the counter is not the address width): one rung, so an out-of-range
+            target is an error, not a longer form *)
     | Call_rel of { target : Asm_core.Lowered_ast.branch }
         (** [e8 rel32]. The target is [Symbolic] from lowering and [Resolved] only from decode; the
             encoder dispatches on which, so a resolved displacement never rebuilds a ladder and a
@@ -2609,6 +2617,8 @@ module Lowered = struct
     | Jcc_rel { cc; target } ->
         Fmt.pf ppf "j%s %a" (Cc.name cc) Asm_core.Lowered_ast.pp_branch target
     | Call_rel { target } -> Fmt.pf ppf "call %a" Asm_core.Lowered_ast.pp_branch target
+    | Short_rel { mnemonic; target } ->
+        Fmt.pf ppf "%s %a" mnemonic Asm_core.Lowered_ast.pp_branch target
     | Push { reg } -> Fmt.pf ppf "push %a" Reg.pp reg
     | Push_imm { imm } -> Fmt.pf ppf "push $%s" (Disp.to_string imm)
     | Dec { reg } -> Fmt.pf ppf "dec %a" Reg.pp reg
@@ -2697,6 +2707,8 @@ module Lowered = struct
     | Jcc_rel x, Jcc_rel y ->
         Cc.equal x.cc y.cc && Asm_core.Lowered_ast.equal_branch x.target y.target
     | Call_rel x, Call_rel y -> Asm_core.Lowered_ast.equal_branch x.target y.target
+    | Short_rel x, Short_rel y ->
+        String.equal x.mnemonic y.mnemonic && Asm_core.Lowered_ast.equal_branch x.target y.target
     | Push x, Push y -> Reg.equal x.reg y.reg
     | Push_imm x, Push_imm y -> Disp.equal x.imm y.imm
     | Dec x, Dec y -> Reg.equal x.reg y.reg
@@ -3473,6 +3485,15 @@ module Make (M : MODE) = struct
      keeps a spelling and a form id from drifting apart. *)
   let branch_rungs = [ "d8"; "d32" ]
 
+  (* The rel8-only branches and their bytes before the displacement: the counter is the
+     address width's register (ecx/rcx), and 0x67 selects the other one (jecxz in 64-bit mode,
+     jcxz in 32-bit mode). *)
+  let short_branches =
+    [ ("loop", "\xe2"); ("loope", "\xe1"); ("loopne", "\xe0") ]
+    @
+    if M.rex_allowed then [ ("jrcxz", "\xe3"); ("jecxz", "\x67\xe3") ]
+    else [ ("jecxz", "\xe3"); ("jcxz", "\x67\xe3") ]
+
   (* [jmp], [jne], and either with a [.d8]/[.d32] pin. Returns the opcode and
      the pin, or [None] if the mnemonic is not a branch at all - which is why
      the caller can use it as a guard without a second parse. *)
@@ -3559,6 +3580,12 @@ module Make (M : MODE) = struct
     (* No size suffix, in either mode: a near call is rel32 on x86-32 and on
        x86-64 alike, so there is nothing for a suffix to select. *)
     | "call", _ -> Ok (Instruction.mk Opcode.Call M.address_width s.Surface.ops)
+    | m, _ when List.mem_assoc m short_branches ->
+        Ok (Instruction.mk (Opcode.Short_branch m) M.address_width s.Surface.ops)
+    (* GNU's aliases *)
+    | "loopz", _ -> Ok (Instruction.mk (Opcode.Short_branch "loope") M.address_width s.Surface.ops)
+    | "loopnz", _ ->
+        Ok (Instruction.mk (Opcode.Short_branch "loopne") M.address_width s.Surface.ops)
     (* {3 SSE2 scalar float (M5, asm/docs/corpus.md)}
 
        Fixed mnemonics, matched on the mnemonic directly rather than through
@@ -4669,6 +4696,12 @@ module Make (M : MODE) = struct
           [
             Lowered.Jmp_rel
               { target = Asm_core.Lowered_ast.Symbolic { value = e; rung = i.Instruction.form } };
+          ]
+    | Opcode.Short_branch mnemonic, [ Operand.Sym e ] ->
+        Ok
+          [
+            Lowered.Short_rel
+              { mnemonic; target = Asm_core.Lowered_ast.Symbolic { value = e; rung = None } };
           ]
     | Opcode.Jcc cc, [ Operand.Sym e ] ->
         Ok
@@ -7919,9 +7952,37 @@ module Make (M : MODE) = struct
     let listed = List.sort String.compare (List.map Opcode.name Opcode.x87) in
     if described <> listed then invalid_arg "x86 x87 component and Opcode.x87 disagree"
 
+  (* One single-rung ladder per rel8-only branch: relaxation has nowhere longer to go, so a
+     target out of rel8 range is refused. *)
+  let short_branch_alts =
+    List.mapi
+      (fun k (m, bytes) ->
+        let opcode =
+          String.fold_left
+            (fun acc c -> Int64.logor (Int64.shift_left acc 8) (Int64.of_int (Char.code c)))
+            0L bytes
+        in
+        C.alt ~label:("short-" ^ m) ~priority:(200 + k)
+          (C.relax ~name:m
+             [
+               C.rung ~label:"d8"
+                 (C.iso_fun ~name:(m ^ ".d8")
+                    ~encode:(function
+                      | Lowered.Short_rel { mnemonic; target } when String.equal mnemonic m ->
+                          Some ((), disp_of target)
+                      | _ -> None)
+                    ~decode:(fun ((), d) ->
+                      Some
+                        (Lowered.Short_rel { mnemonic = m; target = resolved ~rung:"d8" ~width:8 d }))
+                    C.(
+                      const ~width:(8 * String.length bytes) opcode
+                      ** le_fixup ~width:8 ~kind:Pcrel8_branch "target"));
+             ]))
+      short_branches
+
   let codec : (Lowered.t, fixup_kind) C.t =
     C.choice ~name:M.name
-      (general_alts @ moffs_alts @ x87_alts
+      (general_alts @ moffs_alts @ x87_alts @ short_branch_alts
       @ [
           (* 8-bit MOV is not the same opcode with a narrower width like every
              other case here - real x86 has no operand-size prefix or REX.W
@@ -8564,7 +8625,8 @@ module Make (M : MODE) = struct
   let expr_of_lowered : Lowered.t -> (string * Asm_core.Expr.t) list = function
     | Lowered.Call_rel { target = Asm_core.Lowered_ast.Symbolic { value; _ } }
     | Lowered.Jmp_rel { target = Asm_core.Lowered_ast.Symbolic { value; _ } }
-    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Symbolic { value; _ }; _ } ->
+    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Symbolic { value; _ }; _ }
+    | Lowered.Short_rel { target = Asm_core.Lowered_ast.Symbolic { value; _ }; _ } ->
         [ ("target", value) ]
     | Lowered.Alu_rm_imm { rm; imm; _ } -> (
         disp_expr rm @ match imm with Disp.Sym e -> [ ("imm", e) ] | Disp.Const _ -> [])
@@ -8612,11 +8674,13 @@ module Make (M : MODE) = struct
   let pinned_rung : Lowered.t -> string option = function
     | Lowered.Call_rel { target = Asm_core.Lowered_ast.Symbolic { rung; _ } }
     | Lowered.Jmp_rel { target = Asm_core.Lowered_ast.Symbolic { rung; _ } }
-    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Symbolic { rung; _ }; _ } ->
+    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Symbolic { rung; _ }; _ }
+    | Lowered.Short_rel { target = Asm_core.Lowered_ast.Symbolic { rung; _ }; _ } ->
         rung
     | Lowered.Call_rel { target = Asm_core.Lowered_ast.Resolved { rung; _ } }
     | Lowered.Jmp_rel { target = Asm_core.Lowered_ast.Resolved { rung; _ } }
-    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Resolved { rung; _ }; _ } ->
+    | Lowered.Jcc_rel { target = Asm_core.Lowered_ast.Resolved { rung; _ }; _ }
+    | Lowered.Short_rel { target = Asm_core.Lowered_ast.Resolved { rung; _ }; _ } ->
         Some rung
     | _ -> None
 
@@ -9753,6 +9817,10 @@ module Make (M : MODE) = struct
     | Lowered.Jmp_rel { target } ->
         Some
           (Instruction.mk ?form:(rung_of target) Opcode.Jmp M.address_width
+             [ Operand.Sym (Asm_core.Expr.Const (Bigint.of_int64 (absolute_target target))) ])
+    | Lowered.Short_rel { mnemonic; target } ->
+        Some
+          (Instruction.mk (Opcode.Short_branch mnemonic) M.address_width
              [ Operand.Sym (Asm_core.Expr.Const (Bigint.of_int64 (absolute_target target))) ])
     | Lowered.Jcc_rel { cc; target } ->
         Some

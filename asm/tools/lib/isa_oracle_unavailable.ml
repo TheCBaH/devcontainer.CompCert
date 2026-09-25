@@ -110,6 +110,17 @@ let all =
            prefixed ISA extension `zicfiss' (riscv64-linux-gnu-as 2.44 accepts it)";
       };
     ]
+  (* jcxz tests %cx, which 64-bit mode cannot address as a counter *)
+  @ [
+      {
+        source = "xed_resolved";
+        target = Target.X86_64;
+        extension = "I386";
+        native_name = Some "JCXZ";
+        reason = "not-in-64-bit-mode";
+        probe = "x86_64-linux-gnu-as 2.44: `jcxz' is not supported in 64-bit mode";
+      };
+    ]
   (* MPX: GNU as 2.44 removed it *)
   @ List.map
       (fun target ->

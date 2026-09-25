@@ -7317,8 +7317,12 @@ let x86_branch_entries repo =
       (List.concat_map
          (fun (r : Isa_source_record.t) ->
            match (Isa_x86_table.branch r, r.provenance) with
-           | Some (_, bits), Isa_source_record.Xed_provenance { iform = Some iform; _ }
-             when not (Hashtbl.mem seen iform) ->
+           | Some (_, bits), Isa_source_record.Xed_provenance { iform = Some iform; isa_set; _ }
+             when (not (Hashtbl.mem seen iform))
+                  && Isa_oracle_unavailable.find_record ~source:"xed_resolved" target
+                       ~extension:(Option.value isa_set ~default:"")
+                       ~native_name:r.native_name
+                     = None ->
                Hashtbl.replace seen iform ();
                let entry variant ~label ~before ~after =
                  {
