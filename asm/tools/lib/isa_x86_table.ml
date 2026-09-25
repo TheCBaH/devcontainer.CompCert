@@ -1,7 +1,7 @@
 module R = Isa_source_record
 open Isa_norm_model
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask | St
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask | St | Tmm
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -228,6 +228,7 @@ let class_of_lookup lookup =
       ("GPR16_", Gpr16);
       ("MMX_", Mmx);
       ("MASK_", Kmask);
+      ("TMM_", Tmm);
     ]
   in
   match List.find_opt (fun (p, _) -> starts_with ~prefix:p lookup) classes with
@@ -1053,6 +1054,7 @@ let form ~requirement (rec_ : R.t) spec =
     | Ymm -> X86_ymm
     | Zmm -> X86_zmm
     | St -> X87_st
+    | Tmm -> X86_tmm
     | Mmx -> X86_mmx
     | Kmask -> X86_kmask
     | Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv -> X86_gpr

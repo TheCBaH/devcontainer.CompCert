@@ -7015,6 +7015,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     | Zmm -> Printf.sprintf "zmm%d" num
     (* eight of each, so no high variant *)
     | Mmx -> Printf.sprintf "mm%d" (num land 7)
+    | Tmm -> Printf.sprintf "tmm%d" (num land 7)
     (* never st(0) beside the implied %st: GNU would take the other direction's form *)
     | St -> Printf.sprintf "st(%d)" (if num land 7 = 0 then 7 else num land 7)
     | Kmask -> Printf.sprintf "k%d" (num land 7)
@@ -7204,11 +7205,12 @@ let x86_table_entries repo =
     let specs =
       List.filter
         (fun (s : Isa_x86_table.spec) ->
-          Isa_oracle_unavailable.find_record ~source:"xed_resolved" target ~extension:s.isa_set
-            ~native_name:
-              ( String.uppercase_ascii (String.concat "" [ s.iform ]) |> fun i ->
-                match String.index_opt i '_' with Some k -> String.sub i 0 k | None -> i )
-          = None)
+          Isa_oracle_unavailable.find ~source:"xed_resolved" target ~extension:s.isa_set = None
+          && Isa_oracle_unavailable.find_record ~source:"xed_resolved" target ~extension:s.isa_set
+               ~native_name:
+                 ( String.uppercase_ascii (String.concat "" [ s.iform ]) |> fun i ->
+                   match String.index_opt i '_' with Some k -> String.sub i 0 k | None -> i )
+             = None)
         specs
     in
     let specs =

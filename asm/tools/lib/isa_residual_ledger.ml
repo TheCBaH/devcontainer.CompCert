@@ -61,7 +61,7 @@ let rows =
     {
       id = "RES-X86-LEGACY-SIMD";
       source = "xed_resolved";
-      families = [ "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a" ];
+      families = [ "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a" ];
       capability =
         "Legacy MMX/SSE remainders: GPR-with-memory spellings that need a width suffix, implicit \
          operands, and same-iform twins GNU never emits. xmm, mm and 3DNow! forms are promoted \
@@ -153,18 +153,7 @@ let rows =
     {
       id = "RES-X86-AMX";
       source = "xed_resolved";
-      families =
-        [
-          "AMX_AVX512";
-          "AMX_BF16";
-          "AMX_COMPLEX";
-          "AMX_FP16";
-          "AMX_FP8";
-          "AMX_INT8";
-          "AMX_MOVRS";
-          "AMX_TILE";
-          "AMX_TILE_BASE";
-        ];
+      families = [ "AMX_MOVRS"; "AMX_TILE" ];
       capability =
         "Advanced Matrix Extensions: tile registers and the tile-configuration state, VEX-encoded \
          tile operations.";

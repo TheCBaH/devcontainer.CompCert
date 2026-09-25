@@ -55,7 +55,7 @@ and the x86 ledger worked down in the plan section 6 order.
 | GEN-05-X86-VEX | AVX/AVX2 remainder, VSIB, FMA, F16C, FMA4/XOP, VNNI etc. | not-started | INF-05X | — |
 | GEN-05-X86-EVEX | EVEX machinery, then AVX-512/FP16/BF16/AVX10.2 families | implementing | — | Base obligation landed (unmasked, k0, disp8*N, regs 0-15) and k0-k7 operands (k-ops, compares into a mask); embedded rounding/{sae}, opmask {%kN}/{z} and VSIB gathers/scatters landed, registers 16-31 landed; next: broadcast {1toN} (an obligation: the capture has no broadcast records) |
 | GEN-05-X86-APX | REX2, r16–r31, map-4, NDD, NF, CCMP/CTEST | implementing | GEN-05-X86-INT, EVEX machinery | Map-4 promotions landed (ND, NF, {evex}); $1 shift forms and CCMP/CTEST landed; next: REX2 and r16-r31 |
-| GEN-05-X86-AMX | Tile registers and AMX families | not-started | GEN-05-X86-EVEX | — |
+| GEN-05-X86-AMX | Tile registers and AMX families | done (table rows) | GEN-05-X86-EVEX | ACE_1 is oracle-unavailable (GNU as 2.44 lacks it) |
 | GEN-05-X86-SYSTEM | 58 small system/vendor families | not-started | INF-05X | — |
 
 ## Work package briefs
@@ -363,3 +363,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | GEN-05-X86-INT (lock, memory-only) | `lock <instr>`: XED's `*_LOCK` iclasses are rows with an F0 prefix (after 0x66, as GNU orders them), spelled `lock addl`; the x86 parser hands `lock`'s instruction over as a leading symbol operand and simplify joins it back; the decoder reads F0. A plain iclass's `LOCK=1` (xchg) only permits the prefix. Memory-only forms of any width are admitted (cmpxchg16b, fxsave/xsave, `prefetch`), far transfers and the reserved prefetch hints excepted. Promoted x86-32 7168→7248, x86-64 9484→9571. All gates pass |
 | 2026-09-25 | GEN-05-X86-INT (relative branches) | Normalized forms for XED's relative jcc/jmp (rel8, rel32) and call (rel32) records: a signed displacement operand GNU resolves from a label. Cases place the label where only that width reaches (one filler byte for rel8, `.zero 200` for rel32, forward and backward); the hand-written relaxation already encodes them. loop/jcxz/xbegin stay blocked. Promoted x86-32 7248→7265, x86-64 9571→9606. All gates pass |
 | 2026-09-25 | GEN-05-X86-SIMD (3DNow!) | Legacy map 4: the `0F 0F` escape with the opcode byte after ModR/M, displacement and immediate; the decoder reads it per row after the operands. Promoted x86-32 7265→7313, x86-64 9606→9654. All gates pass |
+| 2026-09-25 | GEN-05-X86-AMX | Register class `Tmm` (`%tmm0`-`%tmm7`); a fixed ModR/M.rm beside a ModR/M.reg register (`tilezero`). XED's ACE_1 family (tilemovcol, top*, the TMM-destination tilemovrow) is oracle-unavailable: GNU as 2.44 has none of it. Promoted x86-64 9654→9679. All gates pass |

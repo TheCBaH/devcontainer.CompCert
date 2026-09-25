@@ -77,6 +77,8 @@ module Reg = struct
         { name = Printf.sprintf "mm%d" i; num = i; width = X86_table_row.class_width Mmx })
     @ List.init 8 (fun i ->
         { name = Printf.sprintf "k%d" i; num = i; width = X86_table_row.class_width Kmask })
+    @ List.init 8 (fun i ->
+        { name = Printf.sprintf "tmm%d" i; num = i; width = X86_table_row.class_width Tmm })
 
   let base_regs width names =
     Array.to_list (Array.mapi (fun i n -> { name = n; num = i; width }) names)
@@ -8744,8 +8746,9 @@ module Make (M : MODE) = struct
           | Some reg, Some rm ->
               Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ?vsib:!vsib ~reg rm)
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
-          (* a fixed ModR/M.reg and no rm operand: register form, rm 0 ([lfence] is 0F AE E8) *)
-          | Some reg, None when r.digit >= 0 ->
+          (* a fixed ModR/M.reg or rm and no rm operand: register form, rm fixed or 0 ([lfence] is
+             0F AE E8, [tilezero %tmm1] is ... 49 C8) *)
+          | Some reg, None when r.digit >= 0 || r.rm >= 0 ->
               Some
                 ( reg,
                   (String.make 1 (Char.chr (0xc0 lor ((reg land 7) lsl 3) lor max 0 r.rm)), 0, 0) )
@@ -9219,7 +9222,8 @@ module Make (M : MODE) = struct
                                 in
                                 if cls = T.Gpr8 && num >= 4 && num < 8 && rex = 0 then
                                   failed := true;
-                                if (cls = T.Mmx || cls = T.Kmask) && num >= 8 then failed := true;
+                                if (cls = T.Mmx || cls = T.Kmask || cls = T.Tmm) && num >= 8 then
+                                  failed := true;
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
                             | T.Rounding { sae_only } -> Operand.Rc (if sae_only then 4 else l)
                             | T.One -> Operand.Imm Bigint.one
