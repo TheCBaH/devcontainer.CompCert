@@ -88,6 +88,15 @@ let rows : row array =
       source = "rv64_d/fmv.d.x";
     };
     {
+      mnemonic = "fmvh.x.q";
+      mask = 0xfff0707fL;
+      match_ = 0xe6100053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 } ];
+      xlen = 64;
+      feature = "zfa";
+      source = "rv64_q_zfa/fmvh.x.q";
+    };
+    {
       mnemonic = "zext.w";
       mask = 0xfff0707fL;
       match_ = 0x800003bL;
@@ -95,6 +104,24 @@ let rows : row array =
       xlen = 64;
       feature = "zba";
       source = "rv64_zba/zext.w";
+    };
+    {
+      mnemonic = "fcvtmod.w.d";
+      mask = 0xfff0707fL;
+      match_ = 0xc2801053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Keyword "rtz" ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fcvtmod.w.d";
+    };
+    {
+      mnemonic = "fli.d";
+      mask = 0xfff0707fL;
+      match_ = 0xf2100053L;
+      operands = [ Fpr { lsb = 7 }; Fli { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fli.d";
     };
     {
       mnemonic = "fscsr";
@@ -140,6 +167,69 @@ let rows : row array =
       xlen = 0;
       feature = "f";
       source = "rv_f/fsrmi";
+    };
+    {
+      mnemonic = "fli.s";
+      mask = 0xfff0707fL;
+      match_ = 0xf0100053L;
+      operands = [ Fpr { lsb = 7 }; Fli { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fli.s";
+    };
+    {
+      mnemonic = "fclass.q";
+      mask = 0xfff0707fL;
+      match_ = 0xe6001053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fclass.q";
+    };
+    {
+      mnemonic = "fli.q";
+      mask = 0xfff0707fL;
+      match_ = 0xf6100053L;
+      operands = [ Fpr { lsb = 7 }; Fli { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fli.q";
+    };
+    {
+      mnemonic = "fclass.h";
+      mask = 0xfff0707fL;
+      match_ = 0xe4001053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fclass.h";
+    };
+    {
+      mnemonic = "fli.h";
+      mask = 0xfff0707fL;
+      match_ = 0xf4100053L;
+      operands = [ Fpr { lsb = 7 }; Fli { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fli.h";
+    };
+    {
+      mnemonic = "fmv.h.x";
+      mask = 0xfff0707fL;
+      match_ = 0xf4000053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/fmv.h.x";
+    };
+    {
+      mnemonic = "fmv.x.h";
+      mask = 0xfff0707fL;
+      match_ = 0xe4000053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/fmv.x.h";
     };
     {
       mnemonic = "mop.r.0";
@@ -430,6 +520,420 @@ let rows : row array =
       source = "rv_zimop/mop.r.9";
     };
     {
+      mnemonic = "fmvh.x.d";
+      mask = 0xfff0707fL;
+      match_ = 0xe2100053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 } ];
+      xlen = 32;
+      feature = "zfa";
+      source = "rv32_d_zfa/fmvh.x.d";
+    };
+    {
+      mnemonic = "fcvt.l.q";
+      mask = 0xfff0007fL;
+      match_ = 0xc6200053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "q";
+      source = "rv64_q/fcvt.l.q";
+    };
+    {
+      mnemonic = "fcvt.lu.q";
+      mask = 0xfff0007fL;
+      match_ = 0xc6300053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "q";
+      source = "rv64_q/fcvt.lu.q";
+    };
+    {
+      mnemonic = "fcvt.q.l";
+      mask = 0xfff0007fL;
+      match_ = 0xd6200053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 0 } ];
+      xlen = 64;
+      feature = "q";
+      source = "rv64_q/fcvt.q.l";
+    };
+    {
+      mnemonic = "fcvt.q.lu";
+      mask = 0xfff0007fL;
+      match_ = 0xd6300053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 0 } ];
+      xlen = 64;
+      feature = "q";
+      source = "rv64_q/fcvt.q.lu";
+    };
+    {
+      mnemonic = "fcvt.h.l";
+      mask = 0xfff0007fL;
+      match_ = 0xd4200053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "zfh";
+      source = "rv64_zfh/fcvt.h.l";
+    };
+    {
+      mnemonic = "fcvt.h.lu";
+      mask = 0xfff0007fL;
+      match_ = 0xd4300053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "zfh";
+      source = "rv64_zfh/fcvt.h.lu";
+    };
+    {
+      mnemonic = "fcvt.l.h";
+      mask = 0xfff0007fL;
+      match_ = 0xc4200053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "zfh";
+      source = "rv64_zfh/fcvt.l.h";
+    };
+    {
+      mnemonic = "fcvt.lu.h";
+      mask = 0xfff0007fL;
+      match_ = 0xc4300053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 64;
+      feature = "zfh";
+      source = "rv64_zfh/fcvt.lu.h";
+    };
+    {
+      mnemonic = "fround.d";
+      mask = 0xfff0007fL;
+      match_ = 0x42400053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fround.d";
+    };
+    {
+      mnemonic = "froundnx.d";
+      mask = 0xfff0007fL;
+      match_ = 0x42500053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/froundnx.d";
+    };
+    {
+      mnemonic = "fcvt.d.h";
+      mask = 0xfff0007fL;
+      match_ = 0x42200053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_d_zfhmin/fcvt.d.h";
+    };
+    {
+      mnemonic = "fcvt.h.d";
+      mask = 0xfff0007fL;
+      match_ = 0x44100053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_d_zfhmin/fcvt.h.d";
+    };
+    {
+      mnemonic = "fround.s";
+      mask = 0xfff0007fL;
+      match_ = 0x40400053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fround.s";
+    };
+    {
+      mnemonic = "froundnx.s";
+      mask = 0xfff0007fL;
+      match_ = 0x40500053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/froundnx.s";
+    };
+    {
+      mnemonic = "fcvt.d.q";
+      mask = 0xfff0007fL;
+      match_ = 0x42300053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.d.q";
+    };
+    {
+      mnemonic = "fcvt.q.d";
+      mask = 0xfff0007fL;
+      match_ = 0x46100053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.q.d";
+    };
+    {
+      mnemonic = "fcvt.q.s";
+      mask = 0xfff0007fL;
+      match_ = 0x46000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.q.s";
+    };
+    {
+      mnemonic = "fcvt.q.w";
+      mask = 0xfff0007fL;
+      match_ = 0xd6000053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.q.w";
+    };
+    {
+      mnemonic = "fcvt.q.wu";
+      mask = 0xfff0007fL;
+      match_ = 0xd6100053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.q.wu";
+    };
+    {
+      mnemonic = "fcvt.s.q";
+      mask = 0xfff0007fL;
+      match_ = 0x40300053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.s.q";
+    };
+    {
+      mnemonic = "fcvt.w.q";
+      mask = 0xfff0007fL;
+      match_ = 0xc6000053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.w.q";
+    };
+    {
+      mnemonic = "fcvt.wu.q";
+      mask = 0xfff0007fL;
+      match_ = 0xc6100053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fcvt.wu.q";
+    };
+    {
+      mnemonic = "fsqrt.q";
+      mask = 0xfff0007fL;
+      match_ = 0x5e000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsqrt.q";
+    };
+    {
+      mnemonic = "fround.q";
+      mask = 0xfff0007fL;
+      match_ = 0x46400053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fround.q";
+    };
+    {
+      mnemonic = "froundnx.q";
+      mask = 0xfff0007fL;
+      match_ = 0x46500053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/froundnx.q";
+    };
+    {
+      mnemonic = "fcvt.h.q";
+      mask = 0xfff0007fL;
+      match_ = 0x44300053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_q_zfhmin/fcvt.h.q";
+    };
+    {
+      mnemonic = "fcvt.q.h";
+      mask = 0xfff0007fL;
+      match_ = 0x46200053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_q_zfhmin/fcvt.q.h";
+    };
+    {
+      mnemonic = "fcvt.bf16.s";
+      mask = 0xfff0007fL;
+      match_ = 0x44800053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfbfmin";
+      source = "rv_zfbfmin/fcvt.bf16.s";
+    };
+    {
+      mnemonic = "fcvt.s.bf16";
+      mask = 0xfff0007fL;
+      match_ = 0x40600053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "zfbfmin";
+      source = "rv_zfbfmin/fcvt.s.bf16";
+    };
+    {
+      mnemonic = "fcvt.h.w";
+      mask = 0xfff0007fL;
+      match_ = 0xd4000053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fcvt.h.w";
+    };
+    {
+      mnemonic = "fcvt.h.wu";
+      mask = 0xfff0007fL;
+      match_ = 0xd4100053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fcvt.h.wu";
+    };
+    {
+      mnemonic = "fcvt.w.h";
+      mask = 0xfff0007fL;
+      match_ = 0xc4000053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fcvt.w.h";
+    };
+    {
+      mnemonic = "fcvt.wu.h";
+      mask = 0xfff0007fL;
+      match_ = 0xc4100053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fcvt.wu.h";
+    };
+    {
+      mnemonic = "fsqrt.h";
+      mask = 0xfff0007fL;
+      match_ = 0x5c000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fsqrt.h";
+    };
+    {
+      mnemonic = "fround.h";
+      mask = 0xfff0007fL;
+      match_ = 0x44400053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fround.h";
+    };
+    {
+      mnemonic = "froundnx.h";
+      mask = 0xfff0007fL;
+      match_ = 0x44500053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/froundnx.h";
+    };
+    {
+      mnemonic = "fcvt.h.s";
+      mask = 0xfff0007fL;
+      match_ = 0x44000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/fcvt.h.s";
+    };
+    {
+      mnemonic = "fcvt.s.h";
+      mask = 0xfff0007fL;
+      match_ = 0x40200053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Rm { lsb = 12; default = 0 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/fcvt.s.h";
+    };
+    {
+      mnemonic = "fabs.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fabs.q";
+    };
+    {
+      mnemonic = "fmv.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmv.q";
+    };
+    {
+      mnemonic = "fneg.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fneg.q";
+    };
+    {
+      mnemonic = "fabs.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fabs.h";
+    };
+    {
+      mnemonic = "fmv.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmv.h";
+    };
+    {
+      mnemonic = "fneg.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Tied { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fneg.h";
+    };
+    {
+      mnemonic = "fmvp.q.x";
+      mask = 0xfe00707fL;
+      match_ = 0xb6000053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 64;
+      feature = "zfa";
+      source = "rv64_q_zfa/fmvp.q.x";
+    };
+    {
       mnemonic = "add.uw";
       mask = 0xfe00707fL;
       match_ = 0x800003bL;
@@ -437,6 +941,294 @@ let rows : row array =
       xlen = 64;
       feature = "zba";
       source = "rv64_zba/add.uw";
+    };
+    {
+      mnemonic = "fleq.d";
+      mask = 0xfe00707fL;
+      match_ = 0xa2004053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fleq.d";
+    };
+    {
+      mnemonic = "fltq.d";
+      mask = 0xfe00707fL;
+      match_ = 0xa2005053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fltq.d";
+    };
+    {
+      mnemonic = "fmaxm.d";
+      mask = 0xfe00707fL;
+      match_ = 0x2a003053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fmaxm.d";
+    };
+    {
+      mnemonic = "fminm.d";
+      mask = 0xfe00707fL;
+      match_ = 0x2a002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_d_zfa/fminm.d";
+    };
+    {
+      mnemonic = "fleq.s";
+      mask = 0xfe00707fL;
+      match_ = 0xa0004053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fleq.s";
+    };
+    {
+      mnemonic = "fltq.s";
+      mask = 0xfe00707fL;
+      match_ = 0xa0005053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fltq.s";
+    };
+    {
+      mnemonic = "fmaxm.s";
+      mask = 0xfe00707fL;
+      match_ = 0x28003053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fmaxm.s";
+    };
+    {
+      mnemonic = "fminm.s";
+      mask = 0xfe00707fL;
+      match_ = 0x28002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_f_zfa/fminm.s";
+    };
+    {
+      mnemonic = "feq.q";
+      mask = 0xfe00707fL;
+      match_ = 0xa6002053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/feq.q";
+    };
+    {
+      mnemonic = "fle.q";
+      mask = 0xfe00707fL;
+      match_ = 0xa6000053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fle.q";
+    };
+    {
+      mnemonic = "flt.q";
+      mask = 0xfe00707fL;
+      match_ = 0xa6001053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/flt.q";
+    };
+    {
+      mnemonic = "fmax.q";
+      mask = 0xfe00707fL;
+      match_ = 0x2e001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmax.q";
+    };
+    {
+      mnemonic = "fmin.q";
+      mask = 0xfe00707fL;
+      match_ = 0x2e000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmin.q";
+    };
+    {
+      mnemonic = "fsgnj.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsgnj.q";
+    };
+    {
+      mnemonic = "fsgnjn.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsgnjn.q";
+    };
+    {
+      mnemonic = "fsgnjx.q";
+      mask = 0xfe00707fL;
+      match_ = 0x26002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsgnjx.q";
+    };
+    {
+      mnemonic = "fleq.q";
+      mask = 0xfe00707fL;
+      match_ = 0xa6004053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fleq.q";
+    };
+    {
+      mnemonic = "fltq.q";
+      mask = 0xfe00707fL;
+      match_ = 0xa6005053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fltq.q";
+    };
+    {
+      mnemonic = "fmaxm.q";
+      mask = 0xfe00707fL;
+      match_ = 0x2e003053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fmaxm.q";
+    };
+    {
+      mnemonic = "fminm.q";
+      mask = 0xfe00707fL;
+      match_ = 0x2e002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_q_zfa/fminm.q";
+    };
+    {
+      mnemonic = "feq.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa4002053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/feq.h";
+    };
+    {
+      mnemonic = "fle.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa4000053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fle.h";
+    };
+    {
+      mnemonic = "flt.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa4001053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/flt.h";
+    };
+    {
+      mnemonic = "fmax.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2c001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmax.h";
+    };
+    {
+      mnemonic = "fmin.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2c000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmin.h";
+    };
+    {
+      mnemonic = "fsgnj.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fsgnj.h";
+    };
+    {
+      mnemonic = "fsgnjn.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24001053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fsgnjn.h";
+    };
+    {
+      mnemonic = "fsgnjx.h";
+      mask = 0xfe00707fL;
+      match_ = 0x24002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fsgnjx.h";
+    };
+    {
+      mnemonic = "fleq.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa4004053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fleq.h";
+    };
+    {
+      mnemonic = "fltq.h";
+      mask = 0xfe00707fL;
+      match_ = 0xa4005053L;
+      operands = [ Gpr { lsb = 7; nonzero = false }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fltq.h";
+    };
+    {
+      mnemonic = "fmaxm.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2c003053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fmaxm.h";
+    };
+    {
+      mnemonic = "fminm.h";
+      mask = 0xfe00707fL;
+      match_ = 0x2c002053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 } ];
+      xlen = 0;
+      feature = "zfa";
+      source = "rv_zfh_zfa/fminm.h";
     };
     {
       mnemonic = "mop.rr.0";
@@ -511,6 +1303,15 @@ let rows : row array =
       source = "rv_zimop/mop.rr.7";
     };
     {
+      mnemonic = "fmvp.d.x";
+      mask = 0xfe00707fL;
+      match_ = 0xb2000053L;
+      operands = [ Fpr { lsb = 7 }; Gpr { lsb = 15; nonzero = false }; Gpr { lsb = 20; nonzero = false } ];
+      xlen = 32;
+      feature = "zfa";
+      source = "rv32_d_zfa/fmvp.d.x";
+    };
+    {
       mnemonic = "slli.uw";
       mask = 0xfc00707fL;
       match_ = 0x800101bL;
@@ -518,5 +1319,185 @@ let rows : row array =
       xlen = 64;
       feature = "zba";
       source = "rv64_zba/slli.uw";
+    };
+    {
+      mnemonic = "fadd.q";
+      mask = 0xfe00007fL;
+      match_ = 0x6000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fadd.q";
+    };
+    {
+      mnemonic = "fdiv.q";
+      mask = 0xfe00007fL;
+      match_ = 0x1e000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fdiv.q";
+    };
+    {
+      mnemonic = "fmul.q";
+      mask = 0xfe00007fL;
+      match_ = 0x16000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmul.q";
+    };
+    {
+      mnemonic = "fsub.q";
+      mask = 0xfe00007fL;
+      match_ = 0xe000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsub.q";
+    };
+    {
+      mnemonic = "fadd.h";
+      mask = 0xfe00007fL;
+      match_ = 0x4000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fadd.h";
+    };
+    {
+      mnemonic = "fdiv.h";
+      mask = 0xfe00007fL;
+      match_ = 0x1c000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fdiv.h";
+    };
+    {
+      mnemonic = "fmul.h";
+      mask = 0xfe00007fL;
+      match_ = 0x14000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmul.h";
+    };
+    {
+      mnemonic = "fsub.h";
+      mask = 0xfe00007fL;
+      match_ = 0xc000053L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fsub.h";
+    };
+    {
+      mnemonic = "flq";
+      mask = 0x707fL;
+      match_ = 0x4007L;
+      operands = [ Fpr { lsb = 7 }; Mem_i { base = 15 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/flq";
+    };
+    {
+      mnemonic = "fsq";
+      mask = 0x707fL;
+      match_ = 0x4027L;
+      operands = [ Fpr { lsb = 20 }; Mem_s { base = 15 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fsq";
+    };
+    {
+      mnemonic = "flh";
+      mask = 0x707fL;
+      match_ = 0x1007L;
+      operands = [ Fpr { lsb = 7 }; Mem_i { base = 15 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/flh";
+    };
+    {
+      mnemonic = "fsh";
+      mask = 0x707fL;
+      match_ = 0x1027L;
+      operands = [ Fpr { lsb = 20 }; Mem_s { base = 15 } ];
+      xlen = 0;
+      feature = "zfhmin";
+      source = "rv_zfhmin/fsh";
+    };
+    {
+      mnemonic = "fmadd.q";
+      mask = 0x600007fL;
+      match_ = 0x6000043L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmadd.q";
+    };
+    {
+      mnemonic = "fmsub.q";
+      mask = 0x600007fL;
+      match_ = 0x6000047L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fmsub.q";
+    };
+    {
+      mnemonic = "fnmadd.q";
+      mask = 0x600007fL;
+      match_ = 0x600004fL;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fnmadd.q";
+    };
+    {
+      mnemonic = "fnmsub.q";
+      mask = 0x600007fL;
+      match_ = 0x600004bL;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "q";
+      source = "rv_q/fnmsub.q";
+    };
+    {
+      mnemonic = "fmadd.h";
+      mask = 0x600007fL;
+      match_ = 0x4000043L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmadd.h";
+    };
+    {
+      mnemonic = "fmsub.h";
+      mask = 0x600007fL;
+      match_ = 0x4000047L;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fmsub.h";
+    };
+    {
+      mnemonic = "fnmadd.h";
+      mask = 0x600007fL;
+      match_ = 0x400004fL;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fnmadd.h";
+    };
+    {
+      mnemonic = "fnmsub.h";
+      mask = 0x600007fL;
+      match_ = 0x400004bL;
+      operands = [ Fpr { lsb = 7 }; Fpr { lsb = 15 }; Fpr { lsb = 20 }; Fpr { lsb = 27 }; Rm { lsb = 12; default = 7 } ];
+      xlen = 0;
+      feature = "zfh";
+      source = "rv_zfh/fnmsub.h";
     };
   |]

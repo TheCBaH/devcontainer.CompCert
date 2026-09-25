@@ -73,37 +73,6 @@ let rows =
          every other compressed form)";
     };
     {
-      id = "RES-RV-FP";
-      source = "riscv_opcodes";
-      families =
-        [
-          "rv_q";
-          "rv64_q";
-          "rv_zfh";
-          "rv64_zfh";
-          "rv_zfhmin";
-          "rv_zfbfmin";
-          "rv_f_zfa";
-          "rv_d_zfa";
-          "rv32_d_zfa";
-          "rv_q_zfa";
-          "rv64_q_zfa";
-          "rv_zfh_zfa";
-          "rv_d_zfhmin";
-          "rv_q_zfhmin";
-        ];
-      capability =
-        "Floating-point leftovers: quad and half precision, bfloat16 conversion, and Zfa. Scalar \
-         single/double arithmetic, the sign-injection/move aliases, the fcsr access pseudo-ops and \
-         RV64 fmv.x.d/fmv.d.x are promoted (the last two through the generated RISC-V table), so \
-         rv_f and rv64_d no longer name blocked families here.";
-      evidence = "family-admission: all of rv_q and rv_zfh, and the Zfa files, are unhandled";
-      task = "GEN-05-RV-FP";
-      reopening_gate =
-        "each precision has an FP-register operand class and rounding-mode recipe verified against \
-         a GAS that accepts the extension";
-    };
-    {
       id = "RES-RV-ATOMIC-SYNC";
       source = "riscv_opcodes";
       families = [ "rv_zabha"; "rv_zabha_zacas"; "rv_zacas"; "rv64_zacas"; "rv_zalasr"; "rv_zawrs" ];

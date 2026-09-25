@@ -16,6 +16,12 @@ type operand =
   | Fpr of { field : string; lsb : int }
   | Uimm of { field : string; lsb : int; width : int }
   | Fixed_gpr of int  (** spelled in the source but fixed by the encoding, e.g. [sspopchk x1] *)
+  | Rm of { lsb : int; default : int }  (** optional trailing rounding mode *)
+  | Tied of { lsb : int }  (** repeats the previous register, unspelled ([rs2=rs1]) *)
+  | Mem_i of { base : int }  (** [imm12(base)], offset in bits 31:20 *)
+  | Mem_s of { base : int }  (** [imm12(base)], offset split into 31:25 and 11:7 *)
+  | Keyword of string  (** a word the spelling requires but the encoding fixes *)
+  | Fli of { lsb : int }  (** Zfa's fli constant, spelled by name or value, encoded as its index *)
 
 type spec = {
   record_id : string;
@@ -27,7 +33,8 @@ type spec = {
   match_ : string;
   operands : operand list;  (** GNU syntax order *)
   xlen : int;  (** 0 unless the extension file is [rv32_*]/[rv64_*] *)
-  feature : string;  (** the [-march] extension, e.g. ["zimop"], ["zba"], ["f"] *)
+  feature : string;  (** the enabling extension, e.g. ["zimop"], ["zba"], ["f"] *)
+  isa : string;  (** the [-march] ISA string after [rv32]/[rv64], e.g. ["imf_zfh"] *)
 }
 
 val spec_of_record : Isa_source_record.t -> spec option

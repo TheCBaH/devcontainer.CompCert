@@ -419,14 +419,18 @@ let%expect_test
           | None ->
               problems :=
                 Printf.sprintf "%s: shadowed by a hand-written form" r.mnemonic :: !problems);
-          let word =
+          let word, _ =
             List.fold_left
-              (fun w (k, (o : Row.operand)) ->
-                let put lsb = Int64.logor w (Int64.shift_left (Int64.of_int (k + 1)) lsb) in
+              (fun (w, prev) (k, (o : Row.operand)) ->
+                let v = Int64.of_int (k + 1) in
+                let put lsb = Int64.logor w (Int64.shift_left v lsb) in
                 match o with
-                | Gpr { lsb; _ } | Fpr { lsb } | Uimm { lsb; _ } | Simm { lsb; _ } -> put lsb
-                | Fixed_gpr _ -> w)
-              r.match_
+                | Gpr { lsb; _ } | Fpr { lsb } -> (put lsb, v)
+                | Uimm { lsb; _ } | Simm { lsb; _ } | Fli { lsb } -> (put lsb, prev)
+                | Mem_i { base } | Mem_s { base } -> (put base, prev)
+                | Tied { lsb } -> (Int64.logor w (Int64.shift_left prev lsb), prev)
+                | Fixed_gpr _ | Rm _ | Keyword _ -> (w, prev))
+              (r.match_, 0L)
               (List.mapi (fun k o -> (k, o)) r.operands)
           in
           let bytes =

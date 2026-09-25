@@ -132,9 +132,15 @@ module Make (P : PROFILE) = struct
             | Ok e -> Ok (Operand.Sym e)
             | Error _ as e -> e))
 
-  let parse_operands ~mnemonic:_ slices =
+  (* Zfa's [fli.<fmt> rd, constant]: the constant is a floating-point literal
+     ([1.0], [-1.0], [0x1p-16]) or a name ([min], [inf], [nan]), not an
+     expression, so it reaches the encoder as its source text. *)
+  let parse_operands ~mnemonic slices =
+    let fli = String.length mnemonic > 4 && String.sub mnemonic 0 4 = "fli." in
     let rec go acc = function
       | [] -> Ok (List.rev acc)
+      | s :: rest when fli && acc <> [] ->
+          go (Operand.Sym (Asm_core.Expr.Symbol (Asm_syntax.Token.slice_text s)) :: acc) rest
       | s :: rest -> ( match parse_one s with Ok o -> go (o :: acc) rest | Error _ as e -> e)
     in
     go [] slices

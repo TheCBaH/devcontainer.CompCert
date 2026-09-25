@@ -4709,10 +4709,18 @@ module Make (P : PROFILE) = struct
 
   (* DEC-RV-TABLE: a generated row's operand, checked against its field and
      placed at its bit position; [None] when the operand does not fit. *)
-  let table_field op (operand : Riscv_table_row.operand) =
+  let table_field ~prev op (operand : Riscv_table_row.operand) =
     let place lsb v = Some (Int64.shift_left v lsb) in
     let low width v = Int64.logand v (Int64.sub (Int64.shift_left 1L width) 1L) in
     let value () = Option.bind (expr_of op) int64_expr in
+    let mem_offset () =
+      match op with
+      | Operand.Mem m -> (
+          match (Reg.x m.base, int64_expr m.offset) with
+          | Some base, Some v when fits_signed 12 v -> Some (base, low 12 v)
+          | _ -> None)
+      | _ -> None
+    in
     match operand with
     | Gpr { lsb; nonzero } -> (
         match xreg op with
@@ -4724,7 +4732,38 @@ module Make (P : PROFILE) = struct
     | Simm { lsb; width } -> (
         match value () with Some v when fits_signed width v -> place lsb (low width v) | _ -> None)
     | Fixed_gpr n -> ( match xreg op with Some m when m = n -> Some 0L | _ -> None)
+    | Rm { lsb; _ } -> (
+        match op with
+        | Operand.Sym (Asm_core.Expr.Symbol name) ->
+            Option.bind (rounding_mode_of_name name) (fun m -> place lsb (Int64.of_int m))
+        | _ -> None)
+    | Tied { lsb } -> Option.map (fun r -> Int64.shift_left (Int64.of_int r) lsb) prev
+    | Keyword k -> (
+        match op with
+        | Operand.Sym (Asm_core.Expr.Symbol s) when String.equal s k -> Some 0L
+        | _ -> None)
+    | Fli { lsb } -> (
+        match op with
+        | Operand.Sym (Asm_core.Expr.Symbol text) ->
+            Option.bind (Riscv_table_row.fli_index text) (fun i -> place lsb (Int64.of_int i))
+        | _ -> None)
+    | Mem_i { base } ->
+        Option.map
+          (fun (b, v) ->
+            Int64.logor (Int64.shift_left (Int64.of_int b) base) (Int64.shift_left v 20))
+          (mem_offset ())
+    | Mem_s { base } ->
+        Option.map
+          (fun (b, v) ->
+            Int64.logor
+              (Int64.shift_left (Int64.of_int b) base)
+              (Int64.logor
+                 (Int64.shift_left (Int64.shift_right_logical v 5) 25)
+                 (Int64.shift_left (Int64.logand v 0x1fL) 7)))
+          (mem_offset ())
 
+  (* The register number of a register operand, for a following [Tied] field. *)
+  let table_reg op = match op with Operand.Reg (Reg.F n) -> Some n | _ -> xreg op
   let table_row_applies (r : Riscv_table_row.row) = r.xlen = 0 || r.xlen = xlen
 
   (* Every row spelled like row [i] is tried in table order; the first whose
@@ -4732,14 +4771,34 @@ module Make (P : PROFILE) = struct
   let table_lower i ops =
     let mnemonic = Riscv_table_rows.rows.(i).Riscv_table_row.mnemonic in
     let encode_row (r : Riscv_table_row.row) =
-      if List.length r.operands <> List.length ops then None
-      else
-        List.fold_left2
-          (fun acc operand op ->
-            match (acc, table_field op operand) with
-            | Some w, Some f -> Some (Int64.logor w f)
-            | _ -> None)
-          (Some r.match_) r.operands ops
+      (* [Tied] fields are not spelled; a trailing [Rm] may be omitted. *)
+      let spelled =
+        List.filter (function Riscv_table_row.Tied _ -> false | _ -> true) r.operands
+      in
+      let with_default =
+        match List.rev spelled with
+        | Riscv_table_row.Rm { lsb; default } :: _ when List.length ops = List.length spelled - 1 ->
+            Some (Int64.shift_left (Int64.of_int default) lsb)
+        | _ -> if List.length ops = List.length spelled then Some 0L else None
+      in
+      match with_default with
+      | None -> None
+      | Some extra ->
+          let rec go acc prev operands ops =
+            match (operands, ops) with
+            | [], [] -> Some acc
+            | (Riscv_table_row.Tied _ as t) :: rest, _ -> (
+                match table_field ~prev (Operand.Imm Bigint.zero) t with
+                | Some f -> go (Int64.logor acc f) prev rest ops
+                | None -> None)
+            | [ Riscv_table_row.Rm _ ], [] -> Some acc
+            | o :: rest, op :: ops -> (
+                match table_field ~prev op o with
+                | Some f -> go (Int64.logor acc f) (table_reg op) rest ops
+                | None -> None)
+            | _ -> None
+          in
+          go (Int64.logor r.match_ extra) None r.operands ops
     in
     let found =
       Array.fold_left
@@ -7592,20 +7651,55 @@ module Make (P : PROFILE) = struct
       match o with
       | Gpr { lsb; nonzero } ->
           let n = Int64.to_int (field lsb 5) in
-          if nonzero && n = 0 then None else Some (reg n)
-      | Fpr { lsb } -> Some (f_operand (Int64.to_int (field lsb 5)))
-      | Uimm { lsb; width } -> Some (imm (field lsb width))
-      | Simm { lsb; width } -> Some (imm (sign_extend width (field lsb width)))
-      | Fixed_gpr n -> Some (reg n)
+          if nonzero && n = 0 then None else Some (Some (reg n))
+      | Fpr { lsb } -> Some (Some (f_operand (Int64.to_int (field lsb 5))))
+      | Uimm { lsb; width } -> Some (Some (imm (field lsb width)))
+      | Simm { lsb; width } -> Some (Some (imm (sign_extend width (field lsb width))))
+      | Fixed_gpr n -> Some (Some (reg n))
+      | Rm { lsb; default } ->
+          let m = Int64.to_int (field lsb 3) in
+          if m = default then Some None
+          else
+            Option.map
+              (fun name -> Some (Operand.Sym (Asm_core.Expr.Symbol name)))
+              (rounding_name_of_mode m)
+      | Tied _ -> Some None
+      | Keyword k -> Some (Some (Operand.Sym (Asm_core.Expr.Symbol k)))
+      | Fli { lsb } ->
+          Some
+            (Some
+               (Operand.Sym
+                  (Asm_core.Expr.Symbol Riscv_table_row.fli_constants.(Int64.to_int (field lsb 5)))))
+      | Mem_i { base } ->
+          Some (Some (mem (Int64.to_int (field base 5)) (sign_extend 12 (field 20 12))))
+      | Mem_s { base } ->
+          let v = Int64.logor (Int64.shift_left (field 25 7) 5) (field 7 5) in
+          Some (Some (mem (Int64.to_int (field base 5)) (sign_extend 12 v)))
+    in
+    (* A [Tied] field must repeat the register before it. *)
+    let tied_ok (r : Riscv_table_row.row) =
+      let rec go prev = function
+        | [] -> true
+        | Riscv_table_row.Tied { lsb } :: rest -> (
+            match prev with
+            | Some p -> Int64.equal (field lsb 5) (field p 5) && go prev rest
+            | None -> false)
+        | (Riscv_table_row.Gpr { lsb; _ } | Fpr { lsb }) :: rest -> go (Some lsb) rest
+        | _ :: rest -> go prev rest
+      in
+      go None r.operands
     in
     let rec go i =
       if i >= Array.length rows then None
       else
         let r = rows.(i) in
-        if table_row_applies r && Int64.equal (Int64.logand w r.mask) r.match_ then
+        if table_row_applies r && Int64.equal (Int64.logand w r.mask) r.match_ && tied_ok r then
           let ops = List.map operand r.operands in
           if List.mem None ops then go (i + 1)
-          else Some (instruction (Opcode.Table i) (List.filter_map Fun.id ops), r.mnemonic)
+          else
+            Some
+              ( instruction (Opcode.Table i) (List.filter_map Fun.id (List.filter_map Fun.id ops)),
+                r.mnemonic )
         else go (i + 1)
     in
     go 0

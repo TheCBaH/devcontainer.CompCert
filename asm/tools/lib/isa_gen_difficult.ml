@@ -6857,37 +6857,46 @@ let build (entry : entry) (form : Isa_norm_model.form) =
    Isa_riscv_table rule that emits the encoder rows. *)
 let table_entries_of target (spec : Isa_riscv_table.spec) =
   let gprs = [ "a0"; "a1"; "a2"; "a3" ] and fprs = [ "fa0"; "fa1"; "fa2"; "fa3" ] in
-  let assign ~imm =
-    List.mapi
-      (fun i (o : Isa_riscv_table.operand) ->
-        match o with
-        | Gpr { field; _ } -> Some (field, List.nth gprs i)
-        | Fpr { field; _ } -> Some (field, List.nth fprs i)
-        | Uimm { field; width; _ } ->
-            Some (field, if imm = `Max then string_of_int ((1 lsl width) - 1) else "0")
-        | Fixed_gpr _ -> None)
-      spec.operands
-    |> List.filter_map Fun.id
+  let assign ~edge =
+    List.concat
+      (List.mapi
+         (fun i (o : Isa_riscv_table.operand) ->
+           match o with
+           | Gpr { field; _ } -> [ (field, List.nth gprs i) ]
+           | Fpr { field; _ } -> [ (field, List.nth fprs i) ]
+           | Uimm { field; width; _ } ->
+               [ (field, if edge = `High then string_of_int ((1 lsl width) - 1) else "0") ]
+           | Mem_i _ | Mem_s _ ->
+               [ ("base", "a1"); ("offset", if edge = `High then "2047" else "-2048") ]
+           | Fli _ -> [ ("constant", if edge = `High then "0.5" else "min") ]
+           | Fixed_gpr _ | Rm _ | Tied _ | Keyword _ -> [])
+         spec.operands)
   in
-  let has_imm =
-    List.exists (function Isa_riscv_table.Uimm _ -> true | _ -> false) spec.operands
+  let variants =
+    if List.exists (function Isa_riscv_table.Uimm _ -> true | _ -> false) spec.operands then
+      [ ("uimm-zero", `Low); ("uimm-max", `High) ]
+    else if
+      List.exists (function Isa_riscv_table.Mem_i _ | Mem_s _ -> true | _ -> false) spec.operands
+    then [ ("offset-min", `Low); ("offset-max", `High) ]
+    else if List.exists (function Isa_riscv_table.Fli _ -> true | _ -> false) spec.operands then
+      [ ("constant-name", `Low); ("constant-value", `High) ]
+    else [ ("registers", `Low) ]
   in
-  let entry variant imm =
-    {
-      form_id = "riscv:" ^ spec.native_name;
-      target;
-      lookup_key = spec.native_name;
-      case_id =
-        Printf.sprintf "riscv:%s:table-%s:%s" spec.native_name variant (Target.to_string target);
-      rule_ids = [ "table-row"; "table-" ^ variant; "feature:" ^ spec.feature ];
-      operands = assign ~imm;
-      lines_before = [];
-      lines_after = [];
-      configuration = Isa_riscv_table.march target spec;
-    }
-  in
-  if has_imm then [ entry "uimm-zero" `Zero; entry "uimm-max" `Max ]
-  else [ entry "registers" `Zero ]
+  List.map
+    (fun (variant, edge) ->
+      {
+        form_id = "riscv:" ^ spec.native_name;
+        target;
+        lookup_key = spec.native_name;
+        case_id =
+          Printf.sprintf "riscv:%s:table-%s:%s" spec.native_name variant (Target.to_string target);
+        rule_ids = [ "table-row"; "table-" ^ variant; "feature:" ^ spec.feature ];
+        operands = assign ~edge;
+        lines_before = [];
+        lines_after = [];
+        configuration = Isa_riscv_table.march target spec;
+      })
+    variants
 
 let table_entries repo =
   let ( let* ) = Result.bind in
@@ -6898,9 +6907,18 @@ let table_entries repo =
     let available (spec : Isa_riscv_table.spec) =
       Isa_oracle_unavailable.find ~source:"riscv_opcodes" target ~extension:spec.extension = None
     in
-    Ok
-      (List.concat_map (table_entries_of target)
-         (List.filter available (List.filter_map Isa_riscv_table.spec_of_record records)))
+    (* One case per distinct native name: an import repeats its record in
+       another extension file with the same form. *)
+    let unique =
+      List.fold_left
+        (fun acc (spec : Isa_riscv_table.spec) ->
+          if List.exists (fun (t : Isa_riscv_table.spec) -> t.native_name = spec.native_name) acc
+          then acc
+          else spec :: acc)
+        []
+        (List.filter available (List.filter_map Isa_riscv_table.spec_of_record records))
+    in
+    Ok (List.concat_map (table_entries_of target) (List.rev unique))
   in
   let* rv32 = per_target Target.Riscv32 in
   let* rv64 = per_target Target.Riscv64 in
