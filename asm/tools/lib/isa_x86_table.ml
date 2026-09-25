@@ -1,7 +1,7 @@
 module R = Isa_source_record
 open Isa_norm_model
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -157,6 +157,8 @@ let class_of_lookup lookup =
       ("GPRv_", Gprv);
       ("GPR8_", Gpr8);
       ("GPR16_", Gpr16);
+      ("MMX_", Mmx);
+      ("MASK_", Kmask);
     ]
   in
   match List.find_opt (fun (p, _) -> starts_with ~prefix:p lookup) classes with
@@ -273,6 +275,12 @@ let att_mnemonic ?(vl = -1) ~iclass operands =
   | "VPCMPISTRI64" | "VPCMPISTRM64" | "PCMPISTRI64" | "PCMPISTRM64" ->
       String.sub lower 0 (String.length lower - 2)
   | _ when narrowing iclass && vl >= 0 && mem_to_xmm operands -> (
+      lower ^ match vl with 0 -> "x" | 1 -> "y" | _ -> "z")
+  (* a class test of memory into a mask register states the vector width the same way *)
+  | _
+    when (starts_with ~prefix:"VFPCLASSP" iclass || starts_with ~prefix:"VFPCLASSBF16" iclass)
+         && vl >= 0
+         && List.exists (function Mem _ -> true | _ -> false) operands -> (
       lower ^ match vl with 0 -> "x" | 1 -> "y" | _ -> "z")
   (* XED disambiguates a few iclasses with a suffix GNU does not spell: MOVSD_XMM, PEXTRW_SSE4 *)
   | _ when String.contains lower '_' -> String.sub lower 0 (String.index lower '_')
@@ -478,7 +486,8 @@ let spec_of_record (rec_ : R.t) =
       match
         (parse_pattern pattern, Option.map (opcode_byte ~pattern) (int_of_string_opt opcode))
       with
-      | Some p, Some opcode when not p.vex -> (
+      (* map 4 is 3DNow!'s 0F 0F escape with a trailing opcode byte *)
+      | Some p, Some opcode when (not p.vex) && opcode_map <= 3 -> (
           let ops = List.map operand_of operands in
           if List.mem None ops then None
           else
@@ -490,7 +499,7 @@ let spec_of_record (rec_ : R.t) =
                 xed_order
             in
             let has_xmm =
-              List.exists (function Reg { cls = Xmm; _ } -> true | _ -> false) xed_order
+              List.exists (function Reg { cls = Xmm | Mmx; _ } -> true | _ -> false) xed_order
             in
             (* the SSE shape first: xmm operands, the mandatory prefix from REP/OSZ *)
             let prefix =
@@ -630,6 +639,8 @@ let form ~requirement (rec_ : R.t) spec =
     | Xmm -> X86_xmm
     | Ymm -> X86_ymm
     | Zmm -> X86_zmm
+    | Mmx -> X86_mmx
+    | Kmask -> X86_kmask
     | Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv -> X86_gpr
   in
   let operands =
@@ -747,7 +758,9 @@ let twins specs =
           match List.rev s.operands with Reg { field = Modrm_rm; _ } :: _ -> true | _ -> false
         in
         let integer s =
-          List.for_all (function Reg { cls = Xmm | Ymm | Zmm; _ } -> false | _ -> true) s.operands
+          List.for_all
+            (function Reg { cls = Xmm | Ymm | Zmm | Mmx | Kmask; _ } -> false | _ -> true)
+            s.operands
         in
         let short s =
           List.exists (function Reg { field = Opcode_low; _ } -> true | _ -> false) s.operands

@@ -7013,6 +7013,9 @@ let x86_table_entries_of target (spec : Isa_x86_table.spec) =
     | Xmm -> Printf.sprintf "xmm%d" num
     | Ymm -> Printf.sprintf "ymm%d" num
     | Zmm -> Printf.sprintf "zmm%d" num
+    (* eight of each, so no high variant *)
+    | Mmx -> Printf.sprintf "mm%d" (num land 7)
+    | Kmask -> Printf.sprintf "k%d" (num land 7)
     | Gpr32 | Gprv -> if num < 8 then "e" ^ low8.(num) else Printf.sprintf "r%dd" num
     | Gpr64 -> if num < 8 then "r" ^ low8.(num) else Printf.sprintf "r%d" num
     | Gpr16 -> if num < 8 then low8.(num) else Printf.sprintf "r%dw" num

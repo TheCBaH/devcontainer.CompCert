@@ -62,6 +62,14 @@ module Reg = struct
      are not modelled yet. *)
   let names_zmm = Array.init 16 (fun i -> Printf.sprintf "zmm%d" i)
 
+  (* [mm0]-[mm7] (MMX) and [k0]-[k7] (AVX-512 opmasks), used only by generated table rows; their
+     widths are {!X86_table_row.class_width}'s class markers. *)
+  let mm_and_k =
+    List.init 8 (fun i ->
+        { name = Printf.sprintf "mm%d" i; num = i; width = X86_table_row.class_width Mmx })
+    @ List.init 8 (fun i ->
+        { name = Printf.sprintf "k%d" i; num = i; width = X86_table_row.class_width Kmask })
+
   let base_regs width names =
     Array.to_list (Array.mapi (fun i n -> { name = n; num = i; width }) names)
 
@@ -8911,6 +8919,7 @@ module Make (M : MODE) = struct
                                 in
                                 if cls = T.Gpr8 && num >= 4 && num < 8 && rex = 0 then
                                   failed := true;
+                                if (cls = T.Mmx || cls = T.Kmask) && num >= 8 then failed := true;
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
                             | T.Fixed_reg name -> (
                                 match find_reg name with

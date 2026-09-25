@@ -31,6 +31,8 @@ let render_class : Isa_x86_table.rclass -> string = function
   | Xmm -> "Xmm"
   | Ymm -> "Ymm"
   | Zmm -> "Zmm"
+  | Mmx -> "Mmx"
+  | Kmask -> "Kmask"
 
 let render_field : Isa_x86_table.field -> string = function
   | Modrm_reg -> "Modrm_reg"
