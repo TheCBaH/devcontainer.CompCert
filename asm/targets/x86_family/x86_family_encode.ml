@@ -181,6 +181,7 @@ module Operand = struct
     | Imm_sym of Asm_core.Expr.t
     | Sym of Asm_core.Expr.t
     | Dfv of int  (** APX [{dfv=...}]: OF 8, SF 4, ZF 2, CF 1 *)
+    | Bcst of { mem : Mem.t; n : int }  (** an EVEX broadcast source, [(mem){1toN}] *)
     | Masked of { op : t; k : int; zero : bool }
         (** an EVEX destination with an opmask: [%zmm0{%k1}], [{z}] for zeroing *)
     | Rc of int
@@ -201,6 +202,7 @@ module Operand = struct
     | Imm_sym e -> Fmt.pf ppf "$%s" (Asm_core.Expr.to_string e)
     | Sym e -> Fmt.string ppf (Asm_core.Expr.to_string e)
     | Rc n -> Fmt.pf ppf "{%s}" (rc_name n)
+    | Bcst { mem; n } -> Fmt.pf ppf "%a{1to%d}" Mem.pp mem n
     | Dfv v ->
         Fmt.pf ppf "{dfv=%s}"
           (String.concat ","
@@ -2161,14 +2163,35 @@ module Instruction = struct
         match i.op with
         (* a generated row's spelling is whole: no width suffix to add *)
         | Opcode.Table row -> (
+            let spelling = table_spelling row in
+            (* an EVEX-only operand already says EVEX; a broadcast states vfpclass's width *)
+            let evex_only =
+              List.exists
+                (function Operand.Bcst _ | Operand.Masked _ | Operand.Rc _ -> true | _ -> false)
+                ops
+            in
+            let spelling =
+              if evex_only && String.length spelling > 7 && String.sub spelling 0 7 = "{evex} " then
+                String.sub spelling 7 (String.length spelling - 7)
+              else spelling
+            in
+            let spelling =
+              let n = String.length spelling in
+              if
+                List.exists (function Operand.Bcst _ -> true | _ -> false) ops
+                && n > 8
+                && String.sub spelling 0 8 = "vfpclass"
+                && List.mem spelling.[n - 1] [ 'x'; 'y'; 'z' ]
+              then String.sub spelling 0 (n - 1)
+              else spelling
+            in
             match ops with
             (* {dfv=...} takes no comma after it *)
             | (Operand.Dfv _ as dfv) :: rest ->
-                Fmt.pf ppf "%s %a %a" (table_spelling row) Operand.pp dfv
+                Fmt.pf ppf "%s %a %a" spelling Operand.pp dfv
                   Fmt.(list ~sep:(any ", ") Operand.pp)
                   rest
-            | _ -> Fmt.pf ppf "%s %a" (table_spelling row) Fmt.(list ~sep:(any ", ") Operand.pp) ops
-            )
+            | _ -> Fmt.pf ppf "%s %a" spelling Fmt.(list ~sep:(any ", ") Operand.pp) ops)
         (* [pop]/[jmp] take no AT&T size suffix in M1 - their one operand's own
            width is what disambiguates, and [simplify_instruction] only
            recognizes the bare mnemonic. [jmp]'s indirect-target sigil is
@@ -4283,7 +4306,7 @@ module Make (M : MODE) = struct
                       { ext; width = i.Instruction.width; rm = Rm.Mem m; imm = Disp.Const imm };
                   ]
             | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
-            | Operand.Dfv _ ->
+            | Operand.Dfv _ | Operand.Bcst _ ->
                 bad `Immediate_destination))
     (* [addq $bodies+24, %rax] - gcc's idiom for address arithmetic against a
        symbol's own address rather than through [lea] (M5, asm/docs/corpus.md).
@@ -4437,7 +4460,7 @@ module Make (M : MODE) = struct
         | Operand.Mem m ->
             Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
         | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
-        | Operand.Dfv _ ->
+        | Operand.Dfv _ | Operand.Bcst _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, bare-mnemonic implicit-1 form ([shrq %rax]) - GAS's
        own shorter surface spelling of the explicit [$1, dst] one just below,
@@ -4454,7 +4477,7 @@ module Make (M : MODE) = struct
         | Operand.Mem m ->
             Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
         | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
-        | Operand.Dfv _ ->
+        | Operand.Dfv _ | Operand.Bcst _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, explicit-count form. A literal count of exactly 1
        still picks {!Lowered.Shift1_rm} - GAS's own shorter, canonical
@@ -4489,7 +4512,7 @@ module Make (M : MODE) = struct
             | _, Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
             | ( _,
                 ( Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _
-                | Operand.Masked _ | Operand.Dfv _ ) ) ->
+                | Operand.Masked _ | Operand.Dfv _ | Operand.Bcst _ ) ) ->
                 bad `Immediate_destination))
     (* Group-2 shift/rotate, count-in-%cl (M5, asm/docs/corpus.md: [sall
        %cl,%eax]). [cl]'s width and number pin it to exactly %cl, not any
@@ -4508,7 +4531,7 @@ module Make (M : MODE) = struct
                 Ok [ Lowered.Shift_cl_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
         | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
-        | Operand.Dfv _ ->
+        | Operand.Dfv _ | Operand.Bcst _ ->
             bad `Immediate_destination)
     (* [shldl $6,%ecx,%eax] (M5, asm/docs/corpus.md): SHLD's own three-operand
        AT&T form - GAS reverses Intel's [SHLD r/m32, r32, imm8] to put the
@@ -4605,7 +4628,7 @@ module Make (M : MODE) = struct
             | Operand.Mem m ->
                 Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Mem m; imm } ]
             | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
-            | Operand.Dfv _ ->
+            | Operand.Dfv _ | Operand.Bcst _ ->
                 bad `Immediate_destination))
     | Opcode.Cmov cc, [ Operand.Reg a; Operand.Reg b ] -> (
         match (width_ok a, width_ok b) with
@@ -8713,7 +8736,7 @@ module Make (M : MODE) = struct
       let reg_field = ref (if r.digit >= 0 then Some r.digit else None) in
       let rm = ref None and vvvv = ref None and is4 = ref None and imms = ref [] in
       let opcode_low = ref 0 in
-      let rounding = ref None and vsib = ref None in
+      let rounding = ref None and vsib = ref None and broadcast = ref false in
       let rm_gpr = ref false in
       let rex_byte = ref false and ok = ref true in
       let gpr (cls : T.rclass) = cls = T.Gpr8 || cls = T.Gpr16 || cls = T.Gpr32 || cls = T.Gpr64 in
@@ -8746,6 +8769,9 @@ module Make (M : MODE) = struct
           | T.Rounding { sae_only = false }, Operand.Rc n when n >= 0 && n <= 3 ->
               rounding := Some n
           | T.Mem _, Operand.Mem m -> rm := Some (`Mem m)
+          | T.Mem _, Operand.Bcst { mem; n } when r.bcst > 0 && n = r.bcst ->
+              broadcast := true;
+              rm := Some (`Mem mem)
           | T.Vsib { cls }, Operand.Mem m ->
               vsib := Some (T.class_width cls);
               rm := Some (`Mem m)
@@ -8760,7 +8786,9 @@ module Make (M : MODE) = struct
         let modrm =
           match (!reg_field, !rm) with
           | Some reg, Some rm ->
-              Option.map (fun m -> (reg, m)) (table_modrm ~n:r.disp8n ?vsib:!vsib ~reg rm)
+              Option.map
+                (fun m -> (reg, m))
+                (table_modrm ~n:(if !broadcast then r.bcst_elem else r.disp8n) ?vsib:!vsib ~reg rm)
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
           (* a fixed ModR/M.reg or rm and no rm operand: register form, rm fixed or 0 ([lfence] is
              0F AE E8, [tilezero %tmm1] is ... 49 C8) *)
@@ -8878,7 +8906,11 @@ module Make (M : MODE) = struct
                       | _ -> (v lsr 4) land 1
                     in
                     let v = v land 15 in
-                    let b_bit, l = match !rounding with Some rc -> (1, rc) | None -> (0, l) in
+                    let b_bit, l =
+                      match !rounding with
+                      | Some rc -> (1, rc)
+                      | None -> ((if !broadcast then 1 else 0), l)
+                    in
                     let pp = match r.prefix with 0x66 -> 1 | 0xf3 -> 2 | 0xf2 -> 3 | _ -> 0 in
                     let p0 =
                       ((1 - rr) lsl 7)
@@ -9127,7 +9159,8 @@ module Make (M : MODE) = struct
             header_ok
             && (match r.space with
               | T.Evex when r.map = 4 || r.evex_p2 <> 0 -> true
-              | T.Evex -> !evex_b = 1 = rounding_row
+              (* EVEX.b: rounding on a register row, broadcast on a memory row that takes it *)
+              | T.Evex -> !evex_b = 1 = rounding_row || (!evex_b = 1 && r.bcst > 0)
               | _ -> true)
             (* the opmask the row allows; an APX row's ND and NF bits sit where EVEX.b and aaa do *)
             && (match r.space with
@@ -9214,7 +9247,9 @@ module Make (M : MODE) = struct
                         | 1 ->
                             Option.map
                               (fun b ->
-                                ( Int64.mul (Int64.of_int r.disp8n)
+                                ( Int64.mul
+                                    (Int64.of_int
+                                       (if !evex_b = 1 && r.bcst > 0 then r.bcst_elem else r.disp8n))
                                     (Int64.of_int (if b >= 128 then b - 256 else b)),
                                   k + 1 ))
                               (at k)
@@ -9316,6 +9351,8 @@ module Make (M : MODE) = struct
                                     Operand.Imm Bigint.zero)
                             | T.Mem _ | T.Vsib _ -> (
                                 match mem with
+                                | Some m when r.space = T.Evex && !evex_b = 1 && r.bcst > 0 ->
+                                    Operand.Bcst { mem = m; n = r.bcst }
                                 | Some m -> Operand.Mem m
                                 | None ->
                                     failed := true;
@@ -9465,7 +9502,14 @@ module Make (M : MODE) = struct
               | op -> upper op)
             s.Surface.ops
         in
-        if vector_index then
+        (* a broadcast states the vector width, so vfpclass is spelled without its x/y/z *)
+        let bcst = List.exists (function Operand.Bcst _ -> true | _ -> false) s.Surface.ops in
+        if bcst then
+          let m = s.Surface.mnemonic in
+          match row [ m; m ^ "x"; m ^ "y"; m ^ "z" ] with
+          | Some i -> Ok i
+          | None -> Error (diag ~pos:__POS__ (`No_form m))
+        else if vector_index then
           match row [ s.Surface.mnemonic ] with
           | Some i -> Ok i
           | None -> Error (diag ~pos:__POS__ (`No_form s.Surface.mnemonic))

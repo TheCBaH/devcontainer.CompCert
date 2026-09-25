@@ -39,6 +39,8 @@ type spec = {
   operands : operand list;  (** AT&T order *)
   mode : int;  (** 0, or 64 for a 64-bit-only form *)
   evex_p2 : int;  (** APX map 4: ND (0x10) and NF (0x04) *)
+  bcst : int;  (** EVEX broadcast element count N ({1toN}), or 0 *)
+  bcst_elem : int;  (** its element bytes *)
   mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
   rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)

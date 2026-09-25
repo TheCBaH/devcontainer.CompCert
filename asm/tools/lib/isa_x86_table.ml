@@ -30,6 +30,8 @@ type spec = {
   operands : operand list;
   mode : int;
   evex_p2 : int;  (** APX map 4: ND (0x10) and NF (0x04) *)
+  bcst : int;  (** EVEX broadcast element count N ({1toN}), or 0 *)
+  bcst_elem : int;  (** its element bytes *)
   mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
   rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
@@ -695,6 +697,8 @@ let x87_spec (rec_ : R.t) ~iform ~isa_set ~opcode_map ~opcode ~pattern ~operands
             mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
             disp8n = 1;
             evex_p2 = 0;
+            bcst = 0;
+            bcst_elem = 0;
             mask = 0;
             sized = false;
             no_acc = [];
@@ -753,6 +757,16 @@ let spec_of_record (rec_ : R.t) =
                 xed_order
             in
             let apx = space = "evex" && opcode_map = 4 in
+            let broadcast =
+              let elem = p.esize / 8 and vector = 16 lsl max 0 p.vl in
+              (* no byte-element broadcast (vcvthf82ph) *)
+              if space = "evex" && has_mem && p.vsib = None && elem > 1 then
+                match p.nelem with
+                | "FULL" -> (vector / elem, elem)
+                | "HALF" -> (vector / 2 / elem, elem)
+                | _ -> (0, 0)
+              else (0, 0)
+            in
             (* REG[rrr] with no register behind it: GNU encodes 0 *)
             let digit =
               if
@@ -816,6 +830,9 @@ let spec_of_record (rec_ : R.t) =
                     evex_p2 =
                       (if p.scc >= 0 then p.scc
                        else (if p.nd then 0x10 else 0) lor if p.nf then 0x04 else 0);
+                    (* FULL and HALF tuples (not their -MEM forms) take a broadcast *)
+                    bcst = fst broadcast;
+                    bcst_elem = snd broadcast;
                     mask =
                       (let has l =
                          List.exists (fun (o : R.x86_operand) -> o.lookupfn_name = Some l) operands
@@ -904,6 +921,8 @@ let spec_of_record (rec_ : R.t) =
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
                     evex_p2 = 0;
+                    bcst = 0;
+                    bcst_elem = 0;
                     mask = 0;
                     sized = false;
                     no_acc = [];
@@ -984,6 +1003,8 @@ let spec_of_record (rec_ : R.t) =
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
                     evex_p2 = 0;
+                    bcst = 0;
+                    bcst_elem = 0;
                     mask = 0;
                     sized = true;
                     no_acc =

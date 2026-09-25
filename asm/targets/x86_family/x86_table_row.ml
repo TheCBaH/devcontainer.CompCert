@@ -46,6 +46,10 @@ type row = {
   evex_p2 : int;
       (** fixed EVEX P2 bits of an APX map-4 row: ND (0x10, a new destination in vvvv) and NF
           (0x04, flags untouched: the [{nf}] pseudo-prefix) *)
+  bcst : int;
+      (** EVEX broadcast: the element count N of [(mem){1toN}] (EVEX.b on a memory operand,
+          disp8 scaled by the element), or 0 *)
+  bcst_elem : int;  (** the broadcast element's bytes *)
   mask : int;
       (** EVEX opmask on the destination: 0 none, 1 [{%kN}] or [{%kN}{z}], 2 [{%kN}] only
           (merging), 3 a [{%kN}] other than k0 required (gathers, scatters) *)

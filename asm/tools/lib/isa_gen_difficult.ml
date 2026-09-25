@@ -7025,7 +7025,8 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     | Gpr8 -> if num < 4 then String.make 1 low8.(num).[0] ^ "l" else Printf.sprintf "r%db" num
   in
   let stack = match target with Target.X86_32 -> "esp" | _ -> "rsp" in
-  let entry ?(masked = false) ?(egpr = false) (row : Isa_x86_table.spec) variant ~high =
+  let entry ?(masked = false) ?(egpr = false) ?(bcst = false) (row : Isa_x86_table.spec) variant
+      ~high =
     let n = List.length row.operands in
     let is4 =
       List.exists
@@ -7057,6 +7058,9 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                  [ (Isa_x86_table.operand_name i, reg_name cls (16 + n - 1 - i)) ]
              | Reg { cls; _ } -> [ (Isa_x86_table.operand_name i, reg_name cls num) ]
              | Mem _ when egpr -> [ (Isa_x86_table.operand_name i, "16(%r25,%r26,4)") ]
+             (* a broadcast states the width, so GNU spells vfpclass without its x/y/z *)
+             | Mem _ when bcst ->
+                 [ (Isa_x86_table.operand_name i, Printf.sprintf "16(%%%s){1to%d}" stack row.bcst) ]
              | Mem _ ->
                  [
                    ( Isa_x86_table.operand_name i,
@@ -7106,6 +7110,17 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
             if k = dest then (k, v ^ "{%k1}" ^ if masked && row.mask = 1 then "{z}" else "")
             else (k, v))
           operands
+      else operands
+    in
+    let operands =
+      if
+        bcst
+        && String.length row.mnemonic > 8
+        && String.sub row.mnemonic 0 8 = "vfpclass"
+        && List.mem row.mnemonic.[String.length row.mnemonic - 1] [ 'x'; 'y'; 'z' ]
+      then
+        (Isa_gen_render.mnemonic_key, String.sub row.mnemonic 0 (String.length row.mnemonic - 1))
+        :: operands
       else operands
     in
     let operands =
@@ -7198,6 +7213,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       @ (if r.mask = 1 || r.mask = 2 then
            [ entry ~masked:true r ("mask-low" ^ width_tag r) ~high:false ]
          else [])
+      @ (if r.bcst > 0 then [ entry ~bcst:true r ("bcst-low" ^ width_tag r) ~high:false ] else [])
       @
       (* APX's r16-r31: through REX2 in legacy maps 0 and 1, through EVEX *)
       let gpr_reg =
