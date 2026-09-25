@@ -8912,7 +8912,8 @@ module Make (M : MODE) = struct
     let rec prefixes k osz rep =
       match at k with
       | Some 0x66 -> prefixes (k + 1) true rep
-      | Some ((0xf2 | 0xf3) as p) -> prefixes (k + 1) osz p
+      (* F0 (lock) sits in the same slot: a row names at most one of them *)
+      | Some ((0xf0 | 0xf2 | 0xf3) as p) -> prefixes (k + 1) osz p
       | _ -> (k, osz, rep)
     in
     let k, osz, rep = prefixes pos false 0 in
@@ -9296,6 +9297,9 @@ module Make (M : MODE) = struct
           [ Operand.Sym (Asm_core.Expr.Symbol op) ] ) ->
           let p = match p with "repz" -> "repe" | "repnz" -> "repne" | p -> p in
           { s with mnemonic = p ^ " " ^ op; ops = [] }
+      (* [lock addl $1, (%rax)]: the parser hands the instruction over as a leading symbol *)
+      | "lock", Operand.Sym (Asm_core.Expr.Symbol op) :: ops ->
+          { s with mnemonic = "lock " ^ op; ops }
       | _ -> s
     in
     match split_pseudo_prefix s.Surface.mnemonic with

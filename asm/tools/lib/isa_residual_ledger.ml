@@ -61,7 +61,7 @@ let rows =
     {
       id = "RES-X86-LEGACY-SIMD";
       source = "xed_resolved";
-      families = [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a"; "SSE_PREFETCH" ];
+      families = [ "3DNOW"; "ACE_1"; "PENTIUMMMX"; "SSE"; "SSE2"; "SSE42"; "SSE4a" ];
       capability =
         "Legacy MMX/SSE/3DNow remainders: 3DNow's suffix-opcode encoding (0F 0F ... op), \
          GPR-with-memory spellings that need a width suffix, and implicit operands. xmm and mm \
@@ -91,10 +91,6 @@ let rows =
       families =
         [
           "CLDEMOTE";
-          "CLFLUSHOPT";
-          "CLFSH";
-          "CLWB";
-          "CMPXCHG16B";
           "FAT_NOP";
           "I186";
           "I286PROTECTED";
@@ -104,11 +100,9 @@ let rows =
           "I86";
           "LONGMODE";
           "PAUSE";
-          "PENTIUMREAL";
           "PPRO";
           "PPRO_UD0_LONG";
           "PPRO_UD0_SHORT";
-          "PREFETCHWT1";
           "PREFETCH_NOP";
           "RDWRFSGS";
         ];
@@ -187,14 +181,10 @@ let rows =
           "AMD_INVLPGB";
           "CET";
           "ENQCMD";
-          "FXSAVE";
-          "FXSAVE64";
           "HRESET";
           "IBHF";
           "ICACHE_PREFETCH";
           "INVPCID";
-          "KEYLOCKER_WIDE";
-          "LKGS";
           "MONITOR";
           "MONITORX";
           "MOVDIR64B";
@@ -208,10 +198,6 @@ let rows =
           "VTX";
           "WAITPKG";
           "WBNOINVD";
-          "XSAVE";
-          "XSAVEC";
-          "XSAVEOPT";
-          "XSAVES";
         ];
       capability =
         "System, virtualization, security and vendor extensions: privileged and MSR forms, state \

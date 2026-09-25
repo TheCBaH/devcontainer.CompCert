@@ -78,6 +78,7 @@ type pattern = {
   nd : bool;  (** APX ND=1: a new data destination in vvvv *)
   nf : bool;  (** APX NF=1: flags untouched *)
   df64 : bool;  (** DF64() *)
+  lock : bool;  (** LOCK=1: the F0 prefix *)
   scc : int;  (** APX CCMP/CTEST (EVAPX_SCC()): the condition, in P2's low nibble; else -1 *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
@@ -105,6 +106,7 @@ let parse_pattern pattern =
             (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
             | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" | "ONE()" -> Some p
             | "DF64()" -> Some { p with df64 = true }
+            | "LOCK=1" -> Some { p with lock = true }
             (* CCMP/CTEST: SCC= is the condition; its NF= and MASK= bits restate it *)
             | "EVAPX_SCC()" -> Some { p with scc = max 0 p.scc }
             | "MASK=1" | "MASK=2" | "MASK=3" | "MASK=5" | "MASK=6" | "MASK=7" -> Some p
@@ -203,6 +205,7 @@ let parse_pattern pattern =
          nf = false;
          scc = -1;
          df64 = false;
+         lock = false;
          vsib = None;
          round = `None;
        })
@@ -431,6 +434,7 @@ let integer_mnemonic ~rep native =
     | "SYSRET64" -> "sysretq"
     | "SYSCALL_AMD" -> "syscall"
     (* the no-wait x87 forms: fsetpm/fdisi/feni would add an FWAIT *)
+    | "PREFETCH_EXCLUSIVE" -> "prefetch"
     | "FSETPM287_NOP" -> "fnsetpm"
     | "FDISI8087_NOP" -> "fndisi"
     | "FENI8087_NOP" -> "fneni"
@@ -443,6 +447,9 @@ let integer_mnemonic ~rep native =
        else String.lowercase_ascii (String.sub native 0 i))
       ^ " "
       ^ op (String.sub native (i + 1) (String.length native - i - 1))
+  (* XED's BTC_LOCK: the lock prefix, a space and the instruction *)
+  | _ when ends_with ~suffix:"_LOCK" native ->
+      "lock " ^ op (String.sub native 0 (String.length native - 5))
   | _ -> op native
 
 (* movzbl, movswq: a zero/sign extension spells its source width in its stem and its
@@ -464,7 +471,13 @@ let gpr_ok operands ~iclass =
            | _ -> None)
          operands)
   in
-  (List.length classes = 1 || operands = [] || movx iclass)
+  (List.length classes = 1
+  || operands = [] || movx iclass
+  || List.for_all (function Mem _ -> true | _ -> false) operands
+     (* far transfers take a *-marked memory operand; the reserved prefetch hints have no
+        GNU spelling *)
+     && (not (List.mem iclass [ "CALL_FAR"; "JMP_FAR" ]))
+     && not (starts_with ~prefix:"PREFETCH_RESERVED" iclass))
   (* no 16-to-16 movzww/movsww *)
   && (not (movx iclass && classes = [ Gpr16 ]))
   && (not (List.mem iclass [ "MOVSXD"; "BSWAP" ]))
@@ -907,7 +920,10 @@ let spec_of_record (rec_ : R.t) =
                     xed_order
                 in
                 let prefix =
-                  match p.rep with 2 -> 0xf2 | 3 -> 0xf3 | _ -> if mandatory66 then 0x66 else 0
+                  (* LOCK=1 on a plain iclass (xchg) only permits the prefix *)
+                  if p.lock && ends_with ~suffix:"_LOCK" rec_.native_name then 0xf0
+                  else
+                    match p.rep with 2 -> 0xf2 | 3 -> 0xf3 | _ -> if mandatory66 then 0x66 else 0
                 in
                 let digit =
                   if
