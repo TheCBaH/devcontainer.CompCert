@@ -33,11 +33,11 @@ and the x86 ledger worked down in the plan section 6 order.
 |---|---|---|---|---|
 | INF-01 | Promotion credit from committed passing cases | done | — | — |
 | INF-02 | Operand-vocabulary normalization, construct-keyed blockers | done | — | Generic operand-driven normalization moves into INF-05R/INF-05X |
-| INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
+| INF-03 | Generated difficult-corpus entries from normalized forms | done (table forms) | INF-02 | Table-derived entries per row: low/high registers (incl. EVEX 24-31), immediate endpoints, memory shapes, masked/{z}, rounding, pseudo-prefixed twins, label distances for branches; hand entries remain for special layout |
 | INF-04 | Batched, sharded, incremental GAS regeneration | done | — | — |
 | INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | done (first landing); extend per family | INF-02 | Widen the field-domain rule (split immediates, rm, aq/rl, csr) as families need it |
 | INF-05X | x86 form-row encoder (DEC-X86-TABLE) | done (VEX); extend per family | INF-02 | Legacy-space rows next (GPR suffix spelling, mandatory prefixes, REX), then EVEX |
-| INF-06 | Feature on every table row; retrofit admitted forms | not-started | INF-05* | — |
+| INF-06 | Feature on every table row; retrofit admitted forms | implementing | INF-05* | Every table row carries its ISA-set feature; x87 rows are gated by the x87 component. Next: map the other ISA sets to GAS -march spellings before gating them |
 | DEC-X86-MODE16 | 16-bit-only forms in the `x86_32` export | not-started | — | Count them; decide `.code16` vs out of scope. Also covers REX.W/GPR64 records the `x86_32` export carries (e.g. `CVTSI2SD_XMMsd_GPR64q`), which 32-bit mode cannot encode |
 | DEC-X86-SUFFIX | Size-suffix inference for x86 mnemonics | needs owner decision | — | GAS infers the operand size from a register operand (`add $1000000, %ecx`); ours rejects unsuffixed mnemonics by design (`test_targets.ml` "x86 refuses to guess an operand size"). Blocks the pilot's ADD_GPRv_IMMz / MOV_GPRv_GPRv_89 / MOV_GPRv_IMMz (x86-64) credit |
 | FREE-01 | Cases for normalized-only / GAS-generatable records | done (RISC-V); x86 blocked | DEC-X86-SUFFIX, DEC-X86-MODE16 | x86 residue needs the two decisions below |
@@ -52,11 +52,11 @@ and the x86 ledger worked down in the plan section 6 order.
 | GEN-05-X86-INT | Legacy integer, string, BMI/LZCNT/POPCNT/ADX/MOVBE, CMOV | implementing | INF-05X | Integer rows landed (GPRv 16/32/64, implicit %cl/accumulator, opcode-embedded registers, CMOVcc/SETcc, BMI memory forms, memory-only forms); string ops with rep/repe/repne, zero-operand forms, movz/movs, DF64 push/pop; LOCK; next: FORCE64 indirect branches, far transfers, movslq |
 | GEN-05-X86-X87 | Full x87 | done (table rows) | FREE-02 | Remainder: 16-bit environment images, same-iform twins |
 | GEN-05-X86-SIMD | MMX, SSE*/SSE4.2/SSE4a remainders, AES/PCLMUL/SHA/GFNI, 3DNow | done (table rows) | INF-05X | Remainder: GPR-with-memory spellings, same-iform twins |
-| GEN-05-X86-VEX | AVX/AVX2 remainder, VSIB, FMA, F16C, FMA4/XOP, VNNI etc. | not-started | INF-05X | — |
+| GEN-05-X86-VEX | AVX/AVX2 remainder, VSIB, FMA, F16C, FMA4/XOP, VNNI etc. | done (table rows) | INF-05X | Remainder: FMA4/XOP W twins sharing an iform, vmovq/vpcmpistri twins |
 | GEN-05-X86-EVEX | EVEX machinery, then AVX-512/FP16/BF16/AVX10.2 families | implementing | — | Base obligation landed (unmasked, k0, disp8*N, regs 0-15) and k0-k7 operands (k-ops, compares into a mask); embedded rounding/{sae}, opmask {%kN}/{z} and VSIB gathers/scatters landed, registers 16-31 landed; next: broadcast {1toN} (an obligation: the capture has no broadcast records) |
 | GEN-05-X86-APX | REX2, r16–r31, map-4, NDD, NF, CCMP/CTEST | implementing | GEN-05-X86-INT, EVEX machinery | Map-4 promotions landed (ND, NF, {evex}); $1 shift forms and CCMP/CTEST landed; next: REX2 and r16-r31 |
 | GEN-05-X86-AMX | Tile registers and AMX families | done (table rows) | GEN-05-X86-EVEX | ACE_1 is oracle-unavailable (GNU as 2.44 lacks it) |
-| GEN-05-X86-SYSTEM | 58 small system/vendor families | not-started | INF-05X | — |
+| GEN-05-X86-SYSTEM | 58 small system/vendor families | implementing | INF-05X | Most system families promoted through rows (0F 01 fixed-rm forms, xsave/fxsave, VMX, SGX, …); remainder: MPX (bnd registers), SVM/SNP implicit-register forms |
 
 ## Work package briefs
 
@@ -364,3 +364,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | GEN-05-X86-INT (relative branches) | Normalized forms for XED's relative jcc/jmp (rel8, rel32) and call (rel32) records: a signed displacement operand GNU resolves from a label. Cases place the label where only that width reaches (one filler byte for rel8, `.zero 200` for rel32, forward and backward); the hand-written relaxation already encodes them. loop/jcxz/xbegin stay blocked. Promoted x86-32 7248→7265, x86-64 9571→9606. All gates pass |
 | 2026-09-25 | GEN-05-X86-SIMD (3DNow!) | Legacy map 4: the `0F 0F` escape with the opcode byte after ModR/M, displacement and immediate; the decoder reads it per row after the operands. Promoted x86-32 7265→7313, x86-64 9606→9654. All gates pass |
 | 2026-09-25 | GEN-05-X86-AMX | Register class `Tmm` (`%tmm0`-`%tmm7`); a fixed ModR/M.rm beside a ModR/M.reg register (`tilezero`). XED's ACE_1 family (tilemovcol, top*, the TMM-destination tilemovrow) is oracle-unavailable: GNU as 2.44 has none of it. Promoted x86-64 9654→9679. All gates pass |
+| 2026-09-25 | INF-06 (x87 rows gated) | Generated rows carry their ISA-set feature; the x87 sets (x87, fcmov, fcomi, sse3x87) now gate through the x87 component at simplify, lower, encode and decode, so `fsin` is refused with `-x87` like `fldl` (new negative case `x87-row-disabled`, GAS agrees). Tracker: INF-03 and GEN-05-X86-VEX done for table forms, SYSTEM implementing. All gates pass |

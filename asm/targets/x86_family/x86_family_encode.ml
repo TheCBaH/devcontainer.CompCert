@@ -9902,27 +9902,38 @@ module Make (M : MODE) = struct
      below is the [_ungated] one behind a single gate, so a disabled form is refused whichever
      path reached it. *)
 
-  let feature_gate ?origin state mnemonic =
-    match Target_component.feature_of_mnemonic components mnemonic with
+  (* A generated row's component follows from its ISA set: the x87 sets belong to x87 *)
+  let row_feature row =
+    match table_rows.(row).T.feature with
+    | "x87" | "fcmov" | "fcomi" | "sse3x87" -> Some X86_x87.component.feature
+    | _ -> None
+
+  let gate ?origin state mnemonic = function
     | Some f when not (Target_config.enabled state.config f) ->
         Error (diag ~pos:__POS__ ?origin (`Feature_disabled (mnemonic, f)))
     | _ -> Ok ()
 
+  let feature_gate ?origin state mnemonic =
+    gate ?origin state mnemonic (Target_component.feature_of_mnemonic components mnemonic)
+
   let required_feature (i : Instruction.t) =
-    Target_component.feature_of_mnemonic components (Opcode.name i.op)
+    match i.op with
+    | Opcode.Table row -> row_feature row
+    | op -> Target_component.feature_of_mnemonic components (Opcode.name op)
+
+  let instruction_gate ?origin state (i : Instruction.t) =
+    gate ?origin state (Opcode.name i.op) (required_feature i)
 
   let simplify_instruction state s =
     match simplify_instruction_ungated s with
     | Error _ as e -> e
     | Ok i -> (
-        match feature_gate ~origin:s.Surface.origin state (Opcode.name i.Instruction.op) with
+        match instruction_gate ~origin:s.Surface.origin state i with
         | Ok () -> Ok i
         | Error _ as e -> e)
 
   let lower_instruction state i =
-    match feature_gate state (Opcode.name i.Instruction.op) with
-    | Error _ as e -> e
-    | Ok () -> lower_instruction_ungated i
+    match instruction_gate state i with Error _ as e -> e | Ok () -> lower_instruction_ungated i
 
   (* The mnemonic of a lowered form that belongs to a component. *)
   let lowered_mnemonic = function
@@ -9933,18 +9944,21 @@ module Make (M : MODE) = struct
     | _ -> None
 
   let encode_in state l =
-    match lowered_mnemonic l with
-    | Some m -> ( match feature_gate state m with Error _ as e -> e | Ok () -> encode_ungated l)
-    | None -> encode_ungated l
+    match (l, lowered_mnemonic l) with
+    | Lowered.Table x, _ -> (
+        match gate state table_rows.(x.row).T.mnemonic (row_feature x.row) with
+        | Error _ as e -> e
+        | Ok () -> encode_ungated l)
+    | _, Some m -> (
+        match feature_gate state m with Error _ as e -> e | Ok () -> encode_ungated l)
+    | _, None -> encode_ungated l
 
   let encode l = encode_in default_state l
 
   let decode ctx bytes ~pos =
     match decode_ungated ctx bytes ~pos with
     | Ok (i, _, _) as ok -> (
-        match feature_gate ctx.state (Opcode.name i.Instruction.op) with
-        | Ok () -> ok
-        | Error _ as e -> e)
+        match instruction_gate ctx.state i with Ok () -> ok | Error _ as e -> e)
     | Error _ as e -> e
 
   (* {2 Fixups, padding, directives} *)
