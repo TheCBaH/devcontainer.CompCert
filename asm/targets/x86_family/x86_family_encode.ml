@@ -8897,15 +8897,21 @@ module Make (M : MODE) = struct
 
   (* A mnemonic the hand-written forms do not know may be a generated row's. *)
   let simplify_instruction_ungated (s : Surface.t) =
+    let row () =
+      match table_index s.Surface.mnemonic with
+      | Some i when table_encode (`Row i) s.Surface.ops <> None ->
+          Some (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
+      | _ -> None
+    in
+    (* a spelling the hand-written forms reject (unknown, or [movq] with an xmm operand in 32-bit
+       mode), or accept but cannot lower for these operands (a high VEX register), may be a
+       generated row's *)
     match simplify_hand_written s with
-    | Error e as err -> (
-        match Target_error.kind (Err.Error.kind e) with
-        | `Unknown_instruction _ -> (
-            match table_index s.Surface.mnemonic with
-            | Some i -> Ok (Instruction.mk (Opcode.Table i) 0 s.Surface.ops)
-            | None -> err)
-        | _ -> err)
-    | ok -> ok
+    | Error _ as err -> ( match row () with Some i -> Ok i | None -> err)
+    | Ok i as ok -> (
+        match lower_hand_written i with
+        | Ok _ -> ok
+        | Error _ -> ( match row () with Some t -> Ok t | None -> ok))
 
   (* A hand-written mnemonic can have generated rows for shapes its own forms do not take (a
      ymm [vpslldq]); those are tried when the hand-written lowering declines. *)

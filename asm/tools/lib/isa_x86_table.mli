@@ -48,3 +48,7 @@ val twins : spec list -> (string, string) Hashtbl.t
 (** Records whose spelling and operand shape repeat an earlier spec's: record id to the earlier
     (reachable) iform. Their rows stay for decoding, but they get no case and are reported as
     needing a pseudo-prefix. *)
+
+val not_in_32bit_mode : Isa_source_record.t -> bool
+(** A form the x86-32 export lists but 32-bit mode cannot encode (legacy REX.W, a 64-bit GPR, a
+    MODE=2 pattern). *)

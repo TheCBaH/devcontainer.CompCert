@@ -7059,6 +7059,14 @@ let x86_table_entries repo =
   let per_target target =
     let* specs = Isa_x86_table_emit.specs repo target in
     let* all = Isa_x86_table_emit.all_specs repo target in
+    let specs =
+      match target with
+      | Target.X86_32 ->
+          List.filter
+            (fun (s : Isa_x86_table.spec) -> s.mode = 0 && not (s.w = 1 && s.space = `Legacy))
+            specs
+      | _ -> specs
+    in
     let secondary = Isa_x86_table.twins all in
     let specs =
       List.filter (fun (s : Isa_x86_table.spec) -> not (Hashtbl.mem secondary s.record_id)) specs

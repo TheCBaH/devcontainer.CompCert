@@ -43,6 +43,8 @@ type pattern = {
   digit : int;
   mode64 : bool;
   modrm : bool;
+  osz : int;  (** OSZ=: -1 unconstrained, 0, 1 *)
+  rep : int;  (** REP=: -1 unconstrained, 0, 2 (F2), 3 (F3) *)
 }
 
 let parse_pattern pattern =
@@ -67,6 +69,13 @@ let parse_pattern pattern =
             | "VL=1" -> Some { p with vl = 1 }
             | "REXW=0" -> Some { p with rexw = 0 }
             | "REXW=1" -> Some { p with rexw = 1 }
+            | "OSZ=0" -> Some { p with osz = 0 }
+            | "OSZ=1" -> Some { p with osz = 1 }
+            | "REP=0" -> Some { p with rep = 0 }
+            | "REP=2" -> Some { p with rep = 2 }
+            | "REP=3" -> Some { p with rep = 3 }
+            (* no constraint on the encoding: a 0x66 is tolerated, REX2 is APX's *)
+            | "IGNORE66()" | "NOREX2=1" | "REX2=0" | "SIMM8()" | "REFINING66()" -> Some p
             | _ when starts_with ~prefix:"VEX_PREFIX=" t ->
                 Option.map
                   (fun v -> { p with vex_prefix = Some v })
@@ -85,6 +94,8 @@ let parse_pattern pattern =
          digit = -1;
          mode64 = false;
          modrm = false;
+         osz = -1;
+         rep = -1;
        })
     tokens
 
@@ -150,7 +161,25 @@ let att_mnemonic ~iclass operands =
       | Some 128 -> lower ^ "x"
       | Some 256 -> lower ^ "y"
       | _ -> lower)
+  (* XED disambiguates a few iclasses with a suffix GNU does not spell: MOVSD_XMM, PEXTRW_SSE4 *)
+  | _ when String.contains lower '_' -> String.sub lower 0 (String.index lower '_')
   | _ -> lower
+
+(* A form the x86-32 export lists that 32-bit mode cannot encode: a legacy REX.W, a 64-bit GPR,
+   or a 64-bit-mode-only pattern. GNU as rejects each ("bad register name %rax"). *)
+let not_in_32bit_mode (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { space; pattern; operands; _ } ->
+      let tokens = String.split_on_char ' ' pattern in
+      List.mem "MODE=2" tokens
+      || (space = "legacy" && List.mem "REXW=1" tokens)
+      || List.exists
+           (fun (o : R.x86_operand) ->
+             match o.lookupfn_name with
+             | Some l -> starts_with ~prefix:"GPR64_" l || starts_with ~prefix:"VGPR64_" l
+             | None -> false)
+           operands
+  | _ -> false
 
 let spec_of_record (rec_ : R.t) =
   match (rec_.encoding, rec_.provenance) with
@@ -200,6 +229,59 @@ let spec_of_record (rec_ : R.t) =
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else 0);
                   })
+      | _ -> None)
+  | ( R.X86_encoding { space = "legacy"; opcode_map; opcode; pattern; operands },
+      R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
+      match (parse_pattern pattern, int_of_string_opt opcode) with
+      | Some p, Some opcode when (not p.vex) && p.modrm -> (
+          let ops = List.map operand_of operands in
+          if List.mem None ops then None
+          else
+            let xed_order = List.filter_map Fun.id (List.filter_map Fun.id ops) in
+            let has_mem = List.exists (function Mem _ -> true | _ -> false) xed_order in
+            let has_gpr =
+              List.exists
+                (function Reg { cls = Gpr8 | Gpr16 | Gpr32 | Gpr64; _ } -> true | _ -> false)
+                xed_order
+            in
+            let has_xmm =
+              List.exists (function Reg { cls = Xmm; _ } -> true | _ -> false) xed_order
+            in
+            (* the SSE shape first: xmm operands, the mandatory prefix from REP/OSZ *)
+            let prefix =
+              match (p.rep, p.osz) with
+              | 2, (-1 | 0) -> Some 0xf2
+              | 3, (-1 | 0) -> Some 0xf3
+              | (-1 | 0), 1 -> Some 0x66
+              | (-1 | 0), (-1 | 0) -> Some 0
+              | _ -> None
+            in
+            match prefix with
+            | Some prefix
+              when has_xmm
+                   && (not (has_mem && has_gpr))
+                   && p.memory = Some true = has_mem
+                   && List.for_all
+                        (function Reg { field = Vvvv | Is4; _ } -> false | _ -> true)
+                        xed_order ->
+                Some
+                  {
+                    record_id = rec_.record_id;
+                    iform;
+                    isa_set;
+                    mnemonic = att_mnemonic ~iclass:rec_.native_name xed_order;
+                    space = `Legacy;
+                    map = opcode_map;
+                    opcode;
+                    prefix;
+                    osz = false;
+                    w = p.rexw;
+                    l = -1;
+                    digit = p.digit;
+                    operands = List.rev xed_order;
+                    mode = (if p.mode64 then 64 else 0);
+                  }
+            | _ -> None)
       | _ -> None)
   | _ -> None
 

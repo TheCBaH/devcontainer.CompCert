@@ -153,6 +153,8 @@ let state_of ~source ~target credit ~known (rec_ : Isa_source_record.t) normaliz
     | None -> Isa_oracle_unavailable.find ~source target ~extension
   in
   match normalized with
+  | _ when target = Target.X86_32 && Isa_x86_table.not_in_32bit_mode rec_ ->
+      Oracle_unavailable "not-encodable-in-32-bit-mode"
   | Ok (form : Isa_norm_model.form)
     when Hashtbl.mem credit.promoted (form.form_id, lookup_key source rec_) ->
       Promoted_support

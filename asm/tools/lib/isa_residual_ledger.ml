@@ -179,15 +179,10 @@ let rows =
         [
           "3DNOW";
           "ACE_1";
-          "AES";
-          "GFNI";
-          "PCLMULQDQ";
           "PENTIUMMMX";
-          "SHA";
           "SSE";
           "SSE2";
           "SSE2MMX";
-          "SSE3";
           "SSE4";
           "SSE42";
           "SSE4a";
@@ -196,9 +191,10 @@ let rows =
           "SSSE3MMX";
         ];
       capability =
-        "Legacy MMX/SSE/3DNow remainders: the mm0-mm7 register class, imm8-selector forms, \
-         mandatory-prefix combinations, and AES/PCLMUL/SHA/GFNI legacy encodings. SSE2 packed and \
-         scalar forms are largely promoted.";
+        "Legacy MMX/SSE/3DNow remainders: the mm0-mm7 register class, 3DNow's suffix-opcode \
+         encoding, GPR-with-memory spellings that need a width suffix, and implicit operands. \
+         xmm-only SSE/SSE2/SSE3/SSSE3/SSE4/AES/PCLMUL/SHA/GFNI forms are promoted through \
+         DEC-X86-TABLE rows.";
       evidence =
         "family-admission: SSE2 and SSE are mostly promoted; PENTIUMMMX and 3DNOW are entirely \
          unhandled";
