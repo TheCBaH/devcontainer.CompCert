@@ -63,17 +63,19 @@ let render_row (s : Isa_x86_table.spec) =
     \      l = %d;\n\
     \      disp8n = %d;\n\
     \      digit = %d;\n\
+    \      rm = %d;\n\
     \      operands = [ %s ];\n\
     \      mode = %d;\n\
+    \      mask = %d;\n\
     \      no_acc = [ %s ];\n\
     \      feature = %S;\n\
     \      source = %S;\n\
     \    };\n"
     s.mnemonic
     (match s.space with `Vex -> "Vex" | `Evex -> "Evex" | `Xop -> "Xop" | `Legacy -> "Legacy")
-    s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit
+    s.map s.opcode s.prefix s.osz s.w s.l s.disp8n s.digit s.rm
     (String.concat "; " (List.map render_operand s.operands))
-    s.mode
+    s.mode s.mask
     (String.concat "; " (List.map string_of_int s.no_acc))
     (String.lowercase_ascii s.isa_set)
     s.iform

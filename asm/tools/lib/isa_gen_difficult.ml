@@ -7022,7 +7022,7 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     | Gpr8 -> if num < 4 then String.make 1 low8.(num).[0] ^ "l" else Printf.sprintf "r%db" num
   in
   let stack = match target with Target.X86_32 -> "esp" | _ -> "rsp" in
-  let entry (row : Isa_x86_table.spec) variant ~high =
+  let entry ?(masked = false) (row : Isa_x86_table.spec) variant ~high =
     let n = List.length row.operands in
     let is4 =
       List.exists
@@ -7078,6 +7078,18 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                      if sae_only then "{sae}" else if high then "{rz-sae}" else "{rn-sae}" );
                  ])
            row.operands)
+    in
+    (* an opmask on the destination: required by a gather or scatter, else a variant of its
+       own; {z} where the form allows zeroing *)
+    let operands =
+      if masked || row.mask = 3 then
+        let dest = Isa_x86_table.operand_name (n - 1) in
+        List.map
+          (fun (k, v) ->
+            if k = dest then (k, v ^ "{%k1}" ^ if masked && row.mask = 1 then "{z}" else "")
+            else (k, v))
+          operands
+      else operands
     in
     let operands =
       match prefix with
@@ -7156,7 +7168,11 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       ::
       (match target with
       | Target.X86_64 -> [ entry r ("regs-high" ^ width_tag r) ~high:true ]
-      | _ -> []))
+      | _ -> [])
+      @
+      if r.mask = 1 || r.mask = 2 then
+        [ entry ~masked:true r ("mask-low" ^ width_tag r) ~high:false ]
+      else [])
     rows
 
 let x86_table_entries repo =

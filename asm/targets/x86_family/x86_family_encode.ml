@@ -161,6 +161,8 @@ module Operand = struct
     | Imm of Bigint.t
     | Imm_sym of Asm_core.Expr.t
     | Sym of Asm_core.Expr.t
+    | Masked of { op : t; k : int; zero : bool }
+        (** an EVEX destination with an opmask: [%zmm0{%k1}], [{z}] for zeroing *)
     | Rc of int
         (** EVEX embedded rounding: [{rn-sae}] 0, [{rd-sae}] 1, [{ru-sae}] 2, [{rz-sae}] 3; or
             [{sae}] 4, exceptions suppressed with no rounding override *)
@@ -172,13 +174,14 @@ module Operand = struct
     | 3 -> "rz-sae"
     | _ -> "sae"
 
-  let pp ppf = function
+  let rec pp ppf = function
     | Reg r -> Reg.pp ppf r
     | Mem m -> Mem.pp ppf m
     | Imm v -> Fmt.pf ppf "$%a" Bigint.pp v
     | Imm_sym e -> Fmt.pf ppf "$%s" (Asm_core.Expr.to_string e)
     | Sym e -> Fmt.string ppf (Asm_core.Expr.to_string e)
     | Rc n -> Fmt.pf ppf "{%s}" (rc_name n)
+    | Masked { op; k; zero } -> Fmt.pf ppf "%a{%%k%d}%s" pp op k (if zero then "{z}" else "")
 end
 
 (* {1 The three staged instruction types} *)
@@ -4242,7 +4245,7 @@ module Make (M : MODE) = struct
                     Lowered.Alu_rm_imm
                       { ext; width = i.Instruction.width; rm = Rm.Mem m; imm = Disp.Const imm };
                   ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
                 bad `Immediate_destination))
     (* [addq $bodies+24, %rax] - gcc's idiom for address arithmetic against a
        symbol's own address rather than through [lea] (M5, asm/docs/corpus.md).
@@ -4395,7 +4398,7 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, bare-mnemonic implicit-1 form ([shrq %rax]) - GAS's
        own shorter surface spelling of the explicit [$1, dst] one just below,
@@ -4411,7 +4414,7 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, explicit-count form. A literal count of exactly 1
        still picks {!Lowered.Shift1_rm} - GAS's own shorter, canonical
@@ -4444,7 +4447,9 @@ module Make (M : MODE) = struct
                           { ext; width = i.Instruction.width; rm = Rm.Reg r; imm };
                       ])
             | _, Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
-            | _, (Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _) ->
+            | ( _,
+                (Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _)
+              ) ->
                 bad `Immediate_destination))
     (* Group-2 shift/rotate, count-in-%cl (M5, asm/docs/corpus.md: [sall
        %cl,%eax]). [cl]'s width and number pin it to exactly %cl, not any
@@ -4462,7 +4467,7 @@ module Make (M : MODE) = struct
             | Ok () ->
                 Ok [ Lowered.Shift_cl_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
             bad `Immediate_destination)
     (* [shldl $6,%ecx,%eax] (M5, asm/docs/corpus.md): SHLD's own three-operand
        AT&T form - GAS reverses Intel's [SHLD r/m32, r32, imm8] to put the
@@ -4558,7 +4563,7 @@ module Make (M : MODE) = struct
                     Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Reg r; imm } ])
             | Operand.Mem m ->
                 Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Mem m; imm } ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ ->
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
                 bad `Immediate_destination))
     | Opcode.Cmov cc, [ Operand.Reg a; Operand.Reg b ] -> (
         match (width_ok a, width_ok b) with
@@ -8637,12 +8642,27 @@ module Make (M : MODE) = struct
         | Disp.Const _ -> None)
 
   let table_encode_row (r : T.row) ops =
+    (* an opmask decorates the destination, AT&T's last operand *)
+    let ops, opmask =
+      match List.rev ops with
+      | Operand.Masked { op; k; zero } :: rest -> (List.rev (op :: rest), Some (k, zero))
+      | _ -> (ops, None)
+    in
+    let mask_ok =
+      match (r.mask, opmask) with
+      | 3, None -> false
+      | _, None -> true
+      | 0, Some _ -> false
+      | 1, Some (k, _) -> k >= 1 && k <= 7
+      | _, Some (k, zero) -> k >= 1 && k <= 7 && not zero
+    in
     let accumulator k =
       match List.nth_opt ops k with
       | Some (Operand.Reg (reg : Reg.t)) -> reg.num = 0 && List.mem reg.width [ 8; 16; 32; 64 ]
       | _ -> false
     in
-    if (not (table_applies r)) || List.length ops <> List.length r.operands then None
+    if (not (table_applies r)) || (not mask_ok) || List.length ops <> List.length r.operands then
+      None
     else if List.exists accumulator r.no_acc then None
     else
       let reg_field = ref (if r.digit >= 0 then Some r.digit else None) in
@@ -8684,7 +8704,9 @@ module Make (M : MODE) = struct
           | None, None -> Some (0, ("", 0, (!opcode_low lsr 3) land 1))
           (* a fixed ModR/M.reg and no rm operand: register form, rm 0 ([lfence] is 0F AE E8) *)
           | Some reg, None when r.digit >= 0 ->
-              Some (reg, (String.make 1 (Char.chr (0xc0 lor ((reg land 7) lsl 3))), 0, 0))
+              Some
+                ( reg,
+                  (String.make 1 (Char.chr (0xc0 lor ((reg land 7) lsl 3) lor max 0 r.rm)), 0, 0) )
           | _ -> None
         in
         let opcode = r.opcode lor (!opcode_low land 7) in
@@ -8761,7 +8783,12 @@ module Make (M : MODE) = struct
                       lor (1 lsl 4) lor r.map
                     in
                     let p1 = (w lsl 7) lor ((lnot v land 15) lsl 3) lor (1 lsl 2) lor pp in
-                    let p2 = (l lsl 5) lor (b_bit lsl 4) lor (1 lsl 3) in
+                    let aaa, z =
+                      match opmask with
+                      | Some (k, zero) -> (k, if zero then 1 else 0)
+                      | None -> (0, 0)
+                    in
+                    let p2 = (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4) lor (1 lsl 3) lor aaa in
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1) then None
                     else Some ("\x62" ^ byte p0 ^ byte p1 ^ byte p2 ^ byte opcode ^ tail)))
 
@@ -8824,7 +8851,7 @@ module Make (M : MODE) = struct
     in
     let k, osz, rep = prefixes pos false 0 in
     (* EVEX.b: embedded rounding for a register form *)
-    let evex_b = ref 0 in
+    let evex_b = ref 0 and evex_aaa = ref 0 and evex_z = ref 0 in
     let k, rex =
       match at k with Some b when M.rex_allowed && b land 0xf0 = 0x40 -> (k + 1, b) | _ -> (k, 0)
     in
@@ -8832,11 +8859,13 @@ module Make (M : MODE) = struct
       match (at k, at (k + 1), at (k + 2)) with
       | Some 0x62, Some p0, Some p1
         when rex = 0 && (M.rex_allowed || p0 land 0xc0 = 0xc0) && p1 land 4 = 4 && k + 3 < n ->
-          (* EVEX: only the unmasked, non-zeroing form with registers 0-15 *)
+          (* EVEX with registers 0-15 *)
           let p2 = Char.code bytes.[k + 3] in
-          if p0 land 0x10 = 0 || p2 land 0x08 = 0 || p2 land 0x87 <> 0 then None
+          if p0 land 0x10 = 0 || p2 land 0x08 = 0 then None
           else (
             evex_b := (p2 lsr 4) land 1;
+            evex_aaa := p2 land 7;
+            evex_z := (p2 lsr 7) land 1;
             Some
               ( k + 4,
                 `Evex
@@ -8948,6 +8977,15 @@ module Make (M : MODE) = struct
           let header_ok =
             header_ok
             && (match r.space with T.Evex -> !evex_b = 1 = rounding_row | _ -> true)
+            (* the opmask the row allows *)
+            && (match r.space with
+              | T.Evex -> (
+                  match r.mask with
+                  | 0 -> !evex_aaa = 0 && !evex_z = 0
+                  | 1 -> !evex_z = 0 || !evex_aaa <> 0
+                  | 2 -> !evex_z = 0
+                  | _ -> !evex_z = 0 && !evex_aaa <> 0)
+              | _ -> true)
             && List.for_all
                  (function T.Rounding { sae_only = true } -> l = 0 | _ -> true)
                  r.operands
@@ -8989,8 +9027,9 @@ module Make (M : MODE) = struct
                 if uses_modrm && r.digit >= 0 && (mb lsr 3) land 7 <> r.digit then None
                 else if uses_modrm && has_mem && md = 3 then None
                 else if uses_modrm && rm_reg && md <> 3 then None
-                else if uses_modrm && (not has_mem) && (not rm_reg) && mb land 0xc7 <> 0xc0 then
-                  None
+                else if
+                  uses_modrm && (not has_mem) && (not rm_reg) && mb land 0xc7 <> 0xc0 lor max 0 r.rm
+                then None
                 else
                   (* the memory operand, if any: SIB and displacement *)
                   let mem, k =
@@ -9137,6 +9176,17 @@ module Make (M : MODE) = struct
                                   r.operands ops,
                                 !k + 1 )
                         else (ops, !k)
+                      in
+                      (* an opmask decorates the destination *)
+                      let ops =
+                        if r.space = T.Evex && !evex_aaa <> 0 then
+                          match List.rev ops with
+                          | last :: rest ->
+                              List.rev
+                                (Operand.Masked { op = last; k = !evex_aaa; zero = !evex_z = 1 }
+                                :: rest)
+                          | [] -> ops
+                        else ops
                       in
                       if !failed then None
                       else Some (Instruction.mk (Opcode.Table i) 0 ops, r.mnemonic, k - pos))

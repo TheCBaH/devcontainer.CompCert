@@ -36,6 +36,8 @@ type spec = {
   digit : int;
   operands : operand list;  (** AT&T order *)
   mode : int;  (** 0, or 64 for a 64-bit-only form *)
+  mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
+  rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** spelled with an operand-size suffix, added by {!expand} *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)

@@ -38,8 +38,12 @@ type row = {
       (** EVEX's compressed displacement scale N: a displacement that is a multiple of N and
           fits a byte after dividing is stored as disp8 (1 outside EVEX) *)
   digit : int;  (** a fixed ModR/M.reg value, or -1 *)
+  rm : int;  (** a fixed ModR/M.rm (register form, no rm operand), or -1 *)
   operands : operand list;  (** in AT&T order *)
   mode : int;  (** 0 in both modes; 64 or 32 when only that mode has the form *)
+  mask : int;
+      (** EVEX opmask on the destination: 0 none, 1 [{%kN}] or [{%kN}{z}], 2 [{%kN}] only
+          (merging), 3 a [{%kN}] other than k0 required (gathers, scatters) *)
   no_acc : int list;
       (** operand positions that must not be the accumulator: GNU as encodes that spelling with
           an accumulator-specific form ([xchg %ebx, %eax] is 0x93) *)

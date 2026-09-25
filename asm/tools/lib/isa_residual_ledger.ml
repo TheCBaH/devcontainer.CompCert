@@ -28,25 +28,20 @@ let rows =
           "AVX512F_256";
           "AVX512F_512";
           "AVX512F_SCALAR";
-          "AVX512PF_512";
           "AVX512_FP16_SCALAR";
           "AVX512_MOVZXC_128";
           "AVX512_SAT_CVT_512";
         ];
       capability =
-        "EVEX forms beyond the generated table's base obligation (unmasked, no zeroing, no \
-         broadcast, registers 0-15, disp8*N, embedded rounding/SAE): VSIB gathers and scatters, \
-         forms that require a mask (MASKNOT0), and same-spelled EVEX twins no pseudo-prefix \
-         separates. Masking, zeroing, broadcast and registers 16-31 are obligations on \
-         already-promoted records; {evex} twins of VEX forms are promoted.";
+        "EVEX forms GNU as never emits for their spelling (same-spelled twins no pseudo-prefix \
+         separates) and XED's BCRC=1 register forms of conversions that take no rounding operand. \
+         Broadcast ({1toN}) and registers 16-31 remain obligations on promoted records.";
       evidence =
-        "family-admission: most AVX-512F/BW/DQ/CD/FP16/BF16/VBMI/VNNI/IFMA/BITALG/VPOPCNTDQ and \
-         AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows; embedded rounding and {sae} \
-         register forms too; the remainder is VSIB and mask-register forms";
+        "family-admission: AVX-512/AVX10.2 records are promoted through DEC-X86-TABLE EVEX rows \
+         with opmask ({%kN}, {z}), embedded rounding/{sae} and VSIB gathers/scatters; the \
+         remainder is twins and four BCRC=1 conversions";
       task = "GEN-05-X86-EVEX";
-      reopening_gate =
-        "memory operands and opmask decoration are implemented in the encoder and a per-family GAS \
-         -march probe exists";
+      reopening_gate = "a pseudo-prefix or spelling that reaches the twin exists in GNU as";
     };
     {
       id = "RES-X86-VEX";
@@ -102,7 +97,6 @@ let rows =
           "CLFLUSHOPT";
           "CLFSH";
           "CLWB";
-          "CLZERO";
           "CMPXCHG16B";
           "FAT_NOP";
           "I186";
@@ -119,7 +113,6 @@ let rows =
           "PPRO_UD0_SHORT";
           "PREFETCHWT1";
           "PREFETCH_NOP";
-          "RDTSCP";
           "RDWRFSGS";
         ];
       capability =
@@ -220,39 +213,22 @@ let rows =
           "INVPCID";
           "KEYLOCKER_WIDE";
           "LKGS";
-          "MCOMMIT";
           "MONITOR";
           "MONITORX";
           "MOVDIR64B";
           "MOVRS";
           "MPX";
-          "MSRLIST";
-          "PBNDKB";
-          "PCONFIG";
-          "PKU";
           "PTWRITE";
           "RDPID";
-          "RDPRU";
           "RTM";
-          "SERIALIZE";
-          "SGX";
-          "SGX_ENCLV";
-          "SMAP";
           "SNP";
           "SVM";
-          "TDX";
-          "TSX_LDTRK";
           "UINTR";
           "USER_MSR";
-          "VIA_PADLOCK_AES";
           "VIA_PADLOCK_MONTMUL";
-          "VIA_PADLOCK_RNG";
-          "VIA_PADLOCK_SHA";
-          "VMFUNC";
           "VTX";
           "WAITPKG";
           "WBNOINVD";
-          "WRMSRNS";
           "XSAVE";
           "XSAVEC";
           "XSAVEOPT";

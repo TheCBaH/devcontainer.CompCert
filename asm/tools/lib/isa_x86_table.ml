@@ -27,6 +27,8 @@ type spec = {
   digit : int;
   operands : operand list;
   mode : int;
+  mask : int;  (** EVEX opmask: 0 none, 1 merge or zero, 2 merge only, 3 required *)
+  rm : int;  (** a fixed ModR/M.rm of a register-form encoding with no rm operand, or -1 *)
   disp8n : int;  (** EVEX's disp8*N scale; 1 elsewhere *)
   sized : bool;  (** an integer form spelled with its operand-size suffix, added by {!expand} *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
@@ -65,6 +67,8 @@ type pattern = {
   free_reg : bool;  (** REG[rrr] with no register operand behind it: GNU encodes 0 *)
   srm_nonzero : bool;  (** SRM!=0: the opcode-embedded register is not the accumulator *)
   bcrc : bool;  (** BCRC=1: EVEX.b set *)
+  nozero : bool;  (** ZEROING=0: no {z} *)
+  rm : int;  (** RM[0bxxx]: a fixed ModR/M.rm, or -1 *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
 }
@@ -85,13 +89,16 @@ let parse_pattern pattern =
             | "VEXVALID=3" -> Some { p with xop = true }
             | "VL=2" -> Some { p with vl = 2 }
             (* EVEX's defaults: U = 1, no zeroing, no broadcast or rounding, no mask *)
-            | "UBIT=1" | "ZEROING=0" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
+            | "ZEROING=0" -> Some { p with nozero = true }
+            | "UBIT=1" | "BCRC=0" | "MASK=0" | "VEXDEST4=0b0" -> Some p
             | "BCRC=1" -> Some { p with bcrc = true }
             | "VMODRM_XMM()" | "UISA_VMODRM_XMM()" -> Some { p with vsib = Some Xmm }
             | "VMODRM_YMM()" | "UISA_VMODRM_YMM()" -> Some { p with vsib = Some Ymm }
             | "UISA_VMODRM_ZMM()" -> Some { p with vsib = Some Zmm }
             (* VSIB's SIB escape; any address size but 16-bit *)
             | "RM=4" | "EASZ!=1" -> Some p
+            | _ when starts_with ~prefix:"RM[0b" t && String.length t = 9 ->
+                Option.map (fun r -> { p with rm = r; modrm = true }) (binary (String.sub t 5 3))
             | "AVX512_ROUND()" -> Some { p with round = `Rc }
             | "SAE()" -> Some { p with round = `Sae }
             | "FIX_ROUND_LEN512()" -> Some { p with vl = 2 }
@@ -168,6 +175,8 @@ let parse_pattern pattern =
          free_reg = false;
          srm_nonzero = false;
          bcrc = false;
+         nozero = false;
+         rm = -1;
          vsib = None;
          round = `None;
        })
@@ -222,7 +231,7 @@ let operand_of (o : R.x86_operand) =
     (* the broadcast element marker of a VEX broadcast: not an operand *)
   else if o.op_name = "BCAST" && o.lookupfn_name = None then Some None
     (* EVEX's optional write mask: absent means k0, the unmasked form this rule admits *)
-  else if o.lookupfn_name = Some "MASK1" then Some None
+  else if o.lookupfn_name = Some "MASK1" || o.lookupfn_name = Some "MASKNOT0" then Some None
   else if o.visibility = "IMPLICIT" then
     match (o.op_type, o.bits) with
     | "nt_lookup_fn", _ when o.lookupfn_name = Some "OrAX" -> Some (Some (Fixed_reg "?ax"))
@@ -365,6 +374,10 @@ let integer_mnemonic ~rep native =
     | "SYSRET" | "SYSRET_AMD" -> "sysretl"
     | "SYSRET64" -> "sysretq"
     | "SYSCALL_AMD" -> "syscall"
+    (* the no-wait x87 forms: fsetpm/fdisi/feni would add an FWAIT *)
+    | "FSETPM287_NOP" -> "fnsetpm"
+    | "FDISI8087_NOP" -> "fndisi"
+    | "FENI8087_NOP" -> "fneni"
     | _ -> String.lowercase_ascii n
   in
   match String.index_opt native '_' with
@@ -575,9 +588,17 @@ let spec_of_record (rec_ : R.t) =
                     (* a rounding mode takes L'L's place *)
                     l = (if p.bcrc then -1 else p.vl);
                     digit = p.digit;
+                    rm = (if p.vsib = None then p.rm else -1);
                     operands = att;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = (if space = "evex" then disp8_scale p else 1);
+                    mask =
+                      (let has l =
+                         List.exists (fun (o : R.x86_operand) -> o.lookupfn_name = Some l) operands
+                       in
+                       if has "MASKNOT0" then 3
+                       else if has "MASK1" then if p.nozero then 2 else 1
+                       else 0);
                     (* a y-width GPR form is a 32-bit (W0) and a 64-bit (W1) row *)
                     sized = variable;
                     no_acc = [];
@@ -635,9 +656,11 @@ let spec_of_record (rec_ : R.t) =
                     w = p.rexw;
                     l = -1;
                     digit = p.digit;
+                    rm = (if p.vsib = None then p.rm else -1);
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
+                    mask = 0;
                     sized = false;
                     no_acc = [];
                     widths = [];
@@ -689,9 +712,11 @@ let spec_of_record (rec_ : R.t) =
                     w = p.rexw;
                     l = -1;
                     digit;
+                    rm = p.rm;
                     operands = List.rev xed_order;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = 1;
+                    mask = 0;
                     sized = true;
                     no_acc =
                       (if p.srm_nonzero then
