@@ -7263,8 +7263,58 @@ let x86_table_entries repo =
   let* x64 = per_target Target.X86_64 in
   Ok (x32 @ x64)
 
+(* Relative jcc/jmp/call: a label reached with rel8 (one filler byte either side) or only with
+   rel32 (200 filler bytes); call has only rel32. *)
+let x86_branch_entries repo =
+  let ( let* ) = Result.bind in
+  let per_target target =
+    let* records =
+      Isa_source_record.read_file (Repo.isa_db_export repo ~source:"xed_resolved" target)
+    in
+    let seen = Hashtbl.create 64 in
+    Ok
+      (List.concat_map
+         (fun (r : Isa_source_record.t) ->
+           match (Isa_x86_table.branch r, r.provenance) with
+           | Some (_, bits), Isa_source_record.Xed_provenance { iform = Some iform; _ }
+             when not (Hashtbl.mem seen iform) ->
+               Hashtbl.replace seen iform ();
+               let entry variant ~label ~before ~after =
+                 {
+                   form_id = "x86:" ^ iform;
+                   target;
+                   lookup_key = iform;
+                   case_id =
+                     Printf.sprintf "x86:%s:branch-%s:%s" iform variant (Target.to_string target);
+                   rule_ids = [ "branch"; "branch-" ^ variant ];
+                   operands = [ ("target", label) ];
+                   lines_before = before;
+                   lines_after = after;
+                   configuration = Isa_gen_case_build.configuration_for target;
+                 }
+               in
+               if bits = 8 then
+                 [
+                   entry "rel8-forward" ~label:"1f" ~before:[] ~after:[ ".byte 0x90"; "1:" ];
+                   entry "rel8-backward" ~label:"1b" ~before:[ "1:"; ".byte 0x90" ] ~after:[];
+                 ]
+               else if r.native_name = "CALL_NEAR" then
+                 [ entry "rel32-forward" ~label:"1f" ~before:[] ~after:[ "1:" ] ]
+               else
+                 [
+                   entry "rel32-forward" ~label:"1f" ~before:[] ~after:[ ".zero 200"; "1:" ];
+                   entry "rel32-backward" ~label:"1b" ~before:[ "1:"; ".zero 200" ] ~after:[];
+                 ]
+           | _ -> [])
+         records)
+  in
+  let* x32 = per_target Target.X86_32 in
+  let* x64 = per_target Target.X86_64 in
+  Ok (x32 @ x64)
+
 let entries repo =
   let ( let* ) = Result.bind in
   let* table = table_entries repo in
   let* x86 = x86_table_entries repo in
-  Ok (all @ table @ x86)
+  let* branches = x86_branch_entries repo in
+  Ok (all @ table @ x86 @ branches)

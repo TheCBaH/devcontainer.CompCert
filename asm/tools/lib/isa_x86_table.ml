@@ -1351,3 +1351,74 @@ let accumulator_positions (records : R.t list) spec =
                positions
            else List.map (fun (i, _, _) -> i) acc)
        siblings)
+
+(* Relative near branches (jcc and jmp with rel8 or rel32, call rel32): the displacement is a
+   signed immediate GNU as resolves from a label, and the assembler's relaxation picks the
+   width, so a case places its label at a distance only that width reaches. *)
+let branch (rec_ : R.t) =
+  match rec_.encoding with
+  | R.X86_encoding { operands; _ } -> (
+      let n = rec_.native_name in
+      let conditional =
+        String.length n >= 2
+        && n.[0] = 'J'
+        && not (List.mem n [ "JMP"; "JMP_FAR"; "JCXZ"; "JECXZ"; "JRCXZ"; "JMPABS" ])
+      in
+      match List.find_opt (fun (o : R.x86_operand) -> o.op_name = "RELBR") operands with
+      | Some o when conditional || n = "JMP" || n = "CALL_NEAR" -> (
+          let mnemonic = if n = "CALL_NEAR" then "call" else String.lowercase_ascii n in
+          match o.oc2 with
+          | Some "b" -> Some (mnemonic, 8)
+          | Some "d" -> Some (mnemonic, 32)
+          | _ -> None)
+      | _ -> None)
+  | _ -> None
+
+let branch_form ~requirement (rec_ : R.t) =
+  match (branch rec_, rec_.encoding, rec_.provenance) with
+  | ( Some (mnemonic, bits),
+      R.X86_encoding { space; opcode_map; opcode; pattern; _ },
+      R.Xed_provenance { iform = Some iform; _ } ) ->
+      Some
+        {
+          form_id = "x86:" ^ iform;
+          arch = X86;
+          native_name = rec_.native_name;
+          source_record_ids = [ rec_.record_id ];
+          requirement;
+          encoding = X86_encoding { space; opcode_map; opcode; pattern };
+          operands =
+            [
+              {
+                op_name = "target";
+                op_kind =
+                  Immediate
+                    {
+                      width_bits = bits;
+                      signed = true;
+                      implicit_low_zero_bits = 0;
+                      nonzero = false;
+                      runs = [];
+                    };
+                role = In;
+                explicit = true;
+              };
+            ];
+          syntax = { dialect = "gas-att"; mnemonic; operands = [ Syn_operand "target" ] };
+          concreteness = Concrete;
+          facts =
+            [
+              {
+                label = Upstream;
+                note = "opcode, pattern and displacement width taken verbatim from the record";
+              };
+              {
+                label = Inferred;
+                note =
+                  "GAS resolves the displacement from a label; cases place it where only this \
+                   width reaches (DEC-X86-TABLE)";
+              };
+            ];
+          diagnostics = [];
+        }
+  | _ -> None

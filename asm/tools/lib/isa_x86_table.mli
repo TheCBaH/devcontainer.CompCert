@@ -69,6 +69,12 @@ val form :
 
 val operand_name : int -> string
 
+val branch : Isa_source_record.t -> (string * int) option
+(** A relative near jcc/jmp/call record: its AT&T mnemonic and displacement width. *)
+
+val branch_form :
+  requirement:Isa_norm_model.requirement -> Isa_source_record.t -> Isa_norm_model.form option
+
 val lookup_key : Isa_source_record.t -> string
 (** The iform, told apart for an EVEX embedded-rounding register variant (which XED lists under
     the plain form's iform) by a [#er] suffix, an APX [{nf}] variant by [#nf]. *)
