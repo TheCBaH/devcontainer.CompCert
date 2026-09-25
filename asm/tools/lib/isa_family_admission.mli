@@ -51,3 +51,9 @@ val summarize : Repo.t -> source:string -> Target.t -> (summary, Tool_error.t) E
 val tally_total : tally -> int
 val report_lines : label:string -> summary -> string list
 val run : Repo.t -> Command.t
+
+val record_lines : Repo.t -> Command.t
+(** One line per record of every export:
+    [<source>/<target> <family> <state> <lookup_key> <form_id|-> <record_id>],
+    where [<state>] is [normalized-only], [gas-generatable],
+    [promoted-support], [oracle-unavailable:<reason>] or [blocked:<rule>]. *)

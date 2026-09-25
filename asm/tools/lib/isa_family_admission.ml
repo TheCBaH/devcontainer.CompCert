@@ -178,7 +178,22 @@ let construct_histogram known unruled =
       | 0 -> String.compare a.construct b.construct
       | n -> n)
 
-let summarize repo ~source target =
+let targets_and_sources =
+  [
+    ("riscv_opcodes", Target.Riscv32);
+    ("riscv_opcodes", Target.Riscv64);
+    ("xed_resolved", Target.X86_32);
+    ("xed_resolved", Target.X86_64);
+  ]
+
+type classified = {
+  record : Isa_source_record.t;
+  family : string;
+  state : state;
+  form_id : string option;
+}
+
+let classify repo ~source target =
   let ( let* ) = Result.bind in
   let* records = Isa_source_record.read_file (Repo.isa_db_export repo ~source target) in
   let* cases = corpus_cases repo in
@@ -193,20 +208,36 @@ let summarize repo ~source target =
         | _ -> None)
       normalized
   in
+  let classified =
+    List.map
+      (fun ((rec_ : Isa_source_record.t), n) ->
+        {
+          record = rec_;
+          family = family_of rec_;
+          state = state_of ~source credit ~known rec_ n;
+          form_id =
+            (match n with Ok (form : Isa_norm_model.form) -> Some form.form_id | Error _ -> None);
+        })
+      normalized
+  in
+  Ok (classified, known, unruled)
+
+let summarize repo ~source target =
+  let ( let* ) = Result.bind in
+  let* classified, known, unruled = classify repo ~source target in
   let tallies = Hashtbl.create 64 in
   List.iter
-    (fun ((rec_ : Isa_source_record.t), n) ->
-      let name = family_of rec_ in
+    (fun c ->
       let tally =
-        match Hashtbl.find_opt tallies name with
+        match Hashtbl.find_opt tallies c.family with
         | Some tally -> tally
         | None ->
             let tally = empty () in
-            Hashtbl.add tallies name tally;
+            Hashtbl.add tallies c.family tally;
             tally
       in
-      record tally (state_of ~source credit ~known rec_ n))
-    normalized;
+      record tally c.state)
+    classified;
   let families =
     Hashtbl.to_seq tallies |> List.of_seq
     |> List.map (fun (name, tally) ->
@@ -215,12 +246,35 @@ let summarize repo ~source target =
   in
   Ok
     {
-      total = List.length records;
+      total = List.length classified;
       families;
       unruled = List.length unruled;
       known_only = List.length (List.filter (fun r -> Isa_construct.missing known r = []) unruled);
       constructs = construct_histogram known unruled;
     }
+
+let state_label = function
+  | Normalized_only -> "normalized-only"
+  | Gas_generatable -> "gas-generatable"
+  | Promoted_support -> "promoted-support"
+  | Oracle_unavailable reason -> "oracle-unavailable:" ^ reason
+  | Blocked rule -> "blocked:" ^ rule
+
+let record_lines repo =
+  Command.accumulate targets_and_sources ~f:(fun (source, target) ->
+      match classify repo ~source target with
+      | Error e -> Command.of_error e
+      | Ok (classified, _, _) ->
+          let label = Printf.sprintf "%s/%s" source (Target.to_string target) in
+          Command.ok
+            (List.map
+               (fun c ->
+                 Diagnostic.stdout
+                   (Printf.sprintf "%s %s %s %s %s %s" label c.family (state_label c.state)
+                      (lookup_key source c.record)
+                      (Option.value c.form_id ~default:"-")
+                      c.record.record_id))
+               classified))
 
 let report_lines ~label (summary : summary) =
   let header =
@@ -251,14 +305,6 @@ let report_lines ~label (summary : summary) =
          summary.constructs
   in
   (header :: List.map line summary.families) @ construct_lines
-
-let targets_and_sources =
-  [
-    ("riscv_opcodes", Target.Riscv32);
-    ("riscv_opcodes", Target.Riscv64);
-    ("xed_resolved", Target.X86_32);
-    ("xed_resolved", Target.X86_64);
-  ]
 
 let run repo =
   Command.accumulate targets_and_sources ~f:(fun (source, target) ->

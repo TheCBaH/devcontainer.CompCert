@@ -33,7 +33,7 @@ x86 ledger worked down in the plan section 6 order.
 | INF-01 | Promotion credit from committed passing cases | done | — | — |
 | INF-02 | Operand-vocabulary normalization, construct-keyed blockers | done | — | Generic operand-driven normalization moves into INF-05R/INF-05X |
 | INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
-| INF-04 | Batched, sharded, incremental GAS regeneration | ready | — | Measure current regen time per case; design batch labels |
+| INF-04 | Batched, sharded, incremental GAS regeneration | done | — | — |
 | INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | investigating | INF-02 | Write the decision record |
 | INF-05X | x86 form-row encoder (DEC-X86-TABLE) | investigating | INF-02 | Write the decision record |
 | INF-06 | Feature on every table row; retrofit admitted forms | not-started | INF-05* | — |
@@ -125,14 +125,31 @@ counts as known; masking is an obligation on already-credited records.
 
 ### INF-04 — scalable regeneration
 
-- [ ] Batch cases per GAS invocation with per-case labels and recorded
-  offsets; on any batch failure rerun that batch case by case.
-- [ ] Shard committed artifacts by profile and ledger row, with a manifest.
-- [ ] Incremental regen: skip cases whose input, argv and tool version are
-  unchanged.
-- [ ] Gate: full regen reproduces the committed corpus byte-identically and
-  is measurably faster; a deliberately broken case in a batch is reported by
-  its own ID.
+- [x] ~~Batch cases per GAS invocation~~ — replaced by decision: cases are
+  sharded over forked workers (`Tool_parallel`) instead. Each case still
+  runs its own `as`/`objdump`/`objcopy`/`asm.exe`, so recorded artifacts
+  (argv, exit status, diagnostics) are exactly a single-case run's and a
+  failing case is always reported under its own id; multi-case batches
+  could not reproduce per-case artifacts faithfully.
+- [x] Per-case cost removed: the toolchain probe and `as --version` are
+  resolved once per target, the `ours` git label once per run, the export
+  once per file, and `asm.exe` runs from `_build` (falling back to
+  `dune exec` only when unbuilt) instead of `opam exec -- dune exec`.
+- [x] GAS diagnostics record the scratch path as `case.s`, so regeneration
+  is deterministic apart from the `ours` git-revision label.
+- [x] Incremental by default: a committed record's GAS artifact is reused
+  when case, argv and `as` version label are unchanged
+  (`Isa_gen_oracle.reuse`); `ours` always re-runs.
+  `COMPCERT_TOOLS_REGEN=full` re-runs everything; `COMPCERT_TOOLS_JOBS`
+  sets the worker count.
+- [ ] Sharding committed artifacts by profile/ledger row: not needed at the
+  current size (3.5 MB, 3,375 cases); revisit when generated cases land
+  (INF-03).
+- [x] Gate (2026-09-25, 8 cores): full regen of 3,375 cases 12m22s → 24 s
+  sequential, 6.3 s parallel, 2.9 s incremental; all three outputs
+  byte-identical to each other and to the committed corpus modulo the
+  `ours` label and the old scratch path. A planted corrupt GAS byte was
+  reported as `BYTE-MISMATCH` under its case id. Pilot regen unchanged.
 
 ### INF-05R / INF-05X — table-driven encoders
 
@@ -237,8 +254,8 @@ lands with its own small family, positive and negative cases.
   found spurious-REX and dropped-REX.B/X decode bugs this way.
 - Large literal `match` expressions break the 32-bit ARM OCaml 4.14 backend;
   shape generated tables accordingly.
-- Tier-two regeneration is slow (about 13 minutes at baseline) and stays off
-  `asm-ci`; run it once per slice, not per edit.
+- Tier-two regeneration takes seconds since INF-04 but still needs the
+  cross toolchains and stays off `asm-ci`.
 
 ## Evidence record template
 
@@ -260,3 +277,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | GAS capability probe | `x86_64-linux-gnu-as` 2.44 accepts APX (r16, `{nf}`, NDD), EVEX mask/zeroing/broadcast, AVX10.2 `vminmaxps`, AMX `tdpbssd`, FMA, VSIB, XOP, MMX, 3DNow `femms`, `fadds 4(%rsp)`. RISC-V 2.44/2.43.1 accept Zfh, Zfa, Q, Zabha, Zacas, Zawrs, Zimop, Zcb, Zcmp, Zcmt, Zcmop, Zfbfmin, H, Zicbom, Zicfiss, Ssctr; reject Zalasr, Zilsd (RV32), `mnret` (Smrnmi) |
 | 2026-09-25 | INF-01 | Credit read from corpora; `family-admission` and `residual-ledger` byte-identical to `f4b93e4`; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
 | 2026-09-25 | INF-02 | Construct-keyed blockers and histogram in `family-admission`; counts unchanged; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
+| 2026-09-25 | INF-04 | difficult regen 12m22s → 6.3 s full / 2.9 s incremental, output identical; `family-records` listing added; `tools-test`, `tools-integration`, `tools-boundary`, `asm-isa-difficult-check`, `asm-fmt-check` pass |
