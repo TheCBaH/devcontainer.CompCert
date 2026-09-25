@@ -7333,6 +7333,7 @@ let x86_branch_entries repo =
       Isa_source_record.read_file (Repo.isa_db_export repo ~source:"xed_resolved" target)
     in
     let seen = Hashtbl.create 64 in
+    let directional = Isa_x86_table.directional_iforms records in
     Ok
       (List.concat_map
          (fun (r : Isa_source_record.t) ->
@@ -7348,7 +7349,8 @@ let x86_branch_entries repo =
                  {
                    form_id = "x86:" ^ iform;
                    target;
-                   lookup_key = iform;
+                   (* the first record of an iform XED also lists with a decode-only opcode *)
+                   lookup_key = Isa_x86_table.lookup_key ~directional r;
                    case_id =
                      Printf.sprintf "x86:%s:branch-%s:%s" iform variant (Target.to_string target);
                    rule_ids = [ "branch"; "branch-" ^ variant ];

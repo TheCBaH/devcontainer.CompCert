@@ -1068,10 +1068,10 @@ let test_isa_family_admission repo =
     ~normalized_only:0 ~gas_generatable:0 ~promoted_support:1057 ~blocked:0;
   expect ~oracle_unavailable:14 ~source:"riscv_opcodes" Target.Riscv64 ~total:1154
     ~normalized_only:0 ~gas_generatable:0 ~promoted_support:1140 ~blocked:0;
-  expect ~oracle_unavailable:153 ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:0
-    ~gas_generatable:5 ~promoted_support:7360 ~blocked:369;
+  expect ~oracle_unavailable:153 ~source:"xed_resolved" Target.X86_32 ~total:7887 ~normalized_only:2
+    ~gas_generatable:5 ~promoted_support:7383 ~blocked:344;
   expect ~oracle_unavailable:159 ~source:"xed_resolved" Target.X86_64 ~total:10571
-    ~normalized_only:0 ~gas_generatable:5 ~promoted_support:9844 ~blocked:563
+    ~normalized_only:2 ~gas_generatable:5 ~promoted_support:9867 ~blocked:538
 
 (* Export and round-trip deterministic normalized JSONL: every
    form Isa_norm_riscv/Isa_norm_xed produce from the real checked-in exports

@@ -12,7 +12,8 @@ let specs repo target =
            Isa_x86_table.spec_of_record rec_
          else None)
        records
-    |> Isa_x86_table.inherit_suffix_rule records)
+    |> Isa_x86_table.inherit_suffix_rule records
+    |> Isa_x86_table.mark_directional records)
 
 (* Every table-expressible record of one export, including those the hand-written rules own:
    twins are decided over all of them, and hand-written forms get rows too, used only when the
@@ -23,7 +24,8 @@ let all_specs repo target =
   in
   Ok
     (List.filter_map Isa_x86_table.spec_of_record records
-    |> Isa_x86_table.inherit_suffix_rule records)
+    |> Isa_x86_table.inherit_suffix_rule records
+    |> Isa_x86_table.mark_directional records)
 
 let render_class : Isa_x86_table.rclass -> string = function
   | Gpr8 -> "Gpr8"

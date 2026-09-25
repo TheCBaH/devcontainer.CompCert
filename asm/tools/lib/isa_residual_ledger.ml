@@ -19,16 +19,12 @@ let rows =
       source = "xed_resolved";
       families =
         [
-          "AVX512BW_128";
           "AVX512BW_128N";
-          "AVX512BW_256";
-          "AVX512BW_512";
           "AVX512F_128";
           "AVX512F_128N";
           "AVX512F_256";
           "AVX512F_512";
           "AVX512F_SCALAR";
-          "AVX512_FP16_SCALAR";
           "AVX512_MOVZXC_128";
           "AVX512_SAT_CVT_512";
         ];

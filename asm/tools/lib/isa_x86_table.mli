@@ -67,6 +67,7 @@ type spec = {
       (** the pseudo-prefix the row is reached only through: [nf], or [evex] for an APX
           promotion of a legacy instruction; empty otherwise *)
   df64 : bool;  (** DF64(): 64-bit operand size by default in 64-bit mode, no REX.W *)
+  direction : string;  (** ["#0x03"] when the iform is XED's in both directions; else empty *)
   no_rex2 : bool;  (** NOREX2=1: no REX2 prefix, so no r16-r31 *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** operand sizes of a width-variable (GPRv) form *)
@@ -93,7 +94,13 @@ val branch : Isa_source_record.t -> (string * int) option
 val branch_form :
   requirement:Isa_norm_model.requirement -> Isa_source_record.t -> Isa_norm_model.form option
 
-val lookup_key : Isa_source_record.t -> string
+val directional_iforms : Isa_source_record.t list -> (string, unit) Hashtbl.t
+(** The iforms XED lists with more than one opcode (both directions of a two-register form). *)
+
+val mark_directional : Isa_source_record.t list -> spec list -> spec list
+(** Sets [direction] on the specs of {!directional_iforms}. *)
+
+val lookup_key : ?directional:(string, unit) Hashtbl.t -> Isa_source_record.t -> string
 (** The iform, told apart for an EVEX embedded-rounding register variant (which XED lists under
     the plain form's iform) by a [#er] suffix, an APX [{nf}] variant by [#nf]. *)
 

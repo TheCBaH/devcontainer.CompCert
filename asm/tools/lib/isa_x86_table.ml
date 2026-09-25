@@ -54,6 +54,7 @@ type spec = {
   suffix_isa : string;
   pseudo : string;
   df64 : bool;  (** DF64(): 64-bit operand size by default in 64-bit mode, no REX.W *)
+  direction : string;  (** ["#0x03"] when the iform is XED's in both directions; else empty *)
   no_rex2 : bool;  (** NOREX2=1: no REX2 prefix, so no r16-r31 *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** the operand sizes a width-variable (GPRv) form takes *)
@@ -708,6 +709,7 @@ let x87_spec (rec_ : R.t) ~iform ~isa_set ~opcode_map ~opcode ~pattern ~operands
             suffix_isa = isa_set;
             pseudo = "";
             df64 = false;
+            direction = "";
             no_rex2 = p.norex2;
             mnemonic =
               (* GNU's AT&T x87 quirk: with %st(i) the destination, fsub and fsubr (fdiv and
@@ -843,6 +845,7 @@ let spec_of_record (rec_ : R.t) =
                     suffix_isa = (if apx then "" else isa_set);
                     (* CFCMOV's NF bit selects its store form, spelled plainly *)
                     df64 = p.df64;
+                    direction = "";
                     no_rex2 = p.norex2;
                     pseudo =
                       (if p.nf && p.scc < 0 && not (starts_with ~prefix:"CFCMOV" rec_.native_name)
@@ -945,6 +948,7 @@ let spec_of_record (rec_ : R.t) =
                     isa_set;
                     suffix_isa = isa_set;
                     df64 = p.df64;
+                    direction = "";
                     no_rex2 = p.norex2;
                     pseudo = "";
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
@@ -1023,6 +1027,7 @@ let spec_of_record (rec_ : R.t) =
                     isa_set;
                     suffix_isa = isa_set;
                     df64 = p.df64;
+                    direction = "";
                     no_rex2 = p.norex2;
                     pseudo = "";
                     mnemonic =
@@ -1095,7 +1100,25 @@ let rounding_suffix = "#er"
 (* likewise an APX form's {nf} variant *)
 let nf_suffix = "#nf"
 
-let lookup_key (rec_ : R.t) =
+(* The iforms XED lists with more than one opcode: a two-register form in both directions (EVEX
+   vmovaps 28/29, APX add 01/03), which a case keyed on the iform alone could not tell apart. *)
+let directional_iforms (records : R.t list) =
+  let opcodes = Hashtbl.create 256 in
+  List.iter
+    (fun (r : R.t) ->
+      match (r.provenance, r.encoding) with
+      | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { opcode; _ } ->
+          let seen = Option.value (Hashtbl.find_opt opcodes iform) ~default:[] in
+          if not (List.mem opcode seen) then Hashtbl.replace opcodes iform (opcode :: seen)
+      | _ -> ())
+    records;
+  let t = Hashtbl.create 64 in
+  Hashtbl.iter (fun iform ops -> if List.length ops > 1 then Hashtbl.replace t iform ()) opcodes;
+  t
+
+let no_directional : (string, unit) Hashtbl.t = Hashtbl.create 1
+
+let lookup_key ?(directional = no_directional) (rec_ : R.t) =
   match (rec_.provenance, rec_.encoding) with
   | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } -> (
       let tokens = String.split_on_char ' ' pattern in
@@ -1104,9 +1127,9 @@ let lookup_key (rec_ : R.t) =
         else if List.mem "NF=1" tokens && not (List.mem "EVAPX_SCC()" tokens) then iform ^ nf_suffix
         else iform
       in
-      (* an APX map-4 iform covers both directions of a two-register form (01 and 03) *)
+      (* an iform XED lists in both directions: which one *)
       match rec_.encoding with
-      | R.X86_encoding { space = "evex"; opcode_map = 4; opcode; _ } -> key ^ "#" ^ opcode
+      | R.X86_encoding { opcode; _ } when Hashtbl.mem directional iform -> key ^ "#" ^ opcode
       | _ -> key)
   | R.Xed_provenance { iform = Some iform; _ }, _ -> iform
   | _ -> ""
@@ -1116,7 +1139,7 @@ let spec_lookup_key spec =
      spec.iform ^ rounding_suffix
    else if spec.evex_p2 land 4 <> 0 && not (List.mem Dfv spec.operands) then spec.iform ^ nf_suffix
    else spec.iform)
-  ^ if spec.space = `Evex && spec.map = 4 then Printf.sprintf "#0x%02X" spec.opcode else ""
+  ^ spec.direction
 
 (* The row a normalized form and its first case describe: the 32-bit one of a width-variable
    integer form. *)
@@ -1353,7 +1376,10 @@ let pseudo_prefix ~(primary : spec) (s : spec) =
      encoding space or the direction that tells it from its primary; none when a case could
      not name it apart (the same lookup key) *)
   (* GNU takes no {load}/{store} on ccmp/ctest's {dfv=} form *)
-  if spec_lookup_key s = spec_lookup_key primary || List.mem Dfv s.operands then None
+  if
+    (spec_lookup_key s = spec_lookup_key primary && s.opcode = primary.opcode)
+    || List.mem Dfv s.operands
+  then None
   else
     let own = if s.pseudo <> "" then [ s.pseudo ] else [] in
     let apart =
@@ -1533,3 +1559,12 @@ let branch_form ~requirement (rec_ : R.t) =
           diagnostics = [];
         }
   | _ -> None
+
+let mark_directional (records : R.t list) specs =
+  let directional = directional_iforms records in
+  List.map
+    (fun s ->
+      if Hashtbl.mem directional s.iform then
+        { s with direction = Printf.sprintf "#0x%02X" s.opcode }
+      else s)
+    specs
