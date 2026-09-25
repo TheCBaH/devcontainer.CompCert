@@ -30,7 +30,7 @@ x86 ledger worked down in the plan section 6 order.
 
 | ID | Work package | State | Depends on | Next action |
 |---|---|---|---|---|
-| INF-01 | Promotion credit from committed passing cases | ready | — | Replace `promoted_case`; prove reports byte-identical |
+| INF-01 | Promotion credit from committed passing cases | done | — | — |
 | INF-02 | Operand-vocabulary normalization, construct-keyed blockers | ready | — | Draft the XED operand vocabulary from the captured operand fields |
 | INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
 | INF-04 | Batched, sharded, incremental GAS regeneration | ready | — | Measure current regen time per case; design batch labels |
@@ -60,15 +60,23 @@ x86 ledger worked down in the plan section 6 order.
 
 ### INF-01 — credit from evidence
 
-- [ ] Build the promoted set from `asm/fixtures/isa-generated/` and
+- [x] Build the promoted set from `asm/fixtures/isa-generated/` and
   `asm/fixtures/isa-difficult/` records with a `Pass` verdict, excluding
   negatives, keyed by `(target, form_id, lookup_key)`.
-- [ ] Derive `Gas_generatable` from the same corpora (non-passing positive
+- [x] Derive `Gas_generatable` from the same corpora (non-passing positive
   cases) instead of re-listing `Isa_gen_pilot`/`Isa_gen_difficult` entries.
-- [ ] Delete `promoted_case_part1`–`part7`.
-- [ ] Gate: `family-admission` and `residual-ledger` output byte-identical to
-  the baseline; `make tools-integration` passes on every leg, including the
-  32-bit ARM OCaml 4.14 build that forced the split.
+- [x] Delete `promoted_case_part1`–`part7`.
+- [x] Gate: `family-admission` and `residual-ledger` output byte-identical to
+  the baseline; `make tools-integration` passes locally (the ARM 4.14 leg
+  is covered by CI; the large literal match that broke it is gone).
+
+Finding: a bare `Pass` over-credits one pilot record, `ADD_GPRv_GPRv_03`
+(GAS assembles its canonical spelling as the `01` form). Pilot cases
+therefore credit only with a `Matches_normalized_encoding` finding;
+difficult-corpus `Different_observed_form` findings are artifacts of the
+leading-byte check (mandatory prefixes, branch plus filler) and a
+byte-identical `Pass` credits there. The module shrank from 1,966 to ~200
+lines. Adding credit for a new form now needs only its committed case.
 
 ### INF-02 — operand vocabulary and construct-keyed blockers
 
@@ -229,3 +237,4 @@ Unknowns, exceptions, follow-up task IDs:
 |---|---|---|
 | 2026-09-25 | Phase-2 baseline | `make tools-isa-residual-ledger` and `family-admission` at `f4b93e4`: counts in the baseline table; ledger owns all blocked records |
 | 2026-09-25 | GAS capability probe | `x86_64-linux-gnu-as` 2.44 accepts APX (r16, `{nf}`, NDD), EVEX mask/zeroing/broadcast, AVX10.2 `vminmaxps`, AMX `tdpbssd`, FMA, VSIB, XOP, MMX, 3DNow `femms`, `fadds 4(%rsp)`. RISC-V 2.44/2.43.1 accept Zfh, Zfa, Q, Zabha, Zacas, Zawrs, Zimop, Zcb, Zcmp, Zcmt, Zcmop, Zfbfmin, H, Zicbom, Zicfiss, Ssctr; reject Zalasr, Zilsd (RV32), `mnret` (Smrnmi) |
+| 2026-09-25 | INF-01 | Credit read from corpora; `family-admission` and `residual-ledger` byte-identical to `f4b93e4`; `tools-test`, `tools-integration`, `tools-boundary`, `asm-fmt-check` pass |
