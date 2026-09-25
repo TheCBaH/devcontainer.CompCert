@@ -148,35 +148,29 @@ let rows =
           "AVX";
           "AVX2";
           "AVX2GATHER";
-          "AVXAES";
-          "AVX_GFNI";
           "AVX_IFMA";
           "AVX_NE_CONVERT";
           "AVX_VNNI";
-          "AVX_VNNI_INT16";
-          "AVX_VNNI_INT8";
-          "F16C";
-          "FMA";
           "FMA4";
-          "SHA512";
-          "SM3";
-          "SM4";
           "SM4_128";
           "SM4_256";
           "SM4_512";
-          "VAES";
-          "VPCLMULQDQ";
           "XOP";
         ];
       capability =
-        "VEX/XOP forms not yet admitted: four-operand and is4 encodings (FMA4, XOP), gathers (VSIB \
-         addressing), mixed xmm/ymm widths (shifts by xmm count, VPMOVSX/ZX, lane extract/insert), \
-         imm8-selector forms, VZEROUPPER/ALL, src2 registers 8-15 in the two-byte prefix, and the \
-         FMA/F16C/VAES/GFNI/VNNI families.";
+        "VEX/XOP forms the generated x86 table does not yet cover: VSIB gathers, the XOP encoding \
+         space, VZEROUPPER/ALL (no ModR/M), GPR-with-memory spellings that need a width suffix, \
+         and VEX forms GNU as reaches only through a {vex} pseudo-prefix (AVX-VNNI, AVX-IFMA, \
+         AVX-NE-CONVERT, whose plain spelling is EVEX) or a {load}/{store} one (same-spelled twins \
+         such as FMA4's W0 register form).";
       evidence =
-        "family-admission: AVX and AVX2 are partly promoted; FMA and XOP are entirely unhandled";
+        "family-admission: most AVX/AVX2/FMA/F16C/VAES/GFNI/VNNI-INT forms are promoted through \
+         DEC-X86-TABLE rows; the remainder is gathers, XOP, pseudo-prefix-only encodings and a few \
+         unparsed pattern shapes";
       task = "GEN-05-X86-VEX";
-      reopening_gate = "VSIB addressing and the three-byte prefix for src2>=8 exist in the encoder";
+      reopening_gate =
+        "VSIB addressing and XOP rows exist, and the text parser accepts {vex}/{load}/{store} \
+         pseudo-prefixes";
     };
     {
       id = "RES-X86-LEGACY-SIMD";

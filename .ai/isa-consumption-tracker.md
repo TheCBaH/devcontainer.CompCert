@@ -36,7 +36,7 @@ and the x86 ledger worked down in the plan section 6 order.
 | INF-03 | Generated difficult-corpus entries from normalized forms | not-started | INF-02 | — |
 | INF-04 | Batched, sharded, incremental GAS regeneration | done | — | — |
 | INF-05R | RISC-V form-table encoder (DEC-RV-TABLE) | done (first landing); extend per family | INF-02 | Widen the field-domain rule (split immediates, rm, aq/rl, csr) as families need it |
-| INF-05X | x86 form-row encoder (DEC-X86-TABLE) | investigating | INF-02 | Write the decision record |
+| INF-05X | x86 form-row encoder (DEC-X86-TABLE) | done (VEX); extend per family | INF-02 | Legacy-space rows next (GPR suffix spelling, mandatory prefixes, REX), then EVEX |
 | INF-06 | Feature on every table row; retrofit admitted forms | not-started | INF-05* | — |
 | DEC-X86-MODE16 | 16-bit-only forms in the `x86_32` export | not-started | — | Count them; decide `.code16` vs out of scope. Also covers REX.W/GPR64 records the `x86_32` export carries (e.g. `CVTSI2SD_XMMsd_GPR64q`), which 32-bit mode cannot encode |
 | DEC-X86-SUFFIX | Size-suffix inference for x86 mnemonics | needs owner decision | — | GAS infers the operand size from a register operand (`add $1000000, %ecx`); ours rejects unsuffixed mnemonics by design (`test_targets.ml` "x86 refuses to guess an operand size"). Blocks the pilot's ADD_GPRv_IMMz / MOV_GPRv_GPRv_89 / MOV_GPRv_IMMz (x86-64) credit |
@@ -189,8 +189,32 @@ hand and drifts; (c) **a generated, checked-in table — chosen.**
 - [x] DEC-RV-TABLE recorded; RISC-V table encoder/decoder landed with Zimop,
   Zicfiss (RV64), the Zba word leftovers, the fcsr pseudos and
   `fmv.d.x`/`fmv.x.d`; no byte changes elsewhere (asm-ci, js, Melange pass).
-- [ ] DEC-X86-TABLE recorded; x86 row encoder lands with one legacy family,
-  then one VEX family, with no byte changes elsewhere.
+**DEC-X86-TABLE (2026-09-25, decided).** Same choice as DEC-RV-TABLE
+(generated, checked-in rows; `compcert_tools isa-table x86-emit`; a repo test
+fails on a stale file), with x86 specifics:
+- Row: AT&T mnemonic, encoding space (legacy, VEX first; EVEX/XOP/REX2/map-4
+  later), map, opcode, mandatory prefix, `W`/`L` (or "ignored"), fixed
+  ModRM.reg digit, register-or-memory ModRM, operands in AT&T order (register
+  class and its field — ModRM.reg, ModRM.rm, VEX.vvvv, opcode low bits, is4 —
+  memory with width, immediate width, spelled implicit registers), mode
+  (both / 64-bit only), feature and source iform. Rows are derived from the
+  XED resolved export's `pattern` and operand list; AT&T order is the reverse
+  of XED's explicit operands.
+- The row encoder is a byte-level function beside the codec (prefixes, REX,
+  2-/3-byte VEX with GAS's C5-when-possible choice, ModRM/SIB/disp8-or-32 via
+  the existing `needs_sib`/`disp_form_of` rules, immediates); table rows
+  bypass `C.encode_ladder`, and decode tries rows only after the codec
+  declines.
+- Mnemonics never overlap hand-written ones: a table spelling is used only
+  when the hand-written `simplify` reports an unknown instruction, and a test
+  asserts no row mnemonic is claimed by a hand-written form. GPR-sized forms
+  are spelled with their size suffix, so DEC-X86-SUFFIX is not needed for
+  table rows.
+- Stays hand-written: fixups/relaxation (jmp/jcc/call), `mov` immediate
+  selection, accumulator short forms, x87 register stack, 16-bit mode.
+
+- [x] DEC-X86-TABLE recorded; x86 row encoder landed with the VEX space
+  (legacy space is next), no byte changes elsewhere.
 - [ ] Both: `make asm-js-portable`, `make asm-purity`, all six target
   profiles' regressions, and codec checks pass.
 
@@ -318,3 +342,4 @@ Unknowns, exceptions, follow-up task IDs:
 | 2026-09-25 | GEN-05-RV-FP (table) | Table rule widened: rounding mode with GNU default (dyn, rne for exact widening conversions — confirmed by GAS on every generated case), tied `rs2=rs1`, `imm(base)` loads/stores, `fcvtmod.w.d ..., rtz` keyword, Zfa `fli.*` constants (name or value, incl. hex floats; parser passes the text through). 162+4 rows. Promoted RV32 844→943, RV64 916→1023; blocked RV32 238→139, RV64 236→129. RES-RV-FP closed. All gates pass incl. Melange runtest |
 | 2026-09-25 | GEN-05-RV-ATOMIC/PRIV/MISC + `fence` (table) | Rule widened: AMO `rd, rs2, (rs1)` with `.aq`/`.rl`/`.aqrl` rows, Zacas even/odd pairs, `hlv`/`hsv`, `cbo.* (rs1)`, `prefetch.* imm(rs1)` (offset multiple of 32), `lpad`, `fence` pred/succ (hand-encoded). 312 rows. Promoted RV32 943→1008, RV64 1023→1091; blocked RV32 139→59, RV64 129→50 — all compressed (`RES-RV-COMPRESSED`); oracle-unavailable RV32 22, RV64 13. Rows that are HINTs of base instructions (`ntl.*`, `prefetch.*`, `lpad`) decode as the base form by design (pinned). Suffix/pair rows pinned to GAS bytes in `test_components.ml`. All gates pass |
 | 2026-09-25 | GEN-05-RV-C — RISC-V complete | Table rule gains 16-bit rows (compressed x8–x15/f8–f15 registers, scattered/scaled immediates from a reviewed per-field layout, `off(rs1')`/`off(sp)`, `c.lui`'s upper immediate, Zcmp s-registers, register lists and XLEN-dependent stack adjustments, `cm.jalt`'s bounded index); the hand-written encoder gains `c.j`/`c.jal` with a CJ-format `Jump12c` fixup. 391 rows. Promoted RV32 1008→1057, RV64 1091→1140; **blocked 0 on both profiles**; oracle-unavailable RV32 32, RV64 14 (Zclsd, RV32 Zcmt, RV32 `cm.mva01s/mvsa01`, RV32 compressed Zicfiss, `c.mop.N` template, plus the earlier set). All gates pass |
+| 2026-09-25 | INF-05X — VEX table | `isa-table x86-emit` → 1,425 rows (VEX space; rows also for hand-written forms, used only when the hand-written encoder declines a shape such as xmm8-15). Byte-level encoder beside the codec (C5-when-possible, SIB/disp rules shared with the codec, is4 incl. is4+imm4), decode after the codec. Generated cases: low registers per mode, plus a high-register/r9+r10 variant on x86-64; all pass. GAS spelling rules found by the differential run: `x`/`y` suffixes for narrowing conversions from memory, `vpcmpestri{,m}q`, VNNI/IFMA/NE-CONVERT VEX forms need `{vex}` (excluded), same-spelling twins (FMA4 W0/W1, load/store move opcodes, `vpextrw`) reachable only via a pseudo-prefix → `needs-pseudo-prefix`. Promoted x86-32 1022→1784, x86-64 1030→1854; blocked 6854→6092, 9536→8712. Round-trip test over every row in both modes; all gates pass |

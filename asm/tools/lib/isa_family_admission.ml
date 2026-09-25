@@ -236,6 +236,22 @@ let classify repo ~source target =
         | _ -> None)
       (List.combine classified normalized)
   in
+  (* an x86 table twin with no credit is blocked on the pseudo-prefix that would reach it *)
+  let classified =
+    if source <> "xed_resolved" then classified
+    else
+      let specs = List.filter_map (fun (rec_, _) -> Isa_x86_table.spec_of_record rec_) normalized in
+      let secondary = Isa_x86_table.twins specs in
+      List.map
+        (fun c ->
+          match c.state with
+          (* even with credit: a twin shares its primary's iform key, but GNU as never emits it *)
+          | (Normalized_only | Gas_generatable | Promoted_support)
+            when Hashtbl.mem secondary c.record.Isa_source_record.record_id ->
+              { c with state = Blocked "needs-pseudo-prefix" }
+          | _ -> c)
+        classified
+  in
   Ok (classified, known, unruled)
 
 let summarize repo ~source target =

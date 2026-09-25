@@ -7001,4 +7001,83 @@ let table_entries repo =
   let* rv64 = per_target Target.Riscv64 in
   Ok (rv32 @ rv64)
 
-let entries repo = Result.map (fun table -> all @ table) (table_entries repo)
+(* INF-05X/INF-03: generated cases per x86 table row (DEC-X86-TABLE) and mode:
+   low registers with a base+disp8 address in both modes, and on x86-64 a
+   high-register variant (xmm8-15, r8-r15, an r9/r10 base+index) that needs
+   the REX/VEX extension bits; immediates at 0 and 255. *)
+let x86_table_entries_of target (spec : Isa_x86_table.spec) =
+  let n = List.length spec.operands in
+  let reg_name (cls : Isa_x86_table.rclass) num =
+    let low8 = [| "ax"; "cx"; "dx"; "bx"; "sp"; "bp"; "si"; "di" |] in
+    match cls with
+    | Xmm -> Printf.sprintf "xmm%d" num
+    | Ymm -> Printf.sprintf "ymm%d" num
+    | Gpr32 -> if num < 8 then "e" ^ low8.(num) else Printf.sprintf "r%dd" num
+    | Gpr64 -> if num < 8 then "r" ^ low8.(num) else Printf.sprintf "r%d" num
+    | Gpr16 -> if num < 8 then low8.(num) else Printf.sprintf "r%dw" num
+    | Gpr8 -> if num < 4 then String.make 1 low8.(num).[0] ^ "l" else Printf.sprintf "r%db" num
+  in
+  let stack = match target with Target.X86_32 -> "esp" | _ -> "rsp" in
+  let assign ~high =
+    List.mapi
+      (fun i (o : Isa_x86_table.operand) ->
+        let num = (if high then 8 else 0) + (n - 1 - i) in
+        let value =
+          match o with
+          | Reg { cls; _ } -> reg_name cls num
+          | Mem _ -> if high then "16(%r9,%r10,4)" else Printf.sprintf "16(%%%s)" stack
+          | Imm _ ->
+              let is4 =
+                List.exists
+                  (function Isa_x86_table.Reg { field = Is4; _ } -> true | _ -> false)
+                  spec.operands
+              in
+              if high then if is4 then "15" else "255" else "0"
+        in
+        (Isa_x86_table.operand_name i, value))
+      spec.operands
+  in
+  let entry variant ~high =
+    {
+      form_id = "x86:" ^ spec.iform;
+      target;
+      lookup_key = spec.iform;
+      case_id = Printf.sprintf "x86:%s:table-%s:%s" spec.iform variant (Target.to_string target);
+      rule_ids =
+        [ "table-row"; "table-" ^ variant; "feature:" ^ String.lowercase_ascii spec.isa_set ];
+      operands = assign ~high;
+      lines_before = [];
+      lines_after = [];
+      configuration = Isa_gen_case_build.configuration_for target;
+    }
+  in
+  entry "regs-low" ~high:false
+  :: (match target with Target.X86_64 -> [ entry "regs-high" ~high:true ] | _ -> [])
+
+let x86_table_entries repo =
+  let ( let* ) = Result.bind in
+  let per_target target =
+    let* specs = Isa_x86_table_emit.specs repo target in
+    let* all = Isa_x86_table_emit.all_specs repo target in
+    let secondary = Isa_x86_table.twins all in
+    let specs =
+      List.filter (fun (s : Isa_x86_table.spec) -> not (Hashtbl.mem secondary s.record_id)) specs
+    in
+    let unique =
+      List.fold_left
+        (fun acc (s : Isa_x86_table.spec) ->
+          if List.exists (fun (t : Isa_x86_table.spec) -> t.iform = s.iform) acc then acc
+          else s :: acc)
+        [] specs
+    in
+    Ok (List.concat_map (x86_table_entries_of target) (List.rev unique))
+  in
+  let* x32 = per_target Target.X86_32 in
+  let* x64 = per_target Target.X86_64 in
+  Ok (x32 @ x64)
+
+let entries repo =
+  let ( let* ) = Result.bind in
+  let* table = table_entries repo in
+  let* x86 = x86_table_entries repo in
+  Ok (all @ table @ x86)
