@@ -49,6 +49,7 @@ type spec = {
   pseudo : string;
       (** the pseudo-prefix the row is reached only through: [nf], or [evex] for an APX
           promotion of a legacy instruction; empty otherwise *)
+  df64 : bool;  (** DF64(): 64-bit operand size by default in 64-bit mode, no REX.W *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** operand sizes of a width-variable (GPRv) form *)
 }

@@ -36,6 +36,7 @@ type spec = {
   sized : bool;  (** an integer form spelled with its operand-size suffix, added by {!expand} *)
   suffix_isa : string;
   pseudo : string;
+  df64 : bool;  (** DF64(): 64-bit operand size by default in 64-bit mode, no REX.W *)
   no_acc : int list;  (** AT&T positions that must not be the accumulator *)
   widths : int list;  (** the operand sizes a width-variable (GPRv) form takes *)
 }
@@ -76,6 +77,7 @@ type pattern = {
   rm : int;  (** RM[0bxxx]: a fixed ModR/M.rm, or -1 *)
   nd : bool;  (** APX ND=1: a new data destination in vvvv *)
   nf : bool;  (** APX NF=1: flags untouched *)
+  df64 : bool;  (** DF64() *)
   scc : int;  (** APX CCMP/CTEST (EVAPX_SCC()): the condition, in P2's low nibble; else -1 *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
@@ -102,6 +104,7 @@ let parse_pattern pattern =
             | "BCRC=1" -> Some { p with bcrc = true }
             (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
             | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" | "ONE()" -> Some p
+            | "DF64()" -> Some { p with df64 = true }
             (* CCMP/CTEST: SCC= is the condition; its NF= and MASK= bits restate it *)
             | "EVAPX_SCC()" -> Some { p with scc = max 0 p.scc }
             | "MASK=1" | "MASK=2" | "MASK=3" | "MASK=5" | "MASK=6" | "MASK=7" -> Some p
@@ -199,6 +202,7 @@ let parse_pattern pattern =
          nd = false;
          nf = false;
          scc = -1;
+         df64 = false;
          vsib = None;
          round = `None;
        })
@@ -378,7 +382,8 @@ let inherit_suffix_rule (records : R.t list) specs =
     records;
   List.map
     (fun s ->
-      if s.space = `Evex && s.map = 4 then
+      (* a ZU form is its own spelling, with no suffix *)
+      if s.space = `Evex && s.map = 4 && not (ends_with ~suffix:"_ZU" s.iform) then
         match Hashtbl.find_opt legacy (iclass_of_iform s.iform) with
         | Some isa ->
             {
@@ -440,6 +445,10 @@ let integer_mnemonic ~rep native =
       ^ op (String.sub native (i + 1) (String.length native - i - 1))
   | _ -> op native
 
+(* movzbl, movswq: a zero/sign extension spells its source width in its stem and its
+   destination width as the suffix *)
+let movx iclass = iclass = "MOVZX" || iclass = "MOVSX"
+
 let gpr_ok operands ~iclass =
   let classes =
     List.sort_uniq compare
@@ -455,8 +464,10 @@ let gpr_ok operands ~iclass =
            | _ -> None)
          operands)
   in
-  (List.length classes = 1 || operands = [])
-  && (not (List.mem iclass [ "MOVZX"; "MOVSX"; "MOVSXD"; "BSWAP" ]))
+  (List.length classes = 1 || operands = [] || movx iclass)
+  (* no 16-to-16 movzww/movsww *)
+  && (not (movx iclass && classes = [ Gpr16 ]))
+  && (not (List.mem iclass [ "MOVSXD"; "BSWAP" ]))
   (* GNU as keeps bound's Intel operand order in AT&T syntax *)
   && iclass <> "BOUND"
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
@@ -497,6 +508,15 @@ let expand spec =
       then ""
       else match w with 8 -> "b" | 16 -> "w" | 32 -> "l" | _ -> "q"
     in
+    (* a mixed-width move's suffix is its destination's width, AT&T's last operand *)
+    let sized_by =
+      if
+        ends_with ~suffix:"MEMw" spec.iform
+        || String.length spec.mnemonic = 5
+           && (starts_with ~prefix:"movz" spec.mnemonic || starts_with ~prefix:"movs" spec.mnemonic)
+      then List.rev spec.operands
+      else spec.operands
+    in
     if not variable then
       let width =
         List.find_map
@@ -508,7 +528,7 @@ let expand spec =
             | Mem { bits } when bits > 0 -> Some bits
             | Fixed_reg "al" -> Some 8
             | _ -> None)
-          spec.operands
+          sized_by
       in
       [
         {
@@ -538,8 +558,12 @@ let expand spec =
             operands;
             osz = width = 16 && spec.space = `Legacy;
             (* VEX.W is the operand size of a y-width form *)
-            w = (if width = 64 then 1 else if spec.space <> `Legacy then 0 else spec.w);
-            mode = (if width = 64 then 64 else spec.mode);
+            w =
+              (if width = 64 then if spec.df64 then -1 else 1
+               else if spec.space <> `Legacy then 0
+               else spec.w);
+            (* a DF64 form is 64-bit in 64-bit mode, so its 32-bit row is 32-bit mode's *)
+            mode = (if width = 64 then 64 else if spec.df64 && width = 32 then 32 else spec.mode);
             sized = false;
           })
         (List.filter (fun w -> w <> 64 || spec.w <> 0) spec.widths)
@@ -640,11 +664,13 @@ let spec_of_record (rec_ : R.t) =
             (* EVEX.b means rounding only on a register form, and only where the pattern says so *)
             | Some _ when p.bcrc && (p.round = `None || has_mem) -> None
             | Some _ when (not p.bcrc) && p.round <> `None -> None
-            (* CFCMOV's NF bit selects its store form, not {nf}; the ZU forms are setzu/imulzu *)
-            | Some _
-              when apx
-                   && ((p.nf && starts_with ~prefix:"CFCMOV" rec_.native_name)
-                      || ends_with ~suffix:"_ZU" iform) ->
+            (* the ZU (zero-upper) forms GNU spells setzu<cc> (register only, no {nf}) and imulzu (16-bit only:
+               the wider ones gain nothing, and GNU rejects them) *)
+            | Some prefix
+              when apx && ends_with ~suffix:"_ZU" iform
+                   && not
+                        ((starts_with ~prefix:"SET" rec_.native_name && (not p.nf) && not has_mem)
+                        || (rec_.native_name = "IMUL" && prefix = 0x66)) ->
                 None
             | Some prefix ->
                 Some
@@ -655,8 +681,18 @@ let spec_of_record (rec_ : R.t) =
                     (* an APX promotion's suffix rule and {evex} need are its legacy
                        instruction's, filled in by inherit_suffix_rule *)
                     suffix_isa = (if apx then "" else isa_set);
-                    pseudo = (if p.nf && p.scc < 0 then "nf" else "");
-                    mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
+                    (* CFCMOV's NF bit selects its store form, spelled plainly *)
+                    df64 = p.df64;
+                    pseudo =
+                      (if p.nf && p.scc < 0 && not (starts_with ~prefix:"CFCMOV" rec_.native_name)
+                       then "nf"
+                       else "");
+                    mnemonic =
+                      (if apx && ends_with ~suffix:"_ZU" iform then
+                         if rec_.native_name = "IMUL" then "imulzu"
+                         else
+                           "setzu" ^ String.lowercase_ascii (after ~prefix:"SET" rec_.native_name)
+                       else att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order));
                     space = (match space with "vex" -> `Vex | "evex" -> `Evex | _ -> `Xop);
                     map = opcode_map;
                     opcode;
@@ -736,6 +772,7 @@ let spec_of_record (rec_ : R.t) =
                     iform;
                     isa_set;
                     suffix_isa = isa_set;
+                    df64 = p.df64;
                     pseudo = "";
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = `Legacy;
@@ -769,6 +806,11 @@ let spec_of_record (rec_ : R.t) =
                     xed_order
                 in
                 let mandatory66 = p.refining66 || (p.osz = 1 && not sized16) in
+                let word_source =
+                  List.exists
+                    (function Reg { cls = Gpr16; _ } | Mem { bits = 16 } -> true | _ -> false)
+                    xed_order
+                in
                 let prefix =
                   match p.rep with 2 -> 0xf2 | 3 -> 0xf3 | _ -> if mandatory66 then 0x66 else 0
                 in
@@ -794,8 +836,20 @@ let spec_of_record (rec_ : R.t) =
                     iform;
                     isa_set;
                     suffix_isa = isa_set;
+                    df64 = p.df64;
                     pseudo = "";
-                    mnemonic = integer_mnemonic ~rep:p.rep rec_.native_name;
+                    mnemonic =
+                      (if movx rec_.native_name then
+                         (if rec_.native_name = "MOVZX" then "movz" else "movs")
+                         ^
+                         if
+                           List.exists
+                             (function
+                               | Reg { cls = Gpr8; _ } | Mem { bits = 8 } -> true | _ -> false)
+                             xed_order
+                         then "b"
+                         else "w"
+                       else integer_mnemonic ~rep:p.rep rec_.native_name);
                     space = `Legacy;
                     map = opcode_map;
                     opcode;
@@ -824,10 +878,12 @@ let spec_of_record (rec_ : R.t) =
                     widths =
                       List.filter
                         (fun w ->
-                          w <> 64
+                          (w <> 64
                           || not
                                (List.mem rec_.native_name
                                   [ "LAR"; "LSL"; "SLDT"; "STR"; "LFS"; "LGS"; "LSS" ]))
+                          (* nor is there a 16-to-16 movzww *)
+                          && not (w = 16 && movx rec_.native_name && word_source))
                         (match p.osz with
                         | _ when mandatory66 -> [ 32; 64 ]
                         | 1 -> [ 16 ]

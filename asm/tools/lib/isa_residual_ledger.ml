@@ -190,7 +190,6 @@ let rows =
           "AMD_INVLPGB";
           "CET";
           "ENQCMD";
-          "FRED";
           "FXSAVE";
           "FXSAVE64";
           "HRESET";
@@ -205,12 +204,9 @@ let rows =
           "MOVRS";
           "MPX";
           "PTWRITE";
-          "RDPID";
           "RTM";
           "SNP";
           "SVM";
-          "UINTR";
-          "USER_MSR";
           "VIA_PADLOCK_MONTMUL";
           "VTX";
           "WAITPKG";
