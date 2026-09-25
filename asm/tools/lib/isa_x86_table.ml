@@ -450,6 +450,7 @@ let integer_mnemonic ~rep native =
         String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
     | "RET_FAR" -> "lretl"
     | "RET_NEAR" -> "ret"
+    | "CALL_NEAR" -> "call"
     | "SYSRET" | "SYSRET_AMD" -> "sysretl"
     | "SYSRET64" -> "sysretq"
     | "SYSCALL_AMD" -> "syscall"
@@ -503,8 +504,6 @@ let gpr_ok operands ~iclass =
   (* no 16-to-16 movzww/movsww *)
   && (not (movx iclass && classes = [ Gpr16 ]))
   && (not (List.mem iclass [ "MOVSXD"; "BSWAP"; "CRC32" ]))
-  (* indirect call/jmp take a *-marked operand *)
-  && (not (List.mem iclass [ "CALL_NEAR"; "JMP" ]))
   (* GNU as keeps bound's Intel operand order in AT&T syntax *)
   && iclass <> "BOUND"
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
@@ -1146,6 +1145,7 @@ let form ~requirement (rec_ : R.t) spec =
                 op_kind))
          spec.operands
   in
+  let indirect = List.mem rec_.native_name [ "CALL_NEAR"; "JMP" ] in
   let syntax =
     List.concat
     @@ List.mapi
@@ -1157,6 +1157,9 @@ let form ~requirement (rec_ : R.t) spec =
          spec.operands
     |> List.map (fun (i, o) ->
         match o with
+        (* an indirect call or jmp marks its target with a star *)
+        | Reg _ when indirect -> Syn_decorated ("*%", Syn_operand (operand_name i))
+        | Mem _ when indirect -> Syn_decorated ("*", Syn_operand (operand_name i))
         | Reg _ -> Syn_decorated ("%", Syn_operand (operand_name i))
         (* spelled whole, braces included: {rn-sae} *)
         | Rounding _ | Vsib _ | Dfv -> Syn_operand (operand_name i)
