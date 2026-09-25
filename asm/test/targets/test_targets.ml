@@ -1619,7 +1619,10 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
      \tpushq %r20\n\
      \tmovzbl %r17b, %eax\n\
      \tvaddps 4(%rax){1to8}, %ymm1, %ymm2{%k1}{z}\n\
-     \tvfpclassbf16 $0, 16(%rsp){1to8}, %k1\n";
+     \tvfpclassbf16 $0, 16(%rsp){1to8}, %k1\n\
+     \tnop\n\
+     \tint $3\n\
+     \tendbr64\n";
   attempt "x86_64" "\t.text\n\t{vex3} vaddps %xmm1, %xmm2, %xmm3\n";
   [%expect
     {|
@@ -1652,6 +1655,9 @@ let%expect_test "x86 pseudo-prefixes select the encoding" =
     40000097  d5 90 b6 c1                          movzbl %r17b, %eax                          [x86_64.movzbl]
     4000009b  62 f1 74 b9 58 50 01                 vaddps 4(%rax){1to8}, %ymm1, %ymm2{%k1}{z}  [x86_64.vaddps]
     400000a2  62 f3 7f 18 66 4c 24 08 00           vfpclassbf16 $0, 16(%rsp){1to8}, %k1        [x86_64.vfpclassbf16x]
+    400000ab  90                                   .balign 2                                   [padding]
+    400000ac  cc                                   int3                                        [x86_64.int3]
+    400000ad  f3 0f 1e fa                          endbr64                                     [x86_64.endbr64]
     x86.simplify: unknown instruction {vex3} vaddps |}]
 
 (* {1 M5 corpus-growth forms (asm/docs/corpus.md): actually assembling

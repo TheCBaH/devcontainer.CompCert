@@ -90,21 +90,17 @@ let rows =
       source = "xed_resolved";
       families =
         [
-          "CLDEMOTE";
           "FAT_NOP";
           "I186";
           "I286PROTECTED";
-          "I286REAL";
           "I386";
           "I486REAL";
           "I86";
           "LONGMODE";
-          "PAUSE";
           "PPRO";
           "PPRO_UD0_LONG";
           "PPRO_UD0_SHORT";
           "PREFETCH_NOP";
-          "RDWRFSGS";
         ];
       capability =
         "Integer, string, stack, flag, bit-manipulation and data-movement instructions outside the \
@@ -134,7 +130,6 @@ let rows =
           "APX_F_LZCNT_N3";
           "APX_F_MOVBE";
           "APX_F_MOVDIR64B";
-          "APX_F_MOVDIRI";
           "APX_F_MOVRS";
           "APX_F_N3";
           "APX_F_POPCNT";
@@ -168,9 +163,7 @@ let rows =
       families =
         [
           "AMD_INVLPGB";
-          "CET";
           "ENQCMD";
-          "HRESET";
           "IBHF";
           "ICACHE_PREFETCH";
           "INVPCID";
@@ -179,14 +172,12 @@ let rows =
           "MOVDIR64B";
           "MOVRS";
           "MPX";
-          "PTWRITE";
           "RTM";
           "SNP";
           "SVM";
           "VIA_PADLOCK_MONTMUL";
           "VTX";
           "WAITPKG";
-          "WBNOINVD";
         ];
       capability =
         "System, virtualization, security and vendor extensions: privileged and MSR forms, state \

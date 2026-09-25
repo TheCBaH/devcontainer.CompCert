@@ -9436,6 +9436,9 @@ module Make (M : MODE) = struct
           [ Operand.Sym (Asm_core.Expr.Symbol op) ] ) ->
           let p = match p with "repz" -> "repe" | "repnz" -> "repne" | p -> p in
           { s with mnemonic = p ^ " " ^ op; ops = [] }
+      (* GNU as encodes [int $3] as the one-byte int3 *)
+      | "int", [ Operand.Imm v ] when Bigint.to_int_opt v = Some 3 ->
+          { s with mnemonic = "int3"; ops = [] }
       (* [lock addl $1, (%rax)]: the parser hands the instruction over as a leading symbol *)
       | "lock", Operand.Sym (Asm_core.Expr.Symbol op) :: ops ->
           { s with mnemonic = "lock " ^ op; ops }

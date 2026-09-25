@@ -7201,6 +7201,12 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
               (function Isa_x86_table.Mem { bits } when bits > 0 -> Some bits | _ -> None)
               operands
       in
+      (* an immediate-only form (pushq $imm): its operand size from the row *)
+      let bits =
+        match bits with
+        | Some _ -> bits
+        | None -> Some (if r.osz then 16 else if r.mode = 64 then 64 else 32)
+      in
       Printf.sprintf "-w%d" (Option.value bits ~default:0)
   in
   List.concat_map

@@ -110,6 +110,16 @@ let parse_pattern pattern =
             (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
             | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" | "ONE()" -> Some p
             | "DF64()" -> Some { p with df64 = true }
+            (* decoder-selection and feature tokens that constrain no encoded bit here: CET/P4/
+               CLDEMOTE/WBNOINVD pick among same-opcode forms the prefix already separates,
+               REXB=0/REXB4=0 keep nop apart from xchg %r8, FORCE64/IMMUNE66_LOOP64/EASZ=3 are
+               64-bit mode's defaults, CET_NO_TRACK a hint prefix left out *)
+            | "CET=1" | "P4=1" | "CLDEMOTE=1" | "WBNOINVD=0" | "WBNOINVD=1" | "REXB=0" | "REXB4=0"
+            | "FORCE64()" | "IMMUNE66_LOOP64()" | "CET_NO_TRACK()" | "EASZ=3" | "SRM=0"
+            | "UIMM8_1()" ->
+                Some p
+            (* a fixed opcode register (nop, pause: 0b1001_0 with register 0) *)
+            | "SRM[0b000]" -> Some p
             | "LOCK=1" -> Some { p with lock = true }
             (* CCMP/CTEST: SCC= is the condition; its NF= and MASK= bits restate it *)
             | "EVAPX_SCC()" -> Some { p with scc = max 0 p.scc }
@@ -232,6 +242,8 @@ let class_of_lookup lookup =
       ("GPRv_", Gprv);
       ("GPR8_", Gpr8);
       ("GPR16_", Gpr16);
+      (* legacy y: 32 or 64 bits by REX.W, expanded like GPRv without the 16-bit row *)
+      ("GPRy_", Gprv);
       ("MMX_", Mmx);
       ("MASK_", Kmask);
       ("TMM_", Tmm);
@@ -437,6 +449,7 @@ let integer_mnemonic ~rep native =
     | "IRETD" | "PUSHFD" | "POPFD" ->
         String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
     | "RET_FAR" -> "lretl"
+    | "RET_NEAR" -> "ret"
     | "SYSRET" | "SYSRET_AMD" -> "sysretl"
     | "SYSRET64" -> "sysretq"
     | "SYSCALL_AMD" -> "syscall"
@@ -480,6 +493,8 @@ let gpr_ok operands ~iclass =
   in
   (List.length classes = 1
   || operands = [] || movx iclass
+  (* immediates only: int $3, pushq $5, xabort $1 *)
+  || List.for_all (function Imm _ -> true | _ -> false) operands
   || List.for_all (function Mem _ -> true | _ -> false) operands
      (* far transfers take a *-marked memory operand; the reserved prefetch hints have no
         GNU spelling *)
@@ -487,7 +502,9 @@ let gpr_ok operands ~iclass =
      && not (starts_with ~prefix:"PREFETCH_RESERVED" iclass))
   (* no 16-to-16 movzww/movsww *)
   && (not (movx iclass && classes = [ Gpr16 ]))
-  && (not (List.mem iclass [ "MOVSXD"; "BSWAP" ]))
+  && (not (List.mem iclass [ "MOVSXD"; "BSWAP"; "CRC32" ]))
+  (* indirect call/jmp take a *-marked operand *)
+  && (not (List.mem iclass [ "CALL_NEAR"; "JMP" ]))
   (* GNU as keeps bound's Intel operand order in AT&T syntax *)
   && iclass <> "BOUND"
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
@@ -712,6 +729,8 @@ let spec_of_record (rec_ : R.t) =
         { space = ("vex" | "evex" | "xop") as space; opcode_map; opcode; pattern; operands },
       R.Xed_provenance { iform = Some iform; isa_set = Some isa_set; _ } ) -> (
       match (parse_pattern pattern, int_of_string_opt opcode) with
+      (* crc32's source and destination widths differ *)
+      | _ when rec_.native_name = "CRC32" -> None
       | Some p, Some opcode
         when (match space with "vex" -> p.vex | "evex" -> p.evex | _ -> p.xop)
              && (p.modrm
@@ -941,6 +960,14 @@ let spec_of_record (rec_ : R.t) =
                     xed_order
                 in
                 let mandatory66 = p.refining66 || (p.osz = 1 && not sized16) in
+                let y_width =
+                  List.exists
+                    (fun (o : R.x86_operand) ->
+                      match o.lookupfn_name with
+                      | Some l -> starts_with ~prefix:"GPRy_" l
+                      | None -> false)
+                    operands
+                in
                 let word_source =
                   List.exists
                     (function Reg { cls = Gpr16; _ } | Mem { bits = 16 } -> true | _ -> false)
@@ -1026,6 +1053,7 @@ let spec_of_record (rec_ : R.t) =
                           (* nor is there a 16-to-16 movzww *)
                           && not (w = 16 && movx rec_.native_name && word_source))
                         (match p.osz with
+                        | _ when y_width -> [ 32; 64 ]
                         | _ when mandatory66 -> [ 32; 64 ]
                         | 1 -> [ 16 ]
                         | 0 -> [ 32; 64 ]
