@@ -10,7 +10,22 @@
     and every visible operand is understood; anything else stays with the
     hand-written forms or blocked. *)
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask | St | Tmm
+type rclass =
+  | Gpr8
+  | Gpr16
+  | Gpr32
+  | Gpr64
+  | Gprv
+  | Xmm
+  | Ymm
+  | Zmm
+  | Mmx
+  | Kmask
+  | St
+  | Tmm
+  | Cr
+  | Dr
+
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =

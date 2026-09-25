@@ -2,7 +2,7 @@
    captured XED export into X86_table_rows by [compcert_tools isa-table
    x86-emit]; nothing here reads the capture at run time. *)
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Xmm | Ymm | Zmm | Mmx | Kmask | St | Tmm
+type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Xmm | Ymm | Zmm | Mmx | Kmask | St | Tmm | Cr | Dr
 
 (* Where a register operand is encoded. *)
 type field =
@@ -79,3 +79,6 @@ let class_width = function
   | St -> 80
   (* AMX tile registers *)
   | Tmm -> 1002
+  (* control and debug registers *)
+  | Cr -> 1003
+  | Dr -> 1004

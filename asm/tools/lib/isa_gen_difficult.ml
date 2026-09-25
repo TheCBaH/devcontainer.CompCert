@@ -7016,6 +7016,11 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
     (* eight of each, so no high variant *)
     | Mmx -> Printf.sprintf "mm%d" (num land 7)
     | Tmm -> Printf.sprintf "tmm%d" (num land 7)
+    (* cr0, cr2-cr4 and cr8 exist; dr0-dr3, dr6, dr7 *)
+    | Cr ->
+        Printf.sprintf "cr%d" (if num >= 8 then 8 else [| 0; 2; 3; 4; 0; 2; 3; 4 |].(num land 7))
+    | Dr ->
+        Printf.sprintf "dr%d" (if num >= 8 then 7 else [| 0; 1; 2; 3; 6; 7; 0; 1 |].(num land 7))
     (* never st(0) beside the implied %st: GNU would take the other direction's form *)
     | St -> Printf.sprintf "st(%d)" (if num land 7 = 0 then 7 else num land 7)
     | Kmask -> Printf.sprintf "k%d" (num land 7)

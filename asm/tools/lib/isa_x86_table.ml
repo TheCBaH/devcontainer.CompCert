@@ -1,7 +1,22 @@
 module R = Isa_source_record
 open Isa_norm_model
 
-type rclass = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv | Xmm | Ymm | Zmm | Mmx | Kmask | St | Tmm
+type rclass =
+  | Gpr8
+  | Gpr16
+  | Gpr32
+  | Gpr64
+  | Gprv
+  | Xmm
+  | Ymm
+  | Zmm
+  | Mmx
+  | Kmask
+  | St
+  | Tmm
+  | Cr
+  | Dr
+
 type field = Modrm_reg | Modrm_rm | Vvvv | Is4 | Opcode_low
 
 type operand =
@@ -116,7 +131,7 @@ let parse_pattern pattern =
                64-bit mode's defaults, CET_NO_TRACK a hint prefix left out *)
             | "CET=1" | "P4=1" | "CLDEMOTE=1" | "WBNOINVD=0" | "WBNOINVD=1" | "REXB=0" | "REXB4=0"
             | "FORCE64()" | "IMMUNE66_LOOP64()" | "CET_NO_TRACK()" | "EASZ=3" | "SRM=0"
-            | "UIMM8_1()" ->
+            | "UIMM8_1()" | "CR_WIDTH()" ->
                 Some p
             (* a fixed opcode register (nop, pause: 0b1001_0 with register 0) *)
             | "SRM[0b000]" -> Some p
@@ -247,6 +262,10 @@ let class_of_lookup lookup =
       ("MMX_", Mmx);
       ("MASK_", Kmask);
       ("TMM_", Tmm);
+      ("CR_", Cr);
+      ("DR_", Dr);
+      (* movsxd's source: 32 bits beside a 64-bit destination *)
+      ("GPRz_", Gpr32);
     ]
   in
   match List.find_opt (fun (p, _) -> starts_with ~prefix:p lookup) classes with
@@ -450,6 +469,7 @@ let integer_mnemonic ~rep native =
         String.lowercase_ascii (String.sub n 0 (String.length n - 1)) ^ "l"
     | "RET_FAR" -> "lretl"
     | "RET_NEAR" -> "ret"
+    | "MOV_CR" | "MOV_DR" -> "mov"
     | "CALL_NEAR" -> "call"
     | "SYSRET" | "SYSRET_AMD" -> "sysretl"
     | "SYSRET64" -> "sysretq"
@@ -493,7 +513,7 @@ let gpr_ok operands ~iclass =
          operands)
   in
   (List.length classes = 1
-  || operands = [] || movx iclass
+  || operands = [] || movx iclass || iclass = "MOVSXD"
   (* immediates only: int $3, pushq $5, xabort $1 *)
   || List.for_all (function Imm _ -> true | _ -> false) operands
   || List.for_all (function Mem _ -> true | _ -> false) operands
@@ -503,7 +523,9 @@ let gpr_ok operands ~iclass =
      && not (starts_with ~prefix:"PREFETCH_RESERVED" iclass))
   (* no 16-to-16 movzww/movsww *)
   && (not (movx iclass && classes = [ Gpr16 ]))
-  && (not (List.mem iclass [ "MOVSXD"; "BSWAP"; "CRC32" ]))
+  && (not (List.mem iclass [ "BSWAP"; "CRC32" ]))
+  (* movslq only: a 64-bit destination beside a 32-bit source *)
+  && ((not (iclass = "MOVSXD")) || classes = [ Gpr32; Gpr64 ] || classes = [ Gpr32; Gprv ])
   (* GNU as keeps bound's Intel operand order in AT&T syntax *)
   && iclass <> "BOUND"
   (* the reserved-NOP register pairs have no GNU spelling: nop takes one operand *)
@@ -1004,7 +1026,8 @@ let spec_of_record (rec_ : R.t) =
                     no_rex2 = p.norex2;
                     pseudo = "";
                     mnemonic =
-                      (if movx rec_.native_name then
+                      (if rec_.native_name = "MOVSXD" then "movsl"
+                       else if movx rec_.native_name then
                          (if rec_.native_name = "MOVZX" then "movz" else "movs")
                          ^
                          if
@@ -1052,6 +1075,7 @@ let spec_of_record (rec_ : R.t) =
                           (* nor is there a 16-to-16 movzww *)
                           && not (w = 16 && movx rec_.native_name && word_source))
                         (match p.osz with
+                        | _ when rec_.native_name = "MOVSXD" -> [ 64 ]
                         | _ when y_width -> [ 32; 64 ]
                         | _ when mandatory66 -> [ 32; 64 ]
                         | 1 -> [ 16 ]
@@ -1111,6 +1135,7 @@ let form ~requirement (rec_ : R.t) spec =
     | Zmm -> X86_zmm
     | St -> X87_st
     | Tmm -> X86_tmm
+    | Cr | Dr -> X86_gpr
     | Mmx -> X86_mmx
     | Kmask -> X86_kmask
     | Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv -> X86_gpr

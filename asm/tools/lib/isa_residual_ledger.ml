@@ -166,7 +166,6 @@ let rows =
           "ENQCMD";
           "IBHF";
           "ICACHE_PREFETCH";
-          "INVPCID";
           "MONITOR";
           "MONITORX";
           "MOVDIR64B";
@@ -175,7 +174,6 @@ let rows =
           "SNP";
           "SVM";
           "VIA_PADLOCK_MONTMUL";
-          "VTX";
           "WAITPKG";
         ];
       capability =

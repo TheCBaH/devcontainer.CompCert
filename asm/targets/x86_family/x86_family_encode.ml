@@ -79,6 +79,10 @@ module Reg = struct
         { name = Printf.sprintf "k%d" i; num = i; width = X86_table_row.class_width Kmask })
     @ List.init 8 (fun i ->
         { name = Printf.sprintf "tmm%d" i; num = i; width = X86_table_row.class_width Tmm })
+    @ List.init 16 (fun i ->
+        { name = Printf.sprintf "cr%d" i; num = i; width = X86_table_row.class_width Cr })
+    @ List.init 8 (fun i ->
+        { name = Printf.sprintf "dr%d" i; num = i; width = X86_table_row.class_width Dr })
 
   let base_regs width names =
     Array.to_list (Array.mapi (fun i n -> { name = n; num = i; width }) names)
