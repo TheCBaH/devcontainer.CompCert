@@ -20,6 +20,7 @@ type operand =
   | Imm of { bytes : int }  (** an immediate of 1, 2 or 4 bytes *)
   | Fixed_reg of string  (** a register the spelling names but the encoding implies: [%cl] *)
   | One  (** the implied shift count of the D0/D1 forms, spelled [$1] *)
+  | Dfv  (** APX CCMP/CTEST's default flags [{dfv=of,sf,zf,cf}], in vvvv *)
   | Rounding of { sae_only : bool }
       (** EVEX embedded rounding ([{rn-sae}]: EVEX.b with the mode in L'L) or, [sae_only],
           [{sae}] (EVEX.b, L'L = 0) *)

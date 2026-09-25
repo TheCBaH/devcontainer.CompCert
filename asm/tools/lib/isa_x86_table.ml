@@ -9,6 +9,7 @@ type operand =
   | Mem of { bits : int }
   | Imm of { bytes : int }
   | Fixed_reg of string
+  | Dfv  (** APX CCMP/CTEST's default flags [{dfv=...}], in vvvv *)
   | One  (** the implied count 1 of a shift/rotate D0/D1 form, spelled [$1] *)
   | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
   | Vsib of { cls : rclass }  (** a VSIB address: its index a vector register of [cls] *)
@@ -75,6 +76,7 @@ type pattern = {
   rm : int;  (** RM[0bxxx]: a fixed ModR/M.rm, or -1 *)
   nd : bool;  (** APX ND=1: a new data destination in vvvv *)
   nf : bool;  (** APX NF=1: flags untouched *)
+  scc : int;  (** APX CCMP/CTEST (EVAPX_SCC()): the condition, in P2's low nibble; else -1 *)
   vsib : rclass option;  (** VMODRM_XMM() and kin: the memory operand's index class *)
   round : [ `None | `Rc | `Sae ];  (** AVX512_ROUND() / SAE(): what EVEX.b means here *)
 }
@@ -100,6 +102,13 @@ let parse_pattern pattern =
             | "BCRC=1" -> Some { p with bcrc = true }
             (* MASK=4: NF in EVEX.aaa, which NF=1 already states *)
             | "EVAPX()" | "ND=0" | "NF=0" | "MASK=4" | "ONE()" -> Some p
+            (* CCMP/CTEST: SCC= is the condition; its NF= and MASK= bits restate it *)
+            | "EVAPX_SCC()" -> Some { p with scc = max 0 p.scc }
+            | "MASK=1" | "MASK=2" | "MASK=3" | "MASK=5" | "MASK=6" | "MASK=7" -> Some p
+            | _ when starts_with ~prefix:"SCC=" t ->
+                Option.map
+                  (fun n -> { p with scc = n })
+                  (int_of_string_opt (after ~prefix:"SCC=" t))
             | "ND=1" -> Some { p with nd = true }
             | "NF=1" -> Some { p with nf = true }
             | "VMODRM_XMM()" | "UISA_VMODRM_XMM()" -> Some { p with vsib = Some Xmm }
@@ -189,6 +198,7 @@ let parse_pattern pattern =
          rm = -1;
          nd = false;
          nf = false;
+         scc = -1;
          vsib = None;
          round = `None;
        })
@@ -479,8 +489,12 @@ let expand spec =
         (function Reg { cls = Gpr8 | Gpr16 | Gpr32 | Gpr64 | Gprv; _ } -> true | _ -> false)
         spec.operands
     in
+    let has_imm = List.exists (function Imm _ -> true | _ -> false) spec.operands in
     let suffix w =
-      if ((not classic) && (has_gpr_reg || not variable)) || spec.iform = "INVLPG_MEMb" then ""
+      if
+        ((not classic) && (has_gpr_reg || ((not variable) && not has_imm)))
+        || spec.iform = "INVLPG_MEMb"
+      then ""
       else match w with 8 -> "b" | 16 -> "w" | 32 -> "l" | _ -> "q"
     in
     if not variable then
@@ -592,6 +606,8 @@ let spec_of_record (rec_ : R.t) =
                conversion (GNU as: "misplaced {rn-sae}" before it) *)
             let att =
               let ops = List.rev xed_order in
+              (* CCMP/CTEST's {dfv=} comes first *)
+              let ops = if p.scc >= 0 then Dfv :: ops else ops in
               match p.round with
               | `None -> ops
               | (`Rc | `Sae) as r -> (
@@ -639,7 +655,7 @@ let spec_of_record (rec_ : R.t) =
                     (* an APX promotion's suffix rule and {evex} need are its legacy
                        instruction's, filled in by inherit_suffix_rule *)
                     suffix_isa = (if apx then "" else isa_set);
-                    pseudo = (if p.nf then "nf" else "");
+                    pseudo = (if p.nf && p.scc < 0 then "nf" else "");
                     mnemonic = att_mnemonic ~vl:p.vl ~iclass:rec_.native_name (List.rev xed_order);
                     space = (match space with "vex" -> `Vex | "evex" -> `Evex | _ -> `Xop);
                     map = opcode_map;
@@ -654,7 +670,9 @@ let spec_of_record (rec_ : R.t) =
                     operands = att;
                     mode = (if p.mode64 then 64 else if p.not64 then 32 else 0);
                     disp8n = (if space = "evex" then disp8_scale p else 1);
-                    evex_p2 = ((if p.nd then 0x10 else 0) lor if p.nf then 0x04 else 0);
+                    evex_p2 =
+                      (if p.scc >= 0 then p.scc
+                       else (if p.nd then 0x10 else 0) lor if p.nf then 0x04 else 0);
                     mask =
                       (let has l =
                          List.exists (fun (o : R.x86_operand) -> o.lookupfn_name = Some l) operands
@@ -834,7 +852,7 @@ let lookup_key (rec_ : R.t) =
   | R.Xed_provenance { iform = Some iform; _ }, R.X86_encoding { pattern; _ } ->
       let tokens = String.split_on_char ' ' pattern in
       if List.mem "BCRC=1" tokens && List.mem "MOD=3" tokens then iform ^ rounding_suffix
-      else if List.mem "NF=1" tokens then iform ^ nf_suffix
+      else if List.mem "NF=1" tokens && not (List.mem "EVAPX_SCC()" tokens) then iform ^ nf_suffix
       else iform
   | R.Xed_provenance { iform = Some iform; _ }, _ -> iform
   | _ -> ""
@@ -842,7 +860,7 @@ let lookup_key (rec_ : R.t) =
 let spec_lookup_key spec =
   if List.exists (function Rounding _ -> true | _ -> false) spec.operands then
     spec.iform ^ rounding_suffix
-  else if spec.evex_p2 land 4 <> 0 then spec.iform ^ nf_suffix
+  else if spec.evex_p2 land 4 <> 0 && not (List.mem Dfv spec.operands) then spec.iform ^ nf_suffix
   else spec.iform
 
 (* The row a normalized form and its first case describe: the 32-bit one of a width-variable
@@ -879,7 +897,7 @@ let form ~requirement (rec_ : R.t) spec =
              match o with
              | Fixed_reg _ -> None
              | Rounding _ -> Some Rounding_mode
-             | One -> None
+             | One | Dfv -> None
              | Vsib _ -> Some (Memory { width_bits = None })
              | Reg { cls; _ } -> Some (Register { class_ = class_ cls; excluded = [] })
              | Mem { bits } ->
@@ -902,18 +920,24 @@ let form ~requirement (rec_ : R.t) spec =
          spec.operands
   in
   let syntax =
-    List.mapi
-      (fun i o ->
+    List.concat
+    @@ List.mapi
+         (fun i o ->
+           match o with
+           (* {dfv=...} takes no comma after it: it is spelled with the mnemonic *)
+           | Dfv -> []
+           | o -> [ (i, o) ])
+         spec.operands
+    |> List.map (fun (i, o) ->
         match o with
         | Reg _ -> Syn_decorated ("%", Syn_operand (operand_name i))
         (* spelled whole, braces included: {rn-sae} *)
-        | Rounding _ | Vsib _ -> Syn_operand (operand_name i)
+        | Rounding _ | Vsib _ | Dfv -> Syn_operand (operand_name i)
         | One -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Imm _ -> Syn_decorated ("$", Syn_operand (operand_name i))
         | Mem _ -> Syn_operand (operand_name i)
         (* an implied register is assigned per case: its spelling follows the operand size *)
         | Fixed_reg _ -> Syn_decorated ("%", Syn_operand (operand_name i)))
-      spec.operands
   in
   {
     form_id = "x86:" ^ spec.iform;
@@ -969,6 +993,7 @@ let twin_primaries specs =
           | Fixed_reg n -> `Fixed n
           | Rounding _ -> `Rounding
           | One -> `One
+          | Dfv -> `Dfv
           | Vsib { cls } -> `Vsib cls)
         spec.operands )
   in
@@ -1103,6 +1128,7 @@ let accumulator_positions (records : R.t list) spec =
     | Fixed_reg n -> `Fixed n
     | Rounding _ -> `Rounding
     | One -> `One
+    | Dfv -> `Dfv
     | Vsib _ -> `Vsib
   in
   (* the accumulator a sibling names, against the register width at the same position *)

@@ -275,7 +275,24 @@ module Make (M : MODE) = struct
                 | Ok folded -> Ok (Operand.Imm_sym folded)
                 | Error _ -> Ok (Operand.Imm_sym e)))
         (* %reg *)
-        | [ Token.Register n ] -> Result.map (fun r -> Operand.Reg r) (reg_named n)
+        | [ Token.Register n ] ->
+            Result.map (fun r -> Operand.Reg r) (reg_named n)
+            (* APX CCMP/CTEST's default flag values: {dfv=of,cf}, {dfv=} *)
+        | Token.Lbrace :: Token.Ident "dfv" :: Token.Equals :: rest -> (
+            let rec flags acc = function
+              | [ Token.Rbrace ] -> Some acc
+              | Token.Ident f :: rest -> (
+                  match f with
+                  | "of" -> flags (acc lor 8) rest
+                  | "sf" -> flags (acc lor 4) rest
+                  | "zf" -> flags (acc lor 2) rest
+                  | "cf" -> flags (acc lor 1) rest
+                  | _ -> None)
+              | _ -> None
+            in
+            match flags 0 rest with
+            | Some v -> Ok (Operand.Dfv v)
+            | None -> bad (`Malformed_memory_operand slice))
         (* EVEX embedded rounding / suppress-all-exceptions: {rn-sae} ... {rz-sae}, {sae} *)
         | [ Token.Lbrace; Token.Ident "sae"; Token.Rbrace ] -> Ok (Operand.Rc 4)
         | [ Token.Lbrace; Token.Ident r; Token.Minus; Token.Ident "sae"; Token.Rbrace ]
@@ -516,8 +533,9 @@ module Make (M : MODE) = struct
       List.fold_left
         (fun d t ->
           match Asm_syntax.Token.kind t with
-          | Asm_syntax.Token.Lparen -> d + 1
-          | Asm_syntax.Token.Rparen -> d - 1
+          (* braces too: {dfv=of,cf} is one operand *)
+          | Asm_syntax.Token.Lparen | Asm_syntax.Token.Lbrace -> d + 1
+          | Asm_syntax.Token.Rparen | Asm_syntax.Token.Rbrace -> d - 1
           | _ -> d)
         0 slice
     in
@@ -544,9 +562,28 @@ module Make (M : MODE) = struct
       | s :: rest -> (
           match parse_one_operand s with Ok o -> go (o :: acc) rest | Error e -> Error e)
     in
+    (* {dfv=...} is written with no comma after it: [ccmpz {dfv=cf} %eax, %ebx] *)
+    let split_dfv slices =
+      List.concat_map
+        (fun (slice : Asm_syntax.Token.slice) ->
+          match List.map Asm_syntax.Token.kind slice with
+          | Asm_syntax.Token.Lbrace :: Asm_syntax.Token.Ident "dfv" :: _ -> (
+              let rec cut n = function
+                | [] -> None
+                | t :: rest ->
+                    if Asm_syntax.Token.kind t = Asm_syntax.Token.Rbrace then Some (n + 1)
+                    else cut (n + 1) rest
+              in
+              match cut 0 slice with
+              | Some n when n < List.length slice ->
+                  [ List.filteri (fun i _ -> i < n) slice; List.filteri (fun i _ -> i >= n) slice ]
+              | _ -> [ slice ])
+          | _ -> [ slice ])
+        slices
+    in
     match regroup slices with
     | Error kind -> Error (parse_diag ~pos:__POS__ kind)
-    | Ok grouped -> go [] grouped
+    | Ok grouped -> go [] (split_dfv grouped)
 
   let handle_directive ~name ~argument state =
     ignore argument;

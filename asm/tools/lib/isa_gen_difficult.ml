@@ -7080,6 +7080,8 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
                      else Printf.sprintf "16(%%%s,%%%s,4)" stack (reg_name cls 5) );
                  ]
              | One -> [ (Isa_x86_table.operand_name i, "1") ]
+             (* spelled with the mnemonic, below *)
+             | Dfv -> []
              | Rounding { sae_only } ->
                  [
                    ( Isa_x86_table.operand_name i,
@@ -7103,6 +7105,11 @@ let x86_table_entries_of ?(alt = false) ?prefix target (spec : Isa_x86_table.spe
       match prefix with
       (* a twin GNU as reaches only with a pseudo-prefix *)
       | Some p -> (Isa_gen_render.mnemonic_key, "{" ^ p ^ "} " ^ row.mnemonic) :: operands
+      (* CCMP/CTEST: the default flags follow the mnemonic with no comma *)
+      | None when List.mem Isa_x86_table.Dfv row.operands ->
+          ( Isa_gen_render.mnemonic_key,
+            row.mnemonic ^ if high then " {dfv=sf,zf}" else " {dfv=of,cf}" )
+          :: operands
       | None ->
           (* an APX promotion's spelling follows its legacy instruction, which the normalized
              form (read from its record alone) cannot know *)

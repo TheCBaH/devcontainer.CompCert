@@ -169,6 +169,7 @@ module Operand = struct
     | Imm of Bigint.t
     | Imm_sym of Asm_core.Expr.t
     | Sym of Asm_core.Expr.t
+    | Dfv of int  (** APX [{dfv=...}]: OF 8, SF 4, ZF 2, CF 1 *)
     | Masked of { op : t; k : int; zero : bool }
         (** an EVEX destination with an opmask: [%zmm0{%k1}], [{z}] for zeroing *)
     | Rc of int
@@ -189,6 +190,12 @@ module Operand = struct
     | Imm_sym e -> Fmt.pf ppf "$%s" (Asm_core.Expr.to_string e)
     | Sym e -> Fmt.string ppf (Asm_core.Expr.to_string e)
     | Rc n -> Fmt.pf ppf "{%s}" (rc_name n)
+    | Dfv v ->
+        Fmt.pf ppf "{dfv=%s}"
+          (String.concat ","
+             (List.filter_map
+                (fun (bit, n) -> if v land bit <> 0 then Some n else None)
+                [ (8, "of"); (4, "sf"); (2, "zf"); (1, "cf") ]))
     | Masked { op; k; zero } -> Fmt.pf ppf "%a{%%k%d}%s" pp op k (if zero then "{z}" else "")
 end
 
@@ -2106,6 +2113,7 @@ module Instruction = struct
           | Fixed_reg n -> `Fixed n
           | Rounding _ -> `Rounding
           | One -> `One
+          | Dfv -> `Dfv
           | Vsib _ -> `Vsib)
         r.operands
     in
@@ -2141,8 +2149,15 @@ module Instruction = struct
     | ops -> (
         match i.op with
         (* a generated row's spelling is whole: no width suffix to add *)
-        | Opcode.Table row ->
-            Fmt.pf ppf "%s %a" (table_spelling row) Fmt.(list ~sep:(any ", ") Operand.pp) ops
+        | Opcode.Table row -> (
+            match ops with
+            (* {dfv=...} takes no comma after it *)
+            | (Operand.Dfv _ as dfv) :: rest ->
+                Fmt.pf ppf "%s %a %a" (table_spelling row) Operand.pp dfv
+                  Fmt.(list ~sep:(any ", ") Operand.pp)
+                  rest
+            | _ -> Fmt.pf ppf "%s %a" (table_spelling row) Fmt.(list ~sep:(any ", ") Operand.pp) ops
+            )
         (* [pop]/[jmp] take no AT&T size suffix in M1 - their one operand's own
            width is what disambiguates, and [simplify_instruction] only
            recognizes the bare mnemonic. [jmp]'s indirect-target sigil is
@@ -4256,7 +4271,8 @@ module Make (M : MODE) = struct
                     Lowered.Alu_rm_imm
                       { ext; width = i.Instruction.width; rm = Rm.Mem m; imm = Disp.Const imm };
                   ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
+            | Operand.Dfv _ ->
                 bad `Immediate_destination))
     (* [addq $bodies+24, %rax] - gcc's idiom for address arithmetic against a
        symbol's own address rather than through [lea] (M5, asm/docs/corpus.md).
@@ -4409,7 +4425,8 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Unary_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
+        | Operand.Dfv _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, bare-mnemonic implicit-1 form ([shrq %rax]) - GAS's
        own shorter surface spelling of the explicit [$1, dst] one just below,
@@ -4425,7 +4442,8 @@ module Make (M : MODE) = struct
             | Ok () -> Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem m ->
             Ok [ Lowered.Shift1_rm { ext; width = i.Instruction.width; rm = Rm.Mem m } ]
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
+        | Operand.Dfv _ ->
             bad `Immediate_destination)
     (* Group-2 shift/rotate, explicit-count form. A literal count of exactly 1
        still picks {!Lowered.Shift1_rm} - GAS's own shorter, canonical
@@ -4459,8 +4477,8 @@ module Make (M : MODE) = struct
                       ])
             | _, Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
             | ( _,
-                (Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _)
-              ) ->
+                ( Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _
+                | Operand.Masked _ | Operand.Dfv _ ) ) ->
                 bad `Immediate_destination))
     (* Group-2 shift/rotate, count-in-%cl (M5, asm/docs/corpus.md: [sall
        %cl,%eax]). [cl]'s width and number pin it to exactly %cl, not any
@@ -4478,7 +4496,8 @@ module Make (M : MODE) = struct
             | Ok () ->
                 Ok [ Lowered.Shift_cl_rm { ext; width = i.Instruction.width; rm = Rm.Reg r } ])
         | Operand.Mem _ -> bad (`No_form (Opcode.name i.Instruction.op))
-        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
+        | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
+        | Operand.Dfv _ ->
             bad `Immediate_destination)
     (* [shldl $6,%ecx,%eax] (M5, asm/docs/corpus.md): SHLD's own three-operand
        AT&T form - GAS reverses Intel's [SHLD r/m32, r32, imm8] to put the
@@ -4574,7 +4593,8 @@ module Make (M : MODE) = struct
                     Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Reg r; imm } ])
             | Operand.Mem m ->
                 Ok [ Lowered.Test_rm_imm { width = i.Instruction.width; rm = Rm.Mem m; imm } ]
-            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _ ->
+            | Operand.Imm _ | Operand.Imm_sym _ | Operand.Sym _ | Operand.Rc _ | Operand.Masked _
+            | Operand.Dfv _ ->
                 bad `Immediate_destination))
     | Opcode.Cmov cc, [ Operand.Reg a; Operand.Reg b ] -> (
         match (width_ok a, width_ok b) with
@@ -8702,6 +8722,8 @@ module Make (M : MODE) = struct
               | T.Opcode_low -> opcode_low := reg.num)
           | T.Fixed_reg name, Operand.Reg reg when String.equal reg.name name -> ()
           | T.One, Operand.Imm v when Bigint.to_int_opt v = Some 1 -> ()
+          (* vvvv holds the flags as they are, which the encoder below inverts *)
+          | T.Dfv, Operand.Dfv v -> vvvv := Some (lnot v land 15)
           | T.Rounding { sae_only = true }, Operand.Rc 4 -> rounding := Some 0
           | T.Rounding { sae_only = false }, Operand.Rc n when n >= 0 && n <= 3 ->
               rounding := Some n
@@ -8818,10 +8840,14 @@ module Make (M : MODE) = struct
                       | Some (k, zero) -> (k, if zero then 1 else 0)
                       | None -> (0, 0)
                     in
+                    (* CCMP/CTEST's condition takes P2's low four bits, V' included *)
+                    let scc = List.mem T.Dfv r.operands in
                     let p2 =
-                      (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4)
-                      lor ((1 - v') lsl 3)
-                      lor aaa lor r.evex_p2
+                      if scc then r.evex_p2
+                      else
+                        (z lsl 7) lor (l lsl 5) lor (b_bit lsl 4)
+                        lor ((1 - v') lsl 3)
+                        lor aaa lor r.evex_p2
                     in
                     if (not M.rex_allowed) && (rr = 1 || x = 1 || b = 1 || r' = 1 || v' = 1) then
                       None
@@ -9002,7 +9028,7 @@ module Make (M : MODE) = struct
                   && (r.w < 0 || r.w = w)
                   && (r.l < 0 || r.l = l)
                   && (List.exists
-                        (function T.Reg { field = T.Vvvv; _ } -> true | _ -> false)
+                        (function T.Reg { field = T.Vvvv; _ } | T.Dfv -> true | _ -> false)
                         r.operands
                      || vvvv = 0
                         && (!evex_v4 = 0
@@ -9028,6 +9054,9 @@ module Make (M : MODE) = struct
               | _ -> true)
             (* the opmask the row allows; an APX row's ND and NF bits sit where EVEX.b and aaa do *)
             && (match r.space with
+              | T.Evex when List.mem T.Dfv r.operands ->
+                  (!evex_b lsl 4) lor ((1 - !evex_v4) lsl 3) lor !evex_aaa = r.evex_p2
+                  && !evex_z = 0
               | T.Evex when r.map = 4 || r.evex_p2 <> 0 ->
                   (!evex_b lsl 4) lor !evex_aaa = r.evex_p2 && !evex_z = 0
               | T.Evex -> (
@@ -9180,6 +9209,7 @@ module Make (M : MODE) = struct
                                 Operand.Reg (reg_at ~width:(T.class_width cls) num)
                             | T.Rounding { sae_only } -> Operand.Rc (if sae_only then 4 else l)
                             | T.One -> Operand.Imm Bigint.one
+                            | T.Dfv -> Operand.Dfv (lnot vvvv land 15)
                             | T.Fixed_reg name -> (
                                 match find_reg name with
                                 | Some reg -> Operand.Reg reg

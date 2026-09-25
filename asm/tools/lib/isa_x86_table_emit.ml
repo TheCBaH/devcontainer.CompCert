@@ -53,6 +53,7 @@ let render_operand : Isa_x86_table.operand -> string = function
   | Rounding { sae_only } -> Printf.sprintf "Rounding { sae_only = %b }" sae_only
   | Vsib { cls } -> Printf.sprintf "Vsib { cls = %s }" (render_class cls)
   | One -> "One"
+  | Dfv -> "Dfv"
 
 let render_row (s : Isa_x86_table.spec) =
   Printf.sprintf

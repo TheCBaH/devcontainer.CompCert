@@ -18,6 +18,7 @@ type operand =
   | Mem of { bits : int }
   | Imm of { bytes : int }  (** [bytes = 0]: a [z] immediate, 2 or 4 by operand size *)
   | Fixed_reg of string  (** spelled, implied by the encoding: [%cl] *)
+  | Dfv  (** APX CCMP/CTEST's default flags [{dfv=...}], in vvvv *)
   | One  (** the implied count 1 of a shift/rotate D0/D1 form, spelled [$1] *)
   | Rounding of { sae_only : bool }  (** EVEX embedded rounding [{rn-sae}], or [{sae}] *)
   | Vsib of { cls : rclass }  (** a VSIB address: its index a vector register of [cls] *)
