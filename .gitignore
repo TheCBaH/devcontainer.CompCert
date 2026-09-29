@@ -1,4 +1,5 @@
 /.asm-helpers/
+/.compcert-export-work/
 /.compcert-lib-work/
 /.corpus-work/
 /.cross-smoke-work/
@@ -7,6 +8,8 @@
 /.fixture-work/
 /.playwright-browsers/
 /.tool-gate/
+/.verify-work/
+/out/
 /ai
 /asm/_build/
 /asm/test/browser/_work/
