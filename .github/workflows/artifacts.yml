@@ -1,0 +1,146 @@
+name: artifacts
+
+# The extractor's product: per target, the Rocq-extracted CompCert as a dune
+# package (compcert-export-<t>.tar.gz) and the assembly it emits for its own
+# test suites (compcert-asm-<t>.tar.gz). Every leg is verified without Rocq and
+# without building from the source tree. Consumers pin the release built from
+# this workflow.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+    - modules/CompCert
+    - tools/compcert-*
+    - Makefile
+    - .devcontainer/**
+    - .github/workflows/artifacts.yml
+  pull_request:
+    paths:
+    - modules/CompCert
+    - tools/compcert-*
+    - Makefile
+    - .devcontainer/**
+    - .github/workflows/artifacts.yml
+  workflow_dispatch:
+  workflow_call:
+
+# The published image for this OCaml version (see compcert-split.yml): the
+# split build needs only Rocq and OCaml, so no special container is built.
+env:
+  OCAML_VERSION: 4.14.3
+
+jobs:
+  extract:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64]
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: export
+      run: |
+        ${{ env.EXEC }} tools/compcert-export-target.sh ${{ matrix.target }} out/compcert-export-${{ matrix.target }}.tar.gz
+    - name: upload-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: compcert-export-${{ matrix.target }}
+        path: out/compcert-export-${{ matrix.target }}.tar.gz
+        retention-days: 7
+
+  verify:
+    needs: extract
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64]
+    steps:
+    # modules/CompCert is needed only for its test suites; nothing is built
+    # from it (see the guard at the end).
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: download-artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: compcert-export-${{ matrix.target }}
+        path: out
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: remove-rocq
+      run: |
+        # --preserve-env keeps OPAMROOT, which sudo would otherwise reset.
+        ${{ env.EXEC }} sudo --preserve-env=OPAMROOT opam remove -y --auto-remove rocq-prover
+    - name: verify-no-rocq
+      run: |
+        ${{ env.EXEC }} sh -c '\
+          if command -v rocq >/dev/null 2>&1 || command -v coqc >/dev/null 2>&1; then \
+            echo "Rocq is still present, verification is not proven Rocq-free" >&2; \
+            exit 1; \
+          fi'
+    - name: verify
+      run: |
+        ${{ env.EXEC }} tools/compcert-export-verify.sh ${{ matrix.target }} out/compcert-export-${{ matrix.target }}.tar.gz out/compcert-asm-${{ matrix.target }}.tar.gz
+    - name: guard-source-tree-unused
+      run: |
+        test ! -e modules/CompCert/ccomp
+        test -z "$(find modules/CompCert -name '*.vo' -print -quit)"
+        test ! -e asm/_build
+    - name: upload-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: compcert-asm-${{ matrix.target }}
+        path: out/compcert-asm-${{ matrix.target }}.tar.gz
+        retention-days: 7
+    - name: verification artifacts
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: verify-${{ matrix.target }}-failure
+        path: |
+          .verify-work/${{ matrix.target }}/run
+          .verify-work/${{ matrix.target }}/ccomp-version.txt
+        retention-days: 7
+        if-no-files-found: ignore
+
+  index:
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+    - name: download-artifacts
+      uses: actions/download-artifact@v8
+      with:
+        pattern: compcert-*
+        path: dist
+        merge-multiple: true
+    - name: index
+      run: |
+        tools/compcert-artifacts-index.sh dist ${{ github.ref_name }}
+    - name: upload-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: compcert-artifacts
+        path: dist
+        retention-days: 7
