@@ -25,16 +25,16 @@ COMPCERT_DIR="$REPO_ROOT/modules/CompCert"
 WORK_ROOT="${COMPCERT_LIB_WORK:-$REPO_ROOT/.compcert-lib-work}"
 JOBS="${COMPCERT_JOBS:-$(nproc)}"
 
-# shellcheck source=target-matrix.sh
-. "$SCRIPT_DIR/target-matrix.sh"
+# shellcheck source=compcert-targets.sh
+. "$SCRIPT_DIR/compcert-targets.sh"
 
 Fatal() { echo "FATAL: $*" >&2; exit 1; }
-usage() { echo "Usage: $0 <target>  (targets: ${FIXTURE_TARGETS[*]})" >&2; }
+usage() { echo "Usage: $0 <target>  (targets: ${COMPCERT_TARGETS[*]})" >&2; }
 Opam() { if command -v opam >/dev/null 2>&1; then opam exec -- "$@"; else "$@"; fi; }
 
 target="${1:-}"
 found=false
-for t in "${FIXTURE_TARGETS[@]}"; do
+for t in "${COMPCERT_TARGETS[@]}"; do
   [ "$t" = "$target" ] && found=true
 done
 if [ "$found" != true ]; then
