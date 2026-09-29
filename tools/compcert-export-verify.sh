@@ -53,7 +53,9 @@ ccomp="$work/prefix/bin/ccomp"
 run_program() {
   local name=$1 src=$2 expected=$3 cwd=$4
   local exe="$work/run/$name.compcert"
-  "$ccomp" "${CCOMP_EXTRA_ARGS[@]}" -o "$exe" "$src" -lm
+  # The RISC-V ini does not carry -no-pie, and a PIE link cannot resolve
+  # data such as stderr from non-PIC code.
+  "$ccomp" "${CCOMP_EXTRA_ARGS[@]}" -no-pie -o "$exe" "$src" -lm
   local status=0
   (cd "$cwd" && timeout 300s "$QEMU_BIN" -L "$QEMU_SYSROOT" "$exe") > "$work/run/$name.out" 2> "$work/run/$name.err" || status=$?
   if [ "$status" -ne 0 ]; then
