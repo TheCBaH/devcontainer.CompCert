@@ -1,46 +1,39 @@
 name: release
 
+# A v<compcert-version>-<n> tag publishes the artifacts.yml output: 12 tarballs,
+# SHA256SUMS and artifacts.json. A -rc tag is marked as a prerelease.
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
-# Matches the published devcontainer image this reuses for build caching -
-# see the comment in compcert-split.yml.
-env:
-  OCAML_VERSION: 4.14.3
-
 jobs:
+  artifacts:
+    uses: ./.github/workflows/artifacts.yml
+
   release:
+    needs: artifacts
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-    - name: checkout
-      uses: actions/checkout@v7
+    - name: download-artifact
+      uses: actions/download-artifact@v8
       with:
-        submodules: true
-    - name: devcontainer
-      uses: TheCBaH/devcontainer-action/devcontainer@v1
-      id: devcontainer
-      with:
-        variant: ${{ env.OCAML_VERSION }}
-    - name: setup
+        name: compcert-artifacts
+        path: dist
+    - name: check
       run: |
-        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
-    # One export archive per target - see compcert-export-archive-all.sh.
-    - name: export-archive
-      run: |
-        ${{ env.EXEC }} tools/compcert-export-archive-all.sh
+        cd dist
+        sha256sum -c SHA256SUMS
+        test "$(ls | wc -l)" -eq 14
     - name: publish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
       run: |
-        gh release create "${{ github.ref_name }}" \
-          compcert-export-x86_32.tar.gz \
-          compcert-export-x86_64.tar.gz \
-          compcert-export-arm.tar.gz \
-          compcert-export-aarch64.tar.gz \
+        case "${{ github.ref_name }}" in *-rc*) pre=--prerelease ;; *) pre= ;; esac
+        gh release create "${{ github.ref_name }}" dist/* $pre \
           --title "${{ github.ref_name }}" \
           --generate-notes
