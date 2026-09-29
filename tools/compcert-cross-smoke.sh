@@ -55,16 +55,9 @@ Opam() {
   fi
 }
 
-# The target matrix lives in tools/target-matrix.sh - itself generated from
-# asm/tools/lib/target.ml - so that asm/'s fixture and oracle tools describe
-# these targets identically. See that file.
-#
-# There used to be a second, hand-written ALL_TARGETS above this line, described
-# as being overridden "with the same value". Two copies whose agreement is
-# asserted rather than checked is the exact shape this matrix exists to remove,
-# and the copy was dead code besides: nothing read it before this source.
-# shellcheck source=target-matrix.sh
-. "$SCRIPT_DIR/target-matrix.sh"
+# The target table lives in tools/compcert-targets.sh.
+# shellcheck source=compcert-targets.sh
+. "$SCRIPT_DIR/compcert-targets.sh"
 ALL_TARGETS=("${LIBC_SMOKE_TARGETS[@]}")
 
 run_target() {
