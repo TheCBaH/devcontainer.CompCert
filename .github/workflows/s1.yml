@@ -1,0 +1,14 @@
+name: s1
+on: push
+jobs:
+  s1:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v7
+    - uses: ocaml/setup-ocaml@v3
+      with:
+        ocaml-compiler: 5.3
+    - name: a (nested project, no vendored_dirs)
+      run: cd s1-a && opam exec -- dune build ./app/main.exe && ./_build/default/app/main.exe
+    - name: b (vendored_dirs)
+      run: cd s1-b && opam exec -- dune build ./app/main.exe && ./_build/default/app/main.exe
