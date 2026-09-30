@@ -133,13 +133,20 @@ EOF
 
 echo "== [$target] runtime and license =="
 mkdir -p "$stage/runtime"
-(cd "$build/runtime" && tar -cf - --exclude=./test --exclude='*.o' --exclude='*.a' .) | tar -xf - -C "$stage/runtime"
+(cd "$build/runtime" && tar -chf - --exclude=./test --exclude='*.o' --exclude='*.a' .) | tar -xf - -C "$stage/runtime"
 cp "$COMPCERT_DIR/LICENSE" "$stage/LICENSE"
 install -m 0755 "$SCRIPT_DIR/compcert-export-install.sh" "$stage/install.sh"
 
 if grep -rIl -e "$REPO_ROOT" -e "$WORK_ROOT" "$stage" >/dev/null; then
   grep -rIl -e "$REPO_ROOT" -e "$WORK_ROOT" "$stage" >&2
   Fatal "host paths leaked into the package"
+fi
+
+# The build tree symlinks CompCert's runtime sources; a link in the package
+# would point into this checkout.
+if [ -n "$(find "$stage" -type l)" ]; then
+  find "$stage" -type l >&2
+  Fatal "symlinks in the package"
 fi
 
 revision=$(git -C "$COMPCERT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)
