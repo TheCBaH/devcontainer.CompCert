@@ -14,7 +14,7 @@
         },
         "ghcr.io/thecbah/ocaml-features/ocaml:1": {
             "version": "${localEnv:OCAML_VERSION}",
-            "packages": "menhir rocq-prover#9.2.0 zarith",
+            "packages": "menhir rocq-prover rocq-core#9.2.0 zarith",
             "system-packages": "libgmp-dev pkg-config",
             "repositories": "rocq-released https://rocq-prover.org/opam/released"
         }
