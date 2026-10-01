@@ -1,2 +1,0 @@
-.text	local	default	1	defined
-asm_test_callee	global	default	1	defined

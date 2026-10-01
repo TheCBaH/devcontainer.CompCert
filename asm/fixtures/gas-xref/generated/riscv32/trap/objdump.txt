@@ -1,6 +1,0 @@
-
-
-Disassembly of section .text:
-
-00000000 <asm_snippet>:
-   0:	c0001073          	unimp

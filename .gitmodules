@@ -1,19 +1,3 @@
 [submodule "modules/CompCert"]
 	path = modules/CompCert
 	url = https://github.com/AbsInt/CompCert.git
-[submodule "asm/vendor/err_trace/upstream"]
-	path = asm/vendor/err_trace/upstream
-	url = https://github.com/TheCBaH/err_trace.git
-	branch = main
-[submodule "asm/vendor/fmt/upstream"]
-	path = asm/vendor/fmt/upstream
-	url = https://github.com/dbuenzli/fmt.git
-[submodule "asm/vendor/isa-data/riscv-opcodes/upstream"]
-	path = asm/vendor/isa-data/riscv-opcodes/upstream
-	url = https://github.com/riscv/riscv-opcodes.git
-[submodule "asm/vendor/isa-data/xed/upstream"]
-	path = asm/vendor/isa-data/xed/upstream
-	url = https://github.com/intelxed/xed.git
-[submodule "asm/vendor/isa-data/xed/mbuild"]
-	path = asm/vendor/isa-data/xed/mbuild
-	url = https://github.com/intelxed/mbuild.git

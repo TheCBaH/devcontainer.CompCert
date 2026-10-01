@@ -1,1 +1,0 @@
-.text	0x00000014	rel	R_ARM_CALL	asm_test_callee	-

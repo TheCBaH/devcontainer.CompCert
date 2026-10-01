@@ -105,7 +105,6 @@ jobs:
       run: |
         test ! -e modules/CompCert/ccomp
         test -z "$(find modules/CompCert -name '*.vo' -print -quit)"
-        test ! -e asm/_build
     - name: upload-artifact
       uses: actions/upload-artifact@v7
       with:

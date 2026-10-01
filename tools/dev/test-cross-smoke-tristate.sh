@@ -20,6 +20,8 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
 SMOKE="$REPO_ROOT/tools/compcert-cross-smoke.sh"
+# shellcheck source=../compcert-targets.sh
+. "$REPO_ROOT/tools/compcert-targets.sh"
 
 SCRATCH=$(mktemp -d)
 trap 'rm -rf -- "$SCRATCH"' EXIT
@@ -104,17 +106,17 @@ check "build failure: not reported as skipped" \
 # {4 all: every target skipped is still a pass}
 rc=$(run_smoke "$bin" all "$SCRATCH/all.log")
 check "all targets skipped: exits 0" "$([ "$rc" = 0 ] && echo 0 || echo 1)"
-want=$("$REPO_ROOT/tools/target-matrix.sh" libc | wc -l)
-check "all targets skipped: every libc target reported, from the matrix" \
+want=${#LIBC_SMOKE_TARGETS[@]}
+check "all targets skipped: every libc target reported, from the table" \
   "$([ "$(grep -cE '^  [a-z0-9_]+: SKIP$' "$SCRATCH/all.log")" = "$want" ] && echo 0 || echo 1)"
 
-# {5 usage names the matrix rather than a hand-written list}
+# {5 usage names the target table rather than a hand-written list}
 #
 # This is the copy that nothing overrode, so it was the one free to drift.
 rc=$(run_smoke "$bin" nonsense "$SCRATCH/usage.log")
 check "unknown target: exits 1" "$([ "$rc" = 1 ] && echo 0 || echo 1)"
-expected="Usage: $SMOKE [$("$REPO_ROOT/tools/target-matrix.sh" libc | paste -sd'|')|all]"
-check "unknown target: usage lists exactly the matrix's libc set" \
+expected="Usage: $SMOKE [$(IFS='|'; echo "${LIBC_SMOKE_TARGETS[*]}")|all]"
+check "unknown target: usage lists exactly the table's libc set" \
   "$(grep -qxF "$expected" "$SCRATCH/usage.log" && echo 0 || echo 1)"
 
 echo "cross-smoke tri-state: $pass ok, $fail failed"

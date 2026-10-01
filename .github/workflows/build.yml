@@ -49,6 +49,10 @@ jobs:
     - name: cross-smoke
       run: |
         ${{ env.EXEC }} tools/compcert-cross-smoke.sh
+    - name: cross-smoke tri-state
+      if: matrix.platform == 'linux/amd64' && matrix.ocaml_version == '5.5.0'
+      run: |
+        ${{ env.EXEC }} make compcert-cross-smoke-selftest
     - name: cross-smoke artifacts
       if: always()
       uses: actions/upload-artifact@v7
