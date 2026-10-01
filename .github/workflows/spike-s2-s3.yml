@@ -1,0 +1,60 @@
+name: spike-s2-s3
+
+on:
+  push:
+    branches: [spike/s2-s3]
+  workflow_dispatch:
+
+env:
+  OCAML_VERSION: 4.14.3
+
+jobs:
+  s2:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64, riscv64]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: fixture setup
+      run: |
+        time ${{ env.EXEC }} tools/compcert-fixture-setup.sh ${{ matrix.target }}
+        mkdir -p out
+        cp .fixture-work/install/${{ matrix.target }}/share/compcert.ini out/ 2>/dev/null || true
+        cp .fixture-work/artifacts/${{ matrix.target }}/Makefile.config out/
+        cat out/compcert.ini out/Makefile.config
+    - uses: actions/upload-artifact@v7
+      with:
+        name: s2-${{ matrix.target }}
+        path: out
+        retention-days: 7
+
+  s3:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64, x86_32]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: compare
+      run: time ${{ env.EXEC }} spike/s3.sh ${{ matrix.target }}
