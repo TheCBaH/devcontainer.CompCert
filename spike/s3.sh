@@ -20,14 +20,17 @@ for t in "$@"; do
   t2=$(date +%s)
   echo "$t: export $((t1-t0))s, dune build+install $((t2-t1))s"
   ok=0; bad=0
+  ini=$W/prefix/share/compcert.ini
+  [ -f "$W/pkg/compcert.freestanding.ini" ] && ini=$W/pkg/compcert.freestanding.ini
   for d in "$FIX"/*/; do
-    n=$(basename "$d"); src=$(ls "$d"/source/*.c | head -1); b=$(basename "${src%.c}")
-    [ -f "$d/$t/$b.s" ] || continue
-    ini=$W/prefix/share/compcert.ini
-    [ -f "$W/pkg/compcert.freestanding.ini" ] && ini=$W/pkg/compcert.freestanding.ini
-    COMPCERT_CONFIG=$ini "$W/prefix/bin/ccomp" -S "${CCOMP_EXTRA_ARGS[@]}" -o "$W/$n.s" "$src" 2>"$W/$n.err"
-    if cmp -s "$W/$n.s" "$d/$t/$b.s"; then ok=$((ok+1))
-    else bad=$((bad+1)); status=1; echo "DIFF $t/$n"; diff "$W/$n.s" "$d/$t/$b.s" | head -6; fi
+    n=$(basename "$d"); [ -d "$d/$t" ] || continue
+    rm -rf "$W/fx/$n"; mkdir -p "$W/fx/$n/$t"; cp -r "$d/source" "$W/fx/$n/source"
+    for src in "$d"/source/*.c; do
+      b=$(basename "${src%.c}")
+      (cd "$W/fx/$n" && COMPCERT_CONFIG=$ini "$W/prefix/bin/ccomp" -S "${CCOMP_EXTRA_ARGS[@]}" -o "$t/$b.s" "source/$b.c" 2>"$W/$n.err")
+      if cmp -s "$W/fx/$n/$t/$b.s" "$d/$t/$b.s"; then ok=$((ok+1))
+      else bad=$((bad+1)); status=1; echo "DIFF $t/$n/$b"; diff "$W/fx/$n/$t/$b.s" "$d/$t/$b.s" | head -6; fi
+    done
   done
   echo "$t: identical=$ok differing=$bad"
 done
