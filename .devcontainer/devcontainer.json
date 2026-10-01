@@ -14,11 +14,7 @@
         },
         "ghcr.io/thecbah/ocaml-features/ocaml:1": {
             "version": "${localEnv:OCAML_VERSION}",
-            "packages": "bos bytesrw cmdliner digestif fmt fpath jsont mtime js_of_ocaml-compiler js_of_ocaml-ppx menhir ocamlformat#0.28.1 ppx_expect rocq-prover qcheck zarith",
-            // Melange requires 'ocaml >= 4.14 & < 4.15', so it is installable on
-            // the 4.14 images only; the same devcontainer.json builds 4.14.3
-            // through 5.5.0.
-            "optional-packages": "melange",
+            "packages": "menhir rocq-prover#9.2.0 zarith",
             "system-packages": "libgmp-dev pkg-config",
             "repositories": "rocq-released https://rocq-prover.org/opam/released"
         }

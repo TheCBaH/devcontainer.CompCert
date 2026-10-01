@@ -1,7 +1,6 @@
 ARG VARIANT=13
 FROM debian:${VARIANT}
 ARG VARIANT
-ARG NODE_VERSION=24.19.0
 ARG RISCV32_TOOLCHAIN_TAG=v0.0.1
 ENV PATH="/usr/local/riscv32-linux-gnu-toolchain/bin:${PATH}"
 # Debian ships an rv64 Linux cross toolchain, but no rv32 glibc one. The
@@ -21,14 +20,9 @@ RUN set -eux;\
     env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends\
   ca-certificates\
   curl\
-  gdb-multiarch\
   git\
   make\
-  python3\
-  qemu-system-arm\
-  qemu-system-x86\
   qemu-user\
-  ripgrep\
   wget\
   xz-utils\
   $cross\
@@ -47,19 +41,6 @@ RUN set -eux;\
       tar -C / -xJf "$riscv32_asset";\
       rm "$riscv32_asset";\
       riscv32-linux-gnu-gcc --version;\
-    fi;\
-    case "$ARCH" in\
-      amd64) node_arch=x64 ;;\
-      arm64) node_arch=arm64 ;;\
-      *) node_arch='' ;;\
-    esac;\
-    if [ -n "$node_arch" ]; then\
-      node_pkg="node-v${NODE_VERSION}-linux-${node_arch}";\
-      curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/${node_pkg}.tar.xz";\
-      curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt";\
-      grep " ${node_pkg}.tar.xz\$" SHASUMS256.txt | sha256sum -c -;\
-      tar -xJf "${node_pkg}.tar.xz" -C /usr/local --strip-components=1 --no-same-owner;\
-      rm "${node_pkg}.tar.xz" SHASUMS256.txt;\
     fi;\
     apt-get autoremove -y; apt-get clean -y ; apt-get clean; rm -rf /var/lib/apt/lists/*;\
     echo DONE
