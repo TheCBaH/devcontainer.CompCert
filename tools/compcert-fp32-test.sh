@@ -113,3 +113,6 @@ printf '%s\n' 'extern double add(double, double); int main(void) { return add(1.
   "$work/double-ok.o" -o "$work/double-ok.elf"
 timeout 30 "$qemu" -cpu "rv$bits" "$work/double-ok.elf"
 echo "PASS RV$bits: original D profile compiles and executes double interfaces"
+
+"$root/tools/compcert-fp32-suite.sh" "$bits" "$PWD/ccomp" \
+  "$work/fp32.ini" "$PWD/compcert.ini"

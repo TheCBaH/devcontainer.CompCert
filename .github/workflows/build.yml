@@ -100,5 +100,9 @@ jobs:
           .fp32-work/rv${{ matrix.bits }}/*.dis
           .fp32-work/rv${{ matrix.bits }}/*.elf
           .fp32-work/rv${{ matrix.bits }}/*.ini
+          .fp32-work/rv${{ matrix.bits }}/upstream/*.tsv
+          .fp32-work/rv${{ matrix.bits }}/upstream/metadata.txt
+          .fp32-work/rv${{ matrix.bits }}/upstream/evidence/**/*.log
+          .fp32-work/rv${{ matrix.bits }}/upstream/evidence/**/*.elf
         retention-days: 7
         if-no-files-found: ignore
