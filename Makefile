@@ -92,7 +92,7 @@ compcert-extraction-unarchive:
 # smoke test can't tell. CompCert's own `all` builds it via .depend.extr's
 # prerequisites; the split build calls Makefile.extr directly and has to ask
 # for it explicitly.
-compcert-prepare-sources: compcert-extraction-unarchive
+compcert-prepare-sources: compcert-prepare-source compcert-extraction-unarchive
 	cd $(COMPCERT_DIR) && opam exec -- $(MAKE) compcert.ini driver/Version.ml tools/modorder
 	cd $(COMPCERT_DIR) && opam exec -- $(MAKE) -f Makefile.extr depend
 

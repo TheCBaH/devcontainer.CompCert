@@ -28,6 +28,15 @@ opam exec -- make -j"${COMPCERT_JOBS:-$(nproc)}" all
 opam exec -- make check-proof
 cp compcert.ini "$work/fp32.ini"
 
+tar -czf "$work/extraction.tar.gz" Makefile.config extraction/*.ml extraction/*.mli
+rm -rf "$work/split"
+git clone --quiet --shared "$root" "$work/split"
+git clone --quiet --shared "$source_dir" "$work/split/modules/CompCert"
+make -C "$work/split" compcert-build-from-archive \
+  COMPCERT_EXTRACTION_ARCHIVE="$work/extraction.tar.gz"
+cd "$work/split/modules/CompCert"
+echo "PASS RV$bits: extraction archive rebuilt against freshly patched sources"
+
 flags=(-march="$march" -mabi="$abi" -mno-relax -fno-pie)
 cflags=(-O2 -ffreestanding -fno-builtin -fno-stack-protector)
 link=(-nostdlib -static -no-pie -Wl,--no-relax,-e,_start)

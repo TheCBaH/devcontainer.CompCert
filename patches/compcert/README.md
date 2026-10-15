@@ -50,8 +50,9 @@ The caller, startup code and linker must use a matching integer ABI and ISA.
 These kernels need no CompCert runtime, but the surrounding program must
 provide the target's startup and execution environment.
 
-The tests build and proof-check isolated compilers, compile FP32 kernels and
-high-pressure spills, link a freestanding GCC harness with matching integer
+The tests build and proof-check isolated compilers, rebuild their extraction
+archives in fresh source checkouts, compile FP32 kernels and high-pressure
+spills with those rebuilt compilers, link a GCC harness with matching integer
 ABI, and execute with QEMU's D extension disabled. A separate D instruction
 must run with D enabled and trap with SIGILL when disabled. Negative compiler
 tests cover FP64, implicit promotion, float interfaces, varargs, direct and
