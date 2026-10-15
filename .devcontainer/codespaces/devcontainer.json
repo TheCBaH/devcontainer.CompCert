@@ -1,0 +1,13 @@
+{
+    "name": "CompCert Codespace",
+    "image": "ghcr.io/thecbah/devcontainer.compcert/devcontainer-4.14.3-amd64:main",
+    "features": {
+        "ghcr.io/devcontainers/features/sshd:1": {}
+    },
+    "remoteUser": "vscode",
+    "postCreateCommand": {
+        "submodules": "git submodule update --init --recursive --depth 1",
+        "opam": "sudo .devcontainer/fix-opam-owner.sh $(id -u) $(id -g)"
+    },
+    "waitFor": "postCreateCommand"
+}

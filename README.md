@@ -25,6 +25,10 @@ List of OCaml/opam packages (including Rocq and Menhir) installed by the
 devcontainer is located in
 [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json).
 
+For a Codespace using the published OCaml 4.14.3 toolchain image, select
+[CompCert Codespace](.devcontainer/codespaces/devcontainer.json). It includes
+SSHD for `gh codespace ssh` and initializes the test submodule recursively.
+
 ## Release artifacts
 A release tag `v<compcert-version>-<n>` (for example `v3.17-2`; `-rc<k>` marks a
 prerelease) publishes, for each of the six targets `x86_32`, `x86_64`, `arm`,
