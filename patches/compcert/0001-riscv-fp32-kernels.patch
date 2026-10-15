@@ -1,26 +1,292 @@
+diff --git a/backend/PrintAsm.ml b/backend/PrintAsm.ml
+index 929b3f5..13f9a25 100644
+--- a/backend/PrintAsm.ml
++++ b/backend/PrintAsm.ml
+@@ -206,6 +206,8 @@ let print_program oc p =
+   print_version_and_options oc Target.comment;
+   Target.print_prologue oc;
+   List.iter (Printer.print_globdef oc) p.prog_defs;
++  if Configuration.abi = "fp32" then
++    List.iter (output_string oc) (StructPassing.fp32_assembly ());
+   Target.print_epilogue oc;
+   Printer.print_ais_annot oc;
+   print_nonexec_stack_note oc;
+diff --git a/cfrontend/C2C.ml b/cfrontend/C2C.ml
+index 37a8790..bc00d01 100644
+--- a/cfrontend/C2C.ml
++++ b/cfrontend/C2C.ml
+@@ -368,14 +368,16 @@ let make_builtin_va_arg_by_val helper ty ty_ret arg =
+      ty)
+ 
+ let make_builtin_va_arg_by_ref helper ty arg =
++  let fp32 = Configuration.abi = "fp32" in
++  let extra = if fp32 then [Ctyping.size_t] else [] in
+   let ty_fun =
+-    Tfunction([Tpointer(Tvoid, noattr); Ctyping.size_t],
+-              Tpointer(Tvoid, noattr),  AST.cc_default) in
+-  let ty_ptr =
+-    Tpointer(ty, noattr) in
++    Tfunction([Tpointer(Tvoid, noattr); Ctyping.size_t] @ extra,
++              Tpointer(Tvoid, noattr), AST.cc_default) in
++  let ty_ptr = Tpointer(ty, noattr) in
++  let tail = if fp32 then Econs(Ealignof(ty, Ctyping.size_t), Enil) else Enil in
+   let call =
+     Ecall(Evalof(Evar(intern_string helper, ty_fun), ty_fun),
+-          Econs(va_list_ptr arg, Econs(Esizeof(ty, Ctyping.size_t), Enil)),
++          Econs(va_list_ptr arg, Econs(Esizeof(ty, Ctyping.size_t), tail)),
+           Tpointer(Tvoid, noattr)) in
+   Evalof(Ederef(Ecast(call, ty_ptr), ty), ty)
+ 
+@@ -398,7 +400,7 @@ let make_builtin_va_arg env ty e =
+         "__compcert_va_float64" ty (Tfloat(F64, noattr)) e
+   | Tstruct _ | Tunion _ ->
+       make_builtin_va_arg_by_ref
+-        "__compcert_va_composite" ty e
++        (if Configuration.abi = "fp32" then "__compcert_fp32_va_composite" else "__compcert_va_composite") ty e
+   | _ ->
+       unsupported "va_arg at this type";
+       Eval(Vint(coqint_of_camlint 0l), type_int32s)
+@@ -1539,6 +1541,206 @@ let debug_set_struct_ofs env typs =
+           end
+         | _ -> ()) typs
+ 
++(* Binary64 transport is lowered in the unverified C frontend. The verified
++   backend sees integer bits; this translation needs a separate simulation. *)
++let fp32_double = function Tfloat(F64, _) -> true | _ -> false
++
++let rec fp32_type = function
++  | Tfloat(F64, a) -> Tlong(Unsigned, a)
++  | Tpointer(t, a) -> Tpointer(fp32_type t, a)
++  | Tarray(t, n, a) -> Tarray(fp32_type t, n, a)
++  | Tfunction(args, res, cc) ->
++      Tfunction(List.map fp32_type args, fp32_type res, cc)
++  | t -> t
++
++let fp32_signature sg =
++  let xtype = function AST.Xfloat -> AST.Xlong | x -> x in
++  { sg with AST.sig_args = List.map xtype sg.AST.sig_args;
++            AST.sig_res = xtype sg.AST.sig_res }
++
++let fp32_external = function
++  | AST.EF_external(n, sg) -> AST.EF_external(n, fp32_signature sg)
++  | AST.EF_runtime(n, sg) -> AST.EF_runtime(n, fp32_signature sg)
++  | AST.EF_builtin(n, sg) -> AST.EF_builtin(n, fp32_signature sg)
++  | ef -> ef
++
++let fp32_fail reason =
++  fatal_error "FP32: %s" reason
++
++let fp32_u64 = Tlong(Unsigned, noattr)
++let fp32_single = Tfloat(F32, noattr)
++let fp32_helpers = [
++  "__compcert_fp32_extend", fp32_u64, [fp32_single];
++  "__compcert_fp32_truncate", fp32_single, [fp32_u64];
++  "__compcert_fp32_va_composite", Tpointer(Tvoid, noattr),
++    [Tpointer(Tvoid, noattr); Ctyping.size_t; Ctyping.size_t]
++]
++
++let fp32_helper name arg result =
++  let ty = Tfunction([typeof arg], result, AST.cc_default) in
++  Ecall(Evalof(Evar(intern_string name, ty), ty), Econs(arg, Enil), result)
++
++let fp32_forbidden_builtins = ref []
++let fp32_composites = ref Maps.PTree.empty
++
++let rec fp32_expr e =
++  let typ = fp32_type (typeof e) in
++  match e with
++  | Eval(Vfloat f, _) -> Eval(Vlong(Float.to_bits f), typ)
++  | Eval(v, _) -> Eval(v, typ)
++  | Evar(id, _) ->
++      if List.mem id !fp32_forbidden_builtins then
++        fp32_fail "FP64 builtins are unsupported";
++      Evar(id, typ)
++  | Ederef(x, _) -> Ederef(fp32_expr x, typ)
++  | Efield(x, id, _) -> Efield(fp32_expr x, id, typ)
++  | Evalof(x, _) -> Evalof(fp32_expr x, typ)
++  | Eaddrof(x, _) -> Eaddrof(fp32_expr x, typ)
++  | Eunop(Cop.Onotbool, x, _) -> Eunop(Cop.Onotbool, fp32_bool x, typ)
++  | Eunop(op, x, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof e) then
++        fp32_constant e "FP64 arithmetic is unsupported"
++      else Eunop(op, fp32_expr x, typ)
++  | Ebinop(op, x, y, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof y)
++         || fp32_double (typeof e) then
++        fp32_constant e "FP64 arithmetic and comparisons are unsupported"
++      else Ebinop(op, fp32_expr x, fp32_expr y, typ)
++  | Ecast(x, t) -> fp32_cast x t
++  | Eseqand(x, y, _) -> Eseqand(fp32_bool x, fp32_bool y, typ)
++  | Eseqor(x, y, _) -> Eseqor(fp32_bool x, fp32_bool y, typ)
++  | Econdition(x, y, z, t) ->
++      Econdition(fp32_bool x, fp32_cast y t, fp32_cast z t, typ)
++  | Esizeof(t, _) -> Esizeof(fp32_type t, typ)
++  | Ealignof(t, _) -> Ealignof(fp32_type t, typ)
++  | Eassign(x, y, _) -> Eassign(fp32_expr x, fp32_cast y (typeof x), typ)
++  | Eassignop(op, x, y, t, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof y) || fp32_double t then
++        fp32_fail "FP64 arithmetic is unsupported";
++      Eassignop(op, fp32_expr x, fp32_expr y, fp32_type t, typ)
++  | Epostincr(op, x, _) ->
++      if fp32_double (typeof x) then fp32_fail "FP64 arithmetic is unsupported";
++      Epostincr(op, fp32_expr x, typ)
++  | Ecomma(x, y, _) -> Ecomma(fp32_expr x, fp32_expr y, typ)
++  | Ecall(fn, args, _) ->
++      let params = match Cop.classify_fun (typeof fn) with
++        | Cop.Coq_fun_case_f(params, _, _) -> params
++        | _ -> fp32_fail "unsupported function type" in
++      Ecall(fp32_expr fn, fp32_arguments params args, typ)
++  | Ebuiltin(ef, ts, args, _) ->
++      begin match ef with
++      | AST.EF_external _ | AST.EF_runtime _ -> ()
++      | _ ->
++          if List.exists fp32_double ts || fp32_double (typeof e) then
++            fp32_fail "FP64 builtins are unsupported"
++      end;
++      Ebuiltin(fp32_external ef, List.map fp32_type ts,
++               fp32_arguments ts args, typ)
++  | Eloc(b, ofs, bf, _) -> Eloc(b, ofs, bf, typ)
++  | Eparen(x, t, _) -> Eparen(fp32_cast x t, fp32_type t, typ)
++
++and fp32_cast e dest =
++  let src = typeof e in
++  let x = fp32_expr e in
++  match src, dest with
++  | Tfloat(F32, _), Tfloat(F64, _) ->
++      fp32_helper "__compcert_fp32_extend" x fp32_u64
++  | Tfloat(F64, _), Tfloat(F32, _) ->
++      fp32_helper "__compcert_fp32_truncate" x fp32_single
++  | Tfloat(F64, _), Tint(Ctypes.IBool, _, _) -> fp32_bool e
++  | Tfloat(F64, _), (Tfloat(F64, _) | Tvoid) -> Ecast(x, fp32_type dest)
++  | _, _ when fp32_double src || fp32_double dest ->
++      begin match Initializers.constval_cast !fp32_composites e dest with
++      | Errors.OK v -> fp32_expr (Eval(v, dest))
++      | Errors.Error _ -> fp32_fail "FP64 integer conversions are unsupported"
++      end
++  | _, _ -> Ecast(x, fp32_type dest)
++
++and fp32_bool e =
++  let x = fp32_expr e in
++  if fp32_double (typeof e) then
++    Ebinop(Cop.One,
++      Ebinop(Cop.Oand, x,
++        Eval(Vlong(coqint_of_camlint64 0x7fffffffffffffffL), fp32_u64), fp32_u64),
++      Eval(Vlong(Integers.Int64.zero), fp32_u64), Ctypes.type_int32s)
++  else x
++
++and fp32_constant e reason =
++  match Initializers.constval !fp32_composites e with
++  | Errors.OK v -> fp32_expr (Eval(v, typeof e))
++  | Errors.Error _ -> fp32_fail reason
++
++and fp32_arguments params args =
++  match args, params with
++  | Enil, _ -> Enil
++  | Econs(e, rest), t :: ts ->
++      Econs(fp32_cast e t, fp32_arguments ts rest)
++  | Econs(e, rest), [] ->
++      Econs(fp32_cast e (default_argument_conversion (typeof e)),
++            fp32_arguments [] rest)
++
++let rec fp32_stmt ret = function
++  | Csyntax.Sskip -> Csyntax.Sskip
++  | Csyntax.Sdo e -> Csyntax.Sdo(fp32_expr e)
++  | Csyntax.Ssequence(a, b) -> Csyntax.Ssequence(fp32_stmt ret a, fp32_stmt ret b)
++  | Csyntax.Sifthenelse(e, a, b) -> Csyntax.Sifthenelse(fp32_bool e, fp32_stmt ret a, fp32_stmt ret b)
++  | Csyntax.Swhile(e, s) -> Csyntax.Swhile(fp32_bool e, fp32_stmt ret s)
++  | Csyntax.Sdowhile(e, s) -> Csyntax.Sdowhile(fp32_bool e, fp32_stmt ret s)
++  | Csyntax.Sfor(a, e, b, s) ->
++      Csyntax.Sfor(fp32_stmt ret a, fp32_bool e, fp32_stmt ret b, fp32_stmt ret s)
++  | Csyntax.Sbreak -> Csyntax.Sbreak
++  | Csyntax.Scontinue -> Csyntax.Scontinue
++  | Csyntax.Sreturn None -> Csyntax.Sreturn None
++  | Csyntax.Sreturn(Some e) -> Csyntax.Sreturn(Some(fp32_cast e ret))
++  | Csyntax.Sswitch(e, ls) -> Csyntax.Sswitch(fp32_expr e, fp32_labels ret ls)
++  | Csyntax.Slabel(id, s) -> Csyntax.Slabel(id, fp32_stmt ret s)
++  | Csyntax.Sgoto id -> Csyntax.Sgoto id
++
++and fp32_labels ret = function
++  | Csyntax.LSnil -> Csyntax.LSnil
++  | Csyntax.LScons(n, s, ls) -> Csyntax.LScons(n, fp32_stmt ret s, fp32_labels ret ls)
++
++let fp32_program p =
++  fp32_composites := p.prog_comp_env;
++  fp32_forbidden_builtins := List.fold_left (fun acc -> function
++    | id, AST.Gfun(External(AST.EF_builtin(_, sg), _, _, _))
++        when List.mem AST.Xfloat sg.AST.sig_args || sg.AST.sig_res = AST.Xfloat ->
++        id :: acc
++    | id, AST.Gfun(External(AST.EF_runtime(name, sg), _, _, _))
++        when name <> "__compcert_va_float64"
++          && (List.mem AST.Xfloat sg.AST.sig_args || sg.AST.sig_res = AST.Xfloat) ->
++        id :: acc
++    | _ -> acc) [] p.prog_defs;
++  let vars = List.map (fun (id, t) -> id, fp32_type t) in
++  let definition = function
++    | AST.Gfun(Internal f) -> AST.Gfun(Internal {
++        f with fn_return = fp32_type f.fn_return;
++               fn_params = vars f.fn_params;
++               fn_vars = vars f.fn_vars;
++               fn_body = fp32_stmt f.fn_return f.fn_body })
++    | AST.Gfun(External(AST.EF_runtime(name, _), _, _, _)) as d
++        when name <> "__compcert_va_float64" -> d
++    | AST.Gfun(External(ef, ts, t, cc)) ->
++        AST.Gfun(External(fp32_external ef, List.map fp32_type ts, fp32_type t, cc))
++    | AST.Gvar v -> AST.Gvar {
++        v with AST.gvar_info = fp32_type v.AST.gvar_info;
++               AST.gvar_init = List.map (function
++                 | AST.Init_float64 f -> AST.Init_int64(Float.to_bits f)
++                 | i -> i) v.AST.gvar_init } in
++  let types = List.map (function Composite(id, su, ms, a) ->
++    Composite(id, su, List.map (function
++      | Member_plain(id, t) -> Member_plain(id, fp32_type t)
++      | m -> m) ms, a)) p.prog_types in
++  let ce = match build_composite_env types with
++    | Errors.OK ce -> ce
++    | Errors.Error _ -> fp32_fail "invalid lowered composite layout" in
++  let defs = List.map (fun (id, d) -> id, definition d) p.prog_defs in
++  fp32_forbidden_builtins := [];
++  fp32_composites := Maps.PTree.empty;
++  { p with prog_defs = List.map helper_function_declaration fp32_helpers @ defs;
++           prog_types = types; prog_comp_env = ce;
++           prog_public = List.map (fun (n, _, _) -> intern_string n) fp32_helpers @ p.prog_public }
++
+ (** Convert a [C.program] into a [Csyntax.program] *)
+ 
+ let convertProgram p =
+@@ -1569,6 +1771,6 @@ let convertProgram p =
+             prog_comp_env = ce } in
+         debug_set_struct_ofs ce typs;
+         Diagnostics.check_errors ();
+-        p'
++        if Configuration.abi = "fp32" then fp32_program p' else p'
+   with Env.Error msg ->
+     fatal_error "%s" (Env.error_message msg)
 diff --git a/configure b/configure
-index 3ed6b87..b67e2cc 100755
+index 3ed6b87..8ce3f16 100755
 --- a/configure
 +++ b/configure
-@@ -57,6 +57,8 @@ Supported targets:
+@@ -57,6 +57,10 @@ Supported targets:
    x86_64-cygwin        (x86 64 bits, Cygwin environment under Windows)
    rv32-linux           (RISC-V 32 bits, Linux)
    rv64-linux           (RISC-V 64 bits, Linux)
 +  rv32-fp32-kernel     (experimental RISC-V 32-bit FP32 leaf kernels)
 +  rv64-fp32-kernel     (experimental RISC-V 64-bit FP32 leaf kernels)
++  rv32-fp32           (experimental RISC-V 32-bit FP32 calls, ILP32F)
++  rv64-fp32           (experimental RISC-V 64-bit FP32 calls, LP64F)
    aarch64-linux        (AArch64, i.e. ARMv8 in 64-bit mode, Linux)
    aarch64-macos        (AArch64, i.e. Apple silicon, MacOS)
    manual               (edit configuration file by hand)
-@@ -411,6 +413,16 @@ if test "$arch" = "riscV"; then
+@@ -411,6 +415,17 @@ if test "$arch" = "riscV"; then
      model_options="-mabi=ilp32d"
    fi
    abi="standard"
-+  if test "$target" = "fp32-kernel"; then
-+    abi="fp32-kernel"
++  if test "$target" = "fp32-kernel" || test "$target" = "fp32"; then
++    abi="$target"
++    case "$target" in fp32) fp32_abi_suffix=f ;; *) fp32_abi_suffix='' ;; esac
 +    if test "$model" = "64"; then
-+      model_options="-march=rv64imf_zicsr -mabi=lp64"
++      model_options="-march=rv64imf_zicsr -mabi=lp64$fp32_abi_suffix"
 +    else
-+      model_options="-march=rv32imf_zicsr -mabi=ilp32"
++      model_options="-march=rv32imf_zicsr -mabi=ilp32$fp32_abi_suffix"
 +    fi
 +    has_runtime_lib=false
 +    has_standard_headers=false
@@ -28,6 +294,435 @@ index 3ed6b87..b67e2cc 100755
    cc_options="$model_options"
    casm_options="$model_options -c"
    clinker_options="$model_options"
+diff --git a/cparser/Parse.ml b/cparser/Parse.ml
+index caf4527..1e327c5 100644
+--- a/cparser/Parse.ml
++++ b/cparser/Parse.ml
+@@ -30,8 +30,9 @@ let transform_program ~unblock ~switch_norm ~struct_passing ~packed_structs p =
+   p
+   |> run_opt_pass Unblock.program unblock
+   |> run_opt_pass3 SwitchNorm.program switch_norm
++  |> run_opt_pass StructPassing.program (struct_passing && Configuration.abi = "fp32")
+   |> run_opt_pass PackedStructs.program packed_structs
+-  |> run_opt_pass StructPassing.program struct_passing
++  |> run_opt_pass StructPassing.program (struct_passing && Configuration.abi <> "fp32")
+   |> Rename.program
+ 
+ let read_file sourcefile =
+diff --git a/cparser/StructPassing.ml b/cparser/StructPassing.ml
+index f1f481d..3fcffd2 100644
+--- a/cparser/StructPassing.ml
++++ b/cparser/StructPassing.ml
+@@ -26,6 +26,284 @@ open Transform
+ let struct_return_style = ref SR_ref
+ let struct_passing_style = ref SP_ref_callee
+ 
++module Fp32 = struct
++  type loc = G of int | F of int | S of int
++  type piece = { pos: int; bytes: int; loc: loc; narrow: bool; shift: int; bits: int }
++  type value = { size: int; indirect: bool; pieces: piece list }
++  type state = { mutable ri: int; mutable rf: int; mutable stack: int }
++  let assembly = ref []
++  let declarations = ref []
++  let serial = ref 0
++  let va_parameter = ref None
++  let enabled () = Configuration.abi = "fp32"
++  let reset () = assembly := []; declarations := []; serial := 0; va_parameter := None
++  let word () = (!Machine.config).sizeof_ptr
++  let align n a = (n + a - 1) / a * a
++  let size env ty = match sizeof env ty with Some n -> n | None -> assert false
++  let alignment env ty = match alignof env ty with Some n -> n | None -> assert false
++  let ptr = TPtr(TVoid [], [])
++  let fresh prefix = incr serial; Env.fresh_ident (Printf.sprintf "__compcert_fp32_%s_%d" prefix !serial)
++  let aggregate env ty = is_composite_type env ty
++  let rec fields env base ty =
++    match unroll env ty with
++    | TStruct(id, _) ->
++        let ci = Env.find_struct env id in
++        let pos=ref 0 in
++        List.concat (List.map (fun f ->
++          match f.fld_bitfield with
++          | Some width ->
++              let a=8 * alignment env f.fld_typ and n=8 * size env f.fld_typ in
++              let next=(!pos/a)*a+n in
++              let start=if width=0 then align !pos a
++                        else if !pos+width<=next then !pos else next in
++              pos:=start+width;
++              if width=0 then [] else [base+start/8,(width+7)/8,false,start mod 8,width]
++          | None ->
++              let off=offsetof env ty f in
++              pos:=8*(off+size env f.fld_typ);
++              fields env (base+off) f.fld_typ) ci.Env.ci_members)
++    | TArray(t, Some n, _) when n = 0L || size env t = 0 -> []
++    | TArray(t, Some n, _) ->
++        if n > 2L then raise Exit;
++        List.concat (List.init (Int64.to_int n) (fun i -> fields env (base + i * size env t) t))
++    | TFloat(FFloat, _) -> [base, 4, true, 0, 0]
++    | TInt _ | TEnum _ -> [base, size env ty, false, 0, 0]
++    | TUnion _ when size env ty = 0 -> []
++    | TUnion _ | TFloat _ | TArray _ | TPtr _ | TVoid _ | TFun _ | TNamed _ -> raise Exit
++  let gpr st bytes narrow =
++    if st.ri < 8 then begin let i = st.ri in st.ri <- i + 1; {pos=0; bytes; loc=G i; narrow;shift=0;bits=0} end
++    else begin
++      st.stack <- align st.stack (word ());
++      let o = st.stack in st.stack <- o + word (); {pos=0; bytes; loc=S o; narrow;shift=0;bits=0}
++    end
++  let classify env st named ty =
++    let w = word () in
++    let sz = size env ty in
++    let make indirect pieces = {size=sz; indirect; pieces} in
++    if aggregate env ty then begin
++      let flat = try fields env 0 ty with Exit -> [] in
++      let nf = List.length (List.filter (fun (_,_,f,_,_) -> f) flat) in
++      let ni = List.length flat - nf in
++      if named && nf > 0 && nf <= 2 && ni <= 1 && nf + ni <= 2
++         && st.rf + nf <= 8 && st.ri + ni <= 8
++         && List.for_all (fun (_,n,f,_,_) -> f || n <= w) flat then
++        make false (List.map (fun (pos,bytes,f,shift,bits) ->
++          let loc = if f then (let i=st.rf in st.rf<-i+1; F i)
++                    else (let i=st.ri in st.ri<-i+1; G i) in
++          {pos;bytes;loc;narrow=false;shift;bits}) flat)
++      else if sz = 0 then make false []
++      else if sz > 2*w then make true [gpr st w false]
++      else begin
++        let al = min 16 (max w (alignment env ty)) in
++        if not named && al > w then st.ri <- align st.ri 2;
++        if st.ri >= 8 then st.stack <- align st.stack al;
++        let parts = List.init ((sz+w-1)/w) (fun i ->
++          let p = gpr st (min w (sz-i*w)) false in {p with pos=i*w}) in
++        make false parts
++      end
++    end else match unroll env ty with
++    | TFloat(FFloat, _) when named && st.rf < 8 ->
++        let i=st.rf in st.rf<-i+1; make false [{pos=0;bytes=4;loc=F i;narrow=false;shift=0;bits=0}]
++    | _ ->
++        let bytes = max 4 sz in
++        if bytes > w && not named then st.ri <- align st.ri 2;
++        if st.ri >= 8 then st.stack <- align st.stack (max w bytes);
++        make false (List.init ((bytes+w-1)/w) (fun i ->
++          let p=gpr st (min w (bytes-i*w)) (bytes=4) in {p with pos=i*w}))
++  let state () = {ri=0;rf=0;stack=0}
++  let result env ty =
++    if is_void_type env ty then {size=0;indirect=false;pieces=[]}
++    else classify env (state ()) true ty
++  let declare id ty =
++    declarations := {gdesc=Gdecl(Storage_extern,id,ty,None);gloc=Diagnostics.no_loc} :: !declarations
++
++  (* Bridges snapshot input registers before constructing the other ABI's
++     argument list. All composite transfers use bytes, including packed fields. *)
++  let bridge env name public target outgoing ret args fixed variadic =
++    let w=word () in
++    let aggret=aggregate env ret in
++    let extret=result env ret in
++    let src=state () and dst=state () in
++    let internal_result st = if aggret then Some(classify env st true ptr) else None in
++    let external_result st = if extret.indirect then Some(classify env st true ptr) else None in
++    let srcres=if outgoing then internal_result src else external_result src in
++    let dstres=if outgoing then external_result dst else internal_result dst in
++    let srcfn=if outgoing then Some(classify env src true ptr) else None in
++    let sty=List.map (fun t -> if outgoing && aggregate env t then ptr else t) args in
++    let srcargs=List.mapi (fun i t -> classify env src (outgoing || i<fixed) t) sty in
++    let dty=List.map (fun t -> if not outgoing && aggregate env t then ptr else t) args in
++    let dstargs=List.mapi (fun i t -> classify env dst (not outgoing || i<fixed) t) dty in
++    let dstva=if variadic then Some(classify env dst true ptr) else None in
++    let b=Buffer.create 2048 in
++    let emit fmt=Printf.ksprintf (fun s -> Buffer.add_string b (s ^ "\n")) fmt in
++    let cursor=ref (align dst.stack 16) in
++    let reserve ?(a=w) n = cursor:=align !cursor a; let o= !cursor in cursor:=o+align n w; o in
++    let savedra=reserve w in
++    let saveds0=reserve w in
++    let snapshot=reserve (8*w+32) in
++    let registers=reserve (8*w+32) in
++    let hidden=reserve w in
++    let functionptr=reserve w in
++    let retalign=if is_void_type env ret then w else alignment env ret in
++    let retbuf=reserve ~a:(max w retalign) (max w extret.size) in
++    let bufs=List.map (fun ty -> reserve ~a:(max w (alignment env ty)) (max w (size env ty))) args in
++    let frame=align (!cursor+8*w) 16 in
++    let framealign=List.fold_left max (max 16 retalign) (List.map (alignment env) args) in
++    let load=if w=8 then "ld" else "lw" in
++    let store=if w=8 then "sd" else "sw" in
++    let mem op reg base off =
++      if off >= -2048 && off <= 2047 then emit "\t%s %s,%d(%s)" op reg off base
++      else begin emit "\tli t6,%d" off; emit "\tadd t6,%s,t6" base; emit "\t%s %s,0(t6)" op reg end in
++    let addr reg off =
++      if off <= 2047 then emit "\taddi %s,sp,%d" reg off
++      else begin emit "\tli %s,%d" reg off; emit "\tadd %s,sp,%s" reg reg end in
++    let input p = match p.loc with
++      | G i -> "s0",(i-8)*w
++      | F i -> "sp",snapshot+8*w+i*4
++      | S o -> "s0",o in
++    let copy srcbase srcoff dstbase dstoff n =
++      if n>0 then begin
++        if srcbase="sp" then addr "t0" srcoff
++        else begin emit "\tmv t0,%s" srcbase;
++          if srcoff<>0 then (emit "\tli t6,%d" srcoff; emit "\tadd t0,t0,t6") end;
++        if dstbase="sp" then addr "t1" dstoff
++        else begin emit "\tmv t1,%s" dstbase;
++          if dstoff<>0 then (emit "\tli t6,%d" dstoff; emit "\tadd t1,t1,t6") end;
++        emit "\tli t2,%d" n;
++        let label=Printf.sprintf ".L%s_copy_%d" name (Buffer.length b) in
++        emit "%s:" label; emit "\tlbu t3,0(t0)"; emit "\tsb t3,0(t1)";
++        emit "\taddi t0,t0,1"; emit "\taddi t1,t1,1";
++        emit "\taddi t2,t2,-1"; emit "\tbnez t2,%s" label
++      end in
++    let bitcopy srcbase srcoff srcshift dstoff dstshift bits =
++      for i=0 to bits-1 do
++        let source=srcshift+i and dest=dstshift+i in
++        mem "lbu" "t0" srcbase (srcoff+source/8);
++        emit "\tsrli t0,t0,%d" (source mod 8); emit "\tandi t0,t0,1";
++        emit "\tslli t0,t0,%d" (dest mod 8);
++        mem "lbu" "t1" "sp" (dstoff+dest/8);
++        emit "\tandi t1,t1,%d" (255 lxor (1 lsl (dest mod 8)));
++        emit "\tor t0,t0,t1"; mem "sb" "t0" "sp" (dstoff+dest/8)
++      done in
++    let extract p source dest =
++      if p.bits=0 then copy "sp" source "sp" dest p.bytes
++      else (mem store "zero" "sp" dest; bitcopy "sp" source p.shift dest 0 p.bits) in
++    let insert p base source dest =
++      if p.bits=0 then copy base source "sp" dest p.bytes
++      else bitcopy base source 0 dest p.shift p.bits in
++    let pointer v = match v.pieces with
++      | [p] -> let base,off=input p in mem load "t4" base off
++      | _ -> assert false in
++    let capture v buf = List.iter (fun p -> let base,off=input p in insert p base off (buf+p.pos)) v.pieces in
++    let output v buf address = List.iter (fun p ->
++      let offset=match p.loc with G i -> registers+i*w | F i -> registers+8*w+i*4 | S o -> o in
++      if address then (addr "t0" buf; mem store "t0" "sp" offset)
++      else begin
++        extract p (buf+p.pos) offset;
++        match p.loc with
++        | S _ when w=8 && p.narrow -> mem "lw" "t0" "sp" offset; mem store "t0" "sp" offset
++        | _ -> ()
++      end) v.pieces in
++    emit "\t.text"; emit "\t.balign 4";
++    emit "\t%s %s" (if public then ".globl" else ".local") name;
++    emit "\t.type %s,@function" name; emit "%s:" name;
++    emit "\tmv t4,sp";
++    if frame <= 2048 then emit "\taddi sp,sp,-%d" frame
++    else (emit "\tli t6,%d" frame; emit "\tsub sp,sp,t6");
++    if framealign<=2048 then emit "\tandi sp,sp,%d" (-framealign)
++    else (emit "\tli t6,%d" (-framealign); emit "\tand sp,sp,t6");
++    mem store "s0" "sp" saveds0;
++    emit "\tmv s0,t4";
++    mem store "ra" "sp" savedra;
++    for i=0 to 7 do mem store (Printf.sprintf "a%d" i) "s0" ((i-8)*w) done;
++    for i=0 to 7 do mem "fsw" (Printf.sprintf "fa%d" i) "sp" (snapshot+8*w+i*4) done;
++    (match srcres with None -> () | Some v -> pointer v; mem store "t4" "sp" hidden);
++    (match srcfn with None -> () | Some v -> pointer v; mem store "t4" "sp" functionptr);
++    List.iter2 (fun (ty,v) buf ->
++      if v.indirect || (outgoing && aggregate env ty) then
++        (pointer v; copy "t4" 0 "sp" buf (size env ty))
++      else capture v buf) (List.combine args srcargs) bufs;
++    List.iter2 (fun (ty,v) buf -> output v buf (v.indirect || (not outgoing && aggregate env ty)))
++      (List.combine args dstargs) bufs;
++    (match dstres with None -> () | Some v -> output v retbuf true);
++    (match dstva with None -> () | Some v ->
++      let off=if src.ri<8 then (src.ri-8)*w else src.stack in
++      if off>= -2048 && off<=2047 then emit "\taddi t0,s0,%d" off
++      else (emit "\tli t0,%d" off; emit "\tadd t0,s0,t0");
++      List.iter (fun p -> let off=match p.loc with G i->registers+i*w | S o->o | F _->assert false in
++        mem store "t0" "sp" off) v.pieces);
++    List.iter (fun v -> List.iter (fun p -> match p.loc with
++      | G i -> mem (if w=8 && p.narrow then "lw" else load) (Printf.sprintf "a%d" i) "sp" (registers+i*w)
++      | F i -> mem "flw" (Printf.sprintf "fa%d" i) "sp" (registers+8*w+i*4)
++      | S _ -> ()) v.pieces)
++      ((match dstres with Some v->[v] | None->[]) @ dstargs @ (match dstva with Some v->[v] | None->[]));
++    if outgoing then (mem load "t5" "sp" functionptr; emit "\tjalr ra,t5,0")
++    else emit "\tcall %s" target;
++    let returned=if outgoing then extret else if aggret then {extret with pieces=[]} else result env ret in
++    if not returned.indirect && returned.pieces <> [] then begin
++      for i=0 to 1 do mem store (Printf.sprintf "a%d" i) "sp" (registers+i*w) done;
++      for i=0 to 1 do mem "fsw" (Printf.sprintf "fa%d" i) "sp" (registers+8*w+i*4) done;
++      List.iter (fun p ->
++        let off=match p.loc with G i->registers+i*w | F i->registers+8*w+i*4 | S _->assert false in
++        insert p "sp" off (retbuf+p.pos)) returned.pieces
++    end;
++    if (outgoing && aggret) || (not outgoing && extret.indirect) then
++      (mem load "t4" "sp" hidden; copy "sp" retbuf "t4" 0 extret.size)
++    else List.iter (fun p ->
++      let slot=match p.loc with G i->registers+i*w | F i->registers+8*w+i*4 | S _->assert false in
++      extract p (retbuf+p.pos) slot;
++      match p.loc with
++      | G i -> mem (if w=8 && p.narrow then "lw" else load) (Printf.sprintf "a%d" i) "sp" slot
++      | F i -> mem "flw" (Printf.sprintf "fa%d" i) "sp" slot
++      | S _ -> assert false) extret.pieces;
++    mem load "ra" "sp" savedra;
++    emit "\tmv t5,s0";
++    mem load "s0" "sp" saveds0;
++    emit "\tmv sp,t5";
++    emit "\tret"; emit "\t.size %s,.-%s" name name;
++    if not outgoing then emit "\t.local %s" target;
++    assembly := Buffer.contents b :: !assembly
++
++  let needs env ret args = enabled () && (aggregate env ret || List.exists (aggregate env) args)
++  let signature env fn =
++    let rec function_type ty = match unroll env ty with TPtr(t,_) -> function_type t | t -> t in
++    match function_type fn.etyp with
++    | TFun(_,Some ps,_,_) -> Some(List.map snd ps)
++    | TFun(_,None,_,_) -> None
++    | _ -> assert false
++  let outgoing env ret fn args =
++    let id=fresh "call" in
++    let signature=signature env fn in
++    let formal=Option.value ~default:[] signature in
++    let fixed=match signature with Some ps->List.length ps | None->List.length args in
++    let types=List.mapi (fun i e ->
++      if i<List.length formal then argument_conversion env (List.nth formal i)
++      else default_argument_conversion env e.etyp) args in
++    let params=(if aggregate env ret then [ptr] else []) @ [ptr] @
++      List.map (fun ty->if aggregate env ty then ptr else ty) types in
++    let ty=TFun((if aggregate env ret then TVoid [] else ret),
++      Some(List.map (fun t->Env.fresh_ident "arg",t) params),false,[]) in
++    declare id ty;
++    bridge env id.C.name false "" true ret types fixed false;
++    {edesc=EVar id;etyp=ty}
++
++end
++
++let reset_fp32 = Fp32.reset
++let fp32_assembly () = List.rev !(Fp32.assembly)
++
++let check_fp32_interface env result params =
++  if Configuration.abi = "fp32" then begin
++    let rec long_double ty = match unroll env ty with
++      | TFloat(FLongDouble, _) -> true
++      | TStruct(id, _) -> List.exists (fun f -> long_double f.fld_typ) (Env.find_struct env id).Env.ci_members
++      | TUnion(id, _) -> List.exists (fun f -> long_double f.fld_typ) (Env.find_union env id).Env.ci_members
++      | TArray(t, _, _) -> long_double t
++      | _ -> false in
++    if long_double result || List.exists long_double params then
++      Diagnostics.fatal_error_raw "FP32: long double interfaces are unsupported\n"
++  end
++
+ (* Classification of function return types. *)
+ 
+ type return_kind =
+@@ -36,6 +314,7 @@ type return_kind =
+                        (type, size, alignment) *)
+ 
+ let classify_return env ty =
++  if Fp32.enabled () && is_composite_type env ty then Ret_ref else
+   if is_composite_type env ty then begin
+     match sizeof env ty, alignof env ty with
+     | Some sz, Some al ->
+@@ -316,6 +595,7 @@ let rec transf_expr env ctx e =
+ *)
+ 
+ and transf_call env ctx opt_lhs fn args ty =
++  check_fp32_interface env ty (List.map (fun e -> e.etyp) args);
+   let ty' = transf_type env ty in
+   let fn' = transf_expr env Val fn in
+   let opt_eassign e =
+@@ -323,6 +603,9 @@ and transf_call env ctx opt_lhs fn args ty =
+     | None -> e
+     | Some lhs -> eassign lhs e in
+   match fn with
++  | {edesc=EVar {C.name="__builtin_va_start"}} when !(Fp32.va_parameter) <> None ->
++      let ap=List.hd args in
++      eassign (transf_expr env Val ap) (Option.get !(Fp32.va_parameter))
+   | {edesc = EVar { C.name = "__builtin_va_arg"
+                            | "__builtin_annot"
+                            | "__builtin_annot_intval"
+@@ -333,6 +616,10 @@ and transf_call env ctx opt_lhs fn args ty =
+     opt_eassign {edesc = ECall(fn, args'); etyp = ty}
+   | _ ->
+     let (assignments, args') = transf_arguments env args in
++    let fn', args' =
++      if Fp32.needs env ty (List.map (fun e -> e.etyp) args) then
++        (Fp32.outgoing env ty fn args, ecast Fp32.ptr fn' :: args')
++      else fn', args' in
+     let call =
+       match classify_return env ty with
+       | Ret_scalar ->
+@@ -542,12 +829,27 @@ let rec transf_funparams loc env params =
+            IdentMap.add x (ereinterpret tx' y) subst)
+ 
+ let transf_fundef env loc f =
++  check_fp32_interface env f.fd_ret (List.map snd f.fd_params);
++  let wrapped = Fp32.needs env f.fd_ret (List.map snd f.fd_params) in
++  let original = f in
++  let f = if wrapped then begin
++    let body = Fp32.fresh "body" in
++    Fp32.declare f.fd_name (transf_type env (fundef_typ f));
++    Fp32.bridge env f.fd_name.C.name (f.fd_storage <> Storage_static) body.C.name false
++      f.fd_ret (List.map snd f.fd_params) (List.length f.fd_params) f.fd_vararg;
++    {f with fd_name=body; fd_storage=Storage_default; fd_inline=false}
++  end else f in
+   reset_temps();
+   let ret = transf_type env f.fd_ret in
+   let (params, actions, subst) =
+     transf_funparams f.fd_body.sloc env f.fd_params in
+   let locals =
+     List.map (fun d -> transf_decl env loc (subst_decl subst d)) f.fd_locals in
++  let va = if wrapped && f.fd_vararg then begin
++    let id=Env.fresh_ident "_va_area" in
++    Fp32.va_parameter := Some {edesc=EVar id;etyp=Fp32.ptr};
++    [id,Fp32.ptr]
++  end else [] in
+   let (attr1, ret1, params1, body1) =
+     match classify_return env f.fd_ret with
+     | Ret_scalar ->
+@@ -569,10 +871,12 @@ let transf_fundef env loc f =
+          ty,
+          params,
+          transf_funbody env (subst_stmt subst f.fd_body) None) in
++  Fp32.va_parameter := None;
+   let temps = get_temps() in
+   {f with fd_attrib = attr1;
++          fd_vararg = (original.fd_vararg && not wrapped);
+           fd_ret = ret1;
+-          fd_params = params1;
++          fd_params = params1 @ va;
+           fd_locals = locals @ temps;
+           fd_body = sseq f.fd_body.sloc actions body1}
+ 
+@@ -584,17 +888,20 @@ let transf_composite env loc su id attr fl =
+ (* Entry point *)
+ 
+ let program p =
++  Fp32.reset ();
+   struct_passing_style :=
+     if !Clflags.option_interp
+     then SP_ref_callee
++    else if Fp32.enabled () then SP_ref_caller
+     else !Machine.config.struct_passing_style;
+   struct_return_style :=
+     if !Clflags.option_interp
+     then SR_ref
+     else !Machine.config.struct_return_style;
+-  Transform.program
++  let p' = Transform.program
+     ~decl:transf_decl
+     ~fundef:transf_fundef
+     ~composite:transf_composite
+     ~typedef:(fun env loc id ty -> transf_type env ty)
+-    p
++    p in
++  p' @ List.rev !(Fp32.declarations)
+diff --git a/cparser/StructPassing.mli b/cparser/StructPassing.mli
+index 3ac4249..21f050f 100644
+--- a/cparser/StructPassing.mli
++++ b/cparser/StructPassing.mli
+@@ -15,3 +15,6 @@
+ (* *********************************************************************)
+ 
+ val program: C.program -> C.program
++
++val reset_fp32: unit -> unit
++val fp32_assembly: unit -> string list
+diff --git a/driver/Frontend.ml b/driver/Frontend.ml
+index 2355dce..2050ef9 100644
+--- a/driver/Frontend.ml
++++ b/driver/Frontend.ml
+@@ -85,6 +85,7 @@ let preprocess ifile ofile =
+ (* From preprocessed C to Csyntax *)
+ 
+ let parse_c_file sourcename ifile =
++  StructPassing.reset_fp32 ();
+   Debug.init_compile_unit sourcename;
+   Sections.initialize();
+   CPragmas.reset();
 diff --git a/riscV/Archi.v b/riscV/Archi.v
 index 52802f9..a3c3c6b 100644
 --- a/riscV/Archi.v
@@ -41,7 +736,7 @@ index 52802f9..a3c3c6b 100644
  Definition big_endian := false.
  
 diff --git a/riscV/Asmexpand.ml b/riscV/Asmexpand.ml
-index 7e9773d..e832bb4 100644
+index 7e9773d..e75f844 100644
 --- a/riscV/Asmexpand.ml
 +++ b/riscV/Asmexpand.ml
 @@ -181,7 +181,7 @@ let expand_builtin_memcpy_small sz al src dst =
@@ -62,28 +757,39 @@ index 7e9773d..e832bb4 100644
        (Pfld (F0, s, Ofsimm _0), Pfsd (F0, d, Ofsimm _0), 8)
      else if al >= 4 then
        (Plw (X31, s, Ofsimm _0), Psw (X31, d, Ofsimm _0), 4)
-@@ -809,12 +809,199 @@ let preg_to_dwarf = function
+@@ -809,12 +809,210 @@ let preg_to_dwarf = function
     | FR r -> float_reg_to_dwarf r
     | _ -> assert false
  
 +(* The profile keeps the existing abstract register model. Only FP32
 +   producers, transport and consumers may reach its narrower printer. *)
++let fp32_calls = Configuration.abi = "fp32"
++
++let fp32_error reason =
++  raise (Error ((if fp32_calls then "FP32: " else "FP32 kernel: ") ^ reason))
++
 +let check_fp32_kernel_signature sg =
-+  let integer_type = function
++  let supported_type = function
 +    | Tint | Tlong | Tany32 -> true
-+    | Tfloat | Tsingle | Tany64 -> false in
-+  if sg.sig_cc.cc_vararg <> None
-+     || not (List.for_all integer_type (proj_sig_args sg))
-+     || not (integer_type (proj_sig_res sg)) then
-+    raise (Error "FP32 kernel: only non-variadic integer/pointer interfaces are supported")
++    | Tsingle -> fp32_calls
++    | Tfloat | Tany64 -> false in
++  let bad_types =
++    not (List.for_all supported_type (proj_sig_args sg))
++    || not (supported_type (proj_sig_res sg)) in
++  if fp32_calls then begin
++    if bad_types then
++      fp32_error "FP64 or opaque FP interfaces are unsupported"
++  end else if sg.sig_cc.cc_vararg <> None || bad_types then
++    fp32_error "only non-variadic integer/pointer interfaces are supported"
 +
 +let check_fp32_kernel_instruction = function
 +  | Pj_r (X1, _) -> ()
-+  | Pjal_s _ | Pjal_r _ | Pj_s _ | Pj_r _ ->
-+      raise (Error "FP32 kernel: calls and tail calls are unsupported")
++  | Pjal_s (_, sg) | Pjal_r (_, sg) | Pj_s (_, sg) | Pj_r (_, sg) ->
++      if fp32_calls then check_fp32_kernel_signature sg
++      else fp32_error "calls and tail calls are unsupported"
 +  | Pbuiltin ((EF_annot _ | EF_debug _), _, _) -> ()
 +  | Pbuiltin _ ->
-+      raise (Error "FP32 kernel: unexpanded builtins and inline assembly are unsupported")
++      fp32_error "unexpanded builtins and inline assembly are unsupported"
 +  | Pmv (_, _)
 +  | Paddiw (_, _, _)
 +  | Psltiw (_, _, _)
@@ -247,7 +953,7 @@ index 7e9773d..e832bb4 100644
 +  | Pallocframe (_, _)
 +  | Pfreeframe (_, _)
 +  | Ploadfi (_, _) ->
-+      raise (Error "FP32 kernel: FP64 or unsupported instruction")
++      fp32_error "FP64 or unsupported instruction"
 +
  let expand_function id fn =
    try
@@ -291,14 +997,40 @@ index f4cea9d..50b6561 100644
           fprintf oc "	fmv.x.s	%a, %a\n"     ireg rd freg fs
        | Pfmvsx (fd,rs) ->
 diff --git a/riscV/extractionMachdep.v b/riscV/extractionMachdep.v
-index 84de6a0..7afff05 100644
+index 84de6a0..dcf559c 100644
 --- a/riscV/extractionMachdep.v
 +++ b/riscV/extractionMachdep.v
-@@ -21,6 +21,7 @@ Require Archi Asm SelectOp.
+@@ -21,6 +21,8 @@ Require Archi Asm SelectOp.
  (* Archi *)
  
  Extract Constant Archi.ptr64 => " Configuration.model = ""64"" ".
-+Extract Constant Archi.fp32_kernel => " Configuration.abi = ""fp32-kernel"" ".
++Extract Constant Archi.fp32_kernel =>
++  " Configuration.abi = ""fp32-kernel"" || Configuration.abi = ""fp32"" ".
  
  (* SelectOp *)
  
+diff --git a/runtime/riscV/vararg.S b/runtime/riscV/vararg.S
+index a3bdc32..693f095 100644
+--- a/runtime/riscV/vararg.S
++++ b/runtime/riscV/vararg.S
+@@ -70,6 +70,12 @@ FUNCTION(__compcert_va_int64)
+ 	jr	ra
+ ENDFUNCTION(__compcert_va_int64)
+ 
++
++#ifdef __riscv_float_abi_single
++FUNCTION(__compcert_va_float64)
++	j	__compcert_va_int64
++ENDFUNCTION(__compcert_va_float64)
++#else
+ FUNCTION(__compcert_va_float64)
+ 				# a0 = ap parameter
+ 	lptr	t5, 0(a0)	# t5 = pointer to next argument
+@@ -79,6 +85,7 @@ FUNCTION(__compcert_va_float64)
+ 	fld	fa0, -8(t5)	# return it in fa0
+ 	jr	ra
+ ENDFUNCTION(__compcert_va_float64)
++#endif
+ 
+ // Right now we pass structs by reference.  This is not ABI conformant.
+ FUNCTION(__compcert_va_composite)

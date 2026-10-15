@@ -116,3 +116,5 @@ echo "PASS RV$bits: original D profile compiles and executes double interfaces"
 
 "$root/tools/compcert-fp32-suite.sh" "$bits" "$PWD/ccomp" \
   "$work/fp32.ini" "$PWD/compcert.ini"
+
+"$root/tools/compcert-fp32-calls-test.sh" "$bits" "$PWD/ccomp" "$PWD/compcert.ini"
