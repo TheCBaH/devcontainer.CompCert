@@ -8,15 +8,20 @@ license does not cover CompCert-derived code.
 unexpected upstream revision. Normal builds, cross-smokes and exports use
 this preparation step. Export manifests identify every applied patch by hash.
 
-`0001-riscv-fp32-kernels.patch` adds experimental `rv32-fp32-kernel` and
-`rv64-fp32-kernel` configure targets. Existing targets retain their D ABI.
-The new targets are freestanding, with integer ILP32/LP64 interfaces and
-native F instructions. Only leaf functions with non-variadic integer/pointer
-parameters and results are accepted. Float data is passed through pointers.
-FP64, opaque 64-bit FP transport, calls, tail calls and inline assembly are
-rejected after builtin expansion. Optimizations can remove unsupported source
-operations; restrictions apply to retained code. Use explicit `f` suffixes
-for float constants.
+`0001-riscv-fp32-kernels.patch` adds these experimental freestanding targets.
+Existing targets retain their D ABI.
+
+| Targets | GNU ABI | Supported interfaces |
+| --- | --- | --- |
+| `rv32-fp32-kernel`, `rv64-fp32-kernel` | ILP32, LP64 | Leaf functions with integer/pointer parameters and results |
+| `rv32-fp32`, `rv64-fp32` | ILP32F, LP64F | Scalar integer/pointer/FP32 parameters and results; direct, indirect and tail calls |
+
+Both profiles use native F instructions and reject FP64, opaque 64-bit FP
+transport and inline assembly after builtin expansion. The call-capable
+profiles also reject variadic signatures and aggregate-by-value definitions
+and calls. Structs accessed through pointers remain supported. Optimizations
+can remove unsupported source operations; instruction restrictions apply to
+retained code. Use explicit `f` suffixes for float constants.
 
 The allocator uses only FP caller-save registers; float spills remain 32 bits.
 Generic FP moves print as `fmv.s` and RV32 composite copies use integer
@@ -28,8 +33,8 @@ This is an experimental compiler restriction, not a new end-to-end formal
 correctness result. Existing Rocq proofs are rebuilt and checked, but the
 FP32 restriction and narrower printing are implemented in the unverified
 assembly expansion/printing stage. A proof connecting that restriction to
-the F-only machine remains future work, as do general calls/FP interfaces
-and software double arithmetic.
+the F-only machine remains future work, as do aggregate-by-value ABI support,
+variadic calls and software double arithmetic.
 
 Run inside the devcontainer:
 
@@ -46,6 +51,22 @@ RV32 kernel in the same devcontainer:
   -fno-pie -S kernel.c
 ```
 
+For the call-capable RV32 profile, use the same compiler with
+`-conf .fp32-work/rv32/calls/calls.ini`, and compile the caller and runtime
+with `-march=rv32imf_zicsr -mabi=ilp32f`. RV64 uses `rv64imf_zicsr` and
+`lp64f`. Named scalar floats use `fa0`–`fa7`, with overflow in integer
+registers or on the stack; scalar float results use `fa0`. The allocator
+currently avoids `fs0`–`fs11` and spills live FP32 values across calls.
+
+The [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/)
+defines the F ABIs with ABI_FLEN=32. `double` remains 64 bits, and variadic
+`float` arguments are promoted to `double` and passed using integer rules.
+RV32 uses aligned register pairs; RV64 uses one integer register. Full support
+requires software-double lowering and a matching runtime, which this patch
+does not supply. F-ABI and D-ABI objects cannot be linked together normally;
+all dependencies must also avoid D instructions. Selecting an F ABI alone
+does not restrict a library's instruction set.
+
 The caller, startup code and linker must use a matching integer ABI and ISA.
 These kernels need no CompCert runtime, but the surrounding program must
 provide the target's startup and execution environment.
@@ -60,46 +81,59 @@ indirect calls, inline assembly, and RV32 float-to-int64 widening. A final
 configuration check compiles and executes the original D ABI and double
 arithmetic.
 
+The call tests compile separate CompCert and GCC translation units and
+execute with D disabled. They cover FP32 arguments/results, mixed arguments,
+18-float overflow into integer registers and the stack, signed zero and NaN
+payload transport, direct/indirect/tail calls, recursion, 40 values live
+across a deliberately clobbering callee, stack alignment and `fs0`–`fs11`
+preservation. Negative cases cover double calls, promotions, variadics and
+aggregate interfaces. A linker probe rejects F/D ABI mixing, and GCC's
+varargs reference must use `__extendsfdf2` without D.
+
 Both FP32 jobs also examine every C translation unit in the pinned upstream
 small-test suite, including its generated ABI cases. `upstream/results.tsv`
 under each `.fp32-work/rv<bits>/` records compilation and assembly passes,
 FP32-profile rejections, and cases rejected by the ordinary RISC-V compiler.
-`test/riscv-fp32/upstream-rv<bits>.tsv` is the reviewed acceptance baseline;
+The call profile has a second report in `calls/upstream/results.tsv`.
+`test/riscv-fp32/upstream-rv<bits>.tsv` and `upstream-calls-rv<bits>.tsv`
+are the reviewed acceptance baselines;
 CI fails on changes to it, unexpected compiler failures, assembly failures,
 or execution failures. Baseline and profile rejections are not test passes.
 
 At the pinned test revision, RV32 and RV64 have the same acceptance:
 
-| Suite | C units | Compile and assemble | Profile rejected | Baseline rejected |
+| Suite | C units | Kernel accepted | Calls accepted | Baseline rejected |
 | --- | ---: | ---: | ---: | ---: |
-| c | 24 | 0 | 24 | 0 |
-| regression | 108 | 12 | 91 | 5 |
-| compression | 12 | 1 | 11 | 0 |
-| raytracer | 14 | 0 | 14 | 0 |
-| spass | 51 | 1 | 50 | 0 |
-| abi, including generated cases | 8 | 0 | 8 | 0 |
+| c | 24 | 0 | 0 | 0 |
+| regression | 108 | 12 | 16 | 5 |
+| compression | 12 | 1 | 8 | 0 |
+| raytracer | 14 | 0 | 2 | 0 |
+| spass | 51 | 1 | 16 | 0 |
+| abi, including generated cases | 8 | 0 | 0 | 0 |
 | pic | 4 | 1 | 3 | 0 |
-| export C inputs | 6 | 4 | 2 | 0 |
-| Total | 227 | 19 | 203 | 5 |
+| export C inputs | 6 | 4 | 6 | 0 |
+| Total | 227 | 19 | 51 | 5 |
 
-The first profile diagnostic reports calls in 172 cases, FP/variadic interfaces
+The kernel profile's first diagnostic reports calls in 172 cases, FP/variadic interfaces
 in 19, FP64 or unsupported instructions in 11, and inline assembly in one.
 The five baseline rejections are `funct1.c` (an upstream negative test) and
 the four builtin tests for other architectures. Some accepted units only
 define data; compilation acceptance does not imply a runnable program.
 
 The census preprocesses with the ordinary D-ABI configuration and CompCert's
-headers, since the installed glibc headers do not provide the integer ABI.
+headers, since the installed glibc headers do not provide the F-only ABIs.
 The same preprocessed C is compiled by both configurations. This checks
 backend acceptance; it does not establish F-only libc compatibility.
 
-Eight accepted upstream leaf sources run with new integer-ABI harnesses and
+Eight accepted upstream leaf sources run with harnesses using the selected ABI and
 D disabled: `regression/{expr3,expr4,extern1,ptrs1,struct9,types1}.c` and
 `export/{bitfields,issue216}.c`. Upstream source files are unchanged.
-`upstream/execution.tsv` records these results separately. These harnesses
-do not constitute a run of the complete upstream executables: programs
-requiring calls, FP-valued interfaces, doubles or libc remain unsupported by
-the experimental profile. The existing kernel fixtures exercise native FP32.
+`upstream/execution.tsv` records these results separately for each profile.
+The call profile also runs the unchanged `export/issue319.c` program, checking
+its expected exit status of 48. These checks do not constitute a run of all
+upstream executables; all 24 complete `test/c` benchmarks remain rejected.
+There are 203 kernel-profile and 171 call-profile rejections. Some accepted
+units only define data. The existing kernel fixtures exercise native FP32.
 
 The first milestone does not add these experimental profiles to the published
 six-target artifact matrix. No release or downstream pin update is needed to

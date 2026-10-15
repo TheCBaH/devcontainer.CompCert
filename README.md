@@ -106,8 +106,9 @@ is [TheCBaH/rivet-compcert](https://github.com/TheCBaH/rivet-compcert). The
 history of both starts from this repository; the last commit that still holds
 the assembler is tagged `pre-split`.
 
-## Experimental RISC-V FP32 kernels
+## Experimental RISC-V FP32
 
-The source patch adds F-only leaf-kernel profiles for RV32 and RV64. See
+The source patch adds F-only kernel profiles and scalar FP32 function calls
+with ILP32F/LP64F on RV32/RV64. See
 [scope, limitations and validation](patches/compcert/README.md). Run
 `make compcert-fp32-test RISCV_BITS=32` or `RISCV_BITS=64` in the devcontainer.

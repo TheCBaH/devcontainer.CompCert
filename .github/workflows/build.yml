@@ -104,5 +104,16 @@ jobs:
           .fp32-work/rv${{ matrix.bits }}/upstream/metadata.txt
           .fp32-work/rv${{ matrix.bits }}/upstream/evidence/**/*.log
           .fp32-work/rv${{ matrix.bits }}/upstream/evidence/**/*.elf
+          .fp32-work/rv${{ matrix.bits }}/upstream/test/**
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.s
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.c
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.log
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.elf
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.tsv
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.ini
+          .fp32-work/rv${{ matrix.bits }}/calls/**/elf-attributes.txt
+          .fp32-work/rv${{ matrix.bits }}/calls/**/metadata.txt
+          .fp32-work/rv${{ matrix.bits }}/calls/fixtures/**
+          .fp32-work/rv${{ matrix.bits }}/calls/upstream/test/**
         retention-days: 7
         if-no-files-found: ignore
