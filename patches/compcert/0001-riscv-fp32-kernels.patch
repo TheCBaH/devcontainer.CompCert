@@ -1,0 +1,304 @@
+diff --git a/configure b/configure
+index 3ed6b87..b67e2cc 100755
+--- a/configure
++++ b/configure
+@@ -57,6 +57,8 @@ Supported targets:
+   x86_64-cygwin        (x86 64 bits, Cygwin environment under Windows)
+   rv32-linux           (RISC-V 32 bits, Linux)
+   rv64-linux           (RISC-V 64 bits, Linux)
++  rv32-fp32-kernel     (experimental RISC-V 32-bit FP32 leaf kernels)
++  rv64-fp32-kernel     (experimental RISC-V 64-bit FP32 leaf kernels)
+   aarch64-linux        (AArch64, i.e. ARMv8 in 64-bit mode, Linux)
+   aarch64-macos        (AArch64, i.e. Apple silicon, MacOS)
+   manual               (edit configuration file by hand)
+@@ -411,6 +413,16 @@ if test "$arch" = "riscV"; then
+     model_options="-mabi=ilp32d"
+   fi
+   abi="standard"
++  if test "$target" = "fp32-kernel"; then
++    abi="fp32-kernel"
++    if test "$model" = "64"; then
++      model_options="-march=rv64imf_zicsr -mabi=lp64"
++    else
++      model_options="-march=rv32imf_zicsr -mabi=ilp32"
++    fi
++    has_runtime_lib=false
++    has_standard_headers=false
++  fi
+   cc_options="$model_options"
+   casm_options="$model_options -c"
+   clinker_options="$model_options"
+diff --git a/riscV/Archi.v b/riscV/Archi.v
+index 52802f9..a3c3c6b 100644
+--- a/riscV/Archi.v
++++ b/riscV/Archi.v
+@@ -21,6 +21,7 @@ From Coq Require Import ZArith List.
+ From Flocq Require Import Binary Bits.
+ 
+ Parameter ptr64 : bool.
++Parameter fp32_kernel : bool.
+ 
+ Definition big_endian := false.
+ 
+diff --git a/riscV/Asmexpand.ml b/riscV/Asmexpand.ml
+index 7e9773d..e832bb4 100644
+--- a/riscV/Asmexpand.ml
++++ b/riscV/Asmexpand.ml
+@@ -181,7 +181,7 @@ let expand_builtin_memcpy_small sz al src dst =
+         emit (Psd (X31, rdst, Ofsimm odst));
+         copy (Ptrofs.add osrc _8) (Ptrofs.add odst _8) (sz - 8)
+       end
+-    else if !Clflags.option_ffpu && sz >= 8 && al >= 8 then
++    else if !Clflags.option_ffpu && not Archi.fp32_kernel && sz >= 8 && al >= 8 then
+       begin
+         emit (Pfld (F0, rsrc, Ofsimm osrc));
+         emit (Pfsd (F0, rdst, Ofsimm odst));
+@@ -226,7 +226,7 @@ let expand_builtin_memcpy_big sz al src dst =
+   let (load, store, chunksize) =
+     if Archi.ptr64 && al >= 8 then
+       (Pld (X31, s, Ofsimm _0), Psd (X31, d, Ofsimm _0), 8)
+-    else if !Clflags.option_ffpu && al >= 8 then
++    else if !Clflags.option_ffpu && not Archi.fp32_kernel && al >= 8 then
+       (Pfld (F0, s, Ofsimm _0), Pfsd (F0, d, Ofsimm _0), 8)
+     else if al >= 4 then
+       (Plw (X31, s, Ofsimm _0), Psw (X31, d, Ofsimm _0), 4)
+@@ -809,12 +809,199 @@ let preg_to_dwarf = function
+    | FR r -> float_reg_to_dwarf r
+    | _ -> assert false
+ 
++(* The profile keeps the existing abstract register model. Only FP32
++   producers, transport and consumers may reach its narrower printer. *)
++let check_fp32_kernel_signature sg =
++  let integer_type = function
++    | Tint | Tlong | Tany32 -> true
++    | Tfloat | Tsingle | Tany64 -> false in
++  if sg.sig_cc.cc_vararg <> None
++     || not (List.for_all integer_type (proj_sig_args sg))
++     || not (integer_type (proj_sig_res sg)) then
++    raise (Error "FP32 kernel: only non-variadic integer/pointer interfaces are supported")
++
++let check_fp32_kernel_instruction = function
++  | Pj_r (X1, _) -> ()
++  | Pjal_s _ | Pjal_r _ | Pj_s _ | Pj_r _ ->
++      raise (Error "FP32 kernel: calls and tail calls are unsupported")
++  | Pbuiltin ((EF_annot _ | EF_debug _), _, _) -> ()
++  | Pbuiltin _ ->
++      raise (Error "FP32 kernel: unexpanded builtins and inline assembly are unsupported")
++  | Pmv (_, _)
++  | Paddiw (_, _, _)
++  | Psltiw (_, _, _)
++  | Psltiuw (_, _, _)
++  | Pandiw (_, _, _)
++  | Poriw (_, _, _)
++  | Pxoriw (_, _, _)
++  | Pslliw (_, _, _)
++  | Psrliw (_, _, _)
++  | Psraiw (_, _, _)
++  | Pluiw (_, _)
++  | Paddw (_, _, _)
++  | Psubw (_, _, _)
++  | Pmulw (_, _, _)
++  | Pmulhw (_, _, _)
++  | Pmulhuw (_, _, _)
++  | Pdivw (_, _, _)
++  | Pdivuw (_, _, _)
++  | Premw (_, _, _)
++  | Premuw (_, _, _)
++  | Psltw (_, _, _)
++  | Psltuw (_, _, _)
++  | Pandw (_, _, _)
++  | Porw (_, _, _)
++  | Pxorw (_, _, _)
++  | Psllw (_, _, _)
++  | Psrlw (_, _, _)
++  | Psraw (_, _, _)
++  | Paddil (_, _, _)
++  | Psltil (_, _, _)
++  | Psltiul (_, _, _)
++  | Pandil (_, _, _)
++  | Poril (_, _, _)
++  | Pxoril (_, _, _)
++  | Psllil (_, _, _)
++  | Psrlil (_, _, _)
++  | Psrail (_, _, _)
++  | Pluil (_, _)
++  | Paddl (_, _, _)
++  | Psubl (_, _, _)
++  | Pmull (_, _, _)
++  | Pmulhl (_, _, _)
++  | Pmulhul (_, _, _)
++  | Pdivl (_, _, _)
++  | Pdivul (_, _, _)
++  | Preml (_, _, _)
++  | Premul (_, _, _)
++  | Psltl (_, _, _)
++  | Psltul (_, _, _)
++  | Pandl (_, _, _)
++  | Porl (_, _, _)
++  | Pxorl (_, _, _)
++  | Pslll (_, _, _)
++  | Psrll (_, _, _)
++  | Psral (_, _, _)
++  | Pj_l _
++  | Pbeqw (_, _, _)
++  | Pbnew (_, _, _)
++  | Pbltw (_, _, _)
++  | Pbltuw (_, _, _)
++  | Pbgew (_, _, _)
++  | Pbgeuw (_, _, _)
++  | Pbeql (_, _, _)
++  | Pbnel (_, _, _)
++  | Pbltl (_, _, _)
++  | Pbltul (_, _, _)
++  | Pbgel (_, _, _)
++  | Pbgeul (_, _, _)
++  | Plb (_, _, _)
++  | Plbu (_, _, _)
++  | Plh (_, _, _)
++  | Plhu (_, _, _)
++  | Plw (_, _, _)
++  | Plw_a (_, _, _)
++  | Pld (_, _, _)
++  | Pld_a (_, _, _)
++  | Psb (_, _, _)
++  | Psh (_, _, _)
++  | Psw (_, _, _)
++  | Psw_a (_, _, _)
++  | Psd (_, _, _)
++  | Psd_a (_, _, _)
++  | Pfence
++  | Pfmv (_, _)
++  | Pfmvxs (_, _)
++  | Pfmvsx (_, _)
++  | Pfls (_, _, _)
++  | Pfss (_, _, _)
++  | Pfnegs (_, _)
++  | Pfabss (_, _)
++  | Pfadds (_, _, _)
++  | Pfsubs (_, _, _)
++  | Pfmuls (_, _, _)
++  | Pfdivs (_, _, _)
++  | Pfmins (_, _, _)
++  | Pfmaxs (_, _, _)
++  | Pfeqs (_, _, _)
++  | Pflts (_, _, _)
++  | Pfles (_, _, _)
++  | Pfsqrts (_, _)
++  | Pfmadds (_, _, _, _)
++  | Pfmsubs (_, _, _, _)
++  | Pfnmadds (_, _, _, _)
++  | Pfnmsubs (_, _, _, _)
++  | Pfcvtws (_, _)
++  | Pfcvtwus (_, _)
++  | Pfcvtsw (_, _)
++  | Pfcvtswu (_, _)
++  | Pfcvtls (_, _)
++  | Pfcvtlus (_, _)
++  | Pfcvtsl (_, _)
++  | Pfcvtslu (_, _)
++  | Plabel _
++  | Ploadsymbol (_, _, _)
++  | Ploadsymbol_high (_, _, _)
++  | Ploadli (_, _)
++  | Ploadsi (_, _)
++  | Pbtbl (_, _)
++  | Pnop
++  | Pcfi_rel_offset _
++  | Pcfi_adjust _ -> ()
++  | Pcsel (_, _, _, _)
++  | Pseqw (_, _, _)
++  | Psnew (_, _, _)
++  | Pseql (_, _, _)
++  | Psnel (_, _, _)
++  | Pcvtl2w (_, _)
++  | Pcvtw2l _
++  | Pfmvxd (_, _)
++  | Pfmvdx (_, _)
++  | Pfld (_, _, _)
++  | Pfld_a (_, _, _)
++  | Pfsd (_, _, _)
++  | Pfsd_a (_, _, _)
++  | Pfnegd (_, _)
++  | Pfabsd (_, _)
++  | Pfaddd (_, _, _)
++  | Pfsubd (_, _, _)
++  | Pfmuld (_, _, _)
++  | Pfdivd (_, _, _)
++  | Pfmind (_, _, _)
++  | Pfmaxd (_, _, _)
++  | Pfeqd (_, _, _)
++  | Pfltd (_, _, _)
++  | Pfled (_, _, _)
++  | Pfsqrtd (_, _)
++  | Pfmaddd (_, _, _, _)
++  | Pfmsubd (_, _, _, _)
++  | Pfnmaddd (_, _, _, _)
++  | Pfnmsubd (_, _, _, _)
++  | Pfcvtwd (_, _)
++  | Pfcvtwud (_, _)
++  | Pfcvtdw (_, _)
++  | Pfcvtdwu (_, _)
++  | Pfcvtld (_, _)
++  | Pfcvtlud (_, _)
++  | Pfcvtdl (_, _)
++  | Pfcvtdlu (_, _)
++  | Pfcvtds (_, _)
++  | Pfcvtsd (_, _)
++  | Pallocframe (_, _)
++  | Pfreeframe (_, _)
++  | Ploadfi (_, _) ->
++      raise (Error "FP32 kernel: FP64 or unsupported instruction")
++
+ let expand_function id fn =
+   try
++    if Archi.fp32_kernel then check_fp32_kernel_signature fn.fn_sig;
+     set_current_function fn;
+     fixup_function_entry fn.fn_sig;
+     expand id (* sp= *) 2 preg_to_dwarf expand_instruction fn.fn_code;
+-    Errors.OK (get_current_function ())
++    let tf = get_current_function () in
++    if Archi.fp32_kernel then
++      List.iter check_fp32_kernel_instruction tf.fn_code;
++    Errors.OK tf
+   with Error s ->
+     Errors.Error (Errors.msg s)
+ 
+diff --git a/riscV/Conventions1.v b/riscV/Conventions1.v
+index f702fff..9b1e768 100644
+--- a/riscV/Conventions1.v
++++ b/riscV/Conventions1.v
+@@ -109,7 +109,8 @@ Definition allocatable_registers (_: unit) :=
+        R5  :: R6  :: R7  :: R16 :: R17 :: R28 :: R29 :: R30 ::
+        int_callee_save_regs;
+      preferred_float_regs := float_caller_save_regs;
+-     remaining_float_regs := float_callee_save_regs |}.
++     remaining_float_regs :=
++       if Archi.fp32_kernel then nil else float_callee_save_regs |}.
+ 
+ (** * Function calling conventions *)
+ 
+diff --git a/riscV/TargetPrinter.ml b/riscV/TargetPrinter.ml
+index f4cea9d..50b6561 100644
+--- a/riscV/TargetPrinter.ml
++++ b/riscV/TargetPrinter.ml
+@@ -353,7 +353,7 @@ module Target : TARGET =
+          is applicable to both single- and double-precision moves.
+        *)
+       | Pfmv (fd,fs) ->
+-         fprintf oc "	fmv.d	%a, %a\n"     freg fd freg fs
++         fprintf oc "	fmv.%s	%a, %a\n"     (if Archi.fp32_kernel then "s" else "d") freg fd freg fs
+       | Pfmvxs (rd,fs) ->
+          fprintf oc "	fmv.x.s	%a, %a\n"     ireg rd freg fs
+       | Pfmvsx (fd,rs) ->
+diff --git a/riscV/extractionMachdep.v b/riscV/extractionMachdep.v
+index 84de6a0..7afff05 100644
+--- a/riscV/extractionMachdep.v
++++ b/riscV/extractionMachdep.v
+@@ -21,6 +21,7 @@ Require Archi Asm SelectOp.
+ (* Archi *)
+ 
+ Extract Constant Archi.ptr64 => " Configuration.model = ""64"" ".
++Extract Constant Archi.fp32_kernel => " Configuration.abi = ""fp32-kernel"" ".
+ 
+ (* SelectOp *)
+ 

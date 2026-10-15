@@ -4,9 +4,15 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      fp32_only:
+        description: Run only the experimental RISC-V FP32 tests
+        type: boolean
+        default: false
 
 jobs:
   versions:
+    if: ${{ !inputs.fp32_only }}
     uses: ./.github/workflows/ocaml-versions.yml
   compcert:
     needs: versions
@@ -59,5 +65,40 @@ jobs:
       with:
         name: cross-smoke-${{ matrix.ocaml_version }}-${{ strategy.job-index }}
         path: .cross-smoke-work/artifacts
+        retention-days: 7
+        if-no-files-found: ignore
+
+  riscv-fp32:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        bits: [32, 64]
+    env:
+      OCAML_VERSION: 4.14.3
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: FP32 build, proofs and D-disabled execution
+      run: ${{ steps.devcontainer.outputs.exec }} make compcert-fp32-test RISCV_BITS=${{ matrix.bits }}
+    - name: FP32 evidence
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: riscv-fp32-${{ matrix.bits }}
+        path: |
+          .fp32-work/rv${{ matrix.bits }}/*.s
+          .fp32-work/rv${{ matrix.bits }}/*.c
+          .fp32-work/rv${{ matrix.bits }}/*.log
+          .fp32-work/rv${{ matrix.bits }}/*.dis
+          .fp32-work/rv${{ matrix.bits }}/*.elf
+          .fp32-work/rv${{ matrix.bits }}/*.ini
         retention-days: 7
         if-no-files-found: ignore

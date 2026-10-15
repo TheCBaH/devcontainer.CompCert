@@ -76,6 +76,8 @@ run_target() {
     SkipTarget "$QEMU_BIN not installed (no $TARGET user-mode emulator for this host architecture)"
   fi
 
+  "$SCRIPT_DIR/compcert-prepare-source.sh" || Fatal "CompCert source preparation failed"
+
   local BUILD_DIR="$WORK_ROOT/build/$TARGET"
   local INSTALL_DIR="$WORK_ROOT/install/$TARGET"
   local ARTIFACTS_DIR="$WORK_ROOT/artifacts/$TARGET"

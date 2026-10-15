@@ -11,6 +11,7 @@ on:
     branches: ['**']
     paths:
     - modules/CompCert
+    - patches/compcert/**
     - tools/compcert-*
     - Makefile
     - .devcontainer/**
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
     - modules/CompCert
+    - patches/compcert/**
     - tools/compcert-*
     - Makefile
     - .devcontainer/**
