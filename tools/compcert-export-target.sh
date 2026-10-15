@@ -31,6 +31,8 @@ target="${1:-}"
 target_config "$target" || exit 1
 output=$(realpath -m "${2:-$REPO_ROOT/compcert-export-$target.tar.gz}")
 
+"$SCRIPT_DIR/compcert-prepare-source.sh"
+
 build="$WORK_ROOT/build/$target"
 stage="$WORK_ROOT/stage/$target"
 pkg="compcert_$target"
@@ -153,6 +155,9 @@ revision=$(git -C "$COMPCERT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)
 {
   echo "compcert-version: $version"
   echo "compcert-revision: $revision"
+  for patch in "$REPO_ROOT"/patches/compcert/*.patch; do
+    echo "compcert-patch: $(basename "$patch") $(sha256sum "$patch" | cut -d' ' -f1)"
+  done
   echo "target: $target"
   echo "configure: ${configure[*]} $CONFIGURE_TARGET"
   [ "${#COMPCERT_CONFIGURE_ARGS[@]}" -eq 0 ] || echo "freestanding-configure: ${configure[*]} ${COMPCERT_CONFIGURE_ARGS[*]} $CONFIGURE_TARGET"

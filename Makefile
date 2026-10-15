@@ -23,7 +23,11 @@ default: compcert
 # shell env var (command-line make vars are auto-exported), not a make
 # $(if ...): wrapping the case statement in a make function hits the same
 # paren-matching confusion as the $(shell ...) gotcha above.
-compcert-configure:
+.PHONY: compcert-prepare-source
+compcert-prepare-source:
+	tools/compcert-prepare-source.sh
+
+compcert-configure: compcert-prepare-source
 	cd $(COMPCERT_DIR) && opam exec -- ./configure $$( \
 	  if [ -n "$${COMPCERT_TARGET:-}" ]; then echo "$$COMPCERT_TARGET"; else \
 	  case "$$PLATFORM" in \
@@ -88,7 +92,7 @@ compcert-extraction-unarchive:
 # smoke test can't tell. CompCert's own `all` builds it via .depend.extr's
 # prerequisites; the split build calls Makefile.extr directly and has to ask
 # for it explicitly.
-compcert-prepare-sources: compcert-extraction-unarchive
+compcert-prepare-sources: compcert-prepare-source compcert-extraction-unarchive
 	cd $(COMPCERT_DIR) && opam exec -- $(MAKE) compcert.ini driver/Version.ml tools/modorder
 	cd $(COMPCERT_DIR) && opam exec -- $(MAKE) -f Makefile.extr depend
 
@@ -187,3 +191,7 @@ compcert-export-run: compcert-export-build
 .PHONY: compcert-cross-smoke-selftest
 compcert-cross-smoke-selftest:
 	tools/dev/test-cross-smoke-tristate.sh
+
+.PHONY: compcert-fp32-test
+compcert-fp32-test:
+	tools/compcert-fp32-test.sh $(or $(RISCV_BITS),32)

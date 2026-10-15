@@ -5,6 +5,7 @@
 /.devcontainer/devcontainer
 /.fixture-exec-artifacts/
 /.fixture-work/
+/.fp32-work/
 /.playwright-browsers/
 /.tool-gate/
 /.verify-work/
