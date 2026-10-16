@@ -108,7 +108,8 @@ the assembler is tagged `pre-split`.
 
 ## Experimental RISC-V FP32
 
-The source patch adds F-only kernel profiles and scalar FP32 function calls
-with ILP32F/LP64F on RV32/RV64. See
+The source patch adds F-only kernel profiles and scalar/variadic function calls
+with ILP32F/LP64F on RV32/RV64. FP32 arithmetic is native; binary64 transport
+and float promotion use integer bits and software conversion helpers. See
 [scope, limitations and validation](patches/compcert/README.md). Run
 `make compcert-fp32-test RISCV_BITS=32` or `RISCV_BITS=64` in the devcontainer.

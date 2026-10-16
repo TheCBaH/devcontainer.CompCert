@@ -1,5 +1,5 @@
 diff --git a/cfrontend/C2C.ml b/cfrontend/C2C.ml
-index 37a8790..105824a 100644
+index 37a8790..488978c 100644
 --- a/cfrontend/C2C.ml
 +++ b/cfrontend/C2C.ml
 @@ -397,6 +397,8 @@ let make_builtin_va_arg env ty e =
@@ -11,6 +11,219 @@ index 37a8790..105824a 100644
        make_builtin_va_arg_by_ref
          "__compcert_va_composite" ty e
    | _ ->
+@@ -1539,6 +1541,204 @@ let debug_set_struct_ofs env typs =
+           end
+         | _ -> ()) typs
+ 
++(* Binary64 transport is lowered in the unverified C frontend. The verified
++   backend sees integer bits; this translation needs a separate simulation. *)
++let fp32_double = function Tfloat(F64, _) -> true | _ -> false
++
++let rec fp32_type = function
++  | Tfloat(F64, a) -> Tlong(Unsigned, a)
++  | Tpointer(t, a) -> Tpointer(fp32_type t, a)
++  | Tarray(t, n, a) -> Tarray(fp32_type t, n, a)
++  | Tfunction(args, res, cc) ->
++      Tfunction(List.map fp32_type args, fp32_type res, cc)
++  | t -> t
++
++let fp32_signature sg =
++  let xtype = function AST.Xfloat -> AST.Xlong | x -> x in
++  { sg with AST.sig_args = List.map xtype sg.AST.sig_args;
++            AST.sig_res = xtype sg.AST.sig_res }
++
++let fp32_external = function
++  | AST.EF_external(n, sg) -> AST.EF_external(n, fp32_signature sg)
++  | AST.EF_runtime(n, sg) -> AST.EF_runtime(n, fp32_signature sg)
++  | AST.EF_builtin(n, sg) -> AST.EF_builtin(n, fp32_signature sg)
++  | ef -> ef
++
++let fp32_fail reason =
++  fatal_error "FP32: %s" reason
++
++let fp32_u64 = Tlong(Unsigned, noattr)
++let fp32_single = Tfloat(F32, noattr)
++let fp32_helpers = [
++  "__compcert_fp32_extend", fp32_u64, [fp32_single];
++  "__compcert_fp32_truncate", fp32_single, [fp32_u64]
++]
++
++let fp32_helper name arg result =
++  let ty = Tfunction([typeof arg], result, AST.cc_default) in
++  Ecall(Evalof(Evar(intern_string name, ty), ty), Econs(arg, Enil), result)
++
++let fp32_forbidden_builtins = ref []
++let fp32_composites = ref Maps.PTree.empty
++
++let rec fp32_expr e =
++  let typ = fp32_type (typeof e) in
++  match e with
++  | Eval(Vfloat f, _) -> Eval(Vlong(Float.to_bits f), typ)
++  | Eval(v, _) -> Eval(v, typ)
++  | Evar(id, _) ->
++      if List.mem id !fp32_forbidden_builtins then
++        fp32_fail "FP64 builtins are unsupported";
++      Evar(id, typ)
++  | Ederef(x, _) -> Ederef(fp32_expr x, typ)
++  | Efield(x, id, _) -> Efield(fp32_expr x, id, typ)
++  | Evalof(x, _) -> Evalof(fp32_expr x, typ)
++  | Eaddrof(x, _) -> Eaddrof(fp32_expr x, typ)
++  | Eunop(Cop.Onotbool, x, _) -> Eunop(Cop.Onotbool, fp32_bool x, typ)
++  | Eunop(op, x, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof e) then
++        fp32_constant e "FP64 arithmetic is unsupported"
++      else Eunop(op, fp32_expr x, typ)
++  | Ebinop(op, x, y, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof y)
++         || fp32_double (typeof e) then
++        fp32_constant e "FP64 arithmetic and comparisons are unsupported"
++      else Ebinop(op, fp32_expr x, fp32_expr y, typ)
++  | Ecast(x, t) -> fp32_cast x t
++  | Eseqand(x, y, _) -> Eseqand(fp32_bool x, fp32_bool y, typ)
++  | Eseqor(x, y, _) -> Eseqor(fp32_bool x, fp32_bool y, typ)
++  | Econdition(x, y, z, t) ->
++      Econdition(fp32_bool x, fp32_cast y t, fp32_cast z t, typ)
++  | Esizeof(t, _) -> Esizeof(fp32_type t, typ)
++  | Ealignof(t, _) -> Ealignof(fp32_type t, typ)
++  | Eassign(x, y, _) -> Eassign(fp32_expr x, fp32_cast y (typeof x), typ)
++  | Eassignop(op, x, y, t, _) ->
++      if fp32_double (typeof x) || fp32_double (typeof y) || fp32_double t then
++        fp32_fail "FP64 arithmetic is unsupported";
++      Eassignop(op, fp32_expr x, fp32_expr y, fp32_type t, typ)
++  | Epostincr(op, x, _) ->
++      if fp32_double (typeof x) then fp32_fail "FP64 arithmetic is unsupported";
++      Epostincr(op, fp32_expr x, typ)
++  | Ecomma(x, y, _) -> Ecomma(fp32_expr x, fp32_expr y, typ)
++  | Ecall(fn, args, _) ->
++      let params = match Cop.classify_fun (typeof fn) with
++        | Cop.Coq_fun_case_f(params, _, _) -> params
++        | _ -> fp32_fail "unsupported function type" in
++      Ecall(fp32_expr fn, fp32_arguments params args, typ)
++  | Ebuiltin(ef, ts, args, _) ->
++      begin match ef with
++      | AST.EF_external _ | AST.EF_runtime _ -> ()
++      | _ ->
++          if List.exists fp32_double ts || fp32_double (typeof e) then
++            fp32_fail "FP64 builtins are unsupported"
++      end;
++      Ebuiltin(fp32_external ef, List.map fp32_type ts,
++               fp32_arguments ts args, typ)
++  | Eloc(b, ofs, bf, _) -> Eloc(b, ofs, bf, typ)
++  | Eparen(x, t, _) -> Eparen(fp32_cast x t, fp32_type t, typ)
++
++and fp32_cast e dest =
++  let src = typeof e in
++  let x = fp32_expr e in
++  match src, dest with
++  | Tfloat(F32, _), Tfloat(F64, _) ->
++      fp32_helper "__compcert_fp32_extend" x fp32_u64
++  | Tfloat(F64, _), Tfloat(F32, _) ->
++      fp32_helper "__compcert_fp32_truncate" x fp32_single
++  | Tfloat(F64, _), Tint(IBool, _, _) -> fp32_bool e
++  | Tfloat(F64, _), (Tfloat(F64, _) | Tvoid) -> Ecast(x, fp32_type dest)
++  | _, _ when fp32_double src || fp32_double dest ->
++      begin match Initializers.constval_cast !fp32_composites e dest with
++      | Errors.OK v -> fp32_expr (Eval(v, dest))
++      | Errors.Error _ -> fp32_fail "FP64 integer conversions are unsupported"
++      end
++  | _, _ -> Ecast(x, fp32_type dest)
++
++and fp32_bool e =
++  let x = fp32_expr e in
++  if fp32_double (typeof e) then
++    Ebinop(Cop.One,
++      Ebinop(Cop.Oand, x,
++        Eval(Vlong(coqint_of_camlint64 0x7fffffffffffffffL), fp32_u64), fp32_u64),
++      Eval(Vlong(Integers.Int64.zero), fp32_u64), Ctypes.type_int32s)
++  else x
++
++and fp32_constant e reason =
++  match Initializers.constval !fp32_composites e with
++  | Errors.OK v -> fp32_expr (Eval(v, typeof e))
++  | Errors.Error _ -> fp32_fail reason
++
++and fp32_arguments params args =
++  match args, params with
++  | Enil, _ -> Enil
++  | Econs(e, rest), t :: ts ->
++      Econs(fp32_cast e t, fp32_arguments ts rest)
++  | Econs(e, rest), [] ->
++      Econs(fp32_cast e (default_argument_conversion (typeof e)),
++            fp32_arguments [] rest)
++
++let rec fp32_stmt ret = function
++  | Sskip -> Sskip
++  | Sdo e -> Sdo(fp32_expr e)
++  | Ssequence(a, b) -> Ssequence(fp32_stmt ret a, fp32_stmt ret b)
++  | Sifthenelse(e, a, b) -> Sifthenelse(fp32_bool e, fp32_stmt ret a, fp32_stmt ret b)
++  | Swhile(e, s) -> Swhile(fp32_bool e, fp32_stmt ret s)
++  | Sdowhile(e, s) -> Sdowhile(fp32_bool e, fp32_stmt ret s)
++  | Sfor(a, e, b, s) ->
++      Sfor(fp32_stmt ret a, fp32_bool e, fp32_stmt ret b, fp32_stmt ret s)
++  | Sbreak -> Sbreak
++  | Scontinue -> Scontinue
++  | Sreturn None -> Sreturn None
++  | Sreturn(Some e) -> Sreturn(Some(fp32_cast e ret))
++  | Sswitch(e, ls) -> Sswitch(fp32_expr e, fp32_labels ret ls)
++  | Slabel(id, s) -> Slabel(id, fp32_stmt ret s)
++  | Sgoto id -> Sgoto id
++
++and fp32_labels ret = function
++  | LSnil -> LSnil
++  | LScons(n, s, ls) -> LScons(n, fp32_stmt ret s, fp32_labels ret ls)
++
++let fp32_program p =
++  fp32_composites := p.prog_comp_env;
++  fp32_forbidden_builtins := List.fold_left (fun acc -> function
++    | id, AST.Gfun(External(AST.EF_builtin(_, sg), _, _, _))
++        when List.mem AST.Xfloat sg.AST.sig_args || sg.AST.sig_res = AST.Xfloat ->
++        id :: acc
++    | id, AST.Gfun(External(AST.EF_runtime(name, sg), _, _, _))
++        when name <> "__compcert_va_float64"
++          && (List.mem AST.Xfloat sg.AST.sig_args || sg.AST.sig_res = AST.Xfloat) ->
++        id :: acc
++    | _ -> acc) [] p.prog_defs;
++  let vars = List.map (fun (id, t) -> id, fp32_type t) in
++  let definition = function
++    | AST.Gfun(Internal f) -> AST.Gfun(Internal {
++        f with fn_return = fp32_type f.fn_return;
++               fn_params = vars f.fn_params;
++               fn_vars = vars f.fn_vars;
++               fn_body = fp32_stmt f.fn_return f.fn_body })
++    | AST.Gfun(External(AST.EF_runtime(name, _), _, _, _)) as d
++        when name <> "__compcert_va_float64" -> d
++    | AST.Gfun(External(ef, ts, t, cc)) ->
++        AST.Gfun(External(fp32_external ef, List.map fp32_type ts, fp32_type t, cc))
++    | AST.Gvar v -> AST.Gvar {
++        v with AST.gvar_info = fp32_type v.AST.gvar_info;
++               AST.gvar_init = List.map (function
++                 | AST.Init_float64 f -> AST.Init_int64(Float.to_bits f)
++                 | i -> i) v.AST.gvar_init } in
++  let types = List.map (function Composite(id, su, ms, a) ->
++    Composite(id, su, List.map (function
++      | Member_plain(id, t) -> Member_plain(id, fp32_type t)
++      | m -> m) ms, a)) p.prog_types in
++  let ce = match build_composite_env types with
++    | Errors.OK ce -> ce
++    | Errors.Error _ -> fp32_fail "invalid lowered composite layout" in
++  let defs = List.map (fun (id, d) -> id, definition d) p.prog_defs in
++  fp32_forbidden_builtins := [];
++  fp32_composites := Maps.PTree.empty;
++  { p with prog_defs = List.map helper_function_declaration fp32_helpers @ defs;
++           prog_types = types; prog_comp_env = ce;
++           prog_public = List.map (fun (n, _, _) -> intern_string n) fp32_helpers @ p.prog_public }
++
+ (** Convert a [C.program] into a [Csyntax.program] *)
+ 
+ let convertProgram p =
+@@ -1569,6 +1769,6 @@ let convertProgram p =
+             prog_comp_env = ce } in
+         debug_set_struct_ofs ce typs;
+         Diagnostics.check_errors ();
+-        p'
++        if Configuration.abi = "fp32" then fp32_program p' else p'
+   with Env.Error msg ->
+     fatal_error "%s" (Env.error_message msg)
 diff --git a/configure b/configure
 index 3ed6b87..8ce3f16 100755
 --- a/configure
@@ -45,23 +258,29 @@ index 3ed6b87..8ce3f16 100755
    casm_options="$model_options -c"
    clinker_options="$model_options"
 diff --git a/cparser/StructPassing.ml b/cparser/StructPassing.ml
-index f1f481d..61138a2 100644
+index f1f481d..6af6c89 100644
 --- a/cparser/StructPassing.ml
 +++ b/cparser/StructPassing.ml
-@@ -26,6 +26,12 @@ open Transform
+@@ -26,6 +26,18 @@ open Transform
  let struct_return_style = ref SR_ref
  let struct_passing_style = ref SP_ref_callee
  
 +let check_fp32_interface env result params =
-+  if Configuration.abi = "fp32"
-+     && (is_composite_type env result
-+         || List.exists (is_composite_type env) params) then
-+    Diagnostics.fatal_error_raw "FP32: aggregate-by-value interfaces are unsupported\n"
++  if Configuration.abi = "fp32" then begin
++    if is_composite_type env result
++       || List.exists (is_composite_type env) params then
++      Diagnostics.fatal_error_raw "FP32: aggregate-by-value interfaces are unsupported\n";
++    let long_double ty = match unroll env ty with
++      | TFloat(FLongDouble, _) -> true
++      | _ -> false in
++    if long_double result || List.exists long_double params then
++      Diagnostics.fatal_error_raw "FP32: long double interfaces are unsupported\n"
++  end
 +
  (* Classification of function return types. *)
  
  type return_kind =
-@@ -316,6 +322,7 @@ let rec transf_expr env ctx e =
+@@ -316,6 +328,7 @@ let rec transf_expr env ctx e =
  *)
  
  and transf_call env ctx opt_lhs fn args ty =
@@ -69,7 +288,7 @@ index f1f481d..61138a2 100644
    let ty' = transf_type env ty in
    let fn' = transf_expr env Val fn in
    let opt_eassign e =
-@@ -542,6 +549,7 @@ let rec transf_funparams loc env params =
+@@ -542,6 +555,7 @@ let rec transf_funparams loc env params =
             IdentMap.add x (ereinterpret tx' y) subst)
  
  let transf_fundef env loc f =
@@ -364,19 +583,23 @@ index 84de6a0..dcf559c 100644
  (* SelectOp *)
  
 diff --git a/runtime/riscV/vararg.S b/runtime/riscV/vararg.S
-index a3bdc32..ba83838 100644
+index a3bdc32..693f095 100644
 --- a/runtime/riscV/vararg.S
 +++ b/runtime/riscV/vararg.S
-@@ -70,6 +70,8 @@ FUNCTION(__compcert_va_int64)
+@@ -70,6 +70,12 @@ FUNCTION(__compcert_va_int64)
  	jr	ra
  ENDFUNCTION(__compcert_va_int64)
  
 +
-+#ifndef __riscv_float_abi_single
++#ifdef __riscv_float_abi_single
++FUNCTION(__compcert_va_float64)
++	j	__compcert_va_int64
++ENDFUNCTION(__compcert_va_float64)
++#else
  FUNCTION(__compcert_va_float64)
  				# a0 = ap parameter
  	lptr	t5, 0(a0)	# t5 = pointer to next argument
-@@ -79,6 +81,7 @@ FUNCTION(__compcert_va_float64)
+@@ -79,6 +85,7 @@ FUNCTION(__compcert_va_float64)
  	fld	fa0, -8(t5)	# return it in fa0
  	jr	ra
  ENDFUNCTION(__compcert_va_float64)
