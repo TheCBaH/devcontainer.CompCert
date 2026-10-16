@@ -67,15 +67,15 @@ reject() {
 reject double-call 'extern double g(void); void f(void) { g(); }' 'FP64 or opaque FP interfaces'
 reject indirect-double-call 'void f(double (*g)(void)) { g(); }' 'FP64 or opaque FP interfaces'
 reject promotion 'float f(float x) { return x + 0.1; }' 'FP64 or unsupported instruction'
-reject varargs 'int f(int x, ...) { return x; }' 'variadic calls and functions'
-reject varargs-call 'extern int g(int x, ...); int f(void) { return g(1, 2); }' 'variadic calls and functions'
+reject varargs 'int f(double x, ...) { return 0; }' 'FP64 or opaque FP interfaces'
+reject varargs-call 'extern int g(int x, ...); int f(float x) { return g(1, x); }' 'FP64 or unsupported instruction'
 reject aggregate-argument 'struct s { float x; }; float f(struct s s) { return s.x; }' 'aggregate-by-value'
 reject aggregate-result 'struct s { float x; }; struct s f(float x) { struct s s = { x }; return s; }' 'aggregate-by-value'
 reject aggregate-call 'struct s { float x; }; extern float g(struct s); float f(float x) { struct s s = { x }; return g(s); }' 'aggregate-by-value'
 if [ "$bits" = 32 ]; then
   reject int64 'long long f(float x) { return (long long)x; }' 'FP64 or unsupported instruction'
 fi
-echo "PASS RV$bits: unsupported double, variadic and aggregate calls rejected"
+echo "PASS RV$bits: unsupported double and aggregate calls rejected"
 
 printf '%s\n' 'int abi_probe(void) { return 0; }' > "$work/abi-probe.c"
 "${prefix}gcc" -march="rv${bits}imafd_zicsr" -mabi="${abi%f}d" \
@@ -91,6 +91,8 @@ printf '%s\n' 'extern int printf(const char *, ...);' \
   "$work/varargs-reference.c" -o "$work/varargs-reference.s"
 grep -q '__extendsfdf2' "$work/varargs-reference.s"
 echo "PASS RV$bits: F/D ELF ABI mixing rejected; GCC varargs reference uses software float-to-double conversion"
+
+"$root/tools/compcert-fp32-varargs-test.sh" "$bits" "$compiler" "$config"
 
 if [ "$#" -ge 3 ]; then
   standard_config=$(realpath "$3")

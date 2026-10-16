@@ -1,3 +1,16 @@
+diff --git a/cfrontend/C2C.ml b/cfrontend/C2C.ml
+index 37a8790..105824a 100644
+--- a/cfrontend/C2C.ml
++++ b/cfrontend/C2C.ml
+@@ -397,6 +397,8 @@ let make_builtin_va_arg env ty e =
+       make_builtin_va_arg_by_val
+         "__compcert_va_float64" ty (Tfloat(F64, noattr)) e
+   | Tstruct _ | Tunion _ ->
++      if Configuration.abi = "fp32" then
++        unsupported "FP32: aggregate va_arg is unsupported";
+       make_builtin_va_arg_by_ref
+         "__compcert_va_composite" ty e
+   | _ ->
 diff --git a/configure b/configure
 index 3ed6b87..8ce3f16 100755
 --- a/configure
@@ -77,7 +90,7 @@ index 52802f9..a3c3c6b 100644
  Definition big_endian := false.
  
 diff --git a/riscV/Asmexpand.ml b/riscV/Asmexpand.ml
-index 7e9773d..64bafc5 100644
+index 7e9773d..e75f844 100644
 --- a/riscV/Asmexpand.ml
 +++ b/riscV/Asmexpand.ml
 @@ -181,7 +181,7 @@ let expand_builtin_memcpy_small sz al src dst =
@@ -98,7 +111,7 @@ index 7e9773d..64bafc5 100644
        (Pfld (F0, s, Ofsimm _0), Pfsd (F0, d, Ofsimm _0), 8)
      else if al >= 4 then
        (Plw (X31, s, Ofsimm _0), Psw (X31, d, Ofsimm _0), 4)
-@@ -809,12 +809,212 @@ let preg_to_dwarf = function
+@@ -809,12 +809,210 @@ let preg_to_dwarf = function
     | FR r -> float_reg_to_dwarf r
     | _ -> assert false
  
@@ -118,8 +131,6 @@ index 7e9773d..64bafc5 100644
 +    not (List.for_all supported_type (proj_sig_args sg))
 +    || not (supported_type (proj_sig_res sg)) in
 +  if fp32_calls then begin
-+    if sg.sig_cc.cc_vararg <> None then
-+      fp32_error "variadic calls and functions are unsupported";
 +    if bad_types then
 +      fp32_error "FP64 or opaque FP interfaces are unsupported"
 +  end else if sg.sig_cc.cc_vararg <> None || bad_types then
@@ -352,3 +363,24 @@ index 84de6a0..dcf559c 100644
  
  (* SelectOp *)
  
+diff --git a/runtime/riscV/vararg.S b/runtime/riscV/vararg.S
+index a3bdc32..ba83838 100644
+--- a/runtime/riscV/vararg.S
++++ b/runtime/riscV/vararg.S
+@@ -70,6 +70,8 @@ FUNCTION(__compcert_va_int64)
+ 	jr	ra
+ ENDFUNCTION(__compcert_va_int64)
+ 
++
++#ifndef __riscv_float_abi_single
+ FUNCTION(__compcert_va_float64)
+ 				# a0 = ap parameter
+ 	lptr	t5, 0(a0)	# t5 = pointer to next argument
+@@ -79,6 +81,7 @@ FUNCTION(__compcert_va_float64)
+ 	fld	fa0, -8(t5)	# return it in fa0
+ 	jr	ra
+ ENDFUNCTION(__compcert_va_float64)
++#endif
+ 
+ // Right now we pass structs by reference.  This is not ABI conformant.
+ FUNCTION(__compcert_va_composite)

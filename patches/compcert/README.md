@@ -18,8 +18,8 @@ Existing targets retain their D ABI.
 
 Both profiles use native F instructions and reject FP64, opaque 64-bit FP
 transport and inline assembly after builtin expansion. The call-capable
-profiles also reject variadic signatures and aggregate-by-value definitions
-and calls. Structs accessed through pointers remain supported. Optimizations
+profiles support scalar integer/pointer variadics and reject aggregate-by-value
+definitions and calls. Structs accessed through pointers remain supported. Optimizations
 can remove unsupported source operations; instruction restrictions apply to
 retained code. Use explicit `f` suffixes for float constants.
 
@@ -34,7 +34,7 @@ correctness result. Existing Rocq proofs are rebuilt and checked, but the
 FP32 restriction and narrower printing are implemented in the unverified
 assembly expansion/printing stage. A proof connecting that restriction to
 the F-only machine remains future work, as do aggregate-by-value ABI support,
-variadic calls and software double arithmetic.
+floating variadic arguments and software double arithmetic.
 
 Run inside the devcontainer:
 
@@ -61,7 +61,9 @@ currently avoids `fs0`–`fs11` and spills live FP32 values across calls.
 The [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/)
 defines the F ABIs with ABI_FLEN=32. `double` remains 64 bits, and variadic
 `float` arguments are promoted to `double` and passed using integer rules.
-RV32 uses aligned register pairs; RV64 uses one integer register. Full support
+RV32 uses aligned register pairs; RV64 uses one integer register. Integer/pointer
+variadic calls, definitions and stdarg operations are supported. Floating
+variadic arguments remain rejected. Full support
 requires software-double lowering and a matching runtime, which this patch
 does not supply. F-ABI and D-ABI objects cannot be linked together normally;
 all dependencies must also avoid D instructions. Selecting an F ABI alone
@@ -81,12 +83,18 @@ indirect calls, inline assembly, and RV32 float-to-int64 widening. A final
 configuration check compiles and executes the original D ABI and double
 arithmetic.
 
+Integer/pointer varargs tests exercise GCC/CompCert callers and callees in both
+directions, integer promotions, 64-bit aligned pairs, register/stack overflow,
+named FP32 parameters, va_copy and va_list forwarding. They link the maintained
+integer varargs helpers assembled for the F ABI, without the D-only float64
+helper. Aggregate va_arg remains rejected.
+
 The call tests compile separate CompCert and GCC translation units and
 execute with D disabled. They cover FP32 arguments/results, mixed arguments,
 18-float overflow into integer registers and the stack, signed zero and NaN
 payload transport, direct/indirect/tail calls, recursion, 40 values live
 across a deliberately clobbering callee, stack alignment and `fs0`–`fs11`
-preservation. Negative cases cover double calls, promotions, variadics and
+preservation. Negative cases cover double calls, promotions, floating variadics and
 aggregate interfaces. A linker probe rejects F/D ABI mixing, and GCC's
 varargs reference must use `__extendsfdf2` without D.
 
@@ -104,15 +112,15 @@ At the pinned test revision, RV32 and RV64 have the same acceptance:
 
 | Suite | C units | Kernel accepted | Calls accepted | Baseline rejected |
 | --- | ---: | ---: | ---: | ---: |
-| c | 24 | 0 | 0 | 0 |
-| regression | 108 | 12 | 16 | 5 |
-| compression | 12 | 1 | 8 | 0 |
-| raytracer | 14 | 0 | 2 | 0 |
-| spass | 51 | 1 | 16 | 0 |
-| abi, including generated cases | 8 | 0 | 0 | 0 |
-| pic | 4 | 1 | 3 | 0 |
+| c | 24 | 0 | 12 | 0 |
+| regression | 108 | 12 | 60 | 5 |
+| compression | 12 | 1 | 12 | 0 |
+| raytracer | 14 | 0 | 3 | 0 |
+| spass | 51 | 1 | 47 | 0 |
+| abi, including generated cases | 8 | 0 | 2 | 0 |
+| pic | 4 | 1 | 4 | 0 |
 | export C inputs | 6 | 4 | 6 | 0 |
-| Total | 227 | 19 | 51 | 5 |
+| Total | 227 | 19 | 146 | 5 |
 
 The kernel profile's first diagnostic reports calls in 172 cases, FP/variadic interfaces
 in 19, FP64 or unsupported instructions in 11, and inline assembly in one.
@@ -130,9 +138,13 @@ D disabled: `regression/{expr3,expr4,extern1,ptrs1,struct9,types1}.c` and
 `export/{bitfields,issue216}.c`. Upstream source files are unchanged.
 `upstream/execution.tsv` records these results separately for each profile.
 The call profile also runs the unchanged `export/issue319.c` program, checking
-its expected exit status of 48. These checks do not constitute a run of all
-upstream executables; all 24 complete `test/c` benchmarks remain rejected.
-There are 203 kernel-profile and 171 call-profile rejections. Some accepted
+its expected exit status of 48. It also executes `regression/varargs1.c` and
+`varargs3.c` with a GCC F-ABI output-validation harness: the sources are unchanged,
+the main symbol is renamed for the harness, and every printf format/value is
+checked. This is not a full libc/stdio test. These checks do not constitute a run of all
+upstream executables; 12 complete `test/c` benchmarks compile and assemble; they are not executed
+by this census.
+There are 203 kernel-profile and 76 call-profile rejections. Some accepted
 units only define data. The existing kernel fixtures exercise native FP32.
 
 The first milestone does not add these experimental profiles to the published

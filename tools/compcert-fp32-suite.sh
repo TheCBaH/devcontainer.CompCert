@@ -128,6 +128,26 @@ if [ "$mode" = calls ]; then
     unexpected=1
   fi
   printf 'export/issue319.c\t%s\n' "$status" >> "$work/execution.tsv"
+  "riscv$bits-linux-gnu-gcc" -march="rv${bits}imf_zicsr" -mabi="$abi" \
+    -DMODEL_"$bits" -DSYS_linux -c "$root/modules/CompCert/runtime/riscV/vararg.S" \
+    -o "$work/evidence/vararg-runtime.o"
+  for name in varargs1 varargs3; do
+    log="$work/evidence/regression/$name"
+    "riscv$bits-linux-gnu-objcopy" --redefine-sym main=upstream_main \
+      "$log.o" "$log.harness.o"
+    "riscv$bits-linux-gnu-gcc" -march="rv${bits}imf_zicsr" -mabi="$abi" \
+      -mno-relax -fno-pie -O2 -ffreestanding -fno-builtin -fno-stack-protector \
+      -nostdlib -static -no-pie -Wl,--no-relax,-e,_start -DTEST_"$name" \
+      "$root/test/riscv-fp32/start.S" "$root/test/riscv-fp32/upstream-varargs-main.c" \
+      "$log.harness.o" "$work/evidence/vararg-runtime.o" -o "$log.elf"
+    status=run-pass
+    if ! timeout 30 "qemu-riscv$bits" -cpu "rv$bits,d=false" "$log.elf" \
+         > "$log.run.log" 2>&1; then
+      status=run-failed
+      unexpected=1
+    fi
+    printf 'regression/%s.c\t%s\n' "$name" "$status" >> "$work/execution.tsv"
+  done
 fi
 cat "$work/execution.tsv"
 cut -f1,2 "$report" > "$work/status.tsv"
