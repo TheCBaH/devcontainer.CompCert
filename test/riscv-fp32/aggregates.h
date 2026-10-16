@@ -30,7 +30,7 @@ typedef struct { unsigned long long n; } A8;
 typedef struct { unsigned char b[16]; } __attribute__((aligned(16))) A16;
 typedef struct { float f; double d; } FD;
 typedef struct { float f; float g __attribute__((aligned(8))); } Gap;
-typedef struct {} Empty;
+typedef struct {} __attribute__((aligned(16))) Empty;
 typedef struct { signed i:7; float f; } BF;
 typedef struct { unsigned :3; signed i:7; float f; } BFPad;
 #define CAT_(a,b) a##b

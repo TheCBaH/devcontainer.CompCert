@@ -65,6 +65,7 @@ void *__compcert_fp32_va_composite(void **ap, unsigned long size,
                                     unsigned long alignment) {
   unsigned long p = (unsigned long)*ap;
   unsigned long word = sizeof(void *);
+  if (!size) return *ap;
   if (size > 2 * word) {
     void *result = *(void **)p;
     *ap = (void *)(p + word);

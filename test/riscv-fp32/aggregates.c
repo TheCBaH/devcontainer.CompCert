@@ -144,7 +144,7 @@ Gap FN(p8_Gap)(unsigned long a0, unsigned long a1, unsigned long a2, unsigned lo
 F2 FN(fp7)(float a,float b,float c,float d,float e,float f,float g,F2 x,float tail) { if(a!=1.f||b!=2.f||c!=3.f||d!=4.f||e!=5.f||f!=6.f||g!=7.f||tail!=9.f) x.x[0]=0.f; return x; }
 FI FN(gi8)(unsigned long a,unsigned long b,unsigned long c,unsigned long d,unsigned long e,unsigned long f,unsigned long g,unsigned long h,FI x,float tail) { if(a!=1||b!=2||c!=3||d!=4||e!=5||f!=6||g!=7||h!=8||tail!=9.f) x.i=0; return x; }
 static int forwarded(va_list ap) {
-  B5 b5=va_arg(ap,B5); A8 a8=va_arg(ap,A8); B16 b16=va_arg(ap,B16); B80 b80=va_arg(ap,B80);
+  Empty ignored=va_arg(ap,Empty); (void)ignored; B5 b5=va_arg(ap,B5); A8 a8=va_arg(ap,A8); B16 b16=va_arg(ap,B16); B80 b80=va_arg(ap,B80);
   F2 f=va_arg(ap,F2); A16 a16=va_arg(ap,A16); float promoted=(float)va_arg(ap,double);
   B5 e5; B16 e16; B80 e80; A16 ea16;
   fill(&e5,sizeof e5); fill(&e16,sizeof e16); fill(&e80,sizeof e80); fill(&ea16,sizeof ea16);
@@ -358,11 +358,11 @@ int FN(test)(void) {
     b=OTHER(p7_Gap)(1, 2, 3, 4, 5, 6, 7, a, 93); if(!same_Gap(a,b)) return 122;
     b=OTHER(p8_Gap)(1, 2, 3, 4, 5, 6, 7, 8, a, 93); if(!same_Gap(a,b)) return 157;
   }
-  { F2 a={{3.f,4.f}}, b; FI fi={1.25f,17}, r; B5 b5; A8 a8={0x123456789abcdef0ULL}; B16 b16; B80 b80; A16 a16;
+  { F2 a={{3.f,4.f}}, b; Empty empty; FI fi={1.25f,17}, r; B5 b5; A8 a8={0x123456789abcdef0ULL}; B16 b16; B80 b80; A16 a16;
     b=OTHER(fp7)(1.f,2.f,3.f,4.f,5.f,6.f,7.f,a,9.f); if(!same_F2(a,b)) return 180;
     r=OTHER(gi8)(1,2,3,4,5,6,7,8,fi,9.f); if(!same_FI(fi,r)) return 181;
     fill(&b5,sizeof b5); fill(&b16,sizeof b16); fill(&b80,sizeof b80); fill(&a16,sizeof a16);
-    b=OTHER(variadic)(a,7,b5,a8,b16,b80,a,a16,1.25f); if(!same_F2(a,b)) return 182;
+    b=OTHER(variadic)(a,7,empty,b5,a8,b16,b80,a,a16,1.25f); if(!same_F2(a,b)) return 182;
   }
   { Aligned a; B80 b; fill(&a,sizeof a); fill(&b,sizeof b); if(OTHER(alignment)(a)) return 183;
     if(OTHER(mutate)(b)!=(17^0x5a)||b.b[0]!=17) return 184; }
