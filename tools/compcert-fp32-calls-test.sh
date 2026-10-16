@@ -93,6 +93,7 @@ echo "PASS RV$bits: F/D ELF ABI mixing rejected; GCC varargs reference uses soft
 "$root/tools/compcert-fp32-aggregates-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-varargs-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-fp64-test.sh" "$bits" "$compiler" "$config"
+"$root/tools/compcert-fp32-approx-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-stdio-test.sh" "$bits" "$compiler" "$config"
 
 if [ "$#" -ge 3 ]; then
@@ -109,3 +110,6 @@ else
 fi
 "$root/tools/compcert-fp32-suite.sh" "$bits" "$compiler" \
   "$config" "$standard_config" calls
+
+"$root/tools/compcert-fp32-suite.sh" "$bits" "$compiler" \
+  "$config" "$standard_config" approx
