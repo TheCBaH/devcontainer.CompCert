@@ -1,5 +1,5 @@
 diff --git a/cfrontend/C2C.ml b/cfrontend/C2C.ml
-index 37a8790..488978c 100644
+index 37a8790..37adfed 100644
 --- a/cfrontend/C2C.ml
 +++ b/cfrontend/C2C.ml
 @@ -397,6 +397,8 @@ let make_builtin_va_arg env ty e =
@@ -152,25 +152,25 @@ index 37a8790..488978c 100644
 +            fp32_arguments [] rest)
 +
 +let rec fp32_stmt ret = function
-+  | Sskip -> Sskip
-+  | Sdo e -> Sdo(fp32_expr e)
-+  | Ssequence(a, b) -> Ssequence(fp32_stmt ret a, fp32_stmt ret b)
-+  | Sifthenelse(e, a, b) -> Sifthenelse(fp32_bool e, fp32_stmt ret a, fp32_stmt ret b)
-+  | Swhile(e, s) -> Swhile(fp32_bool e, fp32_stmt ret s)
-+  | Sdowhile(e, s) -> Sdowhile(fp32_bool e, fp32_stmt ret s)
-+  | Sfor(a, e, b, s) ->
-+      Sfor(fp32_stmt ret a, fp32_bool e, fp32_stmt ret b, fp32_stmt ret s)
-+  | Sbreak -> Sbreak
-+  | Scontinue -> Scontinue
-+  | Sreturn None -> Sreturn None
-+  | Sreturn(Some e) -> Sreturn(Some(fp32_cast e ret))
-+  | Sswitch(e, ls) -> Sswitch(fp32_expr e, fp32_labels ret ls)
-+  | Slabel(id, s) -> Slabel(id, fp32_stmt ret s)
-+  | Sgoto id -> Sgoto id
++  | Csyntax.Sskip -> Csyntax.Sskip
++  | Csyntax.Sdo e -> Csyntax.Sdo(fp32_expr e)
++  | Csyntax.Ssequence(a, b) -> Csyntax.Ssequence(fp32_stmt ret a, fp32_stmt ret b)
++  | Csyntax.Sifthenelse(e, a, b) -> Csyntax.Sifthenelse(fp32_bool e, fp32_stmt ret a, fp32_stmt ret b)
++  | Csyntax.Swhile(e, s) -> Csyntax.Swhile(fp32_bool e, fp32_stmt ret s)
++  | Csyntax.Sdowhile(e, s) -> Csyntax.Sdowhile(fp32_bool e, fp32_stmt ret s)
++  | Csyntax.Sfor(a, e, b, s) ->
++      Csyntax.Sfor(fp32_stmt ret a, fp32_bool e, fp32_stmt ret b, fp32_stmt ret s)
++  | Csyntax.Sbreak -> Csyntax.Sbreak
++  | Csyntax.Scontinue -> Csyntax.Scontinue
++  | Csyntax.Sreturn None -> Csyntax.Sreturn None
++  | Csyntax.Sreturn(Some e) -> Csyntax.Sreturn(Some(fp32_cast e ret))
++  | Csyntax.Sswitch(e, ls) -> Csyntax.Sswitch(fp32_expr e, fp32_labels ret ls)
++  | Csyntax.Slabel(id, s) -> Csyntax.Slabel(id, fp32_stmt ret s)
++  | Csyntax.Sgoto id -> Csyntax.Sgoto id
 +
 +and fp32_labels ret = function
-+  | LSnil -> LSnil
-+  | LScons(n, s, ls) -> LScons(n, fp32_stmt ret s, fp32_labels ret ls)
++  | Csyntax.LSnil -> Csyntax.LSnil
++  | Csyntax.LScons(n, s, ls) -> Csyntax.LScons(n, fp32_stmt ret s, fp32_labels ret ls)
 +
 +let fp32_program p =
 +  fp32_composites := p.prog_comp_env;
