@@ -25,7 +25,13 @@ case "$mode" in
     work="$root/.fp32-work/rv$bits/calls/upstream"
     expected="$root/test/riscv-fp32/upstream-calls-rv$bits.tsv"
     ;;
-  *) echo 'mode must be kernel or calls' >&2; exit 1 ;;
+  approx)
+    profile=fp32
+    abi=${abi}f
+    work="$root/.fp32-work/rv$bits/calls/approx/upstream"
+    expected="$root/test/riscv-fp32/upstream-approx-rv$bits.tsv"
+    ;;
+  *) echo 'mode must be kernel, calls or approx' >&2; exit 1 ;;
 esac
 tests="$root/modules/CompCert/test"
 [ -f "$tests/Makefile" ] || {
@@ -64,12 +70,14 @@ while IFS= read -r src; do
   esac
   # Preprocess once with the installed D-ABI libc headers. Only the .i is
   # reused: no D-ABI objects or libraries enter an F-only executable.
+  fp32_flags=()
+  if [ "$mode" = approx ]; then fp32_flags+=(-ffp32-approx-double); fi
   status=baseline-rejected
   if timeout 120 "$compiler" -conf "$standard_config" "${flags[@]}" -E \
        -o "$log.i" "$work/test/$src" > "$log.preprocess.log" 2>&1 &&
      timeout 120 "$compiler" -conf "$standard_config" "${flags[@]}" -S \
        -o "$log.standard.s" "$log.i" > "$log.standard.log" 2>&1; then
-    if timeout 120 "$compiler" -conf "$fp32_config" "${flags[@]}" -S \
+    if timeout 120 "$compiler" -conf "$fp32_config" "${flags[@]}" "${fp32_flags[@]}" -S \
          -o "$log.fp32.s" "$log.i" > "$log.fp32.log" 2>&1; then
       if "riscv$bits-linux-gnu-as" -march="rv${bits}imf_zicsr" -mabi="$abi" \
            -o "$log.o" "$log.fp32.s" > "$log.assemble.log" 2>&1; then
@@ -114,7 +122,7 @@ for src in regression/{expr3,expr4,extern1,ptrs1,struct9,types1}.c export/{bitfi
   fi
   printf '%s\t%s\n' "$src" "$status" >> "$work/execution.tsv"
 done
-if [ "$mode" = calls ]; then
+if [ "$mode" != kernel ]; then
   log="$work/evidence/export/issue319"
   "riscv$bits-linux-gnu-gcc" -march="rv${bits}imf_zicsr" -mabi="$abi" \
     -mno-relax -fno-pie -nostdlib -static -no-pie -Wl,--no-relax,-e,_start \

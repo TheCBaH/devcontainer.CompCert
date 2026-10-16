@@ -26,8 +26,10 @@ includes=(-nostdinc -I"$root/runtime/include" -isystem "$("${prefix}gcc" -print-
   -c "$root/runtime/riscv-fp32-stdio.c" -o "$work/stdio.o"
 "${prefix}gcc" "${flags[@]}" "${cflags[@]}" -c \
   "$root/runtime/riscv-fp32.c" -o "$work/conversions.o"
+"${prefix}gcc" "${flags[@]}" "${cflags[@]}" -c \
+  "$root/runtime/riscv-fp64-approx.c" -o "$work/approx.o"
 "${prefix}gcc" "${flags[@]}" -DMODEL_"$bits" -DSYS_linux -c \
   "$root/modules/CompCert/runtime/riscV/vararg.S" -o "$work/varargs.o"
-"${prefix}ar" rcs "$work/libcompcert-fp32.a" "$work/stdio.o" "$work/conversions.o" "$work/varargs.o"
+"${prefix}ar" rcs "$work/libcompcert-fp32.a" "$work/stdio.o" "$work/conversions.o" "$work/varargs.o" "$work/approx.o"
 "${prefix}readelf" -hA "$work/stdio.o" > "$work/elf-attributes.txt"
 "${prefix}objdump" -dr "$work/stdio.o" > "$work/stdio.dis"

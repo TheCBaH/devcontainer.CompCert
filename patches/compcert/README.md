@@ -26,8 +26,8 @@ Binary64 constants, memory, copies, parameters/results,
 float promotion and conversion back to float use integer bits plus software
 conversion helpers. Structs accessed through pointers remain supported.
 
-General FP64 arithmetic, comparisons and dynamic integer conversions remain
-unsupported. The frontend rejects those operations, including in code that a
+By default, general FP64 arithmetic, comparisons and dynamic integer conversions
+remain unsupported. The frontend rejects those operations, including in code that a
 later optimization could remove; constant expressions use the existing constant
 evaluator. Long-double interfaces, including aggregate members, remain rejected.
 Use explicit f suffixes for FP32 arithmetic.
@@ -35,8 +35,7 @@ Use explicit f suffixes for FP32 arithmetic.
 The allocator uses only FP caller-save registers; float spills remain 32 bits.
 Generic FP moves print as fmv.s and RV32 composite copies use integer instructions.
 The call profiles lower binary64 to 64-bit integers before register allocation;
-source double stays 64 bits with its original memory layout and conversion
-semantics. FP32 arithmetic remains native.
+source double stays 64 bits with its original memory layout. FP32 arithmetic remains native.
 
 This is an experimental compiler, not a new end-to-end formal correctness result.
 The binary64 lowering is in the unverified C frontend. A simulation relating
@@ -83,6 +82,30 @@ F-ABI and D-ABI objects cannot be linked together normally; all dependencies
 must also avoid D instructions. Selecting an F ABI alone does not restrict a
 library's instruction set.
 
+`-ffp32-approx-double` explicitly enables approximate double computation in the
+call-capable `fp32` profile. `-fall` does not enable it; `-fno-fp32-approx-double`
+restores the default rejection of unsupported FP64 computation. It is rejected
+with other target profiles. Link the F-only archive built by
+`tools/compcert-fp32-runtime.sh <bits> <output-directory>`.
+
+The approximate helpers narrow each binary64 operand to FP32 with integer bit
+operations, execute native F arithmetic/comparison instructions, and widen the
+result. They support +, -, *, /, comparisons, sqrt/min/max/fused builtins,
+compound assignments, increment/decrement, eager selection and integer conversions, including
+RV32 float/int64 conversions. Arithmetic and narrowing use round-to-nearest-even.
+Integer-to-double conversions round through FP32 too. No software binary64
+arithmetic library or new dependency is used.
+
+This is a numerical approximation, not C binary64 semantics: close double
+values can compare equal; FP32 overflow, underflow and precision loss apply.
+Storage, constants, copies, function calls and varargs retain binary64 bits and
+the standard F ABI. Negation, absolute value and boolean truth tests operate
+on the original bits. Compile-time initializers retain normal constant
+expression evaluation. Floating-to-integer casts out of range after FP32 rounding remain outside
+the supported contract. There is no full floating-environment emulation:
+conversion helpers do not update hardware exception flags. This frontend
+lowering and its runtime are outside the existing correctness proofs.
+
 The caller, startup code and linker must use a matching integer ABI and ISA.
 These kernels need no CompCert runtime, but the surrounding program must
 provide the target's startup and execution environment.
@@ -113,6 +136,13 @@ preservation. Negative cases cover retained FP64 arithmetic/comparisons, dynamic
 conversions and long-double interfaces. A linker probe rejects F/D ABI mixing, and GCC's
 varargs reference must use `__extendsfdf2` without D.
 
+The opt-in approximation fixture compares output bytes against explicit FP32
+operations compiled by GCC with D available for reference conversions. It
+covers arithmetic, all comparisons, sqrt/min/max/fused builtins, special values,
+integer conversions, mixed types and lvalue side effects. The F-only executable
+runs with D disabled and must have no unresolved runtime symbols. The default,
+`-fno-` override and target-profile guards are checked separately.
+
 Aggregate interfaces use the standard F ABI at public entry points and call
 sites. Frontend-generated assembly bridges marshal to CompCert's internal
 by-reference aggregate lowering. Small structs/unions use integer registers
@@ -132,25 +162,31 @@ Both FP32 jobs also examine every C translation unit in the pinned upstream
 small-test suite, including its generated ABI cases. `upstream/results.tsv`
 under each `.fp32-work/rv<bits>/` records compilation and assembly passes,
 FP32-profile rejections, and cases rejected by the ordinary RISC-V compiler.
-The call profile has a second report in `calls/upstream/results.tsv`.
-`test/riscv-fp32/upstream-rv<bits>.tsv` and `upstream-calls-rv<bits>.tsv`
-are the reviewed acceptance baselines;
+The call profile has a second report in `calls/upstream/results.tsv`; the opt-in
+approximation report is in `calls/approx/upstream/results.tsv`.
+`test/riscv-fp32/upstream-rv<bits>.tsv`, `upstream-calls-rv<bits>.tsv`
+and `upstream-approx-rv<bits>.tsv` are the reviewed acceptance baselines;
 CI fails on changes to it, unexpected compiler failures, assembly failures,
 or execution failures. Baseline and profile rejections are not test passes.
 
 At the pinned test revision, RV32 and RV64 have the same acceptance:
 
-| Suite | C units | Kernel accepted | Calls accepted | Baseline rejected |
-| --- | ---: | ---: | ---: | ---: |
-| c | 24 | 0 | 13 | 0 |
-| regression | 108 | 12 | 81 | 5 |
-| compression | 12 | 1 | 12 | 0 |
-| raytracer | 14 | 0 | 5 | 0 |
-| spass | 51 | 1 | 49 | 0 |
-| abi, including generated cases | 8 | 0 | 2 | 0 |
-| pic | 4 | 1 | 4 | 0 |
-| export C inputs | 6 | 4 | 6 | 0 |
-| Total | 227 | 19 | 172 | 5 |
+| Suite | C units | Kernel accepted | Calls accepted | Approximate accepted | Baseline rejected |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| c | 24 | 0 | 13 | 24 | 0 |
+| regression | 108 | 12 | 81 | 101 | 5 |
+| compression | 12 | 1 | 12 | 12 | 0 |
+| raytracer | 14 | 0 | 5 | 14 | 0 |
+| spass | 51 | 1 | 49 | 51 | 0 |
+| abi, including generated cases | 8 | 0 | 2 | 8 | 0 |
+| pic | 4 | 1 | 4 | 4 | 0 |
+| export C inputs | 6 | 4 | 6 | 6 | 0 |
+| Total | 227 | 19 | 172 | 220 | 5 |
+
+Approximation accepts 48 additional sources. Its remaining profile rejections
+are `regression/annot1.c` (floating annotations) and `regression/extasm.c`
+(inline assembly). These are compilation/assembly counts. The original full
+program outputs are not expected to match normal binary64 execution in general.
 
 The kernel profile's first diagnostic reports calls in 172 cases, FP/variadic interfaces
 in 19, FP64 or unsupported instructions in 11, and inline assembly in one.

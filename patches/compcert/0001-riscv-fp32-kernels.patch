@@ -12,7 +12,7 @@ index 929b3f5..13f9a25 100644
    Printer.print_ais_annot oc;
    print_nonexec_stack_note oc;
 diff --git a/cfrontend/C2C.ml b/cfrontend/C2C.ml
-index 37a8790..bc00d01 100644
+index 37a8790..45d9c76 100644
 --- a/cfrontend/C2C.ml
 +++ b/cfrontend/C2C.ml
 @@ -368,14 +368,16 @@ let make_builtin_va_arg_by_val helper ty ty_ret arg =
@@ -46,7 +46,7 @@ index 37a8790..bc00d01 100644
    | _ ->
        unsupported "va_arg at this type";
        Eval(Vint(coqint_of_camlint 0l), type_int32s)
-@@ -1539,6 +1541,206 @@ let debug_set_struct_ofs env typs =
+@@ -1539,10 +1541,320 @@ let debug_set_struct_ofs env typs =
            end
          | _ -> ()) typs
  
@@ -78,19 +78,75 @@ index 37a8790..bc00d01 100644
 +
 +let fp32_u64 = Tlong(Unsigned, noattr)
 +let fp32_single = Tfloat(F32, noattr)
++let fp32_f64 = Tfloat(F64, noattr)
++let fp32_i64 = Tlong(Signed, noattr)
++let fp32_int = Ctypes.type_int32s
++let fp32_uint = Tint(Ctypes.I32, Unsigned, noattr)
++let fp32_binary_helpers = ["add"; "sub"; "mul"; "div"; "min"; "max"]
++let fp32_comparison_helpers = ["eq"; "ne"; "lt"; "le"; "gt"; "ge"]
++let fp32_builtins = [
++  "__builtin_sqrt", "sqrt"; "__builtin_fsqrt", "sqrt";
++  "__builtin_fmadd", "fmadd"; "__builtin_fmsub", "fmsub";
++  "__builtin_fnmadd", "fnmadd"; "__builtin_fnmsub", "fnmsub";
++  "__builtin_fmin", "min"; "__builtin_fmax", "max"
++]
 +let fp32_helpers = [
 +  "__compcert_fp32_extend", fp32_u64, [fp32_single];
 +  "__compcert_fp32_truncate", fp32_single, [fp32_u64];
++  "__compcert_fp64_sqrt", fp32_u64, [fp32_u64];
 +  "__compcert_fp32_va_composite", Tpointer(Tvoid, noattr),
 +    [Tpointer(Tvoid, noattr); Ctyping.size_t; Ctyping.size_t]
-+]
++] @ List.map (fun n -> "__compcert_fp64_" ^ n, fp32_u64, [fp32_u64; fp32_u64])
++      fp32_binary_helpers
++  @ List.map (fun n -> "__compcert_fp64_" ^ n, fp32_int, [fp32_u64; fp32_u64])
++      fp32_comparison_helpers
++  @ List.map (fun n -> "__compcert_fp64_" ^ n, fp32_u64,
++                         [fp32_u64; fp32_u64; fp32_u64])
++      ["fmadd"; "fmsub"; "fnmadd"; "fnmsub"]
++  @ List.concat (List.map (fun (n, t) -> [
++      "__compcert_fp64_from_" ^ n, fp32_u64, [t];
++      "__compcert_fp64_to_" ^ n, t, [fp32_u64]])
++      ["i32", fp32_int; "u32", fp32_uint; "i64", fp32_i64; "u64", fp32_u64])
++  @ ["__compcert_fp32_from_i64", fp32_single, [fp32_i64];
++     "__compcert_fp32_from_u64", fp32_single, [fp32_u64]]
 +
-+let fp32_helper name arg result =
-+  let ty = Tfunction([typeof arg], result, AST.cc_default) in
-+  Ecall(Evalof(Evar(intern_string name, ty), ty), Econs(arg, Enil), result)
++let fp32_call name args result =
++  let ty = Tfunction(List.map typeof args, result, AST.cc_default) in
++  let args = List.fold_right (fun x xs -> Econs(x, xs)) args Enil in
++  Ecall(Evalof(Evar(intern_string name, ty), ty), args, result)
++
++let fp32_helper name arg result = fp32_call name [arg] result
++let fp32_bits n = Eval(Vlong(coqint_of_camlint64 n), fp32_u64)
++let fp32_temporaries = ref []
++let fp32_temporary t =
++  let id = fresh_atom () in
++  fp32_temporaries := (id, t) :: !fp32_temporaries;
++  Evar(id, t)
++
++(* Bind the containing object for bitfields, whose address cannot be taken. *)
++let rec fp32_bind_lvalue x =
++  match x with
++  | Efield(base, id, t) ->
++      let setup, base = fp32_bind_lvalue base in
++      setup, Efield(base, id, t)
++  | _ ->
++      let t = typeof x in
++      let pt = Tpointer(t, noattr) in
++      let p = fp32_temporary pt in
++      Eassign(p, Eaddrof(x, pt), pt), Ederef(Evalof(p, pt), t)
++
++let fp32_integer_kind = function
++  | Tint(_, Unsigned, _) -> "u32", fp32_uint
++  | Tint _ -> "i32", fp32_int
++  | Tlong(Unsigned, _) -> "u64", fp32_u64
++  | Tlong(Signed, _) -> "i64", fp32_i64
++  | _ -> fp32_fail "invalid FP64 integer conversion"
 +
 +let fp32_forbidden_builtins = ref []
 +let fp32_composites = ref Maps.PTree.empty
++let fp32_approximate () = !Clflags.option_fp32_approx_double
++let fp32_require_approx reason =
++  if not (fp32_approximate ()) then fp32_fail reason
 +
 +let rec fp32_expr e =
 +  let typ = fp32_type (typeof e) in
@@ -98,22 +154,32 @@ index 37a8790..bc00d01 100644
 +  | Eval(Vfloat f, _) -> Eval(Vlong(Float.to_bits f), typ)
 +  | Eval(v, _) -> Eval(v, typ)
 +  | Evar(id, _) ->
++      if fp32_approximate () && List.mem_assoc (extern_atom id) fp32_builtins then
++        Evar(intern_string ("__compcert_fp64_" ^ List.assoc (extern_atom id) fp32_builtins), typ)
++      else begin
 +      if List.mem id !fp32_forbidden_builtins then
 +        fp32_fail "FP64 builtins are unsupported";
 +      Evar(id, typ)
++      end
 +  | Ederef(x, _) -> Ederef(fp32_expr x, typ)
 +  | Efield(x, id, _) -> Efield(fp32_expr x, id, typ)
 +  | Evalof(x, _) -> Evalof(fp32_expr x, typ)
 +  | Eaddrof(x, _) -> Eaddrof(fp32_expr x, typ)
 +  | Eunop(Cop.Onotbool, x, _) -> Eunop(Cop.Onotbool, fp32_bool x, typ)
 +  | Eunop(op, x, _) ->
-+      if fp32_double (typeof x) || fp32_double (typeof e) then
-+        fp32_constant e "FP64 arithmetic is unsupported"
-+      else Eunop(op, fp32_expr x, typ)
++      if fp32_double (typeof x) || fp32_double (typeof e) then begin
++        if not (fp32_approximate ()) then fp32_constant e "FP64 arithmetic is unsupported"
++        else let x = fp32_cast x fp32_f64 in
++        begin match op with
++        | Cop.Oneg -> Ebinop(Cop.Oxor, x, fp32_bits Int64.min_int, fp32_u64)
++        | Cop.Oabsfloat -> Ebinop(Cop.Oand, x, fp32_bits Int64.max_int, fp32_u64)
++        | _ -> fp32_fail "invalid FP64 unary operation"
++        end
++      end else Eunop(op, fp32_expr x, typ)
 +  | Ebinop(op, x, y, _) ->
 +      if fp32_double (typeof x) || fp32_double (typeof y)
 +         || fp32_double (typeof e) then
-+        fp32_constant e "FP64 arithmetic and comparisons are unsupported"
++        fp32_binary op x y typ
 +      else Ebinop(op, fp32_expr x, fp32_expr y, typ)
 +  | Ecast(x, t) -> fp32_cast x t
 +  | Eseqand(x, y, _) -> Eseqand(fp32_bool x, fp32_bool y, typ)
@@ -125,11 +191,24 @@ index 37a8790..bc00d01 100644
 +  | Eassign(x, y, _) -> Eassign(fp32_expr x, fp32_cast y (typeof x), typ)
 +  | Eassignop(op, x, y, t, _) ->
 +      if fp32_double (typeof x) || fp32_double (typeof y) || fp32_double t then
-+        fp32_fail "FP64 arithmetic is unsupported";
-+      Eassignop(op, fp32_expr x, fp32_expr y, fp32_type t, typ)
++        let () = fp32_require_approx "FP64 arithmetic is unsupported" in
++        let setup, l = fp32_bind_lvalue x in
++        let result = Ebinop(op, Evalof(l, typeof x), y, t) in
++        fp32_expr (Ecomma(setup, Eassign(l, result, typeof e), typeof e))
++      else Eassignop(op, fp32_expr x, fp32_expr y, fp32_type t, typ)
 +  | Epostincr(op, x, _) ->
-+      if fp32_double (typeof x) then fp32_fail "FP64 arithmetic is unsupported";
-+      Epostincr(op, fp32_expr x, typ)
++      if fp32_double (typeof x) then
++        let () = fp32_require_approx "FP64 arithmetic is unsupported" in
++        let setup, l = fp32_bind_lvalue x in
++        let t = remove_attributes (typeof x) in
++        let old = fp32_temporary t in
++        let save = Eassign(old, Evalof(l, t), t) in
++        let value = Evalof(old, t) in
++        let op = match op with Cop.Incr -> Cop.Oadd | Cop.Decr -> Cop.Osub in
++        let result = Ebinop(op, value, Eval(Vint(Integers.Int.one), fp32_int), t) in
++        let store = Eassign(l, result, t) in
++        fp32_expr (Ecomma(setup, Ecomma(save, Ecomma(store, value, t), t), t))
++      else Epostincr(op, fp32_expr x, typ)
 +  | Ecomma(x, y, _) -> Ecomma(fp32_expr x, fp32_expr y, typ)
 +  | Ecall(fn, args, _) ->
 +      let params = match Cop.classify_fun (typeof fn) with
@@ -139,6 +218,7 @@ index 37a8790..bc00d01 100644
 +  | Ebuiltin(ef, ts, args, _) ->
 +      begin match ef with
 +      | AST.EF_external _ | AST.EF_runtime _ -> ()
++      | AST.EF_builtin("__builtin_sel", _) when fp32_approximate () -> ()
 +      | _ ->
 +          if List.exists fp32_double ts || fp32_double (typeof e) then
 +            fp32_fail "FP64 builtins are unsupported"
@@ -158,6 +238,19 @@ index 37a8790..bc00d01 100644
 +      fp32_helper "__compcert_fp32_truncate" x fp32_single
 +  | Tfloat(F64, _), Tint(Ctypes.IBool, _, _) -> fp32_bool e
 +  | Tfloat(F64, _), (Tfloat(F64, _) | Tvoid) -> Ecast(x, fp32_type dest)
++  | (Tint _ | Tlong _), Tfloat(F64, _) when fp32_approximate () ->
++      let n, t = fp32_integer_kind src in
++      fp32_helper ("__compcert_fp64_from_" ^ n) (Ecast(x, t)) fp32_u64
++  | Tfloat(F64, _), (Tint _ | Tlong _) when fp32_approximate () ->
++      let n, t = fp32_integer_kind dest in
++      Ecast(fp32_helper ("__compcert_fp64_to_" ^ n) x t, fp32_type dest)
++  | Tfloat(F32, _), Tlong _ when fp32_approximate () ->
++      let n, t = fp32_integer_kind dest in
++      fp32_helper ("__compcert_fp64_to_" ^ n)
++        (fp32_helper "__compcert_fp32_extend" x fp32_u64) t
++  | Tlong(sg, _), Tfloat(F32, _) when fp32_approximate () ->
++      fp32_helper (if sg = Signed then "__compcert_fp32_from_i64"
++                                  else "__compcert_fp32_from_u64") x fp32_single
 +  | _, _ when fp32_double src || fp32_double dest ->
 +      begin match Initializers.constval_cast !fp32_composites e dest with
 +      | Errors.OK v -> fp32_expr (Eval(v, dest))
@@ -178,6 +271,18 @@ index 37a8790..bc00d01 100644
 +  match Initializers.constval !fp32_composites e with
 +  | Errors.OK v -> fp32_expr (Eval(v, typeof e))
 +  | Errors.Error _ -> fp32_fail reason
++
++and fp32_binary op x y typ =
++  let name = match op with
++    | Cop.Oadd -> "add" | Cop.Osub -> "sub" | Cop.Omul -> "mul" | Cop.Odiv -> "div"
++    | Cop.Oeq -> "eq" | Cop.One -> "ne" | Cop.Olt -> "lt" | Cop.Ole -> "le"
++    | Cop.Ogt -> "gt" | Cop.Oge -> "ge"
++    | _ -> fp32_fail "invalid FP64 binary operation" in
++  if not (fp32_approximate ()) then
++    fp32_constant (Ebinop(op, x, y, if typ = fp32_u64 then fp32_f64 else typ))
++      "FP64 arithmetic and comparisons are unsupported"
++  else fp32_call ("__compcert_fp64_" ^ name)
++    [fp32_cast x fp32_f64; fp32_cast y fp32_f64] typ
 +
 +and fp32_arguments params args =
 +  match args, params with
@@ -222,11 +327,14 @@ index 37a8790..bc00d01 100644
 +    | _ -> acc) [] p.prog_defs;
 +  let vars = List.map (fun (id, t) -> id, fp32_type t) in
 +  let definition = function
-+    | AST.Gfun(Internal f) -> AST.Gfun(Internal {
-+        f with fn_return = fp32_type f.fn_return;
-+               fn_params = vars f.fn_params;
-+               fn_vars = vars f.fn_vars;
-+               fn_body = fp32_stmt f.fn_return f.fn_body })
++    | AST.Gfun(Internal f) ->
++        fp32_temporaries := [];
++        let body = fp32_stmt f.fn_return f.fn_body in
++        AST.Gfun(Internal {
++          f with fn_return = fp32_type f.fn_return;
++                 fn_params = vars f.fn_params;
++                 fn_vars = vars (f.fn_vars @ List.rev !fp32_temporaries);
++                 fn_body = body })
 +    | AST.Gfun(External(AST.EF_runtime(name, _), _, _, _)) as d
 +        when name <> "__compcert_va_float64" -> d
 +    | AST.Gfun(External(ef, ts, t, cc)) ->
@@ -253,7 +361,13 @@ index 37a8790..bc00d01 100644
  (** Convert a [C.program] into a [Csyntax.program] *)
  
  let convertProgram p =
-@@ -1569,6 +1771,6 @@ let convertProgram p =
+   Diagnostics.reset();
++  if !Clflags.option_fp32_approx_double && Configuration.abi <> "fp32" then
++    fp32_fail "-ffp32-approx-double requires the fp32 call profile";
+   stringNum := 0;
+   Hashtbl.clear decl_atom;
+   Hashtbl.clear stringTable;
+@@ -1569,6 +1881,6 @@ let convertProgram p =
              prog_comp_env = ce } in
          debug_set_struct_ofs ce typs;
          Diagnostics.check_errors ();
@@ -711,6 +825,38 @@ index 3ac4249..21f050f 100644
 +
 +val reset_fp32: unit -> unit
 +val fp32_assembly: unit -> string list
+diff --git a/driver/Clflags.ml b/driver/Clflags.ml
+index 391e1ca..bd8830f 100644
+--- a/driver/Clflags.ml
++++ b/driver/Clflags.ml
+@@ -15,6 +15,7 @@
+ let prepro_options = ref ([]: string list)
+ let linker_options = ref ([]: string list)
+ let assembler_options = ref ([]: string list)
++let option_fp32_approx_double = ref false
+ let option_flongdouble = ref false
+ let option_fstruct_passing = ref false
+ let option_fvararg_calls = ref true
+diff --git a/driver/Driver.ml b/driver/Driver.ml
+index 0c946f5..982879c 100644
+--- a/driver/Driver.ml
++++ b/driver/Driver.ml
+@@ -191,6 +191,7 @@ Processing options:
+                  branch-free instruction sequences as much as possible
+   -ftailcalls    Optimize function calls in tail position [on]
+   -fconst-prop   Perform global constant propagation  [on]
++  -ffp32-approx-double  Approximate double operations using FP32 (fp32 ABI only)
+   -ffloat-const-prop <n>  Control constant propagation of floats
+                    (<n>=0: none, <n>=1: limited, <n>=2: full; default is full)
+   -fcse          Perform common subexpression elimination [on]
+@@ -389,6 +390,7 @@ let cmdline_actions =
+   @ f_opt "inline" option_finline
+   @ f_opt "inline-functions-called-once" option_finline_functions_called_once
+ (* Code generation options *)
++  @ f_opt "fp32-approx-double" option_fp32_approx_double
+   @ f_opt "fpu" option_ffpu
+   @ f_opt "sse" option_ffpu (* backward compatibility *)
+   @ [
 diff --git a/driver/Frontend.ml b/driver/Frontend.ml
 index 2355dce..2050ef9 100644
 --- a/driver/Frontend.ml
