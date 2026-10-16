@@ -69,13 +69,11 @@ reject fp64-comparison 'int f(double x, double y) { return x == y; }' 'FP64 arit
 reject fp64-to-int 'int f(double x) { return (int)x; }' 'FP64 integer conversions'
 reject int-to-fp64 'double f(int x) { return x; }' 'FP64 integer conversions'
 reject long-double 'long double f(long double x) { return x; }' 'long double interfaces'
-reject aggregate-argument 'struct s { float x; }; float f(struct s s) { return s.x; }' 'aggregate-by-value'
-reject aggregate-result 'struct s { float x; }; struct s f(float x) { struct s s = { x }; return s; }' 'aggregate-by-value'
-reject aggregate-call 'struct s { float x; }; extern float g(struct s); float f(float x) { struct s s = { x }; return g(s); }' 'aggregate-by-value'
+reject long-double-aggregate 'struct s { long double x; }; struct s f(struct s x) { return x; }' 'long double interfaces'
 if [ "$bits" = 32 ]; then
   reject int64 'long long f(float x) { return (long long)x; }' 'FP64 or unsupported instruction'
 fi
-echo "PASS RV$bits: unsupported FP64 arithmetic and aggregate interfaces rejected"
+echo "PASS RV$bits: unsupported FP64 arithmetic and long-double interfaces rejected"
 
 printf '%s\n' 'int abi_probe(void) { return 0; }' > "$work/abi-probe.c"
 "${prefix}gcc" -march="rv${bits}imafd_zicsr" -mabi="${abi%f}d" \
@@ -92,6 +90,7 @@ printf '%s\n' 'extern int printf(const char *, ...);' \
 grep -q '__extendsfdf2' "$work/varargs-reference.s"
 echo "PASS RV$bits: F/D ELF ABI mixing rejected; GCC varargs reference uses software float-to-double conversion"
 
+"$root/tools/compcert-fp32-aggregates-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-varargs-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-fp64-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-stdio-test.sh" "$bits" "$compiler" "$config"

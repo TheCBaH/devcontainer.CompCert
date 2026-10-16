@@ -36,13 +36,3 @@ cflags=(-O2 -ffreestanding -fno-builtin -fno-stack-protector)
 grep -q 'single-float ABI' "$work/elf-attributes.txt"
 timeout 30 "qemu-riscv$bits" -cpu "rv$bits,d=false" "$work/varargs.elf"
 echo "PASS RV$bits: integer/pointer variadics, named FP32, va_copy/forwarding, aligned pairs, register/stack overflow and GCC interoperation with D disabled"
-
-printf '%s\n' 'struct s { int x; }; int f(int n, ...) {' \
-  '__builtin_va_list ap; __builtin_va_start(ap, n);' \
-  'return __builtin_va_arg(ap, struct s).x; }' > "$work/aggregate-vaarg.c"
-if "$compiler" -conf "$config" -fall -fno-pie -S \
-     -o "$work/aggregate-vaarg.s" "$work/aggregate-vaarg.c" \
-     > "$work/aggregate-vaarg.log" 2>&1; then
-  echo 'Aggregate va_arg unexpectedly accepted' >&2; exit 1
-fi
-grep -F 'FP32: aggregate' "$work/aggregate-vaarg.log"

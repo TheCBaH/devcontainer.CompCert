@@ -60,3 +60,19 @@ float __truncdfsf2(double x) {
   union { fp32_u64 u; double d; } v = { .d = x };
   return __compcert_fp32_truncate(v.u);
 }
+
+void *__compcert_fp32_va_composite(void **ap, unsigned long size,
+                                    unsigned long alignment) {
+  unsigned long p = (unsigned long)*ap;
+  unsigned long word = sizeof(void *);
+  if (size > 2 * word) {
+    void *result = *(void **)p;
+    *ap = (void *)(p + word);
+    return result;
+  }
+  if (alignment < word) alignment = word;
+  if (alignment > 16) alignment = 16;
+  p = (p + alignment - 1) & -alignment;
+  *ap = (void *)(p + ((size + word - 1) & -word));
+  return (void *)p;
+}

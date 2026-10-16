@@ -21,7 +21,7 @@ flags=(-march="rv${bits}imf_zicsr" -mabi="$abi" -mno-relax -fno-pie)
 reference=(-march="rv${bits}imafd_zicsr" -mabi="${abi%f}d" -fno-pie)
 printf 'source\tstatus\n' > "$work/execution.tsv"
 sources=("$root/test/riscv-fp32/stdio.c")
-for name in varargs1 varargs3 expr1 funptr2 volatile1 volatile3 volatile4; do
+for name in varargs1 varargs2 varargs3 expr1 funptr2 volatile1 volatile3 volatile4 bitfields9 bitfields10 struct11 struct12; do
   sources+=("$root/modules/CompCert/test/regression/$name.c")
 done
 for source in "${sources[@]}"; do
@@ -43,4 +43,4 @@ done
 "${prefix}readelf" -hA "$work/stdio.elf" > "$work/elf-attributes.txt"
 grep -q 'single-float ABI' "$work/elf-attributes.txt"
 cat "$work/execution.tsv"
-echo "PASS RV$bits: F-only printf/snprintf/vprintf, floating promotions and seven unchanged upstream programs match D-ABI libc reference output"
+echo "PASS RV$bits: F-only printf/snprintf/vprintf, floating promotions and twelve unchanged upstream programs match D-ABI libc reference output"

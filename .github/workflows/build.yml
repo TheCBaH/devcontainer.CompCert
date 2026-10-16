@@ -114,6 +114,8 @@ jobs:
           .fp32-work/rv${{ matrix.bits }}/calls/**/elf-attributes.txt
           .fp32-work/rv${{ matrix.bits }}/calls/**/metadata.txt
           .fp32-work/rv${{ matrix.bits }}/calls/fixtures/**
+          .fp32-work/rv${{ matrix.bits }}/calls/aggregates/fixtures/**
+          .fp32-work/rv${{ matrix.bits }}/calls/aggregates/runtime/**
           .fp32-work/rv${{ matrix.bits }}/calls/varargs/fixtures/**
           .fp32-work/rv${{ matrix.bits }}/calls/**/*.dis
           .fp32-work/rv${{ matrix.bits }}/calls/**/*.bin

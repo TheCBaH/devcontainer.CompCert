@@ -76,7 +76,7 @@ regression/annot1.c	profile-rejected
 regression/attribs1.c	compile-pass
 regression/binops.c	profile-rejected
 regression/bitfields1.c	compile-pass
-regression/bitfields10.c	profile-rejected
+regression/bitfields10.c	compile-pass
 regression/bitfields2.c	compile-pass
 regression/bitfields3.c	compile-pass
 regression/bitfields4.c	compile-pass
@@ -84,7 +84,7 @@ regression/bitfields5.c	compile-pass
 regression/bitfields6.c	compile-pass
 regression/bitfields7.c	compile-pass
 regression/bitfields8.c	compile-pass
-regression/bitfields9.c	profile-rejected
+regression/bitfields9.c	compile-pass
 regression/bitfields_uint_t.c	compile-pass
 regression/bool.c	compile-pass
 regression/builtins-aarch64.c	baseline-rejected
@@ -100,7 +100,7 @@ regression/char1.c	compile-pass
 regression/charlit.c	compile-pass
 regression/commaprec.c	compile-pass
 regression/compar.c	compile-pass
-regression/compound.c	profile-rejected
+regression/compound.c	compile-pass
 regression/consteval.c	compile-pass
 regression/decl1.c	compile-pass
 regression/decl2.c	compile-pass
@@ -153,12 +153,12 @@ regression/sizeof2.c	compile-pass
 regression/stringlit.c	compile-pass
 regression/struct1.c	compile-pass
 regression/struct10.c	compile-pass
-regression/struct11.c	profile-rejected
-regression/struct12.c	profile-rejected
-regression/struct2.c	profile-rejected
-regression/struct3.c	profile-rejected
+regression/struct11.c	compile-pass
+regression/struct12.c	compile-pass
+regression/struct2.c	compile-pass
+regression/struct3.c	compile-pass
 regression/struct4.c	compile-pass
-regression/struct5.c	profile-rejected
+regression/struct5.c	compile-pass
 regression/struct6.c	compile-pass
 regression/struct7.c	compile-pass
 regression/struct8.c	profile-rejected
@@ -169,7 +169,7 @@ regression/switch3.c	compile-pass
 regression/telescopes.c	profile-rejected
 regression/types1.c	compile-pass
 regression/varargs1.c	compile-pass
-regression/varargs2.c	profile-rejected
+regression/varargs2.c	compile-pass
 regression/varargs3.c	compile-pass
 regression/volatile1.c	compile-pass
 regression/volatile2.c	profile-rejected
@@ -184,7 +184,7 @@ spass/component.c	compile-pass
 spass/condensing.c	compile-pass
 spass/context.c	compile-pass
 spass/defs.c	compile-pass
-spass/dfgparser.c	profile-rejected
+spass/dfgparser.c	compile-pass
 spass/dfgscanner.c	compile-pass
 spass/doc-proof.c	compile-pass
 spass/flags.c	compile-pass
@@ -192,7 +192,7 @@ spass/foldfg.c	compile-pass
 spass/graph.c	compile-pass
 spass/hash.c	compile-pass
 spass/hasharray.c	compile-pass
-spass/iaparser.c	profile-rejected
+spass/iaparser.c	compile-pass
 spass/iascanner.c	compile-pass
 spass/kbo.c	compile-pass
 spass/list.c	compile-pass
