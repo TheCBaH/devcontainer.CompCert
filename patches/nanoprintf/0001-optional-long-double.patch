@@ -1,0 +1,34 @@
+diff --git a/nanoprintf.h b/nanoprintf.h
+index 5c99773..142de87 100644
+--- a/nanoprintf.h
++++ b/nanoprintf.h
+@@ -125,6 +125,10 @@ NPF_VISIBILITY int npf_vpprintf(npf_putc pc,
+   #define NANOPRINTF_USE_FLOAT_SINGLE_PRECISION 0
+ #endif
+ 
++#ifndef NANOPRINTF_USE_LONG_DOUBLE_FORMAT_SPECIFIERS
++  #define NANOPRINTF_USE_LONG_DOUBLE_FORMAT_SPECIFIERS 1
++#endif
++
+ // Single-precision mode defaults to off unless explicitly enabled.
+ #ifndef NANOPRINTF_USE_FLOAT_SINGLE_PRECISION
+   #define NANOPRINTF_USE_FLOAT_SINGLE_PRECISION 0
+@@ -711,7 +715,8 @@ static char const *npf_parse_format_spec_end(char const *format,
+       }
+ #endif
+       break;
+-#if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1
++#if NANOPRINTF_USE_FLOAT_FORMAT_SPECIFIERS == 1 && \
++    NANOPRINTF_USE_LONG_DOUBLE_FORMAT_SPECIFIERS == 1
+     case 'L': out_spec->length_modifier = NPF_FMT_SPEC_LEN_MOD_LONG_DOUBLE; break;
+ #endif
+ #if NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS == 1
+@@ -1786,7 +1791,7 @@ int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
+       npf_real_t val;
+ #if NANOPRINTF_USE_FLOAT_SINGLE_PRECISION == 1
+       val = va_arg(args, npf_float_t).val;
+-#elif LDBL_MANT_DIG == DBL_MANT_DIG
++#elif NANOPRINTF_USE_LONG_DOUBLE_FORMAT_SPECIFIERS == 0 || LDBL_MANT_DIG == DBL_MANT_DIG
+       // long double has the same representation as double
+       // no need to branch on the 'L' length modifier.
+       val = va_arg(args, double);

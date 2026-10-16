@@ -116,6 +116,11 @@ jobs:
           .fp32-work/rv${{ matrix.bits }}/calls/fixtures/**
           .fp32-work/rv${{ matrix.bits }}/calls/varargs/fixtures/**
           .fp32-work/rv${{ matrix.bits }}/calls/**/*.dis
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.bin
+          .fp32-work/rv${{ matrix.bits }}/calls/**/*.stdout
+          .fp32-work/rv${{ matrix.bits }}/calls/fp64/fixtures/**
+          .fp32-work/rv${{ matrix.bits }}/calls/stdio/fixtures/**
+          .fp32-work/rv${{ matrix.bits }}/calls/stdio/runtime/**
           .fp32-work/rv${{ matrix.bits }}/calls/upstream/test/**
         retention-days: 7
         if-no-files-found: ignore

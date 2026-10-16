@@ -1,3 +1,6 @@
 [submodule "modules/CompCert"]
 	path = modules/CompCert
 	url = https://github.com/AbsInt/CompCert.git
+[submodule "modules/nanoprintf"]
+	path = modules/nanoprintf
+	url = https://github.com/charlesnicholson/nanoprintf.git

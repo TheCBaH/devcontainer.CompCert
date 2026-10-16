@@ -167,3 +167,26 @@ truth values. Each architecture compares all bytes of 30,000 promotions and
 30,000 truncations against hardware D instructions, including rounding ties,
 subnormals, overflow, signed zero, infinities and canonical NaNs.
 
+A freestanding F-ABI formatted-output runtime is built with:
+
+```sh
+tools/compcert-fp32-runtime.sh 32 .fp32-work/rv32/runtime
+```
+
+It provides printf/vprintf, snprintf/vsnprintf, puts/putchar and a few byte/string
+primitives, using Linux write syscalls and pinned nanoprintf. It is not a full
+libc: allocation, file/stream I/O, locale and long-double formats are not supplied.
+The pinned formatter source and its 0BSD/Unlicense license are retained in the
+submodule and test evidence; an optional configuration patch disables long-double
+formatting so binary128 conversion code is not linked.
+
+The stdio tests compile seven unchanged upstream programs with the F configuration
+and these headers/runtime: regression/{varargs1,varargs3,expr1,funptr2,volatile1,
+volatile3,volatile4}.c. No D-ABI headers or libraries enter those executables.
+They check stdout and successful exit against a GCC D-ABI libc reference.
+A separate fixture checks integer/floating formats, va_list forwarding,
+64-bit arguments, snprintf truncation/length queries, and %n. The reports are
+calls/stdio/execution.tsv and calls/stdio/*.stdout. Together with the existing
+leaf harnesses and issue319, 16 distinct upstream sources execute per architecture:
+eight with leaf harnesses and eight as complete programs. The two output-validator
+executions remain additional checks of varargs1/varargs3, not additional sources.

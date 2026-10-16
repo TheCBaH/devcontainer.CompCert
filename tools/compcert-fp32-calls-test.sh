@@ -94,6 +94,7 @@ echo "PASS RV$bits: F/D ELF ABI mixing rejected; GCC varargs reference uses soft
 
 "$root/tools/compcert-fp32-varargs-test.sh" "$bits" "$compiler" "$config"
 "$root/tools/compcert-fp32-fp64-test.sh" "$bits" "$compiler" "$config"
+"$root/tools/compcert-fp32-stdio-test.sh" "$bits" "$compiler" "$config"
 
 if [ "$#" -ge 3 ]; then
   standard_config=$(realpath "$3")
