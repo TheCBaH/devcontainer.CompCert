@@ -38,11 +38,11 @@ for t in "${COMPCERT_TARGETS[@]}"; do
   target_config "$t"
   [ "$(manifest_field "$t" compcert-revision)" = "$revision" ] || Fatal "$t was built from another CompCert revision"
   targets=$(jq -n --argjson acc "$targets" --arg t "$t" \
-    --arg configure "$CONFIGURE_TARGET" --arg toolprefix "$TOOLPREFIX" \
+    --arg configure "$CONFIGURE_TARGET" --arg toolprefix "$TOOLPREFIX" --arg profile "$TARGET_PROFILE" \
     --arg export "compcert-export-$t.tar.gz" --arg asm "compcert-asm-$t.tar.gz" \
     --arg export_sha "$(sha256sum "compcert-export-$t.tar.gz" | cut -d' ' -f1)" \
     --arg asm_sha "$(sha256sum "compcert-asm-$t.tar.gz" | cut -d' ' -f1)" \
-    '$acc + {($t): {configure_target: $configure, toolprefix: $toolprefix,
+    '$acc + {($t): {configure_target: $configure, toolprefix: $toolprefix, profile: $profile,
       export: {file: $export, sha256: $export_sha}, asm: {file: $asm, sha256: $asm_sha}}}')
 done
 

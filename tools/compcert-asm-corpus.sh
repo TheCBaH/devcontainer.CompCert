@@ -76,11 +76,12 @@ sha() { sha256sum "$1" | cut -d' ' -f1; }
 suite_block() {
   local suite=$1; shift
   local args=("${CCOMP_EXTRA_ARGS[@]}" "$@")
+  local source_dir=${CORPUS_SUITE_SOURCE:-$TESTS/$suite}
   mkdir -p "$root/sources/$suite" "$root/asm/$suite"
-  cp "$TESTS/$suite"/*.c "$TESTS/$suite"/*.h "$root/sources/$suite/" 2>/dev/null || true
-  if [ -d "$TESTS/$suite/Results" ]; then
+  cp "$source_dir"/*.c "$source_dir"/*.h "$root/sources/$suite/" 2>/dev/null || true
+  if [ -d "$source_dir/Results" ]; then
     mkdir -p "$root/results/$suite"
-    cp -r "$TESTS/$suite/Results/." "$root/results/$suite/"
+    cp -r "$source_dir/Results/." "$root/results/$suite/"
   fi
   {
     [ ! -s "$manifest" ] || echo
@@ -115,6 +116,10 @@ suite_block() {
 suite_block c
 suite_block regression -fall
 suite_block compression
+if [ "$TARGET_PROFILE" = fp32 ]; then
+  CORPUS_SUITE_SOURCE="$REPO_ROOT/test/release-fp32" suite_block fp32 -fall
+  [ -s "$root/asm/fp32/native.s" ] || Fatal "F-only native fixture did not compile"
+fi
 
 # The runtime's own assembly is copied, not compiled.
 arch=$(grep '^ARCH=' "$export_dir/Makefile.config" | cut -d= -f2)

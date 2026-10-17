@@ -1,0 +1,42 @@
+include ../Makefile.config
+
+CFLAGS=-O2 -ffreestanding -fno-builtin -fno-stack-protector -fno-pie -fno-tree-loop-distribute-patterns
+GCC_INCLUDES=-nostdinc -Igcc-include -isystem $(shell $(CC) -print-file-name=include)
+I64_OBJS=i64_sar.o i64_shl.o i64_shr.o i64_sdiv.o i64_smod.o \
+  i64_udiv.o i64_umod.o i64_udivmod.o i64_smulh.o i64_umulh.o
+OBJS=stdio.o conversions.o approx.o vararg.o $(I64_OBJS)
+
+.PHONY: all install clean
+all: libcompcert.a crt0.o
+
+libcompcert.a: $(OBJS)
+	$(ARCHIVER) $@ $(OBJS)
+
+stdio.o: riscv-fp32-stdio.c nanoprintf/nanoprintf.h
+	$(CC) $(CFLAGS) $(GCC_INCLUDES) -Inanoprintf -c $< -o $@
+
+conversions.o: riscv-fp32.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+approx.o: riscv-fp64-approx.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+vararg.o: riscV/vararg.S riscV/sysdeps.h
+	$(CC) -DMODEL_$(MODEL) -DSYS_linux -c $< -o $@
+
+crt0.o: riscV/start.S
+	$(CC) -c $< -o $@
+
+# Keep CompCert's integer helpers; GCC would introduce its own RV32 libcalls.
+i64_%.o: c/i64_%.c c/i64.h ../ccomp
+	../ccomp -O2 -fno-pie -S -Ic -Iinclude -o $*.tmp.s $<
+	sed 's/i64_/__compcert_i64_/g' $*.tmp.s > $*.s
+	$(CC) -c $*.s -o $@
+
+install: all
+	install -d $(DESTDIR)$(LIBDIR)/include
+	install -m 0644 libcompcert.a crt0.o $(DESTDIR)$(LIBDIR)
+	install -m 0644 include/*.h $(DESTDIR)$(LIBDIR)/include
+
+clean:
+	$(RM) $(OBJS) libcompcert.a crt0.o *.s
