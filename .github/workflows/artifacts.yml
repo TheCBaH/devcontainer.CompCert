@@ -12,6 +12,11 @@ on:
     paths:
     - modules/CompCert
     - patches/compcert/**
+    - patches/nanoprintf/**
+    - modules/nanoprintf
+    - runtime/**
+    - test/release-fp32/**
+    - test/riscv-fp32/**
     - tools/compcert-*
     - Makefile
     - .devcontainer/**
@@ -20,6 +25,11 @@ on:
     paths:
     - modules/CompCert
     - patches/compcert/**
+    - patches/nanoprintf/**
+    - modules/nanoprintf
+    - runtime/**
+    - test/release-fp32/**
+    - test/riscv-fp32/**
     - tools/compcert-*
     - Makefile
     - .devcontainer/**
@@ -38,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64]
+        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64, riscv32_fp32, riscv64_fp32]
     steps:
     - name: checkout
       uses: actions/checkout@v7
@@ -68,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64]
+        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64, riscv32_fp32, riscv64_fp32]
     steps:
     # modules/CompCert is needed only for its test suites; nothing is built
     # from it (see the guard at the end).

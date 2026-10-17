@@ -1,6 +1,6 @@
 name: release
 
-# A v<compcert-version>-<n> tag publishes the artifacts.yml output: 12 tarballs,
+# A v<compcert-version>-<n> tag publishes every artifacts.yml target: tarballs,
 # SHA256SUMS and artifacts.json. A -rc tag is marked as a prerelease.
 on:
   push:
@@ -27,7 +27,8 @@ jobs:
       run: |
         cd dist
         sha256sum -c SHA256SUMS
-        test "$(ls | wc -l)" -eq 14
+        expected=$((2 * $(jq '.targets | length' artifacts.json) + 2))
+        test "$(ls | wc -l)" -eq "$expected"
     - name: publish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

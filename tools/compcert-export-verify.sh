@@ -66,15 +66,19 @@ run_program() {
   echo "  $name: passed"
 }
 
-echo "== [$target] cross-smoke =="
-run_program hello "$SMOKE_SRC" "$SMOKE_EXPECTED" "$work/run"
-machine=$("${TOOLPREFIX}readelf" -h "$work/run/hello.compcert" | sed -n 's/^ *Machine: *//p')
-[ "$machine" = "$READELF_MACHINE" ] || Fatal "expected ELF machine '$READELF_MACHINE', got '$machine'"
-for r in "$TESTS"/c/Results/*; do
-  name=$(basename "$r")
-  [ -f "$TESTS/c/$name.c" ] || continue
-  run_program "$name" "$TESTS/c/$name.c" "$r" "$TESTS/c"
-done
+if [ "$TARGET_PROFILE" = fp32 ]; then
+  "$SCRIPT_DIR/compcert-export-fp32-verify.sh" "$target" "$work/prefix" "$work"
+else
+  echo "== [$target] cross-smoke =="
+  run_program hello "$SMOKE_SRC" "$SMOKE_EXPECTED" "$work/run"
+  machine=$("${TOOLPREFIX}readelf" -h "$work/run/hello.compcert" | sed -n 's/^ *Machine: *//p')
+  [ "$machine" = "$READELF_MACHINE" ] || Fatal "expected ELF machine '$READELF_MACHINE', got '$machine'"
+  for r in "$TESTS"/c/Results/*; do
+    name=$(basename "$r")
+    [ -f "$TESTS/c/$name.c" ] || continue
+    run_program "$name" "$TESTS/c/$name.c" "$r" "$TESTS/c"
+  done
+fi
 
 echo "== [$target] asm corpus =="
 "$SCRIPT_DIR/compcert-asm-corpus.sh" "$target" "$work/prefix" "$work/export" "$corpus_out"
@@ -94,6 +98,7 @@ fi
 # The regression suite deliberately holds constructs GNU as may reject
 # (architecture-specific builtins); the other suites must assemble cleanly.
 for f in "${failed[@]}"; do
+  [ "$TARGET_PROFILE" != fp32 ] || Fatal "$f does not assemble for the F-only ISA"
   case "$f" in regression/*) ;; *) Fatal "$f does not assemble" ;; esac
 done
 echo "== [$target] OK =="

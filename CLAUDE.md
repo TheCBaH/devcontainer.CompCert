@@ -41,8 +41,8 @@ All of these need Rocq/opam, so run them in the devcontainer.
   — package `compcert-lib/` plus CompCert's `LICENSE` into
   `compcert-export.tar.gz`, buildable with just `dune build`, no clone or
   Rocq required.
-- `tools/compcert-export-archive-all.sh <target>` — the per-target export
-  tarball (see below), for one of `x86_32 x86_64 arm aarch64 riscv32 riscv64`.
+- `tools/compcert-export-target.sh <target>` — the per-target export
+  tarball (see below), for one of `x86_32 x86_64 arm aarch64 riscv32 riscv64 riscv32_fp32 riscv64_fp32`.
 - `tools/compcert-cross-smoke.sh [<target>|all]` — build CompCert as a cross
   compiler and run `test/cross-smoke/hello.c` under QEMU; a target whose
   compiler or emulator is missing is skipped, not failed.
@@ -71,8 +71,8 @@ All of these need Rocq/opam, so run them in the devcontainer.
 ### The artifact contract
 
 A release tag `v<compcert-version>-<n>` (`-rc<k>` for a prerelease) publishes
-`compcert-export-<t>.tar.gz` and `compcert-asm-<t>.tar.gz` for each of the six
-targets, plus `SHA256SUMS` and `artifacts.json`. This is the **only** interface
+`compcert-export-<t>.tar.gz` and `compcert-asm-<t>.tar.gz` for each of the eight
+target profiles, plus `SHA256SUMS` and `artifacts.json`. This is the **only** interface
 to CompCert for other repos, and it is why the files in the tarballs must be
 real files: `v3.17-1` shipped absolute symlinks into this tree and had to be
 replaced by `v3.17-2`.
@@ -93,8 +93,10 @@ builds the export tarball; `verify` removes Rocq, unpacks, builds, checks
 `ccomp -version`, builds the runtime, compiles and runs `hello.c` and every
 `test/c` program under QEMU against CompCert's `Results/`, generates the asm
 corpus, and assembles every generated `.s` with the cross binutils; `index`
-writes `SHA256SUMS` and `artifacts.json`. `release.yml` calls it on `v*` tags and
-uploads the 14 assets. Changing the tarball contents means cutting a new tag;
+writes `SHA256SUMS` and `artifacts.json`. The F-only variants instead verify
+native FP32, integer64, aggregate, vararg and stdio fixtures plus explicit FP32
+approximation references with D disabled, using only their packaged runtime.
+`release.yml` calls it on `v*` tags and uploads the 18 assets. Changing the tarball contents means cutting a new tag;
 consumers pin the tag and every hash.
 
 Other workflows: `build.yml` (CompCert build, proof check, tests, cross-smoke,

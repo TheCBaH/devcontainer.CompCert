@@ -18,8 +18,8 @@ case "$prefix" in /*) ;; *) prefix=$(pwd)/$prefix ;; esac
 
 cd "$here"
 dune build --root . ./bin/main.exe @install
-# runtime/Makefile compiles its C sources with ../ccomp, which finds
-# ../compcert.ini next to itself.
+# The packaged runtime Makefile uses this compiler for CompCert's helpers;
+# F-only stdio/conversion helpers use the matching GCC cross toolchain.
 cp _build/default/bin/main.exe ccomp
 dune install --root . --prefix "$prefix" >/dev/null
 

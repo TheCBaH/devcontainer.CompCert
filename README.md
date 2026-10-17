@@ -31,8 +31,8 @@ SSHD for `gh codespace ssh` and initializes the test submodule recursively.
 
 ## Release artifacts
 A release tag `v<compcert-version>-<n>` (for example `v3.17-2`; `-rc<k>` marks a
-prerelease) publishes, for each of the six targets `x86_32`, `x86_64`, `arm`,
-`aarch64`, `riscv32` and `riscv64`:
+prerelease) publishes, for each target `x86_32`, `x86_64`, `arm`, `aarch64`,
+`riscv32`, `riscv64`, `riscv32_fp32` and `riscv64_fp32`:
 
 * `compcert-export-<target>.tar.gz` - CompCert's extracted OCaml as a dune
   project (library `compcert_<target>`, `ccomp` driver), a portable
@@ -59,8 +59,23 @@ extract (the only job with Rocq), then, in a job without Rocq, build the export,
 check `ccomp -version`, build the runtime, compile and run every `test/c`
 program under QEMU against CompCert's expected results, generate the assembly
 corpus, run the cross GNU `as` over it, and publish. `release.yml` reuses it on
-`v*` tags and uploads the 14 assets. `pre-split` tags the tree from before the
+`v*` tags and uploads the 18 assets. `pre-split` tags the tree from before the
 assembler moved out.
+
+The F-only archives select `rv32imf_zicsr`/ILP32F and
+`rv64imf_zicsr`/LP64F. They include runtime sources, a patched nanoprintf header
+and its license, minimal headers and Linux startup code. `install.sh` builds
+`libcompcert.a` and `crt0.o` using only the archive and cross toolchain. See the
+included `FP32.md` for freestanding linking and optional
+`-ffp32-approx-double`; approximation is off by default. These variants supply
+a small runtime, not a full F-ABI Linux libc or libm.
+
+Their Rocq-free verification installs the package, runs native FP32,
+integer64/aggregate/vararg/stdio fixtures and approximate-double reference
+vectors with QEMU D disabled, and checks that a D control traps. Every emitted
+F-only corpus file must assemble with the F-only ISA. The six ordinary targets
+retain their full libc benchmark verification. No release is published by a
+normal branch push; the updated artifacts appear in the next release tag.
 
 ## Rocq-free split build
 Rocq is only needed to check the proof and extract OCaml sources from it;
@@ -90,7 +105,8 @@ cloning this repo or touching Rocq:
 * `make compcert-export-run ARGS=-version` build and run the unpacked archive
 
 The per-target tarballs above are built from the same sources by
-`tools/compcert-export-archive-all.sh <target>`.
+`tools/compcert-export-target.sh <target>`; use
+`tools/compcert-export-archive-all.sh` to generate every target.
 
 ## Cross-compilation smoke test
 `tools/compcert-cross-smoke.sh [<target>|all]` builds and installs CompCert as a

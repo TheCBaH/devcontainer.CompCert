@@ -62,7 +62,15 @@ portable_ini() {
   sed -E 's#^(prepro|linker|asm)=([^ ]*/)?([^ /]+)#\1=\3#' "$1"
 }
 portable_ini "$build/compcert.ini" > "$stage/compcert.ini"
+if [ "$TARGET_PROFILE" = fp32 ]; then
+  sed -i -e 's/^has_runtime_lib=false$/has_runtime_lib=true/' \
+    -e 's/^has_standard_headers=false$/has_standard_headers=true/' "$stage/compcert.ini"
+fi
 sed -E 's#^PREFIX=.*#PREFIX=/usr/local#' "$build/Makefile.config" > "$stage/Makefile.config"
+if [ "$TARGET_PROFILE" = fp32 ]; then
+  sed -i -e 's/^HAS_RUNTIME_LIB=false$/HAS_RUNTIME_LIB=true/' \
+    -e 's/^HAS_STANDARD_HEADERS=false$/HAS_STANDARD_HEADERS=true/' "$stage/Makefile.config"
+fi
 
 if [ "${#COMPCERT_CONFIGURE_ARGS[@]}" -gt 0 ]; then
   echo "== [$target] freestanding profile =="
@@ -136,6 +144,20 @@ EOF
 echo "== [$target] runtime and license =="
 mkdir -p "$stage/runtime"
 (cd "$build/runtime" && tar -chf - --exclude=./test --exclude='*.o' --exclude='*.a' .) | tar -xf - -C "$stage/runtime"
+if [ "$TARGET_PROFILE" = fp32 ]; then
+  test "$(git -C "$REPO_ROOT/modules/nanoprintf" rev-parse HEAD)" = bebaecbeaf430e36a2d30d31a2fed4e098388c93
+  mkdir -p "$stage/runtime/nanoprintf" "$stage/runtime/gcc-include"
+  git -C "$REPO_ROOT/modules/nanoprintf" archive HEAD nanoprintf.h LICENSE | \
+    tar -xf - -C "$stage/runtime/nanoprintf"
+  patch -s -d "$stage/runtime/nanoprintf" -p1 < "$REPO_ROOT/patches/nanoprintf/0001-optional-long-double.patch"
+  cp "$REPO_ROOT/runtime/"*.c "$stage/runtime/"
+  cp "$REPO_ROOT/runtime/include/"*.h "$stage/runtime/include/"
+  cp "$REPO_ROOT/runtime/include/"*.h "$stage/runtime/gcc-include/"
+  cp "$REPO_ROOT/test/riscv-fp32/start.S" "$stage/runtime/riscV/start.S"
+  cp "$REPO_ROOT/runtime/Makefile.fp32" "$stage/runtime/Makefile"
+  cp "$REPO_ROOT/LICENSE" "$stage/runtime/FP32-LICENSE"
+  cp "$REPO_ROOT/runtime/README.fp32.md" "$stage/FP32.md"
+fi
 cp "$COMPCERT_DIR/LICENSE" "$stage/LICENSE"
 install -m 0755 "$SCRIPT_DIR/compcert-export-install.sh" "$stage/install.sh"
 
@@ -159,6 +181,14 @@ revision=$(git -C "$COMPCERT_DIR" rev-parse HEAD 2>/dev/null || echo unknown)
     echo "compcert-patch: $(basename "$patch") $(sha256sum "$patch" | cut -d' ' -f1)"
   done
   echo "target: $target"
+  echo "profile: $TARGET_PROFILE"
+  if [ "$TARGET_PROFILE" = fp32 ]; then
+    echo "isa: rv${FP32_BITS}imf_zicsr"
+    echo "abi: $fp32_abi"
+    echo "approximate-double-default: false"
+    echo "nanoprintf-revision: $(git -C "$REPO_ROOT/modules/nanoprintf" rev-parse HEAD)"
+    echo "nanoprintf-patch: $(sha256sum "$REPO_ROOT/patches/nanoprintf/0001-optional-long-double.patch" | cut -d' ' -f1)"
+  fi
   echo "configure: ${configure[*]} $CONFIGURE_TARGET"
   [ "${#COMPCERT_CONFIGURE_ARGS[@]}" -eq 0 ] || echo "freestanding-configure: ${configure[*]} ${COMPCERT_CONFIGURE_ARGS[*]} $CONFIGURE_TARGET"
   echo "ocaml: $(Opam ocamlfind ocamlopt -version 2>/dev/null || Opam ocamlopt -version)"
