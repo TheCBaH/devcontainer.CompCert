@@ -1,0 +1,25 @@
+# Input sizes the JavaScript build is expected to compile with a 984 KB stack
+# (V8's default), one shape per line:  <shape> <N> [slow]
+# Each is about 90% of what the build measured on OCaml 4.14.3 with
+# js_of_ocaml in a freshly started process (the engine's cold frames are the
+# largest); limits.js fails when a shape no longer compiles at its N, or
+# when a much larger input ends in anything but ok, a diagnostic or too_deep.
+# "slow" shapes take minutes and are checked only with LIMITS_FULL=1. "beyond"
+# shapes fail by recursion depth, so they are also pushed to LIMITS_BEYOND times
+# their N; the others fail by size (memory), where no clean answer is promised.
+globals 50000
+functions 20000
+statements 50000 slow
+strings 50000
+initelems 50000
+exprnest 50000 beyond
+structfields 5900
+stringstmts 6900
+localvars 5000 beyond
+addnest 2950 beyond
+exprchain 3150 beyond
+elseif 2500 beyond
+blocknest 1850 beyond
+switchcases 1490 beyond
+callargs 1740 beyond
+ifnest 980 beyond

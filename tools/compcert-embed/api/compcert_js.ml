@@ -195,8 +195,16 @@ let compile_ex o source =
             let text = d ^ raw ^ summary in
             { result = Error (Diagnostics text); diagnostics = text }
         | exception e when is_overflow e ->
-            { result = Error (Too_deep too_deep_message); diagnostics = "" }
-        | exception e -> { result = Error (Internal (Printexc.to_string e)); diagnostics = "" }
+            (* With backtraces on (OCAMLRUNPARAM=b), say where it ran out. *)
+            let where =
+              if Printexc.backtrace_status () then "\n" ^ Printexc.get_backtrace () else ""
+            in
+            { result = Error (Too_deep (too_deep_message ^ where)); diagnostics = "" }
+        | exception e ->
+            let where =
+              if Printexc.backtrace_status () then "\n" ^ Printexc.get_backtrace () else ""
+            in
+            { result = Error (Internal (Printexc.to_string e ^ where)); diagnostics = "" }
       in
       Hashtbl.remove CC.Embed_source_in.files name;
       outcome)

@@ -1,0 +1,29 @@
+--- a/Asmgen.ml
++++ b/Asmgen.ml
+@@ -3403,14 +3403,18 @@
+     coq_function -> instruction list -> bool -> (Asm.code -> Asm.code res) ->
+     Asm.code res **)
+ 
+-let rec transl_code_rec f il it1p k =
+-  match il with
+-  | [] -> k []
+-  | i1 :: il' ->
+-    transl_code_rec f il' (it1_is_parent it1p i1) (fun c1 ->
+-      match transl_instr f i1 it1p c1 with
+-      | OK x -> k x
+-      | Error msg0 -> Error msg0)
++let transl_code_rec f il it1p k =
++  let rec forward acc it1p = function
++  | [] -> acc
++  | i1 :: il' -> forward ((i1, it1p) :: acc) (it1_is_parent it1p i1) il'
++  in
++  let rec back c = function
++  | [] -> k c
++  | (i1, p) :: rest ->
++    (match transl_instr f i1 p c with
++     | OK x -> back x rest
++     | Error msg0 -> Error msg0)
++  in back [] (forward [] it1p il)
+ 
+ (** val transl_code' :
+     coq_function -> instruction list -> bool -> Asm.code res **)

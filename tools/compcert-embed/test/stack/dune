@@ -1,0 +1,5 @@
+(executable
+ (name unit)
+ (modules unit)
+ (flags (:standard -w -a))
+ (libraries compcert_js))

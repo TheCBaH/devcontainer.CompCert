@@ -34,6 +34,7 @@ target_config "$target" || exit 1
 output=$(realpath -m "${2:-$REPO_ROOT/compcert-embed-$target.tar.gz}")
 input=$(realpath -m "${COMPCERT_EMBED_EXPORT:-$REPO_ROOT/compcert-export-$target.tar.gz}")
 pkg="compcert_${target}_embed"
+Pkg="$(printf '%s' "${pkg:0:1}" | tr '[:lower:]' '[:upper:]')${pkg:1}"
 
 stage="$WORK_ROOT/stage/$target"
 rm -rf "$stage" "$WORK_ROOT/export/$target"
@@ -61,6 +62,19 @@ if [ -n "$(find "$stage" \( -name '*.rej' -o -name '*.orig' \))" ]; then
   find "$stage" \( -name '*.rej' -o -name '*.orig' \) >&2
   Fatal "patch left reject or backup files"
 fi
+# Rewrites of the recursion that overflows a small stack: hand-written code and
+# Rocq-extracted list functions, common to all targets, then the extracted
+# code generator of the target's architecture where it needs one.
+arch=$(sed -n 's/^arch=//p' "$export_dir/compcert.ini")
+for p in stack.patch "stack-$arch.patch"; do
+  [ -f "$EMBED_DIR/$p" ] || continue
+  cp "$EMBED_DIR/$p" "$stage/patches/$p"
+  patch -s --fuzz=0 -p1 -d "$stage/src" < "$stage/patches/$p"
+done
+if [ -n "$(find "$stage" \( -name '*.rej' -o -name '*.orig' \))" ]; then
+  find "$stage" \( -name '*.rej' -o -name '*.orig' \) >&2
+  Fatal "patch left reject or backup files"
+fi
 injected=(embed_argv.ml embed_asm_out.ml embed_config.ml embed_diag_out.ml embed_source_in.ml)
 for f in "${injected[@]}"; do cp "$EMBED_DIR/$f" "$stage/src/$f"; done
 
@@ -83,28 +97,27 @@ version=$(sed -n 's/^compcert-version: //p' "$export_dir/MANIFEST")
 cat > "$stage/dune-project" <<EOT
 (lang dune 3.0)
 (name $pkg)
-(package
- (name $pkg)
- (synopsis "CompCert $version $target, in-memory embed variant"))
 EOT
 cat > "$stage/src/dune" <<EOT
 (library
  (name $pkg)
- (public_name $pkg)
- (libraries str unix menhirLib)
+ (libraries str unix menhirLib ${pkg}_list)
  (modules_without_implementation$mli_only)
  (flags
-  (:standard -w -a -strict-sequence)))
+  (:standard -w -a -strict-sequence -open ${Pkg}_list.Embed_list)))
 EOT
 
 # The backend-neutral API, built on the embed library of this package.
 mkdir -p "$stage/api"
 cp "$EMBED_DIR/api/compcert_js.ml" "$stage/api/"
-sed "s/@PKG@/$pkg/" "$EMBED_DIR/api/dune.in" > "$stage/api/dune"
-echo "module CC = $(printf '%s' "${pkg:0:1}" | tr '[:lower:]' '[:upper:]')${pkg:1}" > "$stage/api/embed_cc.ml"
-mkdir -p "$stage/jsoo" "$stage/test"
+sed "s/@PKG@/$pkg/g" "$EMBED_DIR/api/dune.in" > "$stage/api/dune"
+printf 'module CC = %s\nmodule Tr_list = %s_list.Embed_list\n' "$Pkg" "$Pkg" > "$stage/api/embed_cc.ml"
+mkdir -p "$stage/list" "$stage/jsoo" "$stage/test"
+cp "$EMBED_DIR/list/embed_list.ml" "$stage/list/"
+sed "s/@PKG@/$pkg/g" "$EMBED_DIR/list/dune.in" > "$stage/list/dune"
 cp "$EMBED_DIR"/jsoo/* "$stage/jsoo/"
 cp -r "$EMBED_DIR/test/." "$stage/test/"
+cp "$EMBED_DIR/README.md" "$stage/README.md"
 cp "$export_dir/LICENSE" "$stage/LICENSE"
 
 if grep -rIl -e "$REPO_ROOT" -e "$WORK_ROOT" "$stage" >/dev/null; then
@@ -121,6 +134,10 @@ fi
   echo "export-sha256: $export_sha"
   echo "embed-patch: $(sha256sum "$stage/patches/embed.patch" | cut -d' ' -f1)"
   echo "embed-config: $ini"
+  for p in stack.patch "stack-$arch.patch"; do
+    [ ! -f "$stage/patches/$p" ] || echo "embed-patch: $p $(sha256sum "$stage/patches/$p" | cut -d' ' -f1)"
+  done
+  echo "embed-list: embed_list.ml $(sha256sum "$stage/list/embed_list.ml" | cut -d' ' -f1)"
   for f in "${injected[@]}"; do
     echo "embed-module: $f $(sha256sum "$stage/src/$f" | cut -d' ' -f1)"
   done

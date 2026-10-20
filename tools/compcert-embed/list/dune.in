@@ -1,0 +1,4 @@
+(library
+ (name @PKG@_list)
+ (flags
+  (:standard -w -a)))

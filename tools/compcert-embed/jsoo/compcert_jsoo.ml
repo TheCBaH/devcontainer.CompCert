@@ -15,18 +15,22 @@ let get o k = Js.Unsafe.get o (str k)
 let has o k = Js.Optdef.test (get o k)
 
 (* jsoo reports an exhausted JavaScript stack as Stack_overflow when it can
-   detect it, and as a Failure carrying V8's or Firefox's message when its own
-   detection overflows. *)
+   detect it. When its own detection runs out of stack, what arrives is a
+   Failure, or a JavaScript SyntaxError ("Invalid regular expression: ...
+   Maximum call stack size exceeded"), carrying the engine's message. *)
+let mentions_overflow m =
+  let has_sub s =
+    let n = String.length s and l = String.length m in
+    let rec go i = i + n <= l && (String.sub m i n = s || go (i + 1)) in
+    go 0
+  in
+  has_sub "Maximum call stack size exceeded" || has_sub "maximum call stack"
+  || has_sub "too much recursion"
+
 let jsoo_overflow = function
   | Stack_overflow -> true
-  | Failure m ->
-      let has_sub s =
-        let n = String.length s and l = String.length m in
-        let rec go i = i + n <= l && (String.sub m i n = s || go (i + 1)) in
-        go 0
-      in
-      has_sub "Maximum call stack size exceeded" || has_sub "maximum call stack"
-      || has_sub "too much recursion"
+  | Failure m -> mentions_overflow m
+  | Js_error.Exn e -> mentions_overflow (Js_error.message e)
   | _ -> false
 
 let () = Compcert_js.overflow_hooks := [ jsoo_overflow ]

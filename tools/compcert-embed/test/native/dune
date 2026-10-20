@@ -1,4 +1,5 @@
 (executable
  (name embed_cli)
+ (modes byte exe)
  (flags (:standard -w -a))
  (libraries compcert_js))

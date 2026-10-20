@@ -1,0 +1,369 @@
+--- a/AST.ml
++++ b/AST.ml
+@@ -409,27 +409,23 @@
+     (ident -> 'a1 -> 'a2 res) -> (ident -> 'a3 -> 'a4 res) -> (ident * ('a1,
+     'a3) globdef) list -> (ident * ('a2, 'a4) globdef) list res **)
+ 
+-let rec transf_globdefs transf_fun transf_var = function
+-| [] -> OK []
+-| p :: l' ->
+-  let (id, g) = p in
+-  (match g with
+-   | Gfun f ->
+-     (match transf_fun id f with
+-      | OK tf ->
+-        (match transf_globdefs transf_fun transf_var l' with
+-         | OK x -> OK ((id, (Gfun tf)) :: x)
+-         | Error msg -> Error msg)
+-      | Error msg ->
+-        Error ((MSG "In function ") :: ((CTX id) :: ((MSG ": ") :: msg))))
+-   | Gvar v ->
+-     (match transf_globvar transf_var id v with
+-      | OK tv ->
+-        (match transf_globdefs transf_fun transf_var l' with
+-         | OK x -> OK ((id, (Gvar tv)) :: x)
+-         | Error msg -> Error msg)
+-      | Error msg ->
+-        Error ((MSG "In variable ") :: ((CTX id) :: ((MSG ": ") :: msg)))))
++let transf_globdefs transf_fun transf_var l =
++  let rec go acc = function
++  | [] -> OK (List.rev acc)
++  | p :: l' ->
++    let (id, g) = p in
++    (match g with
++     | Gfun f ->
++       (match transf_fun id f with
++        | OK tf -> go ((id, (Gfun tf)) :: acc) l'
++        | Error msg ->
++          Error ((MSG "In function ") :: ((CTX id) :: ((MSG ": ") :: msg))))
++     | Gvar v ->
++       (match transf_globvar transf_var id v with
++        | OK tv -> go ((id, (Gvar tv)) :: acc) l'
++        | Error msg ->
++          Error ((MSG "In variable ") :: ((CTX id) :: ((MSG ": ") :: msg)))))
++  in go [] l
+ 
+ (** val transform_partial_program2 :
+     (ident -> 'a1 -> 'a2 res) -> (ident -> 'a3 -> 'a4 res) -> ('a1, 'a3)
+--- a/Cflow.ml
++++ b/Cflow.ml
+@@ -278,12 +278,21 @@
+   | Sasm _ ->
+       normal
+ 
+-and outcomes_block env sl =
+-  match sl with
+-  | [] ->
+-      normal
+-  | s1 :: sl ->
+-      seq (outcomes env s1) (outcomes_block env sl)
++and outcomes_block env sl : flow =
++  (* The sequential composition of the statements, as a loop. *)
++  let flows = List.rev (List.rev_map (outcomes env) sl) in
++  fun i ->
++    let rec go acc = function
++    | [] -> acc
++    | f :: rest ->
++        let o = f {i with inormal = acc.onormal} in
++        go { onormal = o.onormal;
++             obreak = acc.obreak || o.obreak;
++             ocontinue = acc.ocontinue || o.ocontinue;
++             oreturn = acc.oreturn || o.oreturn;
++             ogoto = StringSet.union acc.ogoto o.ogoto } rest in
++    go { onormal = i.inormal; obreak = false; ocontinue = false;
++         oreturn = false; ogoto = StringSet.empty } flows
+ 
+ (* This is the entry point in this module.  Given the body of a function,
+    estimate if and how this function can return. *)
+--- a/Datatypes.ml
++++ b/Datatypes.ml
+@@ -31,10 +31,11 @@
+ 
+ (** val app : 'a1 list -> 'a1 list -> 'a1 list **)
+ 
+-let rec app l m =
+-  match l with
+-  | [] -> m
+-  | a :: l1 -> a :: (app l1 m)
++let app l m =
++  let rec rev_onto acc = function
++  | [] -> acc
++  | a :: l1 -> rev_onto (a :: acc) l1
++  in rev_onto m (rev_onto [] l)
+ 
+ type comparison =
+ | Eq
+--- a/Dwarfgen.ml
++++ b/Dwarfgen.ml
+@@ -34,12 +34,13 @@
+   let compare (x:int) (y:int) = compare x y
+ end)
+ 
+-let rec mmap f env = function
+-  | [] -> ([],env)
++let mmap f env l =
++  let rec go acc env = function
++  | [] -> (List.rev acc, env)
+   | hd :: tl ->
+-      let (hd',env1) = f env hd in
+-      let (tl', env2) = mmap f env1 tl in
+-      (hd' :: tl', env2)
++      let (hd', env1) = f env hd in
++      go (hd' :: acc) env1 tl in
++  go [] env l
+ 
+ let rec mmap_opt f env = function
+   | [] -> ([],env)
+--- a/Elab.ml
++++ b/Elab.ml
+@@ -118,12 +118,13 @@
+ 
+ (* Monadic map for functions env -> 'a -> 'b * env *)
+ 
+-let rec mmap f env = function
+-  | [] -> ([], env)
++let mmap f env l =
++  let rec go acc env = function
++  | [] -> (List.rev acc, env)
+   | hd :: tl ->
+       let (hd', env1) = f env hd in
+-      let (tl', env2) = mmap f env1 tl in
+-      (hd' :: tl', env2)
++      go (hd' :: acc) env1 tl in
++  go [] env l
+ 
+ let rec mmap2_filter f env l1 l2 =
+   match l1,l2 with
+@@ -3304,9 +3305,9 @@
+   { sdesc = Sblock b'; sloc = elab_loc loc },env
+ 
+ and elab_block_body env ctx sl =
+-  match sl with
++  let rec go env acc = function
+   | [] ->
+-      [],env
++      List.rev acc,env
+   | DEFINITION def :: sl1 ->
+       let (dcl, env') =
+         elab_definition false true ctx.ctx_nonstatic_inline env def in
+@@ -3314,12 +3315,11 @@
+       let dcl = List.map (fun ((sto,id,ty,_) as d) ->
+         Debug.insert_local_declaration sto id ty loc;
+         {sdesc = Sdecl d; sloc = loc}) dcl in
+-      let sl1',env' = elab_block_body env' ctx sl1 in
+-      dcl @ sl1',env'
++      go env' (List.rev_append dcl acc) sl1
+   | s :: sl1 ->
+       let s',env = elab_stmt env ctx s in
+-      let sl1',env = elab_block_body env ctx sl1 in
+-      s' :: sl1',env
++      go env (s' :: acc) sl1
++  in go env [] sl
+ 
+ (* Elaboration of a function body.  Return the corresponding C statement. *)
+ 
+--- a/Errors.ml
++++ b/Errors.ml
+@@ -23,12 +23,11 @@
+ 
+ (** val mmap : ('a1 -> 'a2 res) -> 'a1 list -> 'a2 list res **)
+ 
+-let rec mmap f = function
+-| [] -> OK []
+-| hd :: tl ->
+-  (match f hd with
+-   | OK x ->
+-     (match mmap f tl with
+-      | OK x0 -> OK (x :: x0)
+-      | Error msg0 -> Error msg0)
+-   | Error msg0 -> Error msg0)
++let mmap f l =
++  let rec go acc = function
++  | [] -> OK (List.rev acc)
++  | hd :: tl ->
++    (match f hd with
++     | OK x -> go (x :: acc) tl
++     | Error msg0 -> Error msg0)
++  in go [] l
+--- a/List0.ml
++++ b/List0.ml
+@@ -30,16 +30,20 @@
+ 
+ (** val remove : ('a1 -> 'a1 -> bool) -> 'a1 -> 'a1 list -> 'a1 list **)
+ 
+-let rec remove eq_dec x = function
+-| [] -> []
+-| y :: tl0 ->
+-  if eq_dec x y then remove eq_dec x tl0 else y :: (remove eq_dec x tl0)
++let remove eq_dec x l =
++  let rec go acc = function
++  | [] -> List.rev acc
++  | y :: tl0 ->
++    if eq_dec x y then go acc tl0 else go (y :: acc) tl0
++  in go [] l
+ 
+ (** val rev : 'a1 list -> 'a1 list **)
+ 
+-let rec rev = function
+-| [] -> []
+-| x :: l' -> app (rev l') (x :: [])
++let rev l =
++  let rec go acc = function
++  | [] -> acc
++  | x :: l' -> go (x :: acc) l'
++  in go [] l
+ 
+ (** val rev_append : 'a1 list -> 'a1 list -> 'a1 list **)
+ 
+@@ -74,9 +78,11 @@
+ 
+ (** val fold_right : ('a2 -> 'a1 -> 'a1) -> 'a1 -> 'a2 list -> 'a1 **)
+ 
+-let rec fold_right f a0 = function
+-| [] -> a0
+-| b :: l0 -> f b (fold_right f a0 l0)
++let fold_right f a0 l =
++  let rec go acc = function
++  | [] -> acc
++  | b :: l0 -> go (f b acc) l0
++  in go a0 (rev l)
+ 
+ (** val existsb : ('a1 -> bool) -> 'a1 list -> bool **)
+ 
+@@ -92,6 +98,8 @@
+ 
+ (** val filter : ('a1 -> bool) -> 'a1 list -> 'a1 list **)
+ 
+-let rec filter f = function
+-| [] -> []
+-| x :: l0 -> if f x then x :: (filter f l0) else filter f l0
++let filter f l =
++  let rec go acc = function
++  | [] -> rev acc
++  | x :: l0 -> if f x then go (x :: acc) l0 else go acc l0
++  in go [] l
+--- a/ListDef.ml
++++ b/ListDef.ml
+@@ -2,9 +2,11 @@
+ 
+ (** val map : ('a1 -> 'a2) -> 'a1 list -> 'a2 list **)
+ 
+-let rec map f = function
+-| [] -> []
+-| a :: l0 -> (f a) :: (map f l0)
++let map f l =
++  let rec go acc = function
++  | [] -> List.rev acc
++  | a :: l0 -> go ((f a) :: acc) l0
++  in go [] l
+ 
+ (** val repeat : 'a1 -> nat -> 'a1 list **)
+ 
+--- a/Rename.ml
++++ b/Rename.ml
+@@ -71,12 +71,13 @@
+ 
+ (* Monadic map to thread an environment *)
+ 
+-let rec mmap (f: rename_env -> 'a -> 'b * rename_env) env = function
+-  | [] -> ([], env)
++let mmap (f: rename_env -> 'a -> 'b * rename_env) env l =
++  let rec go acc env = function
++  | [] -> (List.rev acc, env)
+   | hd :: tl ->
+       let (hd', env1) = f env hd in
+-      let (tl', env2) = mmap f env1 tl in
+-      (hd' :: tl', env2)
++      go (hd' :: acc) env1 tl in
++  go [] env l
+ 
+ (* Renaming *)
+ 
+--- a/Unblock.ml
++++ b/Unblock.ml
+@@ -331,23 +331,75 @@
+                              List.map expand_asm_operand inputs, clob)}
+ 
+ 
+-and unblock_block env ctx ploc = function
+-  | [] -> sskip
+-  | {sdesc = Sdecl d; sloc = loc} :: sl ->
+-      add_lineno ctx ploc loc
+-        (process_decl loc env ctx d
+-           (unblock_block env ctx loc sl))
+-  | s :: sl ->
+-      sseq s.sloc (unblock_stmt env ctx ploc s)
+-                  (unblock_block env ctx s.sloc sl)
++and unblock_block env ctx ploc sl =
++  (* The statements are processed last to first, as the nested form
++     [sseq s (unblock_block rest)] evaluates its arguments; the location
++     passed to each is that of the statement before it. *)
++  let rec go rest = function
++  | [] -> rest
++  | (s, ploc) :: before ->
++      let r =
++        match s with
++        | {sdesc = Sdecl d; sloc = loc} ->
++            add_lineno ctx ploc loc (process_decl loc env ctx d rest)
++        | s -> sseq s.sloc (unblock_stmt env ctx ploc s) rest in
++      go r before in
++  let rec pair acc ploc = function
++  | [] -> acc
++  | s :: l -> pair ((s, ploc) :: acc) s.sloc l in
++  go sskip (pair [] ploc sl)
+ 
+ (* Simplification of blocks and compound literals within a function *)
+ 
++(* Sequences of statements come out of [unblock_stmt] right-nested, so a
++   function of n statements has a tree n deep, and every later pass (the
++   verified ones included) recurses n deep on it. A sequence longer than
++   [balance_threshold] is rebuilt as a balanced tree, which has the same
++   statements in the same order and is only log n deep. The body of a
++   'switch' keeps its right-nested spine, which C2C reads as a list of
++   labeled statements. *)
++
++let balance_threshold = 100
++
++let rec balance_stmt in_switch s =
++  let bal = balance_stmt false in
++  match s.sdesc with
++  | Sseq _ ->
++      let rec spine nodes heads t =
++        match t.sdesc with
++        | Sseq(a, b) -> spine (t :: nodes) (a :: heads) b
++        | _ -> (Array.of_list (List.rev nodes), Array.of_list (List.rev (t :: heads))) in
++      let nodes, items = spine [] [] s in
++      let items = Array.map bal items in
++      let n = Array.length items in
++      if in_switch || n <= balance_threshold then begin
++        let acc = ref items.(n - 1) in
++        for i = n - 2 downto 0 do
++          acc := {nodes.(i) with sdesc = Sseq(items.(i), !acc)}
++        done;
++        !acc
++      end else begin
++        let rec build lo hi =
++          if hi - lo = 1 then items.(lo)
++          else
++            let mid = (lo + hi) / 2 in
++            {nodes.(lo) with sdesc = Sseq(build lo mid, build mid hi)} in
++        build 0 n
++      end
++  | Sif(e, s1, s2) -> {s with sdesc = Sif(e, bal s1, bal s2)}
++  | Swhile(e, s1) -> {s with sdesc = Swhile(e, bal s1)}
++  | Sdowhile(s1, e) -> {s with sdesc = Sdowhile(bal s1, e)}
++  | Sfor(s1, e, s2, s3) -> {s with sdesc = Sfor(bal s1, e, bal s2, bal s3)}
++  | Sswitch(e, s1) -> {s with sdesc = Sswitch(e, balance_stmt true s1)}
++  | Slabeled(lbl, s1) -> {s with sdesc = Slabeled(lbl, bal s1)}
++  | Sblock sl -> {s with sdesc = Sblock(List.map bal sl)}
++  | _ -> s
++
+ let unblock_fundef env f =
+   local_variables := [];
+   curr_fun_id:= f.fd_name.stamp;
+   (* TODO: register the parameters as being declared in function scope *)
+-  let body = unblock_stmt env [] no_loc f.fd_body in
++  let body = balance_stmt false (unblock_stmt env [] no_loc f.fd_body) in
+   let decls = !local_variables in
+   local_variables := [];
+   { f with fd_locals = f.fd_locals @ decls; fd_body = body }

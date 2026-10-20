@@ -3,4 +3,4 @@
  (wrapped false)
  (flags
   (:standard -w -a))
- (libraries @PKG@))
+ (libraries @PKG@ @PKG@_list))
