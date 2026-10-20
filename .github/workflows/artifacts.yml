@@ -19,6 +19,7 @@ on:
     - test/release-fp32/**
     - test/riscv-fp32/**
     - tools/compcert-*
+    - tools/compcert-*/**
     - Makefile
     - .devcontainer/**
     - .github/workflows/artifacts.yml
@@ -32,6 +33,7 @@ on:
     - test/release-fp32/**
     - test/riscv-fp32/**
     - tools/compcert-*
+    - tools/compcert-*/**
     - Makefile
     - .devcontainer/**
     - .github/workflows/artifacts.yml
@@ -181,7 +183,7 @@ jobs:
     - name: verify
       run: |
         mkdir -p browser
-        ${{ env.EXEC }} env EMBED_LIMITS=1 EMBED_BROWSER_DIR=$PWD/browser/${{ matrix.target }} \
+        ${{ env.EXEC }} env EMBED_LIMITS=1 EMBED_BROWSER_DIR=browser/${{ matrix.target }} \
           tools/compcert-embed-verify.sh ${{ matrix.target }} out/compcert-export-${{ matrix.target }}.tar.gz out/compcert-embed-${{ matrix.target }}.tar.gz
     - name: upload-artifact
       uses: actions/upload-artifact@v7
@@ -234,8 +236,7 @@ jobs:
     - name: bundle
       run: |
         # The Melange output is bundled here, without OCaml.
-        npm install --no-save --prefix "$RUNNER_TEMP/esbuild" esbuild@0.25.12
-        PATH="$RUNNER_TEMP/esbuild/node_modules/.bin:$PATH" \
+        PATH="$PWD/tools/compcert-embed/test/browser/node_modules/.bin:$PATH" \
           tools/compcert-embed/melange/bundle.sh inputs/compcert_melange.min.mjs inputs/melange-out
     - name: test
       working-directory: tools/compcert-embed/test/browser

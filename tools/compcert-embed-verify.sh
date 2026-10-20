@@ -56,6 +56,7 @@ export_tar=$(realpath "${2:-$REPO_ROOT/compcert-export-$target.tar.gz}")
 [ -f "$export_tar" ] || Fatal "missing $export_tar"
 embed_out=""
 [ -z "${3:-}" ] || embed_out=$(realpath -m "$3")
+[ -z "${EMBED_BROWSER_DIR:-}" ] || EMBED_BROWSER_DIR=$(realpath -m "$EMBED_BROWSER_DIR")
 for tool in node "${TOOLPREFIX}gcc" "${TOOLPREFIX}as" "$QEMU_BIN"; do
   command -v "$tool" >/dev/null 2>&1 || Fatal "missing $tool"
 done

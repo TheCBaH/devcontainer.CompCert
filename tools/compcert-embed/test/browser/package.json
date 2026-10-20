@@ -3,6 +3,7 @@
   "private": true,
   "description": "Driver-only devDependencies of the real-browser tests; nothing here ships.",
   "devDependencies": {
+    "esbuild": "0.25.12",
     "playwright": "1.56.1"
   }
 }
