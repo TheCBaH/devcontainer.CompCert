@@ -27,3 +27,4 @@ node_modules/
 /.embed-t/
 /.embed-t54/
 /.exports/
+/compcert-lib/
