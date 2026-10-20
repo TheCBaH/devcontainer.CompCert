@@ -195,3 +195,10 @@ compcert-cross-smoke-selftest:
 .PHONY: compcert-fp32-test
 compcert-fp32-test:
 	tools/compcert-fp32-test.sh $(or $(RISCV_BITS),32)
+
+# Local convenience: the embed variant of one target, from its export package
+# (default compcert-export-$(EMBED_TARGET).tar.gz, see tools/compcert-embed-target.sh).
+EMBED_TARGET ?= aarch64
+.PHONY: compcert-embed
+compcert-embed:
+	tools/compcert-embed-target.sh $(EMBED_TARGET)

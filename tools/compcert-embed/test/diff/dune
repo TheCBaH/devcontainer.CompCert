@@ -1,0 +1,5 @@
+(executable
+ (name run)
+ (modules run)
+ (flags (:standard -w -a))
+ (libraries unix))

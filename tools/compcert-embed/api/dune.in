@@ -1,0 +1,6 @@
+(library
+ (name compcert_js)
+ (wrapped false)
+ (flags
+  (:standard -w -a))
+ (libraries @PKG@))

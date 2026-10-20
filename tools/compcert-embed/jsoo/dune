@@ -1,0 +1,9 @@
+(executable
+ (name compcert_jsoo)
+ (optional)
+ (modes js)
+ (flags
+  (:standard -w -a))
+ (js_of_ocaml
+  (flags --opt 3))
+ (libraries compcert_js js_of_ocaml))

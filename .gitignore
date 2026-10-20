@@ -12,6 +12,8 @@
 /out/
 /ai
 /compcert-export-*.tar.gz
+/compcert-embed-*.tar.gz
+/.compcert-embed-work/
 /compcert-export.tar.gz
 /compcert-export/
 /compcert-extraction-*.tar.gz

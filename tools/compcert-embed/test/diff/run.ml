@@ -1,0 +1,107 @@
+(* Differential driver.
+
+     run run <backend> <corpus-dir> <out-dir>
+       Compile every corpus entry (ok.txt, then expected-fail.txt) with
+       `<backend> <abs path of .i>`, a shell command that prints assembly on
+       stdout and diagnostics on stderr. Writes <out-dir>/<suite>/<name>.s,
+       .err and .status, and prints a one-line time summary.
+
+     run compare <dir-a> <dir-b>
+       Compare two such output trees. Prints same/diff counts and the names
+       that differ. The first two lines of each .s (the generator banner) are
+       left out of the comparison. Exits 1 if anything differs.
+
+   A backend status of 0 or 1 is an answer (compiled, or diagnosed). Anything
+   else is counted as a failure of the backend itself. *)
+
+let read_file p =
+  let ic = open_in_bin p in
+  let s = really_input_string ic (in_channel_length ic) in
+  close_in ic;
+  s
+
+let read_lines p =
+  if Sys.file_exists p then String.split_on_char '\n' (read_file p) |> List.filter (( <> ) "")
+  else []
+
+let rec mkdir_p d =
+  if not (Sys.file_exists d) then begin
+    mkdir_p (Filename.dirname d);
+    Unix.mkdir d 0o755
+  end
+
+let run backend corpus out =
+  let names = read_lines (Filename.concat corpus "ok.txt") @ read_lines (Filename.concat corpus "expected-fail.txt") in
+  let corpus = if Filename.is_relative corpus then Filename.concat (Sys.getcwd ()) corpus else corpus in
+  let t0 = Unix.gettimeofday () in
+  let bad = ref [] in
+  let times = ref [] in
+  List.iter
+    (fun n ->
+      let base = Filename.concat out n in
+      mkdir_p (Filename.dirname base);
+      let t = Unix.gettimeofday () in
+      let st =
+        Sys.command
+          (Printf.sprintf "%s %s > %s 2> %s" backend
+             (Filename.quote (Filename.concat corpus (n ^ ".i")))
+             (Filename.quote (base ^ ".s")) (Filename.quote (base ^ ".err")))
+      in
+      times := (Unix.gettimeofday () -. t, n) :: !times;
+      let oc = open_out (base ^ ".status") in
+      Printf.fprintf oc "%d\n" st;
+      close_out oc;
+      if st > 1 then bad := n :: !bad)
+    names;
+  let total = Unix.gettimeofday () -. t0 in
+  Printf.printf "ran %d files in %.1fs; backend failures: %d\n" (List.length names) total
+    (List.length !bad);
+  List.iter (Printf.printf "  fail %s\n") (List.rev !bad);
+  (match List.sort compare !times |> List.rev with
+   | (t, n) :: _ -> Printf.printf "slowest: %s %.2fs\n" n t
+   | [] -> ());
+  if !bad <> [] then exit 1
+
+let drop_banner s =
+  match String.index_opt s '\n' with
+  | None -> s
+  | Some i -> (
+      let rest = String.sub s (i + 1) (String.length s - i - 1) in
+      match String.index_opt rest '\n' with
+      | None -> rest
+      | Some j -> String.sub rest (j + 1) (String.length rest - j - 1))
+
+let rec entries dir prefix =
+  Array.to_list (Sys.readdir dir)
+  |> List.concat_map (fun f ->
+         let p = Filename.concat dir f in
+         if Sys.is_directory p then entries p (prefix ^ f ^ "/")
+         else if Filename.check_suffix f ".status" then [ prefix ^ Filename.chop_suffix f ".status" ]
+         else [])
+  |> List.sort compare
+
+let compare_dirs a b =
+  let names = entries a "" in
+  let same = ref 0 and diffs = ref [] in
+  List.iter
+    (fun n ->
+      let f d ext = Filename.concat d (n ^ ext) in
+      let get d ext = if Sys.file_exists (f d ext) then read_file (f d ext) else "<missing>" in
+      let ok =
+        get a ".status" = get b ".status"
+        && get a ".err" = get b ".err"
+        && drop_banner (get a ".s") = drop_banner (get b ".s")
+      in
+      if ok then incr same else diffs := n :: !diffs)
+    names;
+  Printf.printf "same %d diff %d\n" !same (List.length !diffs);
+  List.iter (Printf.printf "  diff %s\n") (List.rev !diffs);
+  if !diffs <> [] then exit 1
+
+let () =
+  match Array.to_list Sys.argv with
+  | [ _; "run"; backend; corpus; out ] -> run backend corpus out
+  | [ _; "compare"; a; b ] -> compare_dirs a b
+  | _ ->
+      prerr_endline "usage: run run <backend> <corpus-dir> <out-dir> | run compare <dir-a> <dir-b>";
+      exit 2
