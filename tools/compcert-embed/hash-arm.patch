@@ -1,0 +1,76 @@
+--- a/Constantexpand.ml
++++ b/Constantexpand.ml
+@@ -34,29 +34,40 @@
+ 
+ (* Associate labels to floating-point constants and to symbols *)
+ 
+-let float_labels = (Hashtbl.create 39 : (Floats.float, label) Hashtbl.t)
+-let float32_labels = (Hashtbl.create 39 : (Floats.float32, label) Hashtbl.t)
+-let symbol_labels =
+-  (Hashtbl.create 39 : (ident * Integers.Int.int, label) Hashtbl.t)
++let float_labels : label Embed_hash.FloatTbl.t = Embed_hash.FloatTbl.create 39
++let float32_labels : label Embed_hash.FloatTbl.t = Embed_hash.FloatTbl.create 39
++let symbol_labels : label Embed_hash.SymbolTbl.t = Embed_hash.SymbolTbl.create 39
++
++let new_constant_label sz pinc =
++  let lbl' = new_label () in
++  size_constants := !size_constants + sz;
++  max_pos_constants := min !max_pos_constants (!currpos + pinc);
++  lbl'
+ 
+-let get_label tbl sz pinc bf =
++let get_float_label tbl sz pinc bf =
+   try
+-    Hashtbl.find tbl bf
++    Embed_hash.FloatTbl.find tbl bf
+   with Not_found ->
+-    let lbl' = new_label () in
+-    Hashtbl.add tbl bf lbl';
+-    size_constants := !size_constants + sz;
+-    max_pos_constants := min !max_pos_constants (!currpos + pinc);
++    let lbl' = new_constant_label sz pinc in
++    Embed_hash.FloatTbl.add tbl bf lbl';
+     lbl'
+ 
+-let label_float = get_label float_labels 8 1024
+-let label_float32 = get_label float32_labels 4 1024
+-let label_symbol id ofs = get_label symbol_labels 4 4096 (id,ofs)
++let get_symbol_label tbl sz pinc bf =
++  try
++    Embed_hash.SymbolTbl.find tbl bf
++  with Not_found ->
++    let lbl' = new_constant_label sz pinc in
++    Embed_hash.SymbolTbl.add tbl bf lbl';
++    lbl'
++
++let label_float = get_float_label float_labels 8 1024
++let label_float32 = get_float_label float32_labels 4 1024
++let label_symbol id ofs = get_symbol_label symbol_labels 4 4096 (id,ofs)
+ 
+ let reset_constants () =
+-  Hashtbl.clear float_labels;
+-  Hashtbl.clear float32_labels;
+-  Hashtbl.clear symbol_labels;
++  Embed_hash.FloatTbl.reset float_labels;
++  Embed_hash.FloatTbl.reset float32_labels;
++  Embed_hash.SymbolTbl.reset symbol_labels;
+   size_constants := 0;
+   max_pos_constants := max_int
+ 
+@@ -111,13 +122,13 @@
+   (* The order of the constants should be float32/float64 and then symbols,
+      since symbols allow largers offsets. *)
+   let consts =
+-    Hashtbl.fold (fun (id,ofs) lbl c -> Symbol (lbl,id,ofs)::c)
++    Embed_hash.SymbolTbl.fold (fun (id,ofs) lbl c -> Symbol (lbl,id,ofs)::c)
+                  symbol_labels [] in
+   let consts =
+-    Hashtbl.fold (fun bf lbl c -> Float64 (lbl, bf)::c)
++    Embed_hash.FloatTbl.fold (fun bf lbl c -> Float64 (lbl, bf)::c)
+                  float_labels consts in
+   let consts =
+-    Hashtbl.fold (fun bf lbl c -> Float32 (lbl, bf)::c)
++    Embed_hash.FloatTbl.fold (fun bf lbl c -> Float32 (lbl, bf)::c)
+                  float32_labels consts in
+   if consts <> [] then
+     emit (Pconstants consts);

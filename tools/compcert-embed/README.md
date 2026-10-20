@@ -46,14 +46,18 @@ const r = CompCert.compile(source, { name: "gen.c", opt: "O2" });
 `kind` is `diagnostics`, `too_deep`, `unsupported`, `internal` or `options`.
 `jsoo/worker.js` wraps the same call for a Web Worker.
 
-Melange (`COMPCERT_MELANGE=true dune build ./melange/bind`, needs dune 3.15 and
-`melange`; `melange/bundle.sh out.mjs` makes one minified ES module with
+Melange (`COMPCERT_MELANGE=true dune build ./melange/bind`, needs dune 3.15, `melange`
+and `ppxlib`; `melange/bundle.sh out.mjs` makes one minified ES module with
 esbuild) exports `compile(source, options)`, `version` and `target` with the
-same result objects. It compiles every test program, but does not yet give the
-jsoo build's byte-for-byte output (hash order), and it has lower stack limits,
-listed in `test/stack/limits-melange.txt` (`node test/stack/limits.js --limits
-test/stack/limits-melange.txt`): for example 450 for `a + 1 + 1 + ...`, 870
-nested blocks, and 5,000 statements in one function.
+same result objects. Its output is byte-identical to the native and js_of_ocaml builds
+(`melange/evalorder` restores the right-to-left evaluation order of arguments
+that ocamlopt uses and JavaScript does not). It has lower stack limits,
+listed above (`node test/stack/limits.js --limits test/stack/limits-melange.txt`).
+
+`debug: true` (`-g`) emits the DWARF sections as `ccomp -S -g` does, with
+`DW_AT_comp_dir` taken from the `dir` option ("/" by default; `ccomp` uses its
+working directory). The one other difference is that `ccomp -S -g` copies each C source line into a `//` comment
+next to its code; that needs the C files, and no files are read here.
 
 ## Input
 
@@ -63,34 +67,40 @@ Line markers are accepted. The generated assembly is byte-identical to
 
 ## Limits
 
-JavaScript engines give a fixed stack (V8: about 984 KB). `test/stack/limits.txt`
-lists, per input shape, the size the build is tested to compile in a freshly
-started process at that stack size; larger inputs may still compile, and
-the ones that fail by recursion depth answer `too_deep`. Sizes by memory
-(`strings`, `globals`, ...) end in the engine's out-of-memory error instead.
+JavaScript engines give a fixed stack, and a Worker gets less than the main
+thread (Chromium: about half of V8's 984 KB in Node). `test/stack/limits.txt`
+lists, per input shape, the size the js_of_ocaml build is tested to compile in a
+freshly started Chromium Worker, the smallest stack of the supported engines;
+Firefox and WebKit allow more. Larger inputs may still compile, and the ones
+that fail by recursion depth answer `too_deep`. Sizes by memory end in the
+engine's out-of-memory error instead.
 
-| Shape | Size |
-|---|---|
-| global definitions | 50,000 |
-| functions | 20,000 |
-| statements in one function (takes minutes: CompCert's allocator is quadratic) | 50,000 |
-| string literals / initializer elements | 50,000 |
-| nested parentheses | 50,000 |
-| `a + 1 + 1 + ...` chain | 3,100 |
-| `(1 + (1 + ...))` nesting | 2,900 |
-| `if / else if` chain | 2,500 |
-| nested blocks | 1,850 |
-| `case` labels in one switch | 1,490 |
-| arguments in one call | 1,740 |
-| nested `if` | 980 |
-| struct members | 5,900 |
-| local variables in one function | 5,000 |
+| Shape | js_of_ocaml | Melange |
+|---|---|---|
+| global definitions | 50,000 | 50,000 |
+| functions | 20,000 | 20,000 |
+| statements in one function (minutes: CompCert's allocator is quadratic) | 50,000 | 5,000 |
+| string literals / initializer elements | 50,000 | 14,000 |
+| nested parentheses | 50,000 | 50,000 |
+| `a + 1 + 1 + ...` chain | 1,400 | 150 |
+| `(1 + (1 + ...))` nesting | 1,400 | 150 |
+| `if / else if` chain | 920 | 420 |
+| nested blocks | 870 | 350 |
+| `case` labels in one switch | 640 | 335 |
+| arguments in one call | 870 | 500 |
+| nested `if` | 470 | 180 |
+| struct members | 2,800 | 2,580 |
+| local variables in one function | 2,450 | 2,450 |
+
+The Melange column is `test/stack/limits-melange.txt`. Node's main thread
+allows roughly twice the recursion shapes (for example `a + 1 + 1 + ...`: 3,500
+for js_of_ocaml).
 
 Also: objects of 2 GiB or more are rejected (`sizeof ... overflows`), where a
 native build accepts them, because JavaScript builds have 32-bit `int`.
 
-To re-check: `CC_BUNDLE=$PWD/_build/default/jsoo/compcert_jsoo.bc.js node test/stack/limits.js`
-(`LIMITS_FULL=1` includes the slow shapes).
+To re-check in Node: `CC_BUNDLE=$PWD/_build/default/jsoo/compcert_jsoo.bc.js node test/stack/limits.js`
+(`LIMITS_FULL=1` includes the slow shapes); in browsers, `test/browser/run.mjs --limits`.
 
 ## Changes to CompCert's code
 

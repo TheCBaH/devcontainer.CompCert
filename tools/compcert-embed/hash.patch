@@ -65,8 +65,8 @@
    Hashtbl.clear decl_atom;
 -  Hashtbl.clear stringTable;
 -  Hashtbl.clear wstringTable;
-+  Embed_hash.StringTbl.clear stringTable;
-+  Embed_hash.WideStringTbl.clear wstringTable;
++  Embed_hash.StringTbl.reset stringTable;
++  Embed_hash.WideStringTbl.reset wstringTable;
    let p = cleanupGlobals (Env.initial_declarations() @ p) in
    try
      let env = translEnv Env.empty p in
@@ -122,3 +122,258 @@
          let n' = getAlias n in
          match n'.color with
          | None -> assert false
+--- a/DebugInformation.ml
++++ b/DebugInformation.ml
+@@ -43,11 +43,11 @@
+   all_files := StringSet.add file !all_files
+ 
+ (* All types encountered *)
+-let types: (int,debug_types) Hashtbl.t = Hashtbl.create 7
++let types: debug_types Embed_hash.IntTbl.t = Embed_hash.IntTbl.create 7
+ 
+-let get_type = Hashtbl.find types
++let get_type = Embed_hash.IntTbl.find types
+ 
+-let fold_types f a = Hashtbl.fold f types a
++let fold_types f a = Embed_hash.IntTbl.fold f types a
+ 
+ (* Lookup table for types *)
+ let lookup_types: (string, int) Hashtbl.t = Hashtbl.create 7
+@@ -73,7 +73,7 @@
+   let insert d_ty ty =
+     let id = next_id ()
+     and name = typ_to_string ty in
+-    Hashtbl.add types id d_ty;
++    Embed_hash.IntTbl.add types id d_ty;
+     Hashtbl.add lookup_types name id;
+     id in
+   (* We are only interested in Const and Volatile *)
+@@ -186,33 +186,33 @@
+ 
+ (* Replace the composite information *)
+ let replace_composite id f =
+-  let str = Hashtbl.find types id in
++  let str = Embed_hash.IntTbl.find types id in
+   match str with
+   | CompositeType comp -> let comp' = f comp in
+-    if comp <> comp' then Hashtbl.replace types id (CompositeType comp')
++    if comp <> comp' then Embed_hash.IntTbl.replace types id (CompositeType comp')
+   | _ -> assert false (* This should never happen *)
+ 
+ (* Replace the enum information *)
+ let replace_enum id f =
+-  let str = Hashtbl.find types id in
++  let str = Embed_hash.IntTbl.find types id in
+   match str with
+   | EnumType comp -> let comp' = f comp in
+-    if comp <> comp' then Hashtbl.replace types id (EnumType comp')
++    if comp <> comp' then Embed_hash.IntTbl.replace types id (EnumType comp')
+   | _ -> assert false (* This should never happen *)
+ 
+ (* Replace the typdef information *)
+ let replace_typedef id f =
+-  let typdef = Hashtbl.find types id in
++  let typdef = Embed_hash.IntTbl.find types id in
+   match typdef with
+   | Typedef typ -> let typ' = f typ in
+-    if typ <> typ' then Hashtbl.replace types id (Typedef typ')
++    if typ <> typ' then Embed_hash.IntTbl.replace types id (Typedef typ')
+   | _ -> assert false (* This should never happen *)
+ 
+ 
+ (* All global definitions encountered *)
+-let definitions: (int,definition_type) Hashtbl.t = Hashtbl.create 7
++let definitions: definition_type Embed_hash.IntTbl.t = Embed_hash.IntTbl.create 7
+ 
+-let fold_definitions f a  = Hashtbl.fold f definitions a
++let fold_definitions f a  = Embed_hash.IntTbl.fold f definitions a
+ 
+ (* Mapping from stamp to debug id *)
+ let stamp_to_definition: (int,int) Hashtbl.t = Hashtbl.create 7
+@@ -226,32 +226,32 @@
+ (* Various lookup functions for definitions *)
+ let find_gvar_stamp id =
+   let id = (Hashtbl.find stamp_to_definition id) in
+-  let var = Hashtbl.find definitions id in
++  let var = Embed_hash.IntTbl.find definitions id in
+   match var with
+   | GlobalVariable var -> id,var
+   |  _ -> assert false
+ 
+ let find_fun_stamp id =
+   let id = (Hashtbl.find stamp_to_definition id) in
+-  let f = Hashtbl.find definitions id in
++  let f = Embed_hash.IntTbl.find definitions id in
+   match f with
+   | Function f -> id,f
+   |  _ -> assert false
+ 
+ let find_fun_atom id =
+   let id = (Hashtbl.find atom_to_definition id) in
+-  let f = Hashtbl.find definitions id in
++  let f = Embed_hash.IntTbl.find definitions id in
+   match f with
+   | Function f -> id,f
+   |  _ -> assert false
+ 
+ let replace_var id var =
+   let var = GlobalVariable var in
+-  Hashtbl.replace definitions id var
++  Embed_hash.IntTbl.replace definitions id var
+ 
+ let replace_fun id f =
+   let f = Function f in
+-  Hashtbl.replace definitions id f
++  Embed_hash.IntTbl.replace definitions id f
+ 
+ (* All local variables *)
+ let local_variables: (int, local_information) Hashtbl.t = Hashtbl.create 7
+@@ -298,17 +298,17 @@
+ let remove_unused id =
+   try
+     let id' = Hashtbl.find stamp_to_definition id.stamp in
+-    let var = Hashtbl.find definitions id' in
++    let var = Embed_hash.IntTbl.find definitions id' in
+     match var with
+     | Function _ -> ()
+-    | _ -> Hashtbl.remove definitions id';
++    | _ -> Embed_hash.IntTbl.remove definitions id';
+         Hashtbl.remove stamp_to_definition id.stamp
+   with Not_found -> ()
+ 
+ let remove_unused_function id =
+   try
+     let id' = Hashtbl.find stamp_to_definition id.stamp in
+-    Hashtbl.remove definitions id';
++    Embed_hash.IntTbl.remove definitions id';
+     Hashtbl.remove stamp_to_definition id.stamp
+   with Not_found -> ()
+ 
+@@ -316,7 +316,7 @@
+   add_file (fst dec.gloc);
+   let insert d_dec stamp =
+     let id = next_id () in
+-    Hashtbl.add definitions id d_dec;
++    Embed_hash.IntTbl.add definitions id d_dec;
+     Hashtbl.add stamp_to_definition stamp id
+   in
+   match dec.gdesc with
+@@ -381,7 +381,7 @@
+           let id' = next_id () in
+           Hashtbl.add name_to_definition f.fd_name.name id';id' in
+         Hashtbl.add stamp_to_definition f.fd_name.stamp id';
+-        Hashtbl.add definitions id' (Function fd)
++        Embed_hash.IntTbl.add definitions id' (Function fd)
+       end
+   | Gcompositedecl (sou,id,at) ->
+       ignore (insert_type (gen_comp_typ sou id at));
+@@ -459,7 +459,7 @@
+ let atom_global id atom =
+   try
+     let id' = (Hashtbl.find stamp_to_definition id.stamp) in
+-    let g = Hashtbl.find definitions id' in
++    let g = Embed_hash.IntTbl.find definitions id' in
+     match g with
+     | Function f ->
+         replace_fun id' ({f with fun_atom = Some atom;});
+@@ -595,12 +595,12 @@
+ let stack_variable (f,v) (sp,loc) =
+   Hashtbl.add var_locations (f,v) (FunctionLoc (sp,loc))
+ 
+-let compilation_section_start: (string,int) Hashtbl.t = Hashtbl.create 7
++let compilation_section_start: int Embed_hash.StringTbl.t = Embed_hash.StringTbl.create 7
+ let compilation_section_end: (string,int) Hashtbl.t = Hashtbl.create 7
+ 
+-let section_start n = Hashtbl.find compilation_section_start n
++let section_start n = Embed_hash.StringTbl.find compilation_section_start n
+ 
+-let fold_section_start f a =  Hashtbl.fold f compilation_section_start a
++let fold_section_start f a =  Embed_hash.StringTbl.fold f compilation_section_start a
+ 
+ let section_end n = Hashtbl.find compilation_section_end n
+ 
+@@ -616,20 +616,20 @@
+ 
+ let add_diab_info sec addr1 add2 addr3 =
+   let sec' = section_to_string sec in
+-  Hashtbl.add compilation_section_start sec' addr3;
++  Embed_hash.StringTbl.add compilation_section_start sec' addr3;
+   Hashtbl.add diab_additional sec' (addr1,add2,sec)
+ 
+ let diab_add_fun_addr name _ addr = add_fun_addr name addr
+ 
+ let gnu_add_fun_addr name sec (high,low) =
+   let sec = section_to_string sec in
+-  if not (Hashtbl.mem compilation_section_start sec) then
+-    Hashtbl.add compilation_section_start sec low;
++  if not (Embed_hash.StringTbl.mem compilation_section_start sec) then
++    Embed_hash.StringTbl.add compilation_section_start sec low;
+   Hashtbl.replace compilation_section_end sec high;
+   add_fun_addr name (high,low)
+ 
+ let exists_section sec =
+-  Hashtbl.mem compilation_section_start (section_to_string sec)
++  Embed_hash.StringTbl.mem compilation_section_start (section_to_string sec)
+ 
+ let filenum: (string * string,int) Hashtbl.t = Hashtbl.create 7
+ 
+@@ -658,9 +658,9 @@
+ let init name =
+   id := 0;
+   file_name := name;
+-  Hashtbl.reset types;
++  Embed_hash.IntTbl.reset types;
+   Hashtbl.reset lookup_types;
+-  Hashtbl.reset definitions;
++  Embed_hash.IntTbl.reset definitions;
+   Hashtbl.reset stamp_to_definition;
+   Hashtbl.reset name_to_definition;
+   Hashtbl.reset atom_to_definition;
+@@ -668,7 +668,7 @@
+   Hashtbl.reset stamp_to_local;
+   Hashtbl.reset scope_to_local;
+   Hashtbl.reset atom_to_scope;
+-  Hashtbl.reset compilation_section_start;
++  Embed_hash.StringTbl.reset compilation_section_start;
+   Hashtbl.reset compilation_section_end;
+   Hashtbl.reset diab_additional;
+   Hashtbl.reset filenum;
+--- a/Dwarfgen.ml
++++ b/Dwarfgen.ml
+@@ -592,7 +592,7 @@
+ let gnu_file_loc (f,l) =
+   Gnu_file_loc ((fst (Hashtbl.find Fileinfo.filename_info f),l))
+ 
+-let string_table: (string,int) Hashtbl.t = Hashtbl.create 7
++let string_table: int Embed_hash.StringTbl.t = Embed_hash.StringTbl.create 7
+ 
+ let gnu_string_entry s =
+   if (String.length s < 4 && Configuration.system <> "macos") (* macos needs debug_str *)
+@@ -600,15 +600,15 @@
+     Simple_string s
+   else
+     try
+-      Offset_string ((Hashtbl.find string_table s),s)
++      Offset_string ((Embed_hash.StringTbl.find string_table s),s)
+     with Not_found ->
+       let id = next_id () in
+-      Hashtbl.add string_table s id;
++      Embed_hash.StringTbl.add string_table s id;
+       Offset_string (id,s)
+ 
+ 
+ let gen_gnu_debug_info sec_name var_section : debug_entries =
+-  Hashtbl.clear string_table;
++  Embed_hash.StringTbl.reset string_table;
+   let r,accu,low_pc =
+     try if !Clflags.option_gdwarf > 2 then
+         let pcs  = fold_section_start (fun s low acc ->
+@@ -644,7 +644,7 @@
+   } in
+   let cp = new_entry (next_id ()) (DW_TAG_compile_unit cp) in
+   let cp = add_children cp (types@defs) in
+-  let string_table = Hashtbl.fold (fun s i acc -> (i,s)::acc) string_table [] in
++  let string_table = Embed_hash.StringTbl.fold (fun s i acc -> (i,s)::acc) string_table [] in
+   let cp = {
+     string_table = string_table;
+     range_table = snd accu.ranges;

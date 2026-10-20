@@ -5,7 +5,7 @@
                                | { ok: false, kind, message }
      version, target
 
-   options: { name, opt: "O0"|"O1"|"O2"|"Os", structPassing, pie, debug, extra }.
+   options: { name, dir, opt: "O0"|"O1"|"O2"|"Os", structPassing, pie, debug, extra }.
    compile never throws. *)
 
 type opts
@@ -94,6 +94,7 @@ let options_of_js (o : opts Js.undefined) =
               struct_passing = field_bool o "structPassing" d.struct_passing;
               pie = field_bool o "pie" d.pie;
               debug = field_bool o "debug" d.debug;
+              dir = to_bytes (field_string o "dir" d.dir);
               extra;
             })
 

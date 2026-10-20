@@ -4,7 +4,7 @@
      compile(source, options) -> { ok: true, asm, diagnostics }
                                | { ok: false, kind, message }
      version, target
-   options: { name, opt: "O0"|"O1"|"O2"|"Os", structPassing, pie, debug, extra }.
+   options: { name, dir, opt: "O0"|"O1"|"O2"|"Os", structPassing, pie, debug, extra }.
    [kind] is "diagnostics", "too_deep", "unsupported", "internal" or "options".
    compile never throws. *)
 
@@ -62,6 +62,7 @@ let options_of_js o =
             struct_passing = bool_field "structPassing" d.struct_passing;
             pie = bool_field "pie" d.pie;
             debug = bool_field "debug" d.debug;
+            dir = string_field "dir" d.dir;
             extra;
           }
 

@@ -1,20 +1,20 @@
-# The same, for the Melange build (OCaml 4.14.3, Melange 5.1.0-414), about 90%
-# of what was measured in a freshly started process at V8's default stack.
-# Melange does not turn mutual tail calls into loops and its frames are larger,
-# so these are lower than limits.txt. Format as in limits.txt.
+# The same, for the Melange build (OCaml 4.14.3, Melange 5.1.0-414): about 90% of
+# what was measured in a freshly started Chromium Worker. Melange does not turn
+# mutual tail calls into loops and its frames are larger, so these are lower than
+# limits.txt. Format as in limits.txt.
 globals 50000
 functions 20000
 statements 5000 beyond
 exprnest 50000 beyond
-structfields 5400
-localvars 5500 beyond
-strings 1330
-initelems 1330
-stringstmts 2500
-elseif 1570
-switchcases 1120
-callargs 1020 beyond
-blocknest 870 beyond
-ifnest 460 beyond
-exprchain 450 beyond
-addnest 450 beyond
+strings 14000
+initelems 14000
+structfields 2580 beyond
+stringstmts 3000 beyond
+localvars 2450 beyond
+elseif 420 beyond
+switchcases 335 beyond
+callargs 500 beyond
+blocknest 350 beyond
+ifnest 180 beyond
+exprchain 150 beyond
+addnest 150 beyond

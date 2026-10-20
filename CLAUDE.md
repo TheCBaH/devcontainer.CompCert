@@ -41,6 +41,9 @@ All of these need Rocq/opam, so run them in the devcontainer.
   — package `compcert-lib/` plus CompCert's `LICENSE` into
   `compcert-export.tar.gz`, buildable with just `dune build`, no clone or
   Rocq required.
+- `tools/compcert-embed-verify.sh <target> [<export.tar.gz>]` — build and verify
+  the embed tarball from a per-target export tarball (needs the cross toolchain,
+  QEMU, node, js_of_ocaml; Melange and ppxlib if installed).
 - `tools/compcert-export-target.sh <target>` — the per-target export
   tarball (see below), for one of `x86_32 x86_64 arm aarch64 riscv32 riscv64 riscv32_fp32 riscv64_fp32`.
 - `tools/compcert-cross-smoke.sh [<target>|all]` — build CompCert as a cross
@@ -71,8 +74,9 @@ All of these need Rocq/opam, so run them in the devcontainer.
 ### The artifact contract
 
 A release tag `v<compcert-version>-<n>` (`-rc<k>` for a prerelease) publishes
-`compcert-export-<t>.tar.gz` and `compcert-asm-<t>.tar.gz` for each of the eight
-target profiles, plus `SHA256SUMS` and `artifacts.json`. This is the **only** interface
+`compcert-export-<t>.tar.gz`, `compcert-asm-<t>.tar.gz` and
+`compcert-embed-<t>.tar.gz` for each of the eight target profiles, plus
+`SHA256SUMS` and `artifacts.json`. This is the **only** interface
 to CompCert for other repos, and it is why the files in the tarballs must be
 real files: `v3.17-1` shipped absolute symlinks into this tree and had to be
 replaced by `v3.17-2`.
@@ -85,6 +89,15 @@ replaced by `v3.17-2`.
   `sources/`, `asm/`, `results/` and a `manifest.txt` with source and generated
   hashes. `ccomp` writes its command line into each `.s`, so the invocation
   paths are part of the bytes (`tools/compcert-asm-corpus.sh` fixes them).
+- The embed tarball is `tools/compcert-embed-target.sh` applied to the export
+  tarball and nothing else: the extracted sources with `tools/compcert-embed/*.patch`
+  applied (`--fuzz=0`), the injected `embed_*.ml`, `list/` (constant-stack list
+  functions and a native-compatible hash), `api/` (`Compcert_js`), `jsoo/`,
+  `melange/` with `shims/` and `vendor/menhirLib`, `test/` and a `MANIFEST` with
+  the hash of the export tarball and of every patch. Sources only: consumers
+  run `dune build`. Rebuilding it from the same export tarball gives the same
+  bytes. Changing a patch, an injected module or the API changes the asset, so
+  it needs a new tag.
 
 ### Verification (`.github/workflows/artifacts.yml`)
 
@@ -96,7 +109,11 @@ corpus, and assembles every generated `.s` with the cross binutils; `index`
 writes `SHA256SUMS` and `artifacts.json`. The F-only variants instead verify
 native FP32, integer64, aggregate, vararg and stdio fixtures plus explicit FP32
 approximation references with D disabled, using only their packaged runtime.
-`release.yml` calls it on `v*` tags and uploads the 18 assets. Changing the tarball contents means cutting a new tag;
+Another job, `embed`, builds each embed tarball from the export tarball alone
+(`tools/compcert-embed-verify.sh`): byte-identical to `ccomp -S` natively, as
+js_of_ocaml and as Melange under Node, assembly run under QEMU; `browser` runs
+both builds in Chromium, Firefox and WebKit Workers for one profile.
+`release.yml` calls it on `v*` tags and uploads the 26 assets. Changing the tarball contents means cutting a new tag;
 consumers pin the tag and every hash.
 
 Other workflows: `build.yml` (CompCert build, proof check, tests, cross-smoke,

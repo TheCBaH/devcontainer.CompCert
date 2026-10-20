@@ -1,0 +1,27 @@
+--- a/DwarfPrinter.ml
++++ b/DwarfPrinter.ml
+@@ -29,7 +29,7 @@
+     open Target
+ 
+     (* Do we need verbose debug information? *)
+-    let include_comment = !Clflags.option_S || !Clflags.option_dasm
++    let include_comment = true  (* the embed variant always acts as `ccomp -S` *)
+ 
+     (* Print comments needed for verbose debug mode *)
+     let print_comment =
+--- a/Fileinfo.ml
++++ b/Fileinfo.ml
+@@ -35,10 +35,9 @@
+ let enter_filename f =
+   let num = Hashtbl.length filename_info + 1 in
+   let filebuf =
+-    if !Clflags.option_S || !Clflags.option_dasm then begin
+-      try Some (Printlines.openfile f)
+-      with Sys_error _ -> None
+-    end else None in
++    (* The embed variant reads no files: the source lines that `ccomp -S -g`
++       copies into comments are not available. *)
++    None in
+   Hashtbl.add filename_info f (num, filebuf);
+   (num, filebuf)
+ 

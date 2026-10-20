@@ -1,0 +1,8 @@
+{
+  "name": "compcert-embed-browser-harness",
+  "private": true,
+  "description": "Driver-only devDependencies of the real-browser tests; nothing here ships.",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

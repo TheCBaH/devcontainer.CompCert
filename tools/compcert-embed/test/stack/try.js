@@ -10,6 +10,10 @@ const bundle = path.resolve(process.env.CC_BUNDLE);
 
 (async () => {
   const mod = bundle.endsWith(".mjs") ? await import(require("url").pathToFileURL(bundle).href) : require(bundle);
+  // wasm_of_ocaml instantiates asynchronously and sets CompCert when done
+  if (!globalThis.CompCert && !mod.CompCert && !mod.compile) {
+    while (!globalThis.CompCert) await new Promise((r) => setTimeout(r, 2));
+  }
   const CompCert = globalThis.CompCert || mod.CompCert || mod;
   const t = Date.now();
   const r = CompCert.compile(shapes[process.argv[2]](+process.argv[3]), { name: `${process.argv[2]}.c` });

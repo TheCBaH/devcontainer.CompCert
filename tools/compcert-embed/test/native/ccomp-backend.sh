@@ -5,5 +5,6 @@
 out=$(mktemp)
 trap 'rm -f "$out"' EXIT
 # shellcheck disable=SC2086
-"$CCOMP" $CCOMP_ARGS -fstruct-passing -S -o "$out" "$1" || exit 1
+# From /, the compile unit directory of -g is the one the embed variant reports.
+(cd / && "$CCOMP" $CCOMP_ARGS -fstruct-passing -S -o "$out" "$1") || exit 1
 cat "$out"

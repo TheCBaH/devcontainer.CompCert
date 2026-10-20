@@ -1,4 +1,6 @@
 /.compcert-export-work/
+/.compcert-export-work-*/
+/.exports/
 /.compcert-lib-work/
 /.corpus-work/
 /.cross-smoke-work/
@@ -14,7 +16,14 @@
 /compcert-export-*.tar.gz
 /compcert-embed-*.tar.gz
 /.compcert-embed-work/
+/.embed-verify-work/
+node_modules/
 /compcert-export.tar.gz
 /compcert-export/
 /compcert-extraction-*.tar.gz
 /compcert-lib-*-embed/
+/.embed-browser/
+/.embed-tools/
+/.embed-t/
+/.embed-t54/
+/.exports/

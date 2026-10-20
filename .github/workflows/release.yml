@@ -27,7 +27,7 @@ jobs:
       run: |
         cd dist
         sha256sum -c SHA256SUMS
-        expected=$((2 * $(jq '.targets | length' artifacts.json) + 2))
+        expected=$((3 * $(jq '.targets | length' artifacts.json) + 2))
         test "$(ls | wc -l)" -eq "$expected"
     - name: publish
       env:

@@ -1,10 +1,11 @@
 name: artifacts
 
 # The extractor's product: per target, the Rocq-extracted CompCert as a dune
-# package (compcert-export-<t>.tar.gz) and the assembly it emits for its own
-# test suites (compcert-asm-<t>.tar.gz). Every leg is verified without Rocq and
-# without building from the source tree. Consumers pin the release built from
-# this workflow.
+# package (compcert-export-<t>.tar.gz), the assembly it emits for its own
+# test suites (compcert-asm-<t>.tar.gz) and the same compiler as an embeddable
+# library that runs in JavaScript (compcert-embed-<t>.tar.gz). Every leg is
+# verified without Rocq and without building from the source tree. Consumers pin
+# the release built from this workflow.
 
 on:
   push:
@@ -134,8 +135,126 @@ jobs:
         retention-days: 7
         if-no-files-found: ignore
 
+  # The embeddable variant, built from the export package alone: native, then
+  # js_of_ocaml and Melange under node, each byte-identical to `ccomp -S`.
+  embed:
+    needs: extract
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_32, x86_64, arm, aarch64, riscv32, riscv64, riscv32_fp32, riscv64_fp32]
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+      with:
+        submodules: true
+    - name: download-artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: compcert-export-${{ matrix.target }}
+        path: out
+    - name: devcontainer
+      uses: TheCBaH/devcontainer-action/devcontainer@v1
+      id: devcontainer
+      with:
+        variant: ${{ env.OCAML_VERSION }}
+    - name: setup
+      run: |
+        echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: remove-rocq
+      run: |
+        ${{ env.EXEC }} sudo --preserve-env=OPAMROOT opam remove -y --auto-remove rocq-prover
+    - name: verify-no-rocq
+      run: |
+        ${{ env.EXEC }} sh -c '\
+          if command -v rocq >/dev/null 2>&1 || command -v coqc >/dev/null 2>&1; then \
+            echo "Rocq is still present, the embed build is not proven Rocq-free" >&2; \
+            exit 1; \
+          fi'
+    - name: tools
+      run: |
+        # node runs the JavaScript builds; js_of_ocaml, melange and ppxlib build them.
+        ${{ env.EXEC }} sudo apt-get update
+        ${{ env.EXEC }} sudo apt-get install -y --no-install-recommends nodejs
+        ${{ env.EXEC }} sudo --preserve-env=OPAMROOT opam install -y js_of_ocaml melange ppxlib
+    - name: verify
+      run: |
+        mkdir -p browser
+        ${{ env.EXEC }} env EMBED_LIMITS=1 EMBED_BROWSER_DIR=$PWD/browser/${{ matrix.target }} \
+          tools/compcert-embed-verify.sh ${{ matrix.target }} out/compcert-export-${{ matrix.target }}.tar.gz out/compcert-embed-${{ matrix.target }}.tar.gz
+    - name: upload-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: compcert-embed-${{ matrix.target }}
+        path: out/compcert-embed-${{ matrix.target }}.tar.gz
+        retention-days: 7
+    # The browser job needs one profile's builds, results and corpus. They are
+    # test inputs, never published.
+    - name: upload-browser-inputs
+      if: matrix.target == 'aarch64'
+      uses: actions/upload-artifact@v7
+      with:
+        name: embed-browser-inputs
+        path: browser/aarch64
+        retention-days: 7
+    - name: verification artifacts
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: embed-${{ matrix.target }}-failure
+        path: |
+          .embed-verify-work/${{ matrix.target }}/out-*
+          .embed-verify-work/${{ matrix.target }}/install.log
+        retention-days: 7
+        if-no-files-found: ignore
+
+  # Real browsers, one profile: both builds in a Worker, byte-identical to
+  # native on a corpus subset, the published limits, and timing.
+  browser:
+    needs: embed
+    runs-on: ubuntu-24.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@v7
+    - name: download-artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: embed-browser-inputs
+        path: inputs
+    - name: setup-node
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+    - name: playwright
+      working-directory: tools/compcert-embed/test/browser
+      run: |
+        npm ci
+        npx playwright install --with-deps chromium firefox webkit
+    - name: bundle
+      run: |
+        # The Melange output is bundled here, without OCaml.
+        npm install --no-save --prefix "$RUNNER_TEMP/esbuild" esbuild@0.25.12
+        PATH="$RUNNER_TEMP/esbuild/node_modules/.bin:$PATH" \
+          tools/compcert-embed/melange/bundle.sh inputs/compcert_melange.min.mjs inputs/melange-out
+    - name: test
+      working-directory: tools/compcert-embed/test/browser
+      run: |
+        node run.mjs --jsoo ../../../../inputs/compcert_jsoo.bc.js --melange ../../../../inputs/compcert_melange.min.mjs \
+          --corpus ../../../../inputs/corpus --expected ../../../../inputs/expected \
+          --corpus-path "$(cat ../../../../inputs/corpus-path.txt)" --gen ../stack/gen.js \
+          --browsers chromium,firefox,webkit --subset 32 --repeats 200 --limits --out ../../../../browser-report.json
+    - name: upload-artifact
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: embed-browser-report
+        path: browser-report.json
+        retention-days: 7
+        if-no-files-found: ignore
+
   index:
-    needs: verify
+    needs: [verify, embed, browser]
     runs-on: ubuntu-24.04
     steps:
     - name: checkout

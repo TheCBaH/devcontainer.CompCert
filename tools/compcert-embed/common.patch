@@ -19,6 +19,13 @@
  (* *********************************************************************)
  (*                                                                     *)
  (*              The Compcert verified compiler                         *)
+--- a/Dwarfgen.ml
++++ b/Dwarfgen.ml
+@@ -1,3 +1,4 @@
++open Embed_dir
+ (* *********************************************************************)
+ (*                                                                     *)
+ (*              The Compcert verified compiler                         *)
 --- a/DwarfPrinter.ml
 +++ b/DwarfPrinter.ml
 @@ -1,3 +1,4 @@

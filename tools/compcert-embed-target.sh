@@ -66,7 +66,7 @@ fi
 # Rocq-extracted list functions, common to all targets, then the extracted
 # code generator of the target's architecture where it needs one.
 arch=$(sed -n 's/^arch=//p' "$export_dir/compcert.ini")
-for p in stack.patch "stack-$arch.patch" hash.patch float.patch "float-$arch.patch"; do
+for p in stack.patch "stack-$arch.patch" hash.patch "hash-$arch.patch" files.patch float.patch "float-$arch.patch"; do
   [ -f "$EMBED_DIR/$p" ] || continue
   cp "$EMBED_DIR/$p" "$stage/patches/$p"
   patch -s --fuzz=0 --no-backup-if-mismatch -p1 -d "$stage/src" < "$stage/patches/$p"
@@ -75,7 +75,7 @@ if [ -n "$(find "$stage" \( -name '*.rej' -o -name '*.orig' \))" ]; then
   find "$stage" \( -name '*.rej' -o -name '*.orig' \) >&2
   Fatal "patch left reject or backup files"
 fi
-injected=(embed_float.ml embed_hash.ml embed_argv.ml embed_asm_out.ml embed_config.ml embed_diag_out.ml embed_source_in.ml)
+injected=(embed_dir.ml embed_float.ml embed_hash.ml embed_argv.ml embed_asm_out.ml embed_config.ml embed_diag_out.ml embed_source_in.ml)
 for f in "${injected[@]}"; do cp "$EMBED_DIR/$f" "$stage/src/$f"; done
 
 # The profile whose configuration the embedded compiler reports: the
@@ -153,7 +153,7 @@ EOT
 cp "$EMBED_DIR"/list/*.ml "$stage/list/"
 sed "s/@PKG@/$pkg/g" "$EMBED_DIR/list/dune.in" > "$stage/list/dune"
 cp "$EMBED_DIR"/jsoo/* "$stage/jsoo/"
-cp -r "$EMBED_DIR/test/." "$stage/test/"
+(cd "$EMBED_DIR/test" && tar -cf - --exclude=node_modules .) | tar -xf - -C "$stage/test"
 cp "$EMBED_DIR/README.md" "$stage/README.md"
 cp "$export_dir/LICENSE" "$stage/LICENSE"
 
@@ -171,7 +171,7 @@ fi
   echo "export-sha256: $export_sha"
   echo "embed-patch: $(sha256sum "$stage/patches/embed.patch" | cut -d' ' -f1)"
   echo "embed-config: $ini"
-  for p in stack.patch "stack-$arch.patch" hash.patch float.patch "float-$arch.patch"; do
+  for p in stack.patch "stack-$arch.patch" hash.patch "hash-$arch.patch" files.patch float.patch "float-$arch.patch"; do
     [ ! -f "$stage/patches/$p" ] || echo "embed-patch: $p $(sha256sum "$stage/patches/$p" | cut -d' ' -f1)"
   done
   echo "menhirlib-vendored: $menhirlib_version"

@@ -93,6 +93,66 @@
  
  type comparison =
  | Eq
+--- a/Debugvar.ml
++++ b/Debugvar.ml
+@@ -362,27 +362,36 @@
+ 
+ (** val transf_code : labelmap -> avail option -> code -> code **)
+ 
+-let rec transf_code lm before = function
+-| [] -> []
+-| i :: c' ->
+-  (match i with
+-   | Lgoto lbl1 ->
+-     (match c' with
+-      | [] ->
+-        let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
+-        i :: (add_delta_ranges before after (transf_code lm after c'))
+-      | i0 :: c'0 ->
+-        (match i0 with
+-         | Llabel lbl2 ->
+-           let after = get_label lbl2 lm in
+-           (Lgoto lbl1) :: ((Llabel
+-           lbl2) :: (add_delta_ranges before after (transf_code lm after c'0)))
+-         | _ ->
+-           let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
+-           i :: (add_delta_ranges before after (transf_code lm after c'))))
+-   | _ ->
+-     let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
+-     i :: (add_delta_ranges before after (transf_code lm after c')))
++let transf_code lm before c =
++  (* A pass over the code, front to back, finds the code that each instruction
++     (or goto and its label) keeps and the availability before and after it;
++     the result is then built from the back, as the recursion this replaces
++     did, without growing the stack with the length of the code. *)
++  let rec forward acc before = function
++  | [] -> acc
++  | i :: c' ->
++    (match i with
++     | Lgoto lbl1 ->
++       (match c' with
++        | [] ->
++          let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
++          forward (([i], before, after) :: acc) after c'
++        | i0 :: c'0 ->
++          (match i0 with
++           | Llabel lbl2 ->
++             let after = get_label lbl2 lm in
++             forward (([Lgoto lbl1; Llabel lbl2], before, after) :: acc) after c'0
++           | _ ->
++             let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
++             forward (([i], before, after) :: acc) after c'))
++     | _ ->
++       let after = skip_debug_setvar lm (snd (transfer lm before i)) c' in
++       forward (([i], before, after) :: acc) after c')
++  in
++  List.fold_left
++    (fun rest (kept, before, after) ->
++      List.rev_append (List.rev kept) (add_delta_ranges before after rest))
++    [] (forward [] before c)
+ 
+ (** val transf_function : coq_function -> coq_function res **)
+ 
 --- a/Dwarfgen.ml
 +++ b/Dwarfgen.ml
 @@ -34,12 +34,13 @@
@@ -134,7 +194,111 @@
  
  let rec mmap2_filter f env l1 l2 =
    match l1,l2 with
-@@ -3304,9 +3305,9 @@
+@@ -1603,6 +1604,13 @@
+           | I.Unsupported -> assert false
+       end
+ 
++(* Where the elaboration of an initializer list goes next: on with the rest of
++   the list, or finished. The steps used to be mutual tail calls, which
++   backends without tail-call elimination (Melange) turn into stack. *)
++type ('e, 'z, 'l, 'r) init_step =
++  | Nxt of 'e * 'z * 'l * bool
++  | Fin of 'r
++
+ (* Elaboration of an initialization expression.  Return the corresponding
+    initializer. *)
+ 
+@@ -1613,10 +1621,15 @@
+    beginning of a braced initializer.  Returns the final initializer. *)
+ 
+ let rec elab_list env zi il first =
++  match elab_step env zi il first with
++  | Fin r -> r
++  | Nxt (env, zi, il, first) -> elab_list env zi il first
++
++and elab_step env zi il first =
+   match il with
+   | [] ->
+       (* All initialization items consumed. *)
+-      (I.to_init zi, env)
++      Fin (I.to_init zi, env)
+   | (desig, item) :: il' ->
+       if desig = [] then begin
+         match (if first then I.first env zi else I.next zi)
+@@ -1624,7 +1637,7 @@
+         | I.NotFound ->
+             warning loc Unnamed "excess elements in initializer for %s"
+                         (I.name zi);
+-            (I.to_init zi, env)
++            Fin (I.to_init zi, env)
+         | I.OK zi' ->
+             elab_item env zi' item il'
+         | I.Unsupported ->
+@@ -1650,17 +1663,17 @@
+       | CStr s, TInt((IChar | ISChar | IUChar), _) ->
+           if not (I.index_below (Int64.of_int(String.length s - 1)) sz) then
+             warning loc Unnamed "initializer string for array of chars %s is too long" (I.name zi);
+-          elab_list env (I.set zi (init_char_array_string sz s)) il false
++          Nxt (env, I.set zi (init_char_array_string sz s), il, false)
+       | CStr _, _ ->
+           error loc "initialization of an array of non-char elements with a string literal";
+-          elab_list env zi il false
++          Nxt (env, zi, il, false)
+       | CWStr(s, ik), TInt(_, _) when compatible_types AttrIgnoreTop env ty_elt (TInt(ik, [])) ->
+           if not (I.index_below (Int64.of_int(List.length s - 1)) sz) then
+             warning loc Unnamed "initializer string for array of wide chars %s is too long" (I.name zi);
+-          elab_list env (I.set zi (init_int_array_wstring sz s)) il false
++          Nxt (env, I.set zi (init_int_array_wstring sz s), il, false)
+       | CWStr _, _ ->
+           error loc "type mismatch between array destination and wide string literal";
+-          elab_list env zi il false
++          Nxt (env, zi, il, false)
+       | _ -> assert false
+       end
+   (* Brace-enclosed compound initializer *)
+@@ -1668,14 +1681,14 @@
+       (* Process the brace-enclosed stuff, obtaining its initializer *)
+       let (ini', env') = elab_list env (I.top env (I.name zi) ty) il' true in
+       (* Initialize current subobject with this state, and continue *)
+-      elab_list env' (I.set zi ini') il false
++      Nxt (env', I.set zi ini', il, false)
+   (* Single expression *)
+   | SINGLE_INIT a, _ ->
+       let (a', env') = !elab_expr_f loc env a in
+       elab_single env' zi a' il
+   (* No initializer: can this happen? *)
+   | NO_INIT, _ ->
+-      elab_list env zi il false
++      Nxt (env, zi, il, false)
+ 
+ (* Perform initialization by a single expression [a] for the current
+    subobject of state [zi],  Continue initializing with the list [il']. *)
+@@ -1686,11 +1699,11 @@
+   | TInt _ | TEnum _ | TFloat _ | TPtr _ ->
+       (* This is a scalar: do direct initialization and continue *)
+       check_init_type loc env a ty;
+-      elab_list env (I.set zi (Init_single a)) il false
++      Nxt (env, I.set zi (Init_single a), il, false)
+   | TStruct _ | TUnion _ when compatible_types AttrIgnoreTop env ty a.etyp ->
+       (* This is a composite that can be initialized directly
+          from the expression: do as above *)
+-      elab_list env (I.set zi (Init_single a)) il false
++      Nxt (env, I.set zi (Init_single a), il, false)
+   | TStruct _ | TUnion _ | TArray _ ->
+       (* This is an aggregate.
+          At top, explicit { } are required. *)
+@@ -1723,7 +1736,9 @@
+   raise Exit
+ end;
+ try
+-  elab_item env (I.top env root ty_root) ie []
++  (match elab_item env (I.top env root ty_root) ie [] with
++   | Fin r -> r
++   | Nxt (env, zi, il, first) -> elab_list env zi il first)
+ with No_default_init ->
+   error loc "variable has incomplete type %a" (print_typ env) ty_root;
+   raise Exit
+@@ -3304,9 +3319,9 @@
    { sdesc = Sblock b'; sloc = elab_loc loc },env
  
  and elab_block_body env ctx sl =
@@ -146,7 +310,7 @@
    | DEFINITION def :: sl1 ->
        let (dcl, env') =
          elab_definition false true ctx.ctx_nonstatic_inline env def in
-@@ -3314,12 +3315,11 @@
+@@ -3314,12 +3329,11 @@
        let dcl = List.map (fun ((sto,id,ty,_) as d) ->
          Debug.insert_local_declaration sto id ty loc;
          {sdesc = Sdecl d; sloc = loc}) dcl in
@@ -185,6 +349,134 @@
 +     | OK x -> go (x :: acc) tl
 +     | Error msg0 -> Error msg0)
 +  in go [] l
+--- a/Linearizeaux.ml
++++ b/Linearizeaux.ml
+@@ -36,69 +36,76 @@
+ let join_points f =
+   let reached = ref IntSet.empty in
+   let reached_twice = ref IntSet.empty in
+-  let rec traverse pc =
+-    let npc = P.to_int pc in
+-    if IntSet.mem npc !reached then begin
+-      if not (IntSet.mem npc !reached_twice) then
+-        reached_twice := IntSet.add npc !reached_twice
+-    end else begin
+-      reached := IntSet.add npc !reached;
+-      match PTree.get pc f.fn_code with
+-      | None -> ()
+-      | Some b -> traverse_succs (successors_block b)
+-    end
+-  and traverse_succs = function
++  (* depth-first, in the same order as the recursion this replaces; the nodes
++     still to visit are kept on a list instead of the call stack *)
++  let rec visit = function
+     | [] -> ()
+-    | [pc] -> traverse pc
+-    | pc :: l -> traverse pc; traverse_succs l
+-  in traverse f.fn_entrypoint; !reached_twice
++    | pc :: pending ->
++        let npc = P.to_int pc in
++        if IntSet.mem npc !reached then begin
++          if not (IntSet.mem npc !reached_twice) then
++            reached_twice := IntSet.add npc !reached_twice;
++          visit pending
++        end else begin
++          reached := IntSet.add npc !reached;
++          match PTree.get pc f.fn_code with
++          | None -> visit pending
++          | Some b -> visit (successors_block b @ pending)
++        end
++  in visit [f.fn_entrypoint]; !reached_twice
+ 
+ (* Cut into reachable basic blocks, annotated with the min value of the PC *)
+ 
+ let basic_blocks f joins =
+   let blocks = ref [] in
+   let visited = ref IntSet.empty in
+-  (* start_block:
+-       pc is the function entry point
+-          or a join point
+-          or the successor of a conditional test *)
+-  let rec start_block pc =
+-    let npc = P.to_int pc in
+-    if not (IntSet.mem npc !visited) then begin
+-      visited := IntSet.add npc !visited;
+-      in_block [] max_int pc
+-    end
++  (* Points where a block may start, still to process, the next one first.
++     The depth-first order of the recursion this replaces is kept: what a
++     start discovers goes in front of what was already waiting. *)
++  let pending = ref [f.fn_entrypoint] in
++  (* end_block: record block that we just discovered *)
++  let end_block blk minpc =
++    blocks := (minpc, List.rev blk) :: !blocks in
++  (* the instruction that ends or branches out of a block of instructions *)
++  let rec last_instr = function
++    | [] -> assert false
++    | ((Lbranch _ | Ltailcall _ | Lcond _ | Ljumptable _ | Lreturn) as i) :: _ -> i
++    | _ :: b' -> last_instr b' in
+   (* in_block: add pc to block and check successors *)
+-  and in_block blk minpc pc =
++  let rec in_block blk minpc pc =
+     let npc = P.to_int pc in
+     let blk = pc :: blk in
+     let minpc = min npc minpc in
+     match PTree.get pc f.fn_code with
+     | None -> assert false
+     | Some b ->
+-       let rec do_instr_list = function
+-       | [] -> assert false
+-       | Lbranch s :: _ -> next_in_block blk minpc s
+-       | Ltailcall (sig0, ros) :: _ -> end_block blk minpc
+-       | Lcond (cond, args, ifso, ifnot) :: _ ->
+-             end_block blk minpc; start_block ifso; start_block ifnot
+-       | Ljumptable(arg, tbl) :: _ ->
+-             end_block blk minpc; List.iter start_block tbl
+-       | Lreturn :: _ -> end_block blk minpc
+-       | instr :: b' -> do_instr_list b' in
+-       do_instr_list b
+-  (* next_in_block: check if join point and either extend block
+-     or start block *)
+-  and next_in_block blk minpc pc =
+-    let npc = P.to_int pc in
+-    if IntSet.mem npc joins
+-    then (end_block blk minpc; start_block pc)
+-    else in_block blk minpc pc
+-  (* end_block: record block that we just discovered *)
+-  and end_block blk minpc =
+-    blocks := (minpc, List.rev blk) :: !blocks
+-  in
+-    start_block f.fn_entrypoint; !blocks
++       begin match last_instr b with
++       | Lbranch s ->
++           (* a join point starts a block; any other node extends this one *)
++           if IntSet.mem (P.to_int s) joins
++           then (end_block blk minpc; pending := s :: !pending)
++           else in_block blk minpc s
++       | Lcond (cond, args, ifso, ifnot) ->
++           end_block blk minpc; pending := ifso :: ifnot :: !pending
++       | Ljumptable(arg, tbl) ->
++           end_block blk minpc; pending := tbl @ !pending
++       | _ -> end_block blk minpc
++       end in
++  (* start_block: pc is the function entry point
++          or a join point
++          or the successor of a conditional test *)
++  let rec run () =
++    match !pending with
++    | [] -> ()
++    | pc :: rest ->
++        pending := rest;
++        let npc = P.to_int pc in
++        if not (IntSet.mem npc !visited) then begin
++          visited := IntSet.add npc !visited;
++          in_block [] max_int pc
++        end;
++        run ()
++  in run (); !blocks
+ 
+ (* Flatten basic blocks in decreasing order of minpc *)
+ 
 --- a/List0.ml
 +++ b/List0.ml
 @@ -30,16 +30,20 @@

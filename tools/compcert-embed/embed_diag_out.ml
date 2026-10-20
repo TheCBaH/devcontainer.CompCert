@@ -9,6 +9,14 @@
 
 type out_channel = Buffer.t
 
+(* Diagnostics colors its messages when stderr is a terminal; the text it
+   produces here goes to the caller, never to a terminal. *)
+module Unix = struct
+  include Unix
+
+  let isatty (_ : file_descr) = false
+end
+
 let stderr = Buffer.create 256
 
 module Printf = struct

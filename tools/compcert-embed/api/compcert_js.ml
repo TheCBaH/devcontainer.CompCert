@@ -20,11 +20,12 @@ type options = {
   struct_passing : bool;
   pie : bool;
   debug : bool;
+  dir : string;
   extra : string list;
 }
 
 let default_options =
-  { name = "input.c"; opt_level = O2; struct_passing = true; pie = false; debug = false; extra = [] }
+  { name = "input.c"; opt_level = O2; struct_passing = true; pie = false; debug = false; dir = "/"; extra = [] }
 
 type error =
   | Diagnostics of string
@@ -164,6 +165,7 @@ let compile_ex o source =
       CC.Frontend.init ();
       CC.DebugInit.init ();
       CC.Embed_argv.Commandline.argv.(2) <- name;
+      CC.Embed_dir.dir := o.dir;
       Hashtbl.replace CC.Embed_source_in.files name source;
       let compile () =
         let csyntax = CC.Frontend.parse_c_file name name in

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Write SHA256SUMS and artifacts.json for a directory holding the
-# compcert-export-<t>.tar.gz and compcert-asm-<t>.tar.gz of every target.
+# compcert-export-<t>.tar.gz, compcert-asm-<t>.tar.gz and compcert-embed-<t>.tar.gz
+# of every target.
 #
 # artifacts.json is what a consumer checks against its own target config:
 # per target, the configure target and tool prefix the tarballs were built for.
@@ -21,7 +22,7 @@ cd "$dir"
 
 files=()
 for t in "${COMPCERT_TARGETS[@]}"; do
-  for f in "compcert-export-$t.tar.gz" "compcert-asm-$t.tar.gz"; do
+  for f in "compcert-export-$t.tar.gz" "compcert-asm-$t.tar.gz" "compcert-embed-$t.tar.gz"; do
     [ -f "$f" ] || Fatal "missing $dir/$f"
     files+=("$f")
   done
@@ -37,13 +38,19 @@ targets='{}'
 for t in "${COMPCERT_TARGETS[@]}"; do
   target_config "$t"
   [ "$(manifest_field "$t" compcert-revision)" = "$revision" ] || Fatal "$t was built from another CompCert revision"
+  # The embed package records the export package it was built from.
+  [ "$(tar -xOzf "compcert-embed-$t.tar.gz" ./MANIFEST | sed -n 's/^export-sha256: //p')" = "$(sha256sum "compcert-export-$t.tar.gz" | cut -d' ' -f1)" ] ||
+    Fatal "compcert-embed-$t.tar.gz was not built from compcert-export-$t.tar.gz"
   targets=$(jq -n --argjson acc "$targets" --arg t "$t" \
     --arg configure "$CONFIGURE_TARGET" --arg toolprefix "$TOOLPREFIX" --arg profile "$TARGET_PROFILE" \
     --arg export "compcert-export-$t.tar.gz" --arg asm "compcert-asm-$t.tar.gz" \
+    --arg embed "compcert-embed-$t.tar.gz" \
     --arg export_sha "$(sha256sum "compcert-export-$t.tar.gz" | cut -d' ' -f1)" \
     --arg asm_sha "$(sha256sum "compcert-asm-$t.tar.gz" | cut -d' ' -f1)" \
+    --arg embed_sha "$(sha256sum "compcert-embed-$t.tar.gz" | cut -d' ' -f1)" \
     '$acc + {($t): {configure_target: $configure, toolprefix: $toolprefix, profile: $profile,
-      export: {file: $export, sha256: $export_sha}, asm: {file: $asm, sha256: $asm_sha}}}')
+      export: {file: $export, sha256: $export_sha}, asm: {file: $asm, sha256: $asm_sha},
+      embed: {file: $embed, sha256: $embed_sha}}}')
 done
 
 jq -n --arg tag "$tag" --arg version "$version" --arg revision "$revision" \

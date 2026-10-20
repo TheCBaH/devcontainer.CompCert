@@ -40,6 +40,14 @@ prerelease) publishes, for each target `x86_32`, `x86_64`, `arm`, `aarch64`,
   `install.sh`. Building it needs OCaml, dune and Menhir, and no Rocq.
 * `compcert-asm-<target>.tar.gz` - the assembly `ccomp` emits for CompCert's own
   test programs, with their sources and a `manifest.txt` of hashes.
+* `compcert-embed-<target>.tar.gz` - the same compiler as an embeddable
+  library, as sources: preprocessed C in, assembly or diagnostics out, with no
+  file system or subprocess. It is a dune project (`dune build` needs only
+  OCaml, dune and Menhir) with a backend-neutral API and bindings for
+  js_of_ocaml and Melange, so it runs in Node and in a browser Worker. Its
+  output is byte-identical to `ccomp -S` (apart from the first two header
+  lines). Its `README.md` lists the API, the input limits that follow from a
+  JavaScript stack, and every change made to CompCert's code.
 
 plus `SHA256SUMS` and `artifacts.json` (CompCert revision, targets, versions).
 Consumers pin the tag and every hash and verify them before use. Starting from a
@@ -52,6 +60,9 @@ tar xzf compcert-export-aarch64.tar.gz -C export && export/install.sh "$PWD/inst
 [TheCBaH/rivet-compcert](https://github.com/TheCBaH/rivet-compcert) is the
 consumer: it pins these artifacts in `compcert.lock` and uses them to test the
 [rivet](https://github.com/TheCBaH/rivet) assembler against CompCert's output.
+It still carries its own copy of the embed patch and API (`embed/patch`,
+`embed/shim`); the `compcert-embed-<target>` assets here are the maintained
+source of those, and that copy should move to consuming them.
 
 ### Verification
 `.github/workflows/artifacts.yml` runs per target, independent of any assembler:
@@ -59,8 +70,19 @@ extract (the only job with Rocq), then, in a job without Rocq, build the export,
 check `ccomp -version`, build the runtime, compile and run every `test/c`
 program under QEMU against CompCert's expected results, generate the assembly
 corpus, run the cross GNU `as` over it, and publish. `release.yml` reuses it on
-`v*` tags and uploads the 18 assets. `pre-split` tags the tree from before the
+`v*` tags and uploads the 26 assets. `pre-split` tags the tree from before the
 assembler moved out.
+
+The embed packages are verified in their own job, also without Rocq: built from
+the export package (twice, to the same bytes), compared file by file with
+`ccomp -S` in any order within one process, then run as js_of_ocaml and as
+Melange under Node at V8's default stack (byte-identical again), and their
+assembly is run under QEMU. One job runs both builds in Chromium, Firefox
+and WebKit Workers. `tools/compcert-embed-verify.sh <target>` runs the same steps locally.
+The JavaScript builds were checked with OCaml 4.14.3 (js_of_ocaml 6.4.1, Melange
+5.1.0-414, ppxlib 0.35) and OCaml 5.4.1 (Melange 7.0.1-54, ppxlib 0.38), Node 22
+to 24, Chromium 141, Firefox 142 and WebKit 26; the tarball ships sources only, so they are
+built by whoever consumes it.
 
 The F-only archives select `rv32imf_zicsr`/ILP32F and
 `rv64imf_zicsr`/LP64F. They include runtime sources, a patched nanoprintf header

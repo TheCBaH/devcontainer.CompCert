@@ -23,4 +23,4 @@ exports.shapes = {
   localvars: (n) => `int f(int x) {\n${rep(n, (i) => `  int v${i} = x + ${i};\n`)}  return v0;\n}\n`,
 };
 
-if (require.main === module) process.stdout.write(exports.shapes[process.argv[2]](+process.argv[3]));
+if (typeof require !== "undefined" && require.main === module) process.stdout.write(exports.shapes[process.argv[2]](+process.argv[3]));
