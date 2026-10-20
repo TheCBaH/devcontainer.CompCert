@@ -1,0 +1,13 @@
+(copy_files ../../api/compcert_js.ml)
+
+(library
+ (name compcert_js_mel)
+ (modes melange)
+ (wrapped false)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (libraries @PKG@_mel)
+ (preprocess
+  (pps compcert_evalorder))
+ (flags
+  (:standard -w -a)))

@@ -1,0 +1,15 @@
+; Str and Unix for Melange: pure OCaml, with the names the sources use.
+(copy_files ../../shims/str/*.ml)
+
+(copy_files ../../shims/str/*.mli)
+
+(copy_files ../../shims/unix/*.ml)
+
+(library
+ (name compcert_shims_mel)
+ (modes melange)
+ (wrapped false)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (flags
+  (:standard -w -a)))

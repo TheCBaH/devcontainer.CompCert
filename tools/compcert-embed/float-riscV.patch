@@ -1,0 +1,20 @@
+--- a/TargetPrinter.ml
++++ b/TargetPrinter.ml
+@@ -513,13 +513,13 @@
+       | Ploadfi(rd, f) ->
+          let d   = camlint64_of_coqint(Floats.Float.to_bits f) in
+          let lbl = label_literal64 d in
+-         fprintf oc "	fld	%a, %a, x31 %s %.18g\n"
+-                    freg rd label lbl comment (camlfloat_of_coqfloat f)
++         fprintf oc "	fld	%a, %a, x31 %s %s\n"
++                    freg rd label lbl comment (Embed_float.g 18 (camlfloat_of_coqfloat f))
+       | Ploadsi(rd, f) ->
+          let s   = camlint_of_coqint(Floats.Float32.to_bits f) in
+          let lbl = label_literal32 s in
+-         fprintf oc "	flw	%a, %a, x31 %s %.18g\n"
+-                    freg rd label lbl comment (camlfloat_of_coqfloat32 f)
++         fprintf oc "	flw	%a, %a, x31 %s %s\n"
++                    freg rd label lbl comment (Embed_float.g 18 (camlfloat_of_coqfloat32 f))
+       | Pbtbl(r, tbl) ->
+          let lbl = new_label() in
+          fprintf oc "%s jumptable [ " comment;

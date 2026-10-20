@@ -1,0 +1,26 @@
+--- a/TargetPrinter.ml
++++ b/TargetPrinter.ml
+@@ -487,9 +487,9 @@
+       | Pmovsd_fi(rd, n) ->
+           let b = camlint64_of_coqint (Floats.Float.to_bits n) in
+           let lbl = label_literal64 b in
+-          fprintf oc "	movsd	%a%s, %a %s %.18g\n"
++          fprintf oc "	movsd	%a%s, %a %s %s\n"
+                      label lbl rip_rel
+-                     freg rd comment (camlfloat_of_coqfloat n)
++                     freg rd comment (Embed_float.g 18 (camlfloat_of_coqfloat n))
+       | Pmovsd_fm(rd, a) | Pmovsd_fm_a(rd, a) ->
+           fprintf oc "	movsd	%a, %a\n" addressing a freg rd
+       | Pmovsd_mf(a, r1) | Pmovsd_mf_a(a, r1) ->
+@@ -497,9 +497,9 @@
+       | Pmovss_fi(rd, n) ->
+           let b = camlint_of_coqint (Floats.Float32.to_bits n) in
+           let lbl = label_literal32 b in
+-          fprintf oc "	movss	%a%s, %a %s %.18g\n"
++          fprintf oc "	movss	%a%s, %a %s %s\n"
+                      label lbl rip_rel
+-                     freg rd comment (camlfloat_of_coqfloat32 n)
++                     freg rd comment (Embed_float.g 18 (camlfloat_of_coqfloat32 n))
+       | Pmovss_fm(rd, a) ->
+           fprintf oc "	movss	%a, %a\n" addressing a freg rd
+       | Pmovss_mf(a, r1) ->

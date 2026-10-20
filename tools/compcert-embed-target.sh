@@ -57,7 +57,7 @@ done
 echo "== [$target] copying and patching sources =="
 cp "$export_dir"/src/* "$stage/src/"
 cp "$EMBED_DIR/common.patch" "$stage/patches/embed.patch"
-patch -s --fuzz=0 -p1 -d "$stage/src" < "$stage/patches/embed.patch"
+patch -s --fuzz=0 --no-backup-if-mismatch -p1 -d "$stage/src" < "$stage/patches/embed.patch"
 if [ -n "$(find "$stage" \( -name '*.rej' -o -name '*.orig' \))" ]; then
   find "$stage" \( -name '*.rej' -o -name '*.orig' \) >&2
   Fatal "patch left reject or backup files"
@@ -66,16 +66,16 @@ fi
 # Rocq-extracted list functions, common to all targets, then the extracted
 # code generator of the target's architecture where it needs one.
 arch=$(sed -n 's/^arch=//p' "$export_dir/compcert.ini")
-for p in stack.patch "stack-$arch.patch"; do
+for p in stack.patch "stack-$arch.patch" hash.patch float.patch "float-$arch.patch"; do
   [ -f "$EMBED_DIR/$p" ] || continue
   cp "$EMBED_DIR/$p" "$stage/patches/$p"
-  patch -s --fuzz=0 -p1 -d "$stage/src" < "$stage/patches/$p"
+  patch -s --fuzz=0 --no-backup-if-mismatch -p1 -d "$stage/src" < "$stage/patches/$p"
 done
 if [ -n "$(find "$stage" \( -name '*.rej' -o -name '*.orig' \))" ]; then
   find "$stage" \( -name '*.rej' -o -name '*.orig' \) >&2
   Fatal "patch left reject or backup files"
 fi
-injected=(embed_argv.ml embed_asm_out.ml embed_config.ml embed_diag_out.ml embed_source_in.ml)
+injected=(embed_float.ml embed_hash.ml embed_argv.ml embed_asm_out.ml embed_config.ml embed_diag_out.ml embed_source_in.ml)
 for f in "${injected[@]}"; do cp "$EMBED_DIR/$f" "$stage/src/$f"; done
 
 # The profile whose configuration the embedded compiler reports: the
@@ -95,7 +95,8 @@ done
 
 version=$(sed -n 's/^compcert-version: //p' "$export_dir/MANIFEST")
 cat > "$stage/dune-project" <<EOT
-(lang dune 3.0)
+(lang dune 3.15)
+(using melange 0.1)
 (name $pkg)
 EOT
 cat > "$stage/src/dune" <<EOT
@@ -112,8 +113,44 @@ mkdir -p "$stage/api"
 cp "$EMBED_DIR/api/compcert_js.ml" "$stage/api/"
 sed "s/@PKG@/$pkg/g" "$EMBED_DIR/api/dune.in" > "$stage/api/dune"
 printf 'module CC = %s\nmodule Tr_list = %s_list.Embed_list\n' "$Pkg" "$Pkg" > "$stage/api/embed_cc.ml"
-mkdir -p "$stage/list" "$stage/jsoo" "$stage/test"
-cp "$EMBED_DIR/list/embed_list.ml" "$stage/list/"
+mkdir -p "$stage/list" "$stage/jsoo" "$stage/test" "$stage/shims" "$stage/vendor/menhirLib"
+cp -r "$EMBED_DIR/shims/." "$stage/shims/"
+for d in lib list api evalorder; do
+  mkdir -p "$stage/melange/$d"
+  sed -e "s/@PKG@/$pkg/g" -e "s/@MLI_ONLY@/$mli_only/" "$EMBED_DIR/melange/$d/dune.in" > "$stage/melange/$d/dune"
+done
+cp "$EMBED_DIR/melange/lib/menhirLib.ml" "$stage/melange/lib/"
+cp "$EMBED_DIR/melange/evalorder/evalorder_ppx.ml" "$stage/melange/evalorder/"
+printf 'module CC = %s_mel\n' "$Pkg" > "$stage/melange/api/embed_cc.ml"
+cp -r "$EMBED_DIR/melange/shims" "$EMBED_DIR/melange/bind" "$stage/melange/"
+cp "$EMBED_DIR/melange/README.md" "$stage/melange/"
+install -m 0755 "$EMBED_DIR/melange/bundle.sh" "$stage/melange/"
+
+# menhirLib for the Melange build only (the opam one has no Melange mode): the
+# sources of the version that generated the parser, which must be the version
+# installed now and the one in the export package.
+menhirlib_dir=$(Opam ocamlfind query menhirLib)
+menhirlib_version=$(sed -n 's/^let require_\([0-9]*\) = ()$/\1/p' "$menhirlib_dir/StaticVersion.ml")
+generator=$(sed -n 's/^menhir: .*version \([0-9]*\).*$/\1/p' "$export_dir/MANIFEST")
+[ -n "$menhirlib_version" ] && [ "$menhirlib_version" = "$generator" ] ||
+  Fatal "menhirLib $menhirlib_version does not match the menhir ($generator) that generated the parser"
+[ "$(Opam ocamlfind query -format %v menhirLib)" = "$menhirlib_version" ] ||
+  Fatal "menhirLib package version differs from its StaticVersion"
+for f in "$menhirlib_dir"/*.ml "$menhirlib_dir"/*.mli; do
+  [ "$(basename "$f")" = menhirLib.ml ] || cp "$f" "$stage/vendor/menhirLib/"
+done
+cp "$(dirname "$menhirlib_dir")/../doc/menhirLib/LICENSE" "$stage/vendor/menhirLib/LICENSE"
+cat > "$stage/vendor/menhirLib/dune" <<'EOT'
+; menhirLib for Melange (see melange/README.md); native and js_of_ocaml builds use opam's.
+(library
+ (name menhirlib_mel)
+ (modes melange)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (flags
+  (:standard -w -a)))
+EOT
+cp "$EMBED_DIR"/list/*.ml "$stage/list/"
 sed "s/@PKG@/$pkg/g" "$EMBED_DIR/list/dune.in" > "$stage/list/dune"
 cp "$EMBED_DIR"/jsoo/* "$stage/jsoo/"
 cp -r "$EMBED_DIR/test/." "$stage/test/"
@@ -134,10 +171,13 @@ fi
   echo "export-sha256: $export_sha"
   echo "embed-patch: $(sha256sum "$stage/patches/embed.patch" | cut -d' ' -f1)"
   echo "embed-config: $ini"
-  for p in stack.patch "stack-$arch.patch"; do
+  for p in stack.patch "stack-$arch.patch" hash.patch float.patch "float-$arch.patch"; do
     [ ! -f "$stage/patches/$p" ] || echo "embed-patch: $p $(sha256sum "$stage/patches/$p" | cut -d' ' -f1)"
   done
-  echo "embed-list: embed_list.ml $(sha256sum "$stage/list/embed_list.ml" | cut -d' ' -f1)"
+  echo "menhirlib-vendored: $menhirlib_version"
+  for f in embed_list.ml native_hash.ml; do
+    echo "embed-list: $f $(sha256sum "$stage/list/$f" | cut -d' ' -f1)"
+  done
   for f in "${injected[@]}"; do
     echo "embed-module: $f $(sha256sum "$stage/src/$f" | cut -d' ' -f1)"
   done

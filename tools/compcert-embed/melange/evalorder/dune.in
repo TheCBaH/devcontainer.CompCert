@@ -1,0 +1,8 @@
+(library
+ (name compcert_evalorder)
+ (kind ppx_rewriter)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (libraries ppxlib)
+ (flags
+  (:standard -w -a)))

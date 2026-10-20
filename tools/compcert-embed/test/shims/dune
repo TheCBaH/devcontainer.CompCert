@@ -1,0 +1,11 @@
+(copy_files# ../../shims/str/str_impl.ml)
+
+(test
+ (name str_props)
+ (modules str_impl str_props)
+ (flags (:standard -w -a))
+ (libraries str)
+ (deps
+  (source_tree ../../src))
+ (action
+  (run %{test} ../../src)))

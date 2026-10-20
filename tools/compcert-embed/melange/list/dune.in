@@ -1,0 +1,10 @@
+(copy_files ../../list/*.ml)
+
+(library
+ (name @PKG@_list_mel)
+ (modes melange)
+ (wrapped false)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (flags
+  (:standard -w -a)))

@@ -1,0 +1,16 @@
+; The extracted CompCert, compiled by Melange from the same sources as src/.
+(copy_files ../../src/*.ml)
+
+(copy_files ../../src/*.mli)
+
+(library
+ (name @PKG@_mel)
+ (modes melange)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (libraries compcert_shims_mel menhirlib_mel @PKG@_list_mel)
+ (modules_without_implementation@MLI_ONLY@)
+ (preprocess
+  (pps compcert_evalorder))
+ (flags
+  (:standard -w -a -open Embed_list)))

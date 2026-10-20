@@ -7,19 +7,28 @@
 const fs = require("fs");
 const path = require("path");
 const bundle = path.resolve(process.env.CC_BUNDLE || "compcert_jsoo.bc.js");
-require(bundle);
-const CompCert = globalThis.CompCert || module.exports.CompCert || require(bundle).CompCert;
 const file = process.argv[2];
-const source = fs.readFileSync(file, "utf8");
-const r = CompCert.compile(source, { name: file, opt: process.env.CC_OPT || "O2" });
-if (r.ok) {
-  if (r.diagnostics) fs.writeSync(2, r.diagnostics);
-  fs.writeSync(1, r.asm);
-  process.exit(0);
+
+async function load() {
+  // A .mjs bundle is an ES module; the others are scripts.
+  const mod = bundle.endsWith(".mjs") ? await import(require("url").pathToFileURL(bundle).href) : require(bundle);
+  return globalThis.CompCert || mod.CompCert || mod; // jsoo exports CompCert; Melange exports compile directly
 }
-if (r.kind === "diagnostics") {
-  fs.writeSync(2, r.message);
-  process.exit(1);
+
+load().then(main);
+
+function main(CompCert) {
+  const source = fs.readFileSync(file, "utf8");
+  const r = CompCert.compile(source, { name: file, opt: process.env.CC_OPT || "O2" });
+  if (r.ok) {
+    if (r.diagnostics) fs.writeSync(2, r.diagnostics);
+    fs.writeSync(1, r.asm);
+    process.exit(0);
+  }
+  if (r.kind === "diagnostics") {
+    fs.writeSync(2, r.message);
+    process.exit(1);
+  }
+  fs.writeSync(2, `error (${r.kind}): ${r.message}\n`);
+  process.exit(3);
 }
-fs.writeSync(2, `error (${r.kind}): ${r.message}\n`);
-process.exit(3);

@@ -5,6 +5,8 @@
    raise the same exceptions, in constant stack. Everything else in [List] is
    the stdlib's. *)
 
+module Native_hash = Native_hash
+
 let ( @ ) a b = List.rev_append (List.rev a) b
 
 module List = struct

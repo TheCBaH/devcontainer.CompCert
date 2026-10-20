@@ -147,7 +147,7 @@ let too_deep_message = "stack exhausted while compiling; the input is nested or 
    [Stack_overflow]; the JavaScript backends add their own forms, which the
    bindings recognise through [overflow_hooks]. *)
 let overflow_hooks : (exn -> bool) list ref = ref []
-let is_overflow e = e = Stack_overflow || List.exists (fun p -> p e) !overflow_hooks
+let is_overflow e = (match e with Stack_overflow -> true | _ -> false) || List.exists (fun p -> p e) !overflow_hooks
 
 let compile_ex o source =
   let name = o.name in

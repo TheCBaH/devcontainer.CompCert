@@ -1,0 +1,124 @@
+--- a/C2C.ml
++++ b/C2C.ml
+@@ -617,14 +617,14 @@
+   then gensym_string_literal ()
+   else name
+ 
+-let stringTable : (string, AST.ident) Hashtbl.t = Hashtbl.create 47
+-let wstringTable : (int64 list * ikind, AST.ident) Hashtbl.t = Hashtbl.create 47
++let stringTable : AST.ident Embed_hash.StringTbl.t = Embed_hash.StringTbl.create 47
++let wstringTable : AST.ident Embed_hash.WideStringTbl.t = Embed_hash.WideStringTbl.create 47
+ 
+ let is_C_string s = not (String.contains s '\000')
+ 
+ let name_for_string_literal s =
+   try
+-    Hashtbl.find stringTable s
++    Embed_hash.StringTbl.find stringTable s
+   with Not_found ->
+     let name = gensym_string_literal () in
+     let id = intern_string name in
+@@ -639,7 +639,7 @@
+         a_inline = No_specifier;
+         a_literal = String_literal;
+         a_loc = Cutil.no_loc };
+-    Hashtbl.add stringTable s id;
++    Embed_hash.StringTbl.add stringTable s id;
+     id
+ 
+ let typeStringLiteral s =
+@@ -659,7 +659,7 @@
+ 
+ let name_for_wide_string_literal s ik =
+   try
+-    Hashtbl.find wstringTable (s, ik)
++    Embed_hash.WideStringTbl.find wstringTable (s, ik)
+   with Not_found ->
+     let name = gensym_string_literal () in
+     let id = intern_string name in
+@@ -676,7 +676,7 @@
+         a_inline = No_specifier;
+         a_literal = Wide_string_literal;
+         a_loc = Cutil.no_loc };
+-    Hashtbl.add wstringTable (s, ik) id;
++    Embed_hash.WideStringTbl.add wstringTable (s, ik) id;
+     id
+ 
+ let typeWideStringLiteral s ik =
+@@ -699,11 +699,11 @@
+ 
+ let globals_for_strings globs =
+   let globs1 =
+-    Hashtbl.fold
++    Embed_hash.WideStringTbl.fold
+       (fun s id l -> global_for_wide_string s id :: l)
+       wstringTable globs in
+   let globs2 =
+-    Hashtbl.fold
++    Embed_hash.StringTbl.fold
+       (fun s id l -> global_for_string s id :: l)
+       stringTable globs1 in
+   globs2
+@@ -1857,8 +1857,8 @@
+     fp32_fail "-ffp32-approx-double requires the fp32 call profile";
+   stringNum := 0;
+   Hashtbl.clear decl_atom;
+-  Hashtbl.clear stringTable;
+-  Hashtbl.clear wstringTable;
++  Embed_hash.StringTbl.clear stringTable;
++  Embed_hash.WideStringTbl.clear wstringTable;
+   let p = cleanupGlobals (Env.initial_declarations() @ p) in
+   try
+     let env = translEnv Env.empty p in
+--- a/IRC.ml
++++ b/IRC.ml
+@@ -203,7 +203,7 @@
+   (* Costs for pseudo-registers *)
+   stats_of_reg: reg -> var_stats;
+   (* Mapping from XTL variables to nodes *)
+-  varTable: (var, node) Hashtbl.t;
++  varTable: node Embed_hash.VarTbl.t;
+   mutable nextIdent: int;
+   (* The adjacency set  *)
+   adjSet: unit IntPairs.t;
+@@ -285,7 +285,7 @@
+     allocatable_registers =
+       int_preferred_regs @ int_remaining_regs @ float_preferred_regs @ float_remaining_regs;
+     stats_of_reg = costs;
+-    varTable = Hashtbl.create 253;
++    varTable = Embed_hash.VarTbl.create 253;
+     nextIdent = 0;
+     adjSet = IntPairs.create 997;
+     simplifyWorklist = DLinkNode.make SimplifyWorklist;
+@@ -336,11 +336,11 @@
+ 
+ let nodeOfVar g v =
+   try
+-    Hashtbl.find g.varTable v
++    Embed_hash.VarTbl.find g.varTable v
+   with Not_found ->
+     let n =
+       match v with V(r, ty) -> newNodeOfReg g r ty | L l -> newNodeOfLoc g l in
+-    Hashtbl.add g.varTable v n;
++    Embed_hash.VarTbl.add g.varTable v n;
+     n
+ 
+ (* Determine if two nodes interfere *)
+@@ -456,7 +456,7 @@
+           DLinkNode.insert n g.simplifyWorklist
+     | Colored -> ()
+     | _ -> assert false in
+-  Hashtbl.iter (fun _ a -> part_node a) g.varTable
++  Embed_hash.VarTbl.iter (fun _ a -> part_node a) g.varTable
+ 
+ (* Check invariants *)
+ 
+@@ -902,7 +902,7 @@
+   | L l -> l
+   | V(r, ty) ->
+       try
+-        let n = Hashtbl.find g.varTable v in
++        let n = Embed_hash.VarTbl.find g.varTable v in
+         let n' = getAlias n in
+         match n'.color with
+         | None -> assert false

@@ -15,6 +15,7 @@ CompCert is not free software (non-commercial use only, see `LICENSE`).
 | `list/` | `Embed_list`: constant-stack versions of the stdlib list functions, opened into every module of `src/` |
 | `api/` | `Compcert_js`, the backend-neutral compile function |
 | `jsoo/` | js_of_ocaml binding, `compcert_jsoo.bc.js`, and `worker.js` |
+| `melange/`, `shims/`, `vendor/menhirLib/` | the Melange build: binding, pure-OCaml `Str` and `Unix`, the menhirLib of the generating menhir |
 | `test/` | native tests, the differential driver, the stack tests |
 | `patches/` | every patch applied to the extracted sources |
 | `MANIFEST` | CompCert revision, tool versions, hash of every file |
@@ -44,6 +45,15 @@ const r = CompCert.compile(source, { name: "gen.c", opt: "O2" });
 
 `kind` is `diagnostics`, `too_deep`, `unsupported`, `internal` or `options`.
 `jsoo/worker.js` wraps the same call for a Web Worker.
+
+Melange (`COMPCERT_MELANGE=true dune build ./melange/bind`, needs dune 3.15 and
+`melange`; `melange/bundle.sh out.mjs` makes one minified ES module with
+esbuild) exports `compile(source, options)`, `version` and `target` with the
+same result objects. It compiles every test program, but does not yet give the
+jsoo build's byte-for-byte output (hash order), and it has lower stack limits,
+listed in `test/stack/limits-melange.txt` (`node test/stack/limits.js --limits
+test/stack/limits-melange.txt`): for example 450 for `a + 1 + 1 + ...`, 870
+nested blocks, and 5,000 statements in one function.
 
 ## Input
 

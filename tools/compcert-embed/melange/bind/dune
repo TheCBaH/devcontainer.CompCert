@@ -1,0 +1,14 @@
+(melange.emit
+ (target out)
+ (alias melange)
+ (enabled_if
+  (= %{env:COMPCERT_MELANGE=false} true))
+ (libraries compcert_js_mel)
+ (modules compcert_melange)
+ (preprocess
+  (pps melange.ppx))
+ (module_systems
+  (es6 mjs)
+  commonjs)
+ (compile_flags
+  (:standard -w -a)))

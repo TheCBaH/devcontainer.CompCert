@@ -1,5 +1,5 @@
 // Check the published input limits (limits.txt) against a bundle:
-//   node limits.js [--stack KB]
+//   node limits.js [--stack KB] [--limits file]   (default file: limits.txt)
 // Environment: CC_BUNDLE as for sweep.js; LIMITS_FULL=1 includes the slow
 // shapes; LIMITS_BEYOND (default 3) is the factor by which each shape is
 // pushed past its limit to check that the build still answers cleanly.
@@ -10,10 +10,12 @@ const { spawnSync } = require("child_process");
 const full = process.env.LIMITS_FULL === "1";
 const si = process.argv.indexOf("--stack");
 const stack = si > 0 ? +process.argv[si + 1] : 984;
+const li = process.argv.indexOf("--limits");
+const limitsFile = li > 0 ? process.argv[li + 1] : path.join(__dirname, "limits.txt");
 const beyond = +(process.env.LIMITS_BEYOND || 3);
 
 let bad = 0;
-for (const line of fs.readFileSync(path.join(__dirname, "limits.txt"), "utf8").split("\n")) {
+for (const line of fs.readFileSync(limitsFile, "utf8").split("\n")) {
   if (!line.trim() || line.startsWith("#")) continue;
   const [shape, n, ...flags] = line.trim().split(/\s+/);
   const slow = flags.includes("slow");

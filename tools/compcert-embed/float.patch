@@ -1,0 +1,34 @@
+--- a/PrintAsm.ml
++++ b/PrintAsm.ml
+@@ -110,14 +110,14 @@
+           let (hi, lo) = splitlong (camlint64_of_coqint n) in
+           fprintf oc "	.long	0x%Lx, 0x%Lx\n" hi lo
+       | Init_float32 n ->
+-          fprintf oc "	.long	0x%lx %s %.18g\n"
++          fprintf oc "	.long	0x%lx %s %s\n"
+             (camlint_of_coqint (Floats.Float32.to_bits n))
+-            Target.comment (camlfloat_of_coqfloat32 n)
++            Target.comment (Embed_float.g 18 (camlfloat_of_coqfloat32 n))
+       | Init_float64 n ->
+           let (hi, lo) =
+             splitlong (camlint64_of_coqint (Floats.Float.to_bits n)) in
+-          fprintf oc "	.long	0x%Lx, 0x%Lx %s %.18g\n" hi lo
+-            Target.comment (camlfloat_of_coqfloat n)
++          fprintf oc "	.long	0x%Lx, 0x%Lx %s %s\n" hi lo
++            Target.comment (Embed_float.g 18 (camlfloat_of_coqfloat n))
+       | Init_space n ->
+           if Z.gt n Z.zero then
+             fprintf oc "	.space	%s\n" (Z.to_string n)
+--- a/PrintAsmaux.ml
++++ b/PrintAsmaux.ml
+@@ -170,8 +170,8 @@
+   | BA x -> preg_string x
+   | BA_int n -> sprintf "%ld" (camlint_of_coqint n)
+   | BA_long n -> sprintf "%Ld" (camlint64_of_coqint n)
+-  | BA_float n -> sprintf "%.18g" (camlfloat_of_coqfloat n)
+-  | BA_single n -> sprintf "%.18g" (camlfloat_of_coqfloat32 n)
++  | BA_float n -> Embed_float.g 18 (camlfloat_of_coqfloat n)
++  | BA_single n -> Embed_float.g 18 (camlfloat_of_coqfloat32 n)
+   | BA_loadstack(chunk, ofs) ->
+       sprintf "mem(%s + %ld, %ld)"
+          sp_reg_name

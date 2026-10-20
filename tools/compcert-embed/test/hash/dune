@@ -1,0 +1,4 @@
+(test
+ (name hash_props)
+ (flags (:standard -w -a))
+ (libraries compcert_js))
